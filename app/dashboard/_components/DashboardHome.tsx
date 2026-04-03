@@ -29,6 +29,15 @@ type PlayerCard = {
   weekly_views: number
 }
 
+type NewJoiner = {
+  id: string
+  full_name: string | null
+  position: string | null
+  club: string | null
+  avatar_url: string
+  created_at: string
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string }> = {
@@ -162,6 +171,103 @@ function PremiumCarousel({ players }: { players: PlayerCard[] }) {
               </p>
             </div>
           </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function NewJoinersCarousel({ players }: { players: NewJoiner[] }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  if (players.length === 0) return null
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: '#2d5fc4', boxShadow: '0 0 6px #2d5fc4' }}
+          />
+          <h2
+            className="text-base font-bold uppercase"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
+          >
+            New to the Platform
+          </h2>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => ref.current?.scrollBy({ left: -200, behavior: 'smooth' })}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => ref.current?.scrollBy({ left: 200, behavior: 'smooth' })}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={ref}
+        className="flex gap-3 overflow-x-auto pb-2"
+        style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
+      >
+        {players.map((p) => (
+          <Link
+            key={p.id}
+            href={`/dashboard/players/${p.id}`}
+            className="flex-shrink-0 rounded-xl overflow-hidden transition-all group"
+            style={{
+              width: 130,
+              scrollSnapAlign: 'start',
+              border: '1px solid #1e2235',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
+          >
+            <div className="relative">
+              <img
+                src={p.avatar_url}
+                alt={p.full_name ?? ''}
+                className="w-full object-cover"
+                style={{ height: 130 }}
+              />
+              <div
+                className="absolute bottom-0 left-0 right-0 px-2 py-1.5"
+                style={{
+                  background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 100%)',
+                }}
+              >
+                <span
+                  className="text-xs font-bold px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: 'rgba(45,95,196,0.3)', color: '#60a5fa', fontSize: 10 }}
+                >
+                  NEW
+                </span>
+              </div>
+            </div>
+            <div className="px-2.5 py-2" style={{ backgroundColor: '#13172a' }}>
+              <p className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>
+                {p.full_name ?? 'Player'}
+              </p>
+              <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>
+                {p.position ?? p.club ?? 'Player'}
+              </p>
+            </div>
+          </Link>
         ))}
       </div>
     </section>
@@ -458,6 +564,7 @@ export default function DashboardHome({
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [leaderboard, setLeaderboard] = useState<PlayerCard[]>([])
   const [premiumPlayers, setPremiumPlayers] = useState<PlayerCard[]>([])
+  const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([])
   const [loadingOpps, setLoadingOpps] = useState(true)
   const [loadingBoard, setLoadingBoard] = useState(true)
 

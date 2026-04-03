@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that are always publicly accessible
-const PUBLIC_ROUTES = ['/', '/claim', '/auth/callback']
+const PUBLIC_ROUTES = ['/', '/claim', '/auth/callback', '/register']
 
 // Routes that require auth but skip the approved/role checks
 // (user is mid-onboarding — authenticated via magic link, setting password)
@@ -102,5 +102,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/claim', '/set-password', '/pending', '/auth/callback', '/dashboard/:path*'],
+  matcher: ['/', '/claim', '/register', '/set-password', '/pending', '/auth/callback', '/dashboard/:path*'],
 }

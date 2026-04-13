@@ -24,12 +24,12 @@ const tabs = [
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
-        <polygon points="12,7 14.5,9.5 13.5,12.5 10.5,12.5 9.5,9.5" />
-        <line x1="12" y1="7" x2="12" y2="2.2" />
-        <line x1="14.5" y1="9.5" x2="19" y2="7.5" />
-        <line x1="13.5" y1="12.5" x2="17" y2="16" />
-        <line x1="10.5" y1="12.5" x2="7" y2="16" />
-        <line x1="9.5" y1="9.5" x2="5" y2="7.5" />
+        <polygon points="12,8.5 15.3,10.9 14.1,14.8 9.9,14.8 8.7,10.9" />
+        <line x1="12" y1="8.5" x2="12" y2="2" />
+        <line x1="15.3" y1="10.9" x2="21.5" y2="8.9" />
+        <line x1="14.1" y1="14.8" x2="17.9" y2="20.1" />
+        <line x1="9.9" y1="14.8" x2="6.1" y2="20.1" />
+        <line x1="8.7" y1="10.9" x2="2.5" y2="8.9" />
       </svg>
     ),
   },

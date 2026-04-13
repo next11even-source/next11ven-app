@@ -137,8 +137,8 @@ function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
         {players.map((p) => (
           <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
             className="flex-shrink-0 rounded-2xl overflow-hidden block"
-            style={{ width: 210, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
-            <div className="relative" style={{ height: 210, backgroundColor: '#1a1f3a' }}>
+            style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
+            <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
               {p.avatar_url ? (
                 <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-top" />
               ) : (
@@ -149,20 +149,19 @@ function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
                   </span>
                 </div>
               )}
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.1) 55%, transparent 100%)' }} />
-              <div className="absolute top-3 right-3">
-                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.9)', color: '#fff' }}>PRO</span>
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+              <div className="absolute top-2 right-2">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 p-3 space-y-1">
-                <p className="text-sm font-bold leading-tight" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                <p className="text-xs" style={{ color: 'rgba(232,222,206,0.6)' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
-                {p.status && (
-                  <span className="text-xs px-2 py-0.5 rounded-full inline-block"
-                    style={{ color: STATUS_COLORS[p.status], backgroundColor: `${STATUS_COLORS[p.status]}25` }}>
-                    {STATUS_LABELS[p.status]}
-                  </span>
-                )}
-              </div>
+            </div>
+            <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+              <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+              <p className="text-xs truncate" style={{ color: '#8892aa' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
+              {p.status && (
+                <p className="text-xs font-semibold" style={{ color: STATUS_COLORS[p.status], fontSize: 10 }}>
+                  {STATUS_LABELS[p.status]}
+                </p>
+              )}
             </div>
           </Link>
         ))}

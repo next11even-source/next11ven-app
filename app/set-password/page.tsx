@@ -54,7 +54,10 @@ export default function SetPasswordPage() {
       return
     }
 
-    router.push(profile.role === 'coach' ? '/dashboard/coach' : '/dashboard/player')
+    const dest = profile.role === 'coach' ? '/dashboard/coach'
+               : profile.role === 'admin'  ? '/dashboard/player'
+               : '/dashboard/player'
+    router.push(dest)
   }
 
   return (

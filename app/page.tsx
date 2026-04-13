@@ -134,16 +134,29 @@ export default function SignInPage() {
           </form>
         </div>
 
-        <div className="text-center">
-          <Link
-            href="/claim"
-            className="text-sm uppercase tracking-wider transition-colors"
-            style={{ color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#e8dece')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#8892aa')}
-          >
-            First time? Claim your account →
-          </Link>
+        <div className="text-center space-y-3">
+          <div>
+            <Link
+              href="/register"
+              className="text-sm uppercase tracking-wider transition-colors"
+              style={{ color: '#2d5fc4' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#3a6fda')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#2d5fc4')}
+            >
+              Create an account →
+            </Link>
+          </div>
+          <div>
+            <Link
+              href="/claim"
+              className="text-sm uppercase tracking-wider transition-colors"
+              style={{ color: '#8892aa' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#e8dece')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8892aa')}
+            >
+              First time? Claim your account →
+            </Link>
+          </div>
         </div>
 
       </div>

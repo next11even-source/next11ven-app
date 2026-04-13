@@ -4,58 +4,73 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
+import Breadcrumb from '@/app/components/Breadcrumb'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Profile = {
   id: string
+  role: string | null
   full_name: string | null
-  position: string | null
-  club: string | null
-  bio: string | null
   avatar_url: string | null
-  status: 'available' | 'open_to_offers' | 'not_available' | null
+  bio: string | null
+  club: string | null
+  city: string | null
+  location: string | null
+  premium: boolean
+  streak_weeks: number
+  streak_last_week: string | null
+  last_active: string | null
+  // Player fields
+  position: string | null
+  status: 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring' | null
   goals: number
   assists: number
   appearances: number
   season: string | null
-  streak_weeks: number
-  streak_last_week: string | null
-  last_active: string | null
   highlight_urls: string[]
-  premium: boolean
+  // Coach fields
+  coaching_role: string | null
+  coaching_level: string | null
+  coaching_history: string | null
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
-  available: 'Available',
-  open_to_offers: 'Open to Offers',
-  not_available: 'Not Available',
+  free_agent:    'Free Agent',
+  signed:        'Signed to a club',
+  loan_dual_reg: 'Looking for Loan / Dual Reg',
+  just_exploring:'Just Exploring',
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  available: '#4ade80',
-  open_to_offers: '#60a5fa',
-  not_available: '#8892aa',
+  free_agent:    '#60a5fa',
+  signed:        '#8892aa',
+  loan_dual_reg: '#a78bfa',
+  just_exploring:'#f59e0b',
 }
 
-const POSITIONS = [
-  'Goalkeeper',
-  'Right Back',
-  'Centre Back',
-  'Left Back',
-  'Defensive Midfielder',
-  'Central Midfielder',
-  'Right Midfielder',
-  'Left Midfielder',
-  'Attacking Midfielder',
-  'Right Winger',
-  'Left Winger',
-  'Second Striker',
-  'Striker',
-  'Centre Forward',
+const PLAYER_POSITIONS = [
+  'Goalkeeper','Right Back','Centre Back','Left Back',
+  'Defensive Midfielder','Central Midfielder','Right Midfielder',
+  'Left Midfielder','Attacking Midfielder','Right Winger',
+  'Left Winger','Second Striker','Striker','Centre Forward',
 ]
+
+const COACHING_ROLES = [
+  'Head Coach / Manager','Assistant Manager','First Team Coach',
+  'Goalkeeper Coach','U18s / Academy Coach','Fitness Coach',
+  'Scout / Analyst','Player-Coach',
+]
+
+const COACHING_LEVELS = [
+  'Premier League','Championship','League One','League Two',
+  'National League','National League North/South','Step 3','Step 4',
+  'Step 5','Step 6','Step 7 and below',
+]
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 function getISOWeek(): string {
   const now = new Date()
@@ -87,259 +102,56 @@ function calcStreak(current: number, lastWeek: string | null): { streak: number;
 
 function isActiveThisWeek(lastActive: string | null): boolean {
   if (!lastActive) return false
-  const diff = Date.now() - new Date(lastActive).getTime()
-  return diff < 7 * 24 * 60 * 60 * 1000
+  return Date.now() - new Date(lastActive).getTime() < 7 * 24 * 60 * 60 * 1000
 }
 
-type CompletionItem = { label: string; done: boolean; weight: number }
+const iStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' as const }
 
-function calcCompletion(p: Profile): { score: number; items: CompletionItem[]; nextStep: string | null } {
-  const items: CompletionItem[] = [
-    { label: 'Upload a profile photo',    done: !!p.avatar_url,                                          weight: 15 },
-    { label: 'Add your full name',        done: !!p.full_name,                                            weight: 10 },
-    { label: 'Set your position',         done: !!p.position,                                             weight: 15 },
-    { label: 'Add your current club',     done: !!p.club,                                                 weight: 10 },
-    { label: 'Write a short bio',         done: !!p.bio && p.bio.length > 10,                             weight: 15 },
-    { label: 'Enter your season stats',   done: (p.goals > 0 || p.assists > 0 || p.appearances > 0),     weight: 15 },
-    { label: 'Add a highlight video',     done: p.highlight_urls?.length > 0,                             weight: 15 },
-    { label: 'Set your availability',     done: !!p.status,                                               weight: 5  },
-  ]
-  const score = items.filter(i => i.done).reduce((sum, i) => sum + i.weight, 0)
-  const nextStep = items.find(i => !i.done)?.label ?? null
-  return { score, items, nextStep }
-}
-
-function nudgeCopy(score: number, nextStep: string | null): string {
-  if (score === 100) return 'Elite profile — you\'re fully visible to all coaches.'
-  if (score >= 80) return `Almost there — ${nextStep?.toLowerCase()} to reach 100%.`
-  if (score >= 60) return `Coaches can find you, but ${nextStep?.toLowerCase()} will make you stand out.`
-  if (score >= 30) return `You're on coaches' radar but missing key info — ${nextStep?.toLowerCase()}.`
-  return 'Your profile is barely started — coaches can\'t find you yet.'
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function CompletionBar({ profile }: { profile: Profile }) {
-  const { score, nextStep } = calcCompletion(profile)
-  const color = score === 100 ? '#4ade80' : score >= 60 ? '#2d5fc4' : '#f59e0b'
-
+function Inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <div
-      className="rounded-xl p-5 space-y-3"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className="text-sm font-bold uppercase"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
-        >
-          Profile Completion
-        </span>
-        <span className="text-2xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color }}>
-          {score}%
-        </span>
-      </div>
+    <input {...props}
+      className="w-full rounded-lg px-4 py-2.5 text-sm outline-none"
+      style={iStyle}
+      onFocus={e => { e.currentTarget.style.borderColor = '#2d5fc4'; props.onFocus?.(e) }}
+      onBlur={e => { e.currentTarget.style.borderColor = '#1e2235'; props.onBlur?.(e) }} />
+  )
+}
 
-      {/* Bar */}
-      <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#1e2235' }}>
-        <div
-          className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${score}%`, backgroundColor: color }}
-        />
-      </div>
+function Sel({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select {...props}
+      className="w-full rounded-lg px-4 py-2.5 text-sm outline-none appearance-none"
+      style={iStyle}
+      onFocus={e => { e.currentTarget.style.borderColor = '#2d5fc4'; props.onFocus?.(e) }}
+      onBlur={e => { e.currentTarget.style.borderColor = '#1e2235'; props.onBlur?.(e) }}>
+      {children}
+    </select>
+  )
+}
 
-      {/* Nudge */}
-      <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
-        {nudgeCopy(score, nextStep)}
-      </p>
+function Lbl({ children }: { children: React.ReactNode }) {
+  return <label className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{children}</label>
+}
 
-      {/* Checklist */}
-      <div className="grid grid-cols-2 gap-1.5 pt-1">
-        {calcCompletion(profile).items.map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <span style={{ color: item.done ? '#4ade80' : '#1e2235', fontSize: 14 }}>
-              {item.done ? '✓' : '○'}
-            </span>
-            <span className="text-xs" style={{ color: item.done ? '#8892aa' : '#e8dece' }}>
-              {item.label}
-            </span>
-          </div>
-        ))}
-      </div>
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="space-y-1"><Lbl>{label}</Lbl>{children}</div>
+}
+
+function SaveCancel({ saving, onSave, onCancel }: { saving: boolean; onSave: () => void; onCancel: () => void }) {
+  return (
+    <div className="flex justify-end gap-2 pt-1">
+      <button onClick={onCancel} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full"
+        style={{ border: '1px solid #1e2235', color: '#8892aa' }}>Cancel</button>
+      <button onClick={onSave} disabled={saving}
+        className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full disabled:opacity-50"
+        style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
     </div>
   )
 }
 
-function StatsCard({ profile, onSave }: { profile: Profile; onSave: (updates: Partial<Profile>) => Promise<void> }) {
-  const [editing, setEditing] = useState(false)
-  const [goals, setGoals] = useState(profile.goals ?? 0)
-  const [assists, setAssists] = useState(profile.assists ?? 0)
-  const [appearances, setAppearances] = useState(profile.appearances ?? 0)
-  const [season, setSeason] = useState(profile.season ?? '2024/25')
-  const [saving, setSaving] = useState(false)
-
-  async function handleSave() {
-    setSaving(true)
-    await onSave({ goals, assists, appearances, season })
-    setSaving(false)
-    setEditing(false)
-  }
-
-  return (
-    <div
-      className="rounded-xl p-5 space-y-4"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h3
-            className="text-sm font-bold uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
-          >
-            Season Stats
-          </h3>
-          {!editing && (
-            <p className="text-xs" style={{ color: '#8892aa' }}>{season}</p>
-          )}
-        </div>
-        {!editing ? (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-          >
-            Update
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing(false)}
-              className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full"
-              style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {editing ? (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Season</label>
-            <input
-              value={season}
-              onChange={(e) => setSeason(e.target.value)}
-              className="w-full rounded-lg px-4 py-2.5 text-sm outline-none"
-              style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-              placeholder="e.g. 2024/25"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Goals', value: goals, set: setGoals },
-              { label: 'Assists', value: assists, set: setAssists },
-              { label: 'Apps', value: appearances, set: setAppearances },
-            ].map(({ label, value, set }) => (
-              <div key={label} className="space-y-1">
-                <label className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{label}</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={value}
-                  onChange={(e) => set(Number(e.target.value))}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm text-center outline-none"
-                  style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Goals', value: profile.goals ?? 0 },
-            { label: 'Assists', value: profile.assists ?? 0 },
-            { label: 'Apps', value: profile.appearances ?? 0 },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="rounded-lg p-3 text-center"
-              style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}
-            >
-              <p
-                className="text-2xl font-black"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
-              >
-                {value}
-              </p>
-              <p className="text-xs uppercase tracking-wider mt-0.5" style={{ color: '#8892aa' }}>{label}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function EditableCard({
-  title,
-  children,
-  editContent,
-  onSave,
-}: {
-  title: string
-  children: React.ReactNode
-  editContent: (cancel: () => void) => React.ReactNode
-  onSave: () => void
-}) {
-  const [editing, setEditing] = useState(false)
-  return (
-    <div
-      className="rounded-xl p-5 space-y-3"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-    >
-      <div className="flex items-center justify-between">
-        <h3
-          className="text-sm font-bold uppercase"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
-        >
-          {title}
-        </h3>
-        {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-          >
-            Edit
-          </button>
-        )}
-      </div>
-      {editing
-        ? editContent(() => setEditing(false))
-        : children}
-    </div>
-  )
-}
-
-// ─── Avatar Upload ─────────────────────────────────────────────────────────────
+// ─── Shared Components ────────────────────────────────────────────────────────
 
 function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (url: string) => void }) {
   const [uploading, setUploading] = useState(false)
@@ -349,35 +161,16 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file.')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be under 5MB.')
-      return
-    }
-
+    if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB.'); return }
     setError(null)
     setUploading(true)
-
     const supabase = createClient()
     const ext = file.name.split('.').pop()
     const path = `${profile.id}/avatar.${ext}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true })
-
-    if (uploadError) {
-      setError('Upload failed. Please try again.')
-      setUploading(false)
-      return
-    }
-
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (uploadError) { setError('Upload failed.'); setUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-
     await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
     onUploaded(publicUrl)
     setUploading(false)
@@ -387,60 +180,347 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
 
   return (
     <div className="flex-shrink-0 relative group">
-      {/* Hidden file input */}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFile}
-      />
-
-      {/* Avatar circle — click to upload */}
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
         className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden relative transition-opacity disabled:opacity-50"
-        style={{ backgroundColor: '#1e2235' }}
-        title="Upload photo"
-      >
-        {profile.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-xl font-bold" style={{ color: '#8892aa' }}>{initials}</span>
-        )}
-
-        {/* Hover overlay */}
-        <span
-          className="absolute inset-0 flex flex-col items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-        >
-          {uploading ? (
-            <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#fff', borderTopColor: 'transparent' }} />
-          ) : (
-            <>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              <span className="text-xs text-white mt-1">Upload</span>
-            </>
-          )}
+        style={{ backgroundColor: '#1e2235' }} title="Upload photo">
+        {profile.avatar_url
+          ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+          : <span className="text-xl font-bold" style={{ color: '#8892aa' }}>{initials}</span>}
+        <span className="absolute inset-0 flex flex-col items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          {uploading
+            ? <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#fff', borderTopColor: 'transparent' }} />
+            : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+              </svg><span className="text-xs text-white mt-1">Upload</span></>}
         </span>
       </button>
+      {error && <p className="absolute -bottom-5 left-0 text-xs whitespace-nowrap" style={{ color: '#f87171' }}>{error}</p>}
+    </div>
+  )
+}
 
-      {error && (
-        <p className="absolute -bottom-5 left-0 text-xs whitespace-nowrap" style={{ color: '#f87171' }}>{error}</p>
+function EditableCard({ title, children, editContent }: {
+  title: string; children: React.ReactNode; editContent: (cancel: () => void) => React.ReactNode
+}) {
+  const [editing, setEditing] = useState(false)
+  return (
+    <div className="rounded-xl p-5 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold uppercase"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{title}</h3>
+        {!editing && (
+          <button onClick={() => setEditing(true)}
+            className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
+            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
+            Edit
+          </button>
+        )}
+      </div>
+      {editing ? editContent(() => setEditing(false)) : children}
+    </div>
+  )
+}
+
+// ─── Player-specific sections ─────────────────────────────────────────────────
+
+function PlayerDetailsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  return (
+    <EditableCard title="Details" editContent={(cancel) => (
+      <PlayerDetailsEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
+    )}>
+      <div className="space-y-2">
+        {[
+          { label: 'Position', value: profile.position },
+          { label: 'Club', value: profile.club },
+          { label: 'Availability', value: profile.status ? STATUS_LABELS[profile.status] : null, color: profile.status ? STATUS_COLORS[profile.status] : undefined },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{label}</span>
+            <span className="text-sm font-medium" style={{ color: color ?? (value ? '#e8dece' : '#3a4055') }}>{value ?? 'Not set'}</span>
+          </div>
+        ))}
+      </div>
+    </EditableCard>
+  )
+}
+
+function PlayerDetailsEditor({ profile, onSave, onCancel }: {
+  profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; onCancel: () => void
+}) {
+  const [position, setPosition] = useState(profile.position ?? '')
+  const [club, setClub] = useState(profile.club ?? '')
+  const [city, setCity] = useState(profile.city ?? '')
+  const [status, setStatus] = useState(profile.status ?? 'just_exploring')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <Field label="Position">
+        <Sel value={position} onChange={e => setPosition(e.target.value)}>
+          <option value="">Select position…</option>
+          {PLAYER_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+        </Sel>
+      </Field>
+      <Field label="Club"><Inp value={club} onChange={e => setClub(e.target.value)} placeholder="e.g. Harrogate Town" /></Field>
+      <Field label="Nearest City"><Inp value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Manchester" /></Field>
+      <Field label="Availability">
+        <Sel value={status} onChange={e => setStatus(e.target.value as Exclude<Profile['status'], null>)}>
+          {Object.entries(STATUS_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </Sel>
+      </Field>
+      <SaveCancel saving={saving} onCancel={onCancel}
+        onSave={async () => { setSaving(true); await onSave({ position: position || null, club: club || null, city: city || null, status: status || null }); setSaving(false) }} />
+    </div>
+  )
+}
+
+function StatsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  const [editing, setEditing] = useState(false)
+  const [goals, setGoals] = useState(profile.goals ?? 0)
+  const [assists, setAssists] = useState(profile.assists ?? 0)
+  const [appearances, setAppearances] = useState(profile.appearances ?? 0)
+  const [season, setSeason] = useState(profile.season ?? '2024/25')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="rounded-xl p-5 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Season Stats</h3>
+          {!editing && <p className="text-xs" style={{ color: '#8892aa' }}>{season}</p>}
+        </div>
+        {!editing
+          ? <button onClick={() => setEditing(true)}
+              className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
+              style={{ border: '1px solid #1e2235', color: '#8892aa' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>Update</button>
+          : <div className="flex gap-2">
+              <button onClick={() => setEditing(false)} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full" style={{ border: '1px solid #1e2235', color: '#8892aa' }}>Cancel</button>
+              <button onClick={async () => { setSaving(true); await onSave({ goals, assists, appearances, season }); setSaving(false); setEditing(false) }}
+                disabled={saving} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full disabled:opacity-50"
+                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>{saving ? 'Saving…' : 'Save'}</button>
+            </div>}
+      </div>
+      {editing ? (
+        <div className="space-y-3">
+          <Field label="Season"><Inp value={season} onChange={e => setSeason(e.target.value)} placeholder="2024/25" /></Field>
+          <div className="grid grid-cols-3 gap-3">
+            {[{ label: 'Goals', val: goals, set: setGoals }, { label: 'Assists', val: assists, set: setAssists }, { label: 'Apps', val: appearances, set: setAppearances }].map(f => (
+              <div key={f.label} className="space-y-1">
+                <Lbl>{f.label}</Lbl>
+                <input type="number" min={0} value={f.val} onChange={e => f.set(Number(e.target.value))}
+                  className="w-full rounded-lg px-3 py-2.5 text-sm text-center outline-none"
+                  style={iStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {[{ label: 'Goals', val: profile.goals ?? 0 }, { label: 'Assists', val: profile.assists ?? 0 }, { label: 'Apps', val: profile.appearances ?? 0 }].map(s => (
+            <div key={s.label} className="rounded-lg p-3 text-center" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+              <p className="text-2xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{s.val}</p>
+              <p className="text-xs uppercase tracking-wider mt-0.5" style={{ color: '#8892aa' }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
       )}
+    </div>
+  )
+}
+
+function HighlightsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  return (
+    <EditableCard title="Highlight Videos" editContent={(cancel) => (
+      <HighlightsEditor urls={profile.highlight_urls} premium={profile.premium}
+        onSave={async (urls) => { await onSave({ highlight_urls: urls }); cancel() }} onCancel={cancel} />
+    )}>
+      {profile.highlight_urls?.length > 0
+        ? <div className="space-y-2">
+            {profile.highlight_urls.map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm" style={{ color: '#2d5fc4' }}>
+                <span>▶</span><span className="truncate">{url}</span>
+              </a>
+            ))}
+          </div>
+        : <p className="text-sm italic" style={{ color: '#3a4055' }}>No highlights added yet.</p>}
+    </EditableCard>
+  )
+}
+
+function HighlightsEditor({ urls, premium, onSave, onCancel }: { urls: string[]; premium: boolean; onSave: (urls: string[]) => Promise<void>; onCancel: () => void }) {
+  const maxVideos = premium ? 5 : 1
+  const [list, setList] = useState<string[]>(urls.length ? urls : [''])
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      {!premium && <p className="text-xs px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(45,95,196,0.1)', color: '#60a5fa' }}>Free players can add 1 video. Upgrade to Pro for up to 5.</p>}
+      {list.map((url, i) => (
+        <div key={i} className="flex gap-2">
+          <Inp type="url" value={url} onChange={e => setList(l => l.map((u, idx) => idx === i ? e.target.value : u))} placeholder="YouTube or Vimeo link" />
+          {list.length > 1 && <button onClick={() => setList(l => l.filter((_, idx) => idx !== i))} className="text-xs px-2 rounded-lg" style={{ color: '#8892aa' }}>✕</button>}
+        </div>
+      ))}
+      {list.length < maxVideos && <button onClick={() => setList(l => [...l, ''])} className="text-xs uppercase tracking-wider" style={{ color: '#2d5fc4' }}>+ Add another</button>}
+      <SaveCancel saving={saving} onCancel={onCancel}
+        onSave={async () => { setSaving(true); await onSave(list.filter(Boolean)); setSaving(false) }} />
+    </div>
+  )
+}
+
+// ─── Coach-specific sections ──────────────────────────────────────────────────
+
+function CoachDetailsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  return (
+    <EditableCard title="Coaching Info" editContent={(cancel) => (
+      <CoachDetailsEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
+    )}>
+      <div className="space-y-2">
+        {[
+          { label: 'Coaching Role', value: profile.coaching_role },
+          { label: 'Level', value: profile.coaching_level },
+          { label: 'Club / Organisation', value: profile.club },
+          { label: 'City', value: profile.city },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{label}</span>
+            <span className="text-sm font-medium" style={{ color: value ? '#e8dece' : '#3a4055' }}>{value ?? 'Not set'}</span>
+          </div>
+        ))}
+      </div>
+    </EditableCard>
+  )
+}
+
+function CoachDetailsEditor({ profile, onSave, onCancel }: {
+  profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; onCancel: () => void
+}) {
+  const [coachingRole, setCoachingRole] = useState(profile.coaching_role ?? '')
+  const [coachingLevel, setCoachingLevel] = useState(profile.coaching_level ?? '')
+  const [club, setClub] = useState(profile.club ?? '')
+  const [city, setCity] = useState(profile.city ?? '')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <Field label="Coaching Role">
+        <Sel value={coachingRole} onChange={e => setCoachingRole(e.target.value)}>
+          <option value="">Select role…</option>
+          {COACHING_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+        </Sel>
+      </Field>
+      <Field label="Level">
+        <Sel value={coachingLevel} onChange={e => setCoachingLevel(e.target.value)}>
+          <option value="">Select level…</option>
+          {COACHING_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+        </Sel>
+      </Field>
+      <Field label="Club / Organisation">
+        <Inp value={club} onChange={e => setClub(e.target.value)} placeholder="e.g. Salford City" />
+      </Field>
+      <Field label="City / Area">
+        <Inp value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Manchester" />
+      </Field>
+      <SaveCancel saving={saving} onCancel={onCancel}
+        onSave={async () => {
+          setSaving(true)
+          await onSave({ coaching_role: coachingRole || null, coaching_level: coachingLevel || null, club: club || null, city: city || null })
+          setSaving(false)
+        }} />
+    </div>
+  )
+}
+
+function CoachingHistoryCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  return (
+    <EditableCard title="Coaching History" editContent={(cancel) => (
+      <CoachingHistoryEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
+    )}>
+      {profile.coaching_history
+        ? <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#8892aa' }}>{profile.coaching_history}</p>
+        : <p className="text-sm italic" style={{ color: '#3a4055' }}>Add your coaching background — clubs managed, achievements, UEFA badges, etc.</p>}
+    </EditableCard>
+  )
+}
+
+function CoachingHistoryEditor({ profile, onSave, onCancel }: {
+  profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; onCancel: () => void
+}) {
+  const [history, setHistory] = useState(profile.coaching_history ?? '')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <textarea value={history} onChange={e => setHistory(e.target.value)} rows={5}
+        className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none"
+        style={iStyle}
+        onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+        onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
+        placeholder="e.g. AFC Wimbledon U18s (2021–23), Sutton United First Team Coach (2023–present). UEFA B licence holder." />
+      <div className="flex items-center justify-between">
+        <span className="text-xs" style={{ color: '#8892aa' }}>{history.length} chars</span>
+        <SaveCancel saving={saving} onCancel={onCancel}
+          onSave={async () => { setSaving(true); await onSave({ coaching_history: history || null }); setSaving(false) }} />
+      </div>
+    </div>
+  )
+}
+
+// ─── Bio (shared) ─────────────────────────────────────────────────────────────
+
+function BioCard({ profile, isCoach, onSave }: { profile: Profile; isCoach: boolean; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  return (
+    <EditableCard title="About" editContent={(cancel) => (
+      <BioEditor profile={profile} isCoach={isCoach} onSave={async (bio) => { await onSave({ bio }); cancel() }} onCancel={cancel} />
+    )}>
+      {profile.bio
+        ? <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>{profile.bio}</p>
+        : <p className="text-sm italic" style={{ color: '#3a4055' }}>
+            {isCoach ? 'Add a bio — tell players about your coaching philosophy and what you look for.' : 'No bio yet — tell coaches about yourself.'}
+          </p>}
+    </EditableCard>
+  )
+}
+
+function BioEditor({ profile, isCoach, onSave, onCancel }: {
+  profile: Profile; isCoach: boolean; onSave: (bio: string) => Promise<void>; onCancel: () => void
+}) {
+  const [bio, setBio] = useState(profile.bio ?? '')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} maxLength={300}
+        className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none"
+        style={iStyle}
+        onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+        onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
+        placeholder={isCoach
+          ? 'Describe your coaching philosophy, what you look for in players, and your background…'
+          : 'Tell coaches about your playing style, experience, and what you\'re looking for…'} />
+      <div className="flex items-center justify-between">
+        <span className="text-xs" style={{ color: '#8892aa' }}>{bio.length}/300</span>
+        <SaveCancel saving={saving} onCancel={onCancel}
+          onSave={async () => { setSaving(true); await onSave(bio); setSaving(false) }} />
+      </div>
     </div>
   )
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function PlayerProfilePage() {
+export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
 
@@ -449,21 +529,9 @@ export default function PlayerProfilePage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (!data) return
-
-      // Update last_active on page load
-      await supabase
-        .from('profiles')
-        .update({ last_active: new Date().toISOString() })
-        .eq('id', user.id)
-
+      await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id)
       setProfile({ ...data, highlight_urls: data.highlight_urls ?? [] })
     }
     load()
@@ -472,18 +540,10 @@ export default function PlayerProfilePage() {
   async function saveProfile(updates: Partial<Profile>) {
     if (!profile) return
     const supabase = createClient()
-
-    // Recalculate streak on any save
     const { streak, lastWeek } = calcStreak(profile.streak_weeks, profile.streak_last_week)
-    const payload = {
-      ...updates,
-      streak_weeks: streak,
-      streak_last_week: lastWeek,
-      last_active: new Date().toISOString(),
-    }
-
+    const payload = { ...updates, streak_weeks: streak, streak_last_week: lastWeek, last_active: new Date().toISOString() }
     await supabase.from('profiles').update(payload).eq('id', profile.id)
-    setProfile((p) => p ? { ...p, ...payload } : p)
+    setProfile(p => p ? { ...p, ...payload } : p)
   }
 
   async function handleSignOut() {
@@ -500,345 +560,69 @@ export default function PlayerProfilePage() {
     )
   }
 
+  const isCoach = profile.role === 'coach'
   const active = isActiveThisWeek(profile.last_active)
+  const homeHref = isCoach ? '/dashboard/coach' : '/dashboard/player'
+  const subtitle = isCoach
+    ? [profile.coaching_role, profile.club].filter(Boolean).join(' · ') || 'Add your role and club'
+    : [profile.position, profile.club].filter(Boolean).join(' · ') || 'Add your position and club'
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       {/* Nav */}
-      <header
-        className="sticky top-0 z-10 px-6 py-4 flex items-center justify-between"
-        style={{ backgroundColor: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}
-      >
-        <img src="/logo.jpg" alt="NEXT11VEN" className="h-8 w-auto" />
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard/player"
-            className="text-xs uppercase tracking-wider transition-colors"
-            style={{ color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#e8dece')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#8892aa')}
-          >
-            Home
-          </Link>
-          <button
-            onClick={handleSignOut}
-            className="text-xs uppercase tracking-wider px-4 py-2 rounded-full transition-colors"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#e8dece')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#8892aa')}
-          >
-            Sign Out
-          </button>
-        </div>
+      <header className="sticky top-0 z-10 px-4 py-2"
+        style={{ backgroundColor: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+        <Breadcrumb crumbs={[{ label: 'Home', href: homeHref }, { label: 'My Profile' }]} />
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
 
         {/* Hero Card */}
-        <div
-          className="rounded-xl p-6"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-        >
+        <div className="rounded-xl p-6" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <div className="flex items-start gap-4">
-            {/* Avatar with upload */}
             <AvatarUpload profile={profile} onUploaded={(url) => setProfile(p => p ? { ...p, avatar_url: url } : p)} />
-
-            {/* Info */}
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1
-                  className="text-2xl font-extrabold uppercase"
-                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
-                >
+                <h1 className="text-2xl font-extrabold uppercase"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
                   {profile.full_name ?? 'Your Name'}
                 </h1>
-                {/* Active badge */}
-                <span
-                  className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: active ? 'rgba(74,222,128,0.1)' : 'rgba(136,146,170,0.1)',
-                    color: active ? '#4ade80' : '#8892aa',
-                  }}
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: active ? '#4ade80' : '#8892aa' }}
-                  />
+                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: active ? 'rgba(74,222,128,0.1)' : 'rgba(136,146,170,0.1)', color: active ? '#4ade80' : '#8892aa' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active ? '#4ade80' : '#8892aa' }} />
                   {active ? 'Active this week' : 'Inactive'}
                 </span>
               </div>
-              <p className="text-sm" style={{ color: '#8892aa' }}>
-                {[profile.position, profile.club].filter(Boolean).join(' · ') || 'Add your position and club'}
-              </p>
-
-              {/* Streak */}
-              {profile.streak_weeks > 0 && (
+              <p className="text-sm" style={{ color: '#8892aa' }}>{subtitle}</p>
+              {!isCoach && profile.streak_weeks > 0 && (
                 <div className="flex items-center gap-1.5 pt-1">
                   <span className="text-base">🔥</span>
-                  <span className="text-xs font-semibold" style={{ color: '#e8dece' }}>
-                    {profile.streak_weeks}-week streak
-                  </span>
-                  <span className="text-xs" style={{ color: '#8892aa' }}>
-                    — keep it going
-                  </span>
+                  <span className="text-xs font-semibold" style={{ color: '#e8dece' }}>{profile.streak_weeks}-week streak</span>
+                  <span className="text-xs" style={{ color: '#8892aa' }}>— keep it going</span>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Completion */}
-        <CompletionBar profile={profile} />
+        {/* Bio (shared) */}
+        <BioCard profile={profile} isCoach={isCoach} onSave={saveProfile} />
 
-        {/* Stats */}
-        <StatsCard profile={profile} onSave={saveProfile} />
-
-        {/* Bio */}
-        <EditableCard
-          title="About"
-          editContent={(cancel) => (
-            <BioEditor profile={profile} onSave={async (bio) => { await saveProfile({ bio }); cancel() }} onCancel={cancel} />
-          )}
-          onSave={() => {}}
-        >
-          {profile.bio
-            ? <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>{profile.bio}</p>
-            : <p className="text-sm italic" style={{ color: '#1e2235' }}>No bio yet — tell coaches about yourself.</p>
-          }
-        </EditableCard>
-
-        {/* Details */}
-        <EditableCard
-          title="Details"
-          editContent={(cancel) => (
-            <DetailsEditor profile={profile} onSave={async (updates) => { await saveProfile(updates); cancel() }} onCancel={cancel} />
-          )}
-          onSave={() => {}}
-        >
-          <div className="space-y-2">
-            {[
-              { label: 'Position', value: profile.position },
-              { label: 'Club', value: profile.club },
-              {
-                label: 'Availability',
-                value: profile.status ? STATUS_LABELS[profile.status] : null,
-                color: profile.status ? STATUS_COLORS[profile.status] : undefined,
-              },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{label}</span>
-                <span className="text-sm font-medium" style={{ color: color ?? '#e8dece' }}>
-                  {value ?? <span style={{ color: '#1e2235' }}>Not set</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-        </EditableCard>
-
-        {/* Highlights */}
-        <EditableCard
-          title="Highlight Videos"
-          editContent={(cancel) => (
-            <HighlightsEditor
-              urls={profile.highlight_urls}
-              premium={profile.premium}
-              onSave={async (urls) => { await saveProfile({ highlight_urls: urls }); cancel() }}
-              onCancel={cancel}
-            />
-          )}
-          onSave={() => {}}
-        >
-          {profile.highlight_urls?.length > 0 ? (
-            <div className="space-y-2">
-              {profile.highlight_urls.map((url, i) => (
-                <a
-                  key={i}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm transition-colors"
-                  style={{ color: '#2d5fc4' }}
-                >
-                  <span>▶</span>
-                  <span className="truncate">{url}</span>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm italic" style={{ color: '#1e2235' }}>
-              No highlights added yet.{' '}
-              {!profile.premium && <span style={{ color: '#8892aa' }}>Free players can add 1 video.</span>}
-            </p>
-          )}
-        </EditableCard>
+        {/* Role-specific sections */}
+        {isCoach ? (
+          <>
+            <CoachDetailsCard profile={profile} onSave={saveProfile} />
+            <CoachingHistoryCard profile={profile} onSave={saveProfile} />
+          </>
+        ) : (
+          <>
+            <PlayerDetailsCard profile={profile} onSave={saveProfile} />
+            <StatsCard profile={profile} onSave={saveProfile} />
+            <HighlightsCard profile={profile} onSave={saveProfile} />
+          </>
+        )}
 
       </main>
-    </div>
-  )
-}
-
-// ─── Inline Editors ───────────────────────────────────────────────────────────
-
-function BioEditor({ profile, onSave, onCancel }: { profile: Profile; onSave: (bio: string) => Promise<void>; onCancel: () => void }) {
-  const [bio, setBio] = useState(profile.bio ?? '')
-  const [saving, setSaving] = useState(false)
-
-  return (
-    <div className="space-y-3">
-      <textarea
-        value={bio}
-        onChange={(e) => setBio(e.target.value)}
-        rows={4}
-        maxLength={300}
-        className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none"
-        style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
-        onFocus={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-        onBlur={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-        placeholder="Tell coaches about your playing style, experience, and what you're looking for..."
-      />
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: '#8892aa' }}>{bio.length}/300</span>
-        <div className="flex gap-2">
-          <button onClick={onCancel} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full" style={{ border: '1px solid #1e2235', color: '#8892aa' }}>Cancel</button>
-          <button
-            onClick={async () => { setSaving(true); await onSave(bio); setSaving(false) }}
-            disabled={saving}
-            className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full disabled:opacity-50"
-            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function DetailsEditor({ profile, onSave, onCancel }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; onCancel: () => void }) {
-  const [position, setPosition] = useState(profile.position ?? '')
-  const [club, setClub] = useState(profile.club ?? '')
-  const [status, setStatus] = useState(profile.status ?? 'open_to_offers')
-  const [saving, setSaving] = useState(false)
-
-  const inputStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' as const }
-
-  return (
-    <div className="space-y-3">
-      {/* Position — dropdown */}
-      <div className="space-y-1">
-        <label className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Position</label>
-        <select
-          value={position}
-          onChange={(e) => setPosition(e.target.value)}
-          className="w-full rounded-lg px-4 py-2.5 text-sm outline-none appearance-none cursor-pointer"
-          style={{ ...inputStyle, color: position ? '#e8dece' : '#8892aa' }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-        >
-          <option value="" style={{ color: '#8892aa', backgroundColor: '#13172a' }}>Select position…</option>
-          {POSITIONS.map((p) => (
-            <option key={p} value={p} style={{ color: '#e8dece', backgroundColor: '#13172a' }}>{p}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Club — free text */}
-      <div className="space-y-1">
-        <label className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Club</label>
-        <input
-          value={club}
-          onChange={(e) => setClub(e.target.value)}
-          className="w-full rounded-lg px-4 py-2.5 text-sm outline-none"
-          style={inputStyle}
-          onFocus={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-          placeholder="e.g. Harrogate Town"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Availability</label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as Profile['status'])}
-          className="w-full rounded-lg px-4 py-2.5 text-sm outline-none appearance-none"
-          style={{ ...inputStyle, color: STATUS_COLORS[status] ?? '#e8dece' }}
-        >
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <option key={key} value={key} style={{ color: '#e8dece', backgroundColor: '#13172a' }}>{label}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex justify-end gap-2 pt-1">
-        <button onClick={onCancel} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full" style={{ border: '1px solid #1e2235', color: '#8892aa' }}>Cancel</button>
-        <button
-          onClick={async () => { setSaving(true); await onSave({ position, club, status }); setSaving(false) }}
-          disabled={saving}
-          className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full disabled:opacity-50"
-          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function HighlightsEditor({ urls, premium, onSave, onCancel }: { urls: string[]; premium: boolean; onSave: (urls: string[]) => Promise<void>; onCancel: () => void }) {
-  const maxVideos = premium ? 5 : 1
-  const [list, setList] = useState<string[]>(urls.length ? urls : [''])
-  const [saving, setSaving] = useState(false)
-
-  function updateUrl(i: number, val: string) {
-    setList(l => l.map((u, idx) => idx === i ? val : u))
-  }
-  function addRow() {
-    if (list.length < maxVideos) setList(l => [...l, ''])
-  }
-  function removeRow(i: number) {
-    setList(l => l.filter((_, idx) => idx !== i))
-  }
-
-  return (
-    <div className="space-y-3">
-      {!premium && (
-        <p className="text-xs px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(45,95,196,0.1)', color: '#60a5fa' }}>
-          Free players can add 1 video. Upgrade to Pro for up to 5.
-        </p>
-      )}
-      {list.map((url, i) => (
-        <div key={i} className="flex gap-2">
-          <input
-            value={url}
-            onChange={(e) => updateUrl(i, e.target.value)}
-            className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none"
-            style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-            placeholder="YouTube or Vimeo link"
-          />
-          {list.length > 1 && (
-            <button onClick={() => removeRow(i)} className="text-xs px-2 rounded-lg" style={{ color: '#8892aa' }}>✕</button>
-          )}
-        </div>
-      ))}
-      {list.length < maxVideos && (
-        <button onClick={addRow} className="text-xs uppercase tracking-wider" style={{ color: '#2d5fc4' }}>
-          + Add another
-        </button>
-      )}
-      <div className="flex justify-end gap-2 pt-1">
-        <button onClick={onCancel} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full" style={{ border: '1px solid #1e2235', color: '#8892aa' }}>Cancel</button>
-        <button
-          onClick={async () => { setSaving(true); await onSave(list.filter(Boolean)); setSaving(false) }}
-          disabled={saving}
-          className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full disabled:opacity-50"
-          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
     </div>
   )
 }

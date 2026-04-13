@@ -1,45 +1,444 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
-import DashboardHome from '../_components/DashboardHome'
+import Sidebar from './_components/Sidebar'
+import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
+import { getLevelConfig } from '@/lib/opportunityLevel'
 
-export default function PlayerDashboard() {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Status = 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring'
+
+type Profile = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  status: Status | null
+  premium: boolean
+  position: string | null
+  club: string | null
+  city: string | null
+  phone: string | null
+  date_of_birth: string | null
+  foot: string | null
+  height: string | null
+  playing_level: string | null
+  highlight_urls: string[] | null
+  bio: string | null
+  goals: number
+  assists: number
+  appearances: number
+}
+
+type FeaturedPlayer = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  club: string | null
+  city: string | null
+  status: Status | null
+}
+
+type Opportunity = {
+  id: string
+  title: string
+  club: string | null
+  location: string | null
+  position: string | null
+  level: string | null
+  urgent: boolean
+  created_at: string
+  coach: { full_name: string | null } | null
+}
+
+type NewJoiner = {
+  id: string
+  role: string | null
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  club: string | null
+  status: Status | null
+  coaching_role: string | null
+}
+
+const STATUS_LABELS: Record<Status, string> = {
+  free_agent:    'Free Agent',
+  signed:        'Signed to a club',
+  loan_dual_reg: 'Looking for Loan / Dual Reg',
+  just_exploring:'Just Exploring',
+}
+
+const STATUS_COLORS: Record<Status, string> = {
+  free_agent:    '#60a5fa',
+  signed:        '#8892aa',
+  loan_dual_reg: '#a78bfa',
+  just_exploring:'#f59e0b',
+}
+
+// ─── Profile Completion Bar ───────────────────────────────────────────────────
+
+function ProfileCompletionBar({ profile }: { profile: Profile }) {
+  const { pct, missing } = calcCompletion(profile)
+  if (pct === 100) return null
+
+  const barColor = pct < 40 ? '#f59e0b' : pct < 75 ? '#2d5fc4' : '#34d399'
+
+  return (
+    <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
+      <div className="mx-4 rounded-2xl px-4 py-3"
+        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
+                Profile Completion
+              </p>
+              <span className="text-xs font-bold" style={{ color: barColor }}>{pct}%</span>
+            </div>
+            <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+              <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+            </div>
+          </div>
+          <span className="text-xs font-semibold flex-shrink-0 px-3 py-1.5 rounded-full"
+            style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.3)' }}>
+            Add missing info →
+          </span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
+// ─── Featured Players Carousel ────────────────────────────────────────────────
+
+function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
+  if (players.length === 0) return null
+  return (
+    <section className="space-y-3">
+      <div className="px-4">
+        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Featured Players ✓
+        </h2>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Premium players appear first to clubs</p>
+      </div>
+      <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+        {players.map((p) => (
+          <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+            className="flex-shrink-0 rounded-2xl overflow-hidden block"
+            style={{ width: 210, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
+            <div className="relative" style={{ height: 210, backgroundColor: '#1a1f3a' }}>
+              {p.avatar_url ? (
+                <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-top" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center"
+                  style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                  <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                    {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2) ?? '??'}
+                  </span>
+                </div>
+              )}
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.1) 55%, transparent 100%)' }} />
+              <div className="absolute top-3 right-3">
+                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.9)', color: '#fff' }}>PRO</span>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-3 space-y-1">
+                <p className="text-sm font-bold leading-tight" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                <p className="text-xs" style={{ color: 'rgba(232,222,206,0.6)' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
+                {p.status && (
+                  <span className="text-xs px-2 py-0.5 rounded-full inline-block"
+                    style={{ color: STATUS_COLORS[p.status], backgroundColor: `${STATUS_COLORS[p.status]}25` }}>
+                    {STATUS_LABELS[p.status]}
+                  </span>
+                )}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ─── Opportunities Preview ────────────────────────────────────────────────────
+
+function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] }) {
+  return (
+    <section className="space-y-3 px-4">
+      <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        New Opportunities 🔥
+      </h2>
+      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+        {opportunities.length === 0 ? (
+          <div className="p-6 text-center"><p className="text-sm" style={{ color: '#8892aa' }}>No opportunities yet — check back soon.</p></div>
+        ) : (
+          opportunities.map((opp, i) => {
+            const lvl = getLevelConfig(opp.level)
+            return (
+              <Link key={opp.id} href="/dashboard/player/market?tab=opportunities"
+                className="flex items-center gap-3 px-4 py-3.5 transition-colors"
+                style={{ backgroundColor: '#13172a', borderBottom: i < opportunities.length - 1 ? '1px solid #1e2235' : undefined, display: 'flex', textDecoration: 'none' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#161b30')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#13172a')}>
+                {/* Level badge */}
+                <div className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl px-2"
+                  style={{ minWidth: 44, height: 44, backgroundColor: lvl.bg, border: `1px solid ${lvl.color}40` }}>
+                  <span className="font-black leading-none" style={{ color: lvl.color, fontSize: 9, letterSpacing: '0.05em' }}>{lvl.line1}</span>
+                  {lvl.line2 && <span className="font-black leading-none mt-0.5" style={{ color: lvl.color, fontSize: lvl.line2.length <= 2 ? 16 : 10 }}>{lvl.line2}</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>
+                    {opp.location ?? 'Location TBC'}{opp.urgent ? ' · 🔴 URGENT' : ''}
+                  </p>
+                  <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
+                  <p className="text-xs" style={{ color: '#8892aa' }}>{opp.position ?? 'All Positions'}</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+              </Link>
+            )
+          })
+        )}
+      </div>
+      <Link href="/dashboard/player/market?tab=opportunities"
+        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold uppercase tracking-wider transition-colors"
+        style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}
+        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d4c8b8')}
+        onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#e8dece')}>
+        All Opportunities →
+      </Link>
+    </section>
+  )
+}
+
+// ─── New Joiners ──────────────────────────────────────────────────────────────
+
+function NewJoinersSection({ players }: { players: NewJoiner[] }) {
+  if (players.length === 0) return null
+  return (
+    <section className="space-y-3">
+      <div className="px-4 flex items-center gap-2">
+        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          New to the Platform
+        </h2>
+        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+          style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+          {players.length}
+        </span>
+      </div>
+      <div className="flex gap-3 overflow-x-auto px-4 pb-2"
+        style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {players.map((p) => {
+          const isCoach = p.role === 'coach'
+          const subtitle = isCoach ? (p.coaching_role ?? p.club ?? '—') : (p.club ?? '—')
+          const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2) ?? '??'
+          return (
+            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+              className="flex-shrink-0 rounded-2xl overflow-hidden block"
+              style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
+              <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
+                {p.avatar_url ? (
+                  <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-top" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                    <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                      {initials}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+                <div className="absolute top-2 left-2">
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      backgroundColor: isCoach ? 'rgba(167,139,250,0.85)' : 'rgba(45,95,196,0.85)',
+                      color: '#fff', fontSize: 10,
+                    }}>
+                    {isCoach ? 'COACH' : 'PLAYER'}
+                  </span>
+                </div>
+              </div>
+              <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+                  {p.full_name ?? (isCoach ? 'Coach' : 'Player')}
+                </p>
+                <p className="text-xs truncate" style={{ color: '#8892aa' }}>{subtitle}</p>
+                {!isCoach && p.status && p.status !== 'signed' && (
+                  <p className="text-xs font-semibold" style={{ color: STATUS_COLORS[p.status], fontSize: 10 }}>
+                    {STATUS_LABELS[p.status]}
+                  </p>
+                )}
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function PlayerHome() {
   const router = useRouter()
-  const [userId, setUserId] = useState<string | null>(null)
-  const [fullName, setFullName] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [featuredPlayers, setFeaturedPlayers] = useState<FeaturedPlayer[]>([])
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([])
+  const [loading, setLoading] = useState(true)
+  const [savingStatus, setSavingStatus] = useState(false)
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      setUserId(user.id)
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-      setFullName(data?.full_name ?? null)
+      if (!user) { router.push('/'); return }
+
+      const [profileRes, featuredRes, oppsRes, joinersRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).limit(10),
+        supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
+        supabase.from('profiles').select('id, role, full_name, avatar_url, position, club, status, coaching_role').eq('approved', true).order('created_at', { ascending: false }).limit(30),
+      ])
+
+      const profileData = profileRes.data as Profile
+      setProfile(profileData)
+      setFeaturedPlayers((featuredRes.data as FeaturedPlayer[]) ?? [])
+      setOpportunities((oppsRes.data as unknown as Opportunity[]) ?? [])
+      setNewJoiners((joinersRes.data as NewJoiner[]) ?? [])
+      setLoading(false)
+
+      // Auto-grant premium for existing Stripe subscribers who just claimed their account
+      if (!profileData?.premium) {
+        fetch('/api/stripe/sync', { method: 'POST' }).then(r => r.json()).then(d => {
+          if (d.synced) setProfile(p => p ? { ...p, premium: true } : p)
+        }).catch(() => {})
+      }
     }
     load()
   }, [])
 
-  async function handleSignOut() {
+  async function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value as Status
+    if (!profile) return
+    setSavingStatus(true)
     const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/')
+    await supabase.from('profiles').update({ status: val }).eq('id', profile.id)
+    setProfile(p => p ? { ...p, status: val } : p)
+    setSavingStatus(false)
   }
 
-  if (!userId) return null
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+      </div>
+    )
+  }
 
   return (
-    <DashboardHome
-      role="player"
-      userId={userId}
-      fullName={fullName}
-      onSignOut={handleSignOut}
-    />
+    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        profile={profile}
+      />
+      {/* Header */}
+      <header className="px-4 pt-6 pb-4 flex items-center justify-between">
+        <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5" style={{ width: 22 }}>
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 22 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 16 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 22 }} />
+        </button>
+        <img src="/logo.jpg" alt="NEXT11VEN" className="h-9 w-auto" />
+        <div style={{ width: 22 }} />
+      </header>
+
+      {/* Welcome */}
+      <div className="px-4 pb-3">
+        <p className="text-base" style={{ color: '#8892aa' }}>
+          Welcome back,{' '}
+          <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span> ✓
+        </p>
+      </div>
+
+      {/* Profile Completion */}
+      {profile && <div className="pb-4"><ProfileCompletionBar profile={profile} /></div>}
+
+      <div className="space-y-7 pb-6">
+
+        {/* Announcement + Availability — side by side on sm+ */}
+        <section className="px-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+
+            {/* Announcement Banner */}
+            <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
+              style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
+              <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
+                🏆 <strong>End of Season Showcase Day</strong>
+                <br />
+                Get seen by coaches at your level.
+                <br />
+                <span style={{ color: '#60a5fa' }}>Step 3–7 coaches registered.</span>
+              </p>
+              <button
+                className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider"
+                style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
+                Register Interest
+              </button>
+            </div>
+
+            {/* Availability */}
+            <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
+                {!profile?.status && (
+                  <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Required</span>
+                )}
+              </div>
+              <select
+                value={profile?.status ?? ''}
+                onChange={handleStatusChange}
+                disabled={savingStatus}
+                className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+                style={{
+                  backgroundColor: '#0d1020',
+                  border: `1px solid ${profile?.status ? STATUS_COLORS[profile.status] : '#1e2235'}`,
+                  color: '#e8dece',
+                }}>
+                <option value="" disabled style={{ backgroundColor: '#0d1020', color: '#8892aa' }}>Select status…</option>
+                <option value="free_agent" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Free Agent</option>
+                <option value="signed" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Signed to a club</option>
+                <option value="loan_dual_reg" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Looking for Loan / Dual Reg</option>
+                <option value="just_exploring" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Just Exploring</option>
+              </select>
+            </div>
+
+          </div>
+        </section>
+
+        {/* Featured Players */}
+        <FeaturedCarousel players={featuredPlayers} />
+
+        {/* Opportunities */}
+        <OpportunitiesPreview opportunities={opportunities} />
+
+        {/* New Joiners */}
+        <NewJoinersSection players={newJoiners} />
+
+      </div>
+    </div>
   )
 }

@@ -97,7 +97,7 @@ export default function RegisterPage() {
   const [position, setPosition] = useState('')
   const [secondaryPosition, setSecondaryPosition] = useState('')
   const [foot, setFoot] = useState('')
-  const [status, setStatus] = useState('open_to_offers')
+  const [status, setStatus] = useState('just_exploring')
   const [highlightUrl, setHighlightUrl] = useState('')
   const [height, setHeight] = useState('')
 
@@ -166,11 +166,10 @@ export default function RegisterPage() {
       profilePayload.coaching_history = coachingHistory || null
     }
 
-    // 3. Update the profile row created by the DB trigger
+    // 3. Upsert profile (handles cases where trigger may not have fired)
     const { error: profileError } = await supabase
       .from('profiles')
-      .update(profilePayload)
-      .eq('id', userId)
+      .upsert({ id: userId, ...profilePayload })
 
     if (profileError) {
       setError('Account created but profile update failed: ' + profileError.message)
@@ -309,9 +308,10 @@ export default function RegisterPage() {
                 </div>
                 <Field label="Current Status">
                   <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                    <option value="available">Available</option>
-                    <option value="open_to_offers">Open to Offers</option>
-                    <option value="not_available">Not Available</option>
+                    <option value="free_agent">Free Agent</option>
+                    <option value="signed">Signed to a club</option>
+                    <option value="loan_dual_reg">Looking for Loan / Dual Reg</option>
+                    <option value="just_exploring">Just Exploring</option>
                   </Select>
                 </Field>
                 <Field label="Highlight Reel (YouTube URL)">

@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that are always publicly accessible
-const PUBLIC_ROUTES = ['/', '/claim', '/auth/callback', '/register']
+const PUBLIC_ROUTES = ['/', '/claim', '/auth/callback', '/register', '/premium/success']
 
 // Routes that require auth but skip the approved/role checks
 // (user is mid-onboarding — authenticated via magic link, setting password)
@@ -83,13 +83,15 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // /dashboard/* — must be approved
+  // /dashboard/* — must be approved (admin always let through)
   if (pathname.startsWith('/dashboard')) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('approved, role')
       .eq('id', user.id)
       .single()
+
+    if (profile?.role === 'admin') return supabaseResponse
 
     if (!profile?.approved) {
       return NextResponse.redirect(new URL('/pending', request.url))
@@ -102,5 +104,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/claim', '/register', '/set-password', '/pending', '/auth/callback', '/dashboard/:path*'],
+  matcher: ['/', '/claim', '/register', '/set-password', '/pending', '/auth/callback', '/premium/:path*', '/dashboard/:path*', '/dashboard/player/:path*'],
 }

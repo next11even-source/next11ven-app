@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -201,6 +202,7 @@ function FolderModal({
 export default function PlayerPublicProfile() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const { openSidebar } = useSidebar()
   const [player, setPlayer] = useState<PublicProfile | null>(null)
   const [viewer, setViewer] = useState<ViewerProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -389,6 +391,11 @@ export default function PlayerPublicProfile() {
       {/* Header bar with breadcrumb */}
       <div className="px-4 pt-3 pb-3 flex items-center gap-3"
         style={{ borderBottom: '1px solid #1e2235' }}>
+        <button onClick={openSidebar} className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: 20 }}>
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+        </button>
         <Breadcrumb crumbs={[
           { label: 'Players', href: '/dashboard/player/players' },
           { label: player.full_name ?? 'Player' },

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
+import { useSidebar } from '../_components/SidebarContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -713,6 +714,7 @@ const BANNERS: Record<Tab, { title: string; subtitle: string; color: string }> =
 function MarketPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { openSidebar } = useSidebar()
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [profile, setProfile] = useState<PlayerProfile | null>(null)
   const [unreadMessages, setUnreadMessages] = useState(0)
@@ -758,6 +760,15 @@ function MarketPageContent() {
       {/* Tab strip */}
       <div className="sticky top-0 z-10 px-4 pt-4 pb-0"
         style={{ backgroundColor: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={openSidebar} className="flex flex-col gap-1.5" style={{ width: 20 }}>
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          </button>
+          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#8892aa' }}>The Market</p>
+          <div style={{ width: 20 }} />
+        </div>
         <div className="flex gap-1 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
           {tabs.map(t => {
             const hasUnread = t.key === 'messages' && unreadMessages > 0 && activeTab !== 'messages'

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 
 type Role = 'player' | 'coach' | null
 
@@ -27,6 +28,7 @@ const COACH_FEATURES = [
 
 export default function PremiumPage() {
   const router = useRouter()
+  const { openSidebar } = useSidebar()
   const [role, setRole] = useState<Role>(null)
   const [premium, setPremium] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -104,7 +106,12 @@ export default function PremiumPage() {
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
       {/* Header */}
-      <div className="px-2 pt-4 pb-2">
+      <div className="px-2 pt-4 pb-2 flex items-center gap-3">
+        <button onClick={openSidebar} className="flex flex-col gap-1.5 flex-shrink-0 ml-2" style={{ width: 20 }}>
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+        </button>
         <Breadcrumb crumbs={[
           { label: 'Home', href: isCoach ? '/dashboard/coach' : '/dashboard/player' },
           { label: tierLabel },

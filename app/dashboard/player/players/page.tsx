@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
+import { useSidebar } from '../_components/SidebarContext'
 
 type Player = {
   id: string
@@ -14,7 +15,17 @@ type Player = {
   playing_level: string | null
   status: 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring' | null
   highlight_urls: string[] | null
+  created_at: string
 }
+
+type QuickTab = 'all' | 'free_agents' | 'loan' | 'new'
+
+const QUICK_TABS: { key: QuickTab; label: string; color: string }[] = [
+  { key: 'all',        label: 'All Players',  color: '#2d5fc4' },
+  { key: 'free_agents',label: 'Free Agents',  color: '#60a5fa' },
+  { key: 'loan',       label: 'Loan / Dual',  color: '#a78bfa' },
+  { key: 'new',        label: 'New Players',  color: '#f59e0b' },
+]
 
 type Filters = {
   position: string
@@ -198,10 +209,12 @@ function FilterPanel({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlayersPage() {
+  const { openSidebar } = useSidebar()
   const [players, setPlayers] = useState<Player[]>([])
   const [filtered, setFiltered] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [quickTab, setQuickTab] = useState<QuickTab>('all')
   const [appliedFilters, setAppliedFilters] = useState<Filters>(EMPTY_FILTERS)
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS)
   const [showFilters, setShowFilters] = useState(false)
@@ -209,7 +222,7 @@ export default function PlayersPage() {
   useEffect(() => {
     const supabase = createClient()
     supabase.from('profiles')
-      .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls')
+      .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
       .order('last_active', { ascending: false, nullsFirst: false })
@@ -223,6 +236,14 @@ export default function PlayersPage() {
 
   useEffect(() => {
     let result = players
+
+    // Quick tab
+    if (quickTab === 'free_agents') result = result.filter(p => p.status === 'free_agent')
+    if (quickTab === 'loan') result = result.filter(p => p.status === 'loan_dual_reg')
+    if (quickTab === 'new') {
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+      result = result.filter(p => new Date(p.created_at).getTime() > cutoff)
+    }
 
     if (search) {
       const q = search.toLowerCase()
@@ -242,7 +263,7 @@ export default function PlayersPage() {
     if (appliedFilters.hasHighlights) result = result.filter(p => (p.highlight_urls?.length ?? 0) > 0)
 
     setFiltered(result)
-  }, [search, appliedFilters, players])
+  }, [search, quickTab, appliedFilters, players])
 
   const activeFilterCount = [
     appliedFilters.position,
@@ -285,9 +306,16 @@ export default function PlayersPage() {
       <div className="sticky top-0 z-10 px-4 pt-5 pb-3 space-y-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Players
-          </h1>
+          <div className="flex items-center gap-3">
+            <button onClick={openSidebar} className="flex flex-col gap-1.5" style={{ width: 20 }}>
+              <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+              <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+              <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+            </button>
+            <h1 className="text-2xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+              Players
+            </h1>
+          </div>
           <button onClick={openFilters}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold relative"
             style={{ backgroundColor: activeFilterCount > 0 ? '#2d5fc420' : '#13172a', border: `1px solid ${activeFilterCount > 0 ? '#2d5fc4' : '#1e2235'}`, color: activeFilterCount > 0 ? '#2d5fc4' : '#8892aa' }}>
@@ -302,6 +330,27 @@ export default function PlayersPage() {
               </span>
             )}
           </button>
+        </div>
+
+        {/* Quick tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+          {QUICK_TABS.map(tab => {
+            const active = quickTab === tab.key
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setQuickTab(tab.key)}
+                className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors"
+                style={{
+                  backgroundColor: active ? tab.color : '#13172a',
+                  color: active ? '#fff' : '#8892aa',
+                  border: `1px solid ${active ? tab.color : '#1e2235'}`,
+                }}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Search */}
@@ -366,8 +415,8 @@ export default function PlayersPage() {
           <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
         </div>
       ) : (
-        <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-          {filtered.map(p => {
+        <div>
+          {filtered.map((p, i) => {
             const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
             const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const hasHighlights = (p.highlight_urls?.length ?? 0) > 0
@@ -375,7 +424,7 @@ export default function PlayersPage() {
             return (
               <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
                 className="flex items-center gap-3 px-4 py-3.5"
-                style={{ textDecoration: 'none', backgroundColor: '#0a0a0a' }}
+                style={{ textDecoration: 'none', backgroundColor: '#0a0a0a', borderTop: i > 0 ? '1px solid #1e2235' : 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0d1020')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#0a0a0a')}>
 

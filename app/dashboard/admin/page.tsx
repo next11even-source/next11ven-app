@@ -111,10 +111,9 @@ export default function AdminPage() {
   ]
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="pb-4">
       {/* Header */}
-      <div className="sticky top-0 z-10 px-4 pt-3 pb-4"
-        style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+      <div className="px-4 pt-3 pb-4" style={{ borderBottom: '1px solid #1e2235' }}>
         <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/player' }, { label: 'Admin Panel' }]} />
         <h1 className="text-3xl font-black uppercase mb-4 px-2"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>

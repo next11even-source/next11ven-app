@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -273,6 +274,7 @@ function CompletionBar({ profile }: { profile: Profile }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlayerProfilePage() {
+  const { openSidebar } = useSidebar()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
@@ -405,7 +407,14 @@ export default function PlayerProfilePage() {
       )}
 
       {/* Breadcrumb */}
-      <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/player' }, { label: 'My Profile' }]} />
+      <div className="flex items-center gap-3 px-4 pt-3">
+        <button onClick={openSidebar} className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: 20 }}>
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+          <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+        </button>
+        <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/player' }, { label: 'My Profile' }]} />
+      </div>
 
       {/* Avatar + name hero */}
       <AvatarSection

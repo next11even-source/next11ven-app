@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
-import Sidebar from './_components/Sidebar'
+import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 
@@ -290,7 +290,7 @@ function NewJoinersSection({ players }: { players: NewJoiner[] }) {
 
 export default function PlayerHome() {
   const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { openSidebar } = useSidebar()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [featuredPlayers, setFeaturedPlayers] = useState<FeaturedPlayer[]>([])
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
@@ -348,14 +348,9 @@ export default function PlayerHome() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        profile={profile}
-      />
       {/* Header */}
       <header className="px-4 pt-6 pb-4 flex items-center justify-between">
-        <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5" style={{ width: 22 }}>
+        <button onClick={openSidebar} className="flex flex-col gap-1.5" style={{ width: 22 }}>
           <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 22 }} />
           <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 16 }} />
           <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 22 }} />

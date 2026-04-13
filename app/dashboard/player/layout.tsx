@@ -1,12 +1,5 @@
-import BottomNav from './_components/BottomNav'
+import PlayerShell from './_components/PlayerShell'
 
 export default function PlayerLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
-      <div style={{ paddingBottom: '72px' }}>
-        {children}
-      </div>
-      <BottomNav />
-    </div>
-  )
+  return <PlayerShell>{children}</PlayerShell>
 }

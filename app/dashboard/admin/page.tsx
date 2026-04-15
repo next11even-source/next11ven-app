@@ -38,6 +38,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState<TabFilter>('pending')
   const [processing, setProcessing] = useState<string | null>(null)
   const [counts, setCounts] = useState({ pending: 0, approved: 0, declined: 0 })
+  const [reconciling, setReconciling] = useState(false)
+  const [reconcileResult, setReconcileResult] = useState<{ granted: number; revoked: number; checked: number } | null>(null)
 
   useEffect(() => {
     load()
@@ -119,6 +121,33 @@ export default function AdminPage() {
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Admin Panel
         </h1>
+
+        {/* Stripe Reconcile */}
+        <div className="mb-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <div>
+            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Stripe Sync</p>
+            <p className="text-xs" style={{ color: '#8892aa' }}>
+              {reconcileResult
+                ? `Done — ${reconcileResult.checked} checked · ${reconcileResult.granted} granted · ${reconcileResult.revoked} revoked`
+                : 'Reconcile premium status against live Stripe data'}
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              setReconciling(true)
+              setReconcileResult(null)
+              const res = await fetch('/api/admin/stripe-reconcile', { method: 'POST' })
+              const data = await res.json()
+              setReconcileResult(data.ok ? data : null)
+              setReconciling(false)
+            }}
+            disabled={reconciling}
+            className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+            {reconciling ? 'Syncing…' : 'Run Sync'}
+          </button>
+        </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-2 mb-4">

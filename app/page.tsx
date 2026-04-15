@@ -41,17 +41,22 @@ export default function SignInPage() {
     setResetError(null)
     setResetLoading(true)
 
-    const supabase = createClient()
-    const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-    const redirectTo = `${base}/auth/callback?next=/set-password`
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo })
+    try {
+      const supabase = createClient()
+      const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const redirectTo = `${base}/auth/callback?next=/set-password`
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo })
 
-    setResetLoading(false)
-    if (error) {
-      setResetError(error.message)
-      return
+      setResetLoading(false)
+      if (error) {
+        setResetError(error.message || 'Something went wrong — please try again')
+        return
+      }
+      setResetSent(true)
+    } catch {
+      setResetLoading(false)
+      setResetError('Something went wrong — please try again')
     }
-    setResetSent(true)
   }
 
   const inputStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' } as const

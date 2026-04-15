@@ -42,7 +42,8 @@ export default function SignInPage() {
     setResetLoading(true)
 
     const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/callback?next=/set-password`
+    const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    const redirectTo = `${base}/auth/callback?next=/set-password`
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo })
 
     setResetLoading(false)

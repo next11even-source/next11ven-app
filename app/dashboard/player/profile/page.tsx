@@ -29,7 +29,6 @@ type Profile = {
   appearances: number
   season: string | null
   highlight_urls: string[]
-  bio: string | null
   streak_weeks: number
   last_active: string | null
 }
@@ -284,7 +283,6 @@ export default function PlayerProfilePage() {
   const [editingFootball, setEditingFootball] = useState(false)
   const [editingStats, setEditingStats] = useState(false)
   const [editingHighlights, setEditingHighlights] = useState(false)
-  const [editingBio, setEditingBio] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Personal fields
@@ -311,9 +309,6 @@ export default function PlayerProfilePage() {
 
   // Highlights
   const [highlights, setHighlights] = useState<string[]>([''])
-
-  // Bio
-  const [bio, setBio] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -348,7 +343,6 @@ export default function PlayerProfilePage() {
     setAppearances(p.appearances ?? 0)
     setSeason(p.season ?? '2024/25')
     setHighlights(p.highlight_urls?.length ? p.highlight_urls : [''])
-    setBio(p.bio ?? '')
   }
 
   function cancelSection(section: string) {
@@ -357,7 +351,13 @@ export default function PlayerProfilePage() {
     if (section === 'football') setEditingFootball(false)
     if (section === 'stats') setEditingStats(false)
     if (section === 'highlights') setEditingHighlights(false)
-    if (section === 'bio') setEditingBio(false)
+  }
+
+  function closeSection(section: string) {
+    if (section === 'personal') setEditingPersonal(false)
+    if (section === 'football') setEditingFootball(false)
+    if (section === 'stats') setEditingStats(false)
+    if (section === 'highlights') setEditingHighlights(false)
   }
 
   function showToast(msg: string) {
@@ -369,18 +369,17 @@ export default function PlayerProfilePage() {
     if (!profile) return
     setSaving(true)
     const supabase = createClient()
-    await supabase.from('profiles').update(updates).eq('id', profile.id)
-    setProfile(p => p ? { ...p, ...updates } : p)
+    const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id)
     setSaving(false)
-    cancelSection(section)
+    if (error) {
+      showToast('Save failed — try again')
+      return
+    }
+    const merged = { ...profile, ...updates }
+    setProfile(merged)
+    syncFields(merged)
+    closeSection(section)
     showToast('Saved ✓')
-  }
-
-  async function sendPasswordReset() {
-    if (!profile?.email) return
-    const supabase = createClient()
-    await supabase.auth.resetPasswordForEmail(profile.email)
-    showToast('Password reset email sent')
   }
 
   if (loading) {
@@ -592,49 +591,16 @@ export default function PlayerProfilePage() {
           )}
         </SectionCard>
 
-        {/* ── Bio ── */}
-        <SectionCard
-          title="Bio"
-          action={
-            <EditButton editing={editingBio} saving={saving}
-              onEdit={() => setEditingBio(e => !e)}
-              onSave={() => save({ bio: bio || null }, 'bio')} />
-          }>
-          {editingBio ? (
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={5}
-              className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
-              style={inputStyle}
-              onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
-              placeholder="Tell coaches about yourself — your style of play, experience, what you're looking for…" />
-          ) : (
-            <p className="text-sm leading-relaxed" style={{ color: profile.bio ? '#e8dece' : '#8892aa' }}>
-              {profile.bio ?? 'Add a bio to help coaches understand who you are as a player.'}
-            </p>
-          )}
-        </SectionCard>
-
         {/* ── Account ── */}
         <SectionCard title="Account">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-1">
-              <div>
-                <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Email</p>
-                <p className="text-sm mt-0.5" style={{ color: '#e8dece' }}>{profile.email ?? '—'}</p>
-              </div>
-              <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgba(136,146,170,0.1)', color: '#8892aa' }}>
-                Not editable
-              </span>
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Email</p>
+              <p className="text-sm mt-0.5" style={{ color: '#e8dece' }}>{profile.email ?? '—'}</p>
             </div>
-            <div style={{ borderTop: '1px solid #1e2235', paddingTop: 12 }}>
-              <button onClick={sendPasswordReset}
-                className="text-sm font-semibold uppercase tracking-wider transition-colors"
-                style={{ color: '#8892aa' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#e8dece')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#8892aa')}>
-                Send Password Reset Email →
-              </button>
-            </div>
+            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgba(136,146,170,0.1)', color: '#8892aa' }}>
+              Not editable
+            </span>
           </div>
         </SectionCard>
 

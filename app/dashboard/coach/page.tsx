@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import CoachSidebar from './_components/CoachSidebar'
+import { timeAgo } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -312,14 +313,140 @@ function NewJoiners({ players }: { players: Player[] }) {
   )
 }
 
-// ─── Latest Opportunities ─────────────────────────────────────────────────────
+// ─── Quick Stats Bar ──────────────────────────────────────────────────────────
 
-function timeAgoCoach(dateStr: string) {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
+function CoachQuickStats({ newApps, availablePlayers, unread }: { newApps: number; availablePlayers: number; unread: number }) {
+  const stats = [
+    { label: 'New Applications', value: newApps, href: '/dashboard/coach/opportunities', sub: 'this week' },
+    { label: 'Available Players', value: availablePlayers, href: '/dashboard/player/players', sub: 'right now' },
+    { label: 'Unread Messages', value: unread, href: '/dashboard/coach/messages', sub: 'unread' },
+  ]
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {stats.map((s) => (
+        <Link key={s.label} href={s.href}
+          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-colors"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
+          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            {s.value}
+          </span>
+          <span className="text-xs mt-1 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
+          <span className="text-xs mt-0.5 text-center leading-tight font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{s.label}</span>
+        </Link>
+      ))}
+    </div>
+  )
 }
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function SkeletonPulse({ h = 16, rounded = 'rounded-lg' }: { h?: number; rounded?: string }) {
+  return <div className={`animate-pulse ${rounded} w-full`} style={{ height: h, backgroundColor: '#1e2235' }} />
+}
+
+function CoachHomeSkeleton() {
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      <header className="px-4 pt-6 pb-4 flex items-center justify-between">
+        <div className="flex flex-col gap-1.5">
+          <div className="animate-pulse rounded h-0.5 w-5" style={{ backgroundColor: '#1e2235' }} />
+          <div className="animate-pulse rounded h-0.5 w-4" style={{ backgroundColor: '#1e2235' }} />
+          <div className="animate-pulse rounded h-0.5 w-5" style={{ backgroundColor: '#1e2235' }} />
+        </div>
+        <SkeletonPulse h={36} rounded="rounded-lg" />
+        <div style={{ width: 22 }} />
+      </header>
+      <main className="max-w-5xl mx-auto px-6 py-4 space-y-6" style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 24px)' }}>
+        <div className="space-y-2">
+          <SkeletonPulse h={32} rounded="rounded-lg" />
+          <SkeletonPulse h={16} rounded="rounded-lg" />
+        </div>
+        <SkeletonPulse h={100} rounded="rounded-2xl" />
+        <div className="grid grid-cols-3 gap-2">
+          {[0,1,2].map(i => <SkeletonPulse key={i} h={72} rounded="rounded-2xl" />)}
+        </div>
+        <div className="space-y-3">
+          <SkeletonPulse h={80} rounded="rounded-xl" />
+          <SkeletonPulse h={80} rounded="rounded-xl" />
+          <SkeletonPulse h={80} rounded="rounded-xl" />
+        </div>
+      </main>
+    </div>
+  )
+}
+
+// ─── Recently Joined Players ──────────────────────────────────────────────────
+
+type RecentPlayer = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  playing_level: string | null
+  status: Status | null
+}
+
+function RecentlyJoined({ players }: { players: RecentPlayer[] }) {
+  if (players.length === 0) return null
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2 px-1">
+        <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#2d5fc4' }} />
+        <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          New to the Platform
+        </h2>
+        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+          style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+          {players.length}
+        </span>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+        {players.map(p => {
+          const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+          const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+          return (
+            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+              className="flex-shrink-0 rounded-xl overflow-hidden block"
+              style={{ width: 150, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
+              <div className="relative" style={{ height: 150 }}>
+                {p.avatar_url ? (
+                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
+                    <span className="text-4xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d3050' }}>
+                      {initials}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)' }} />
+                {statusCfg && (
+                  <div className="absolute bottom-2 left-2 right-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{ backgroundColor: statusCfg.bg, color: statusCfg.color }}>
+                      {statusCfg.label}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="px-3 py-2.5" style={{ backgroundColor: '#13172a' }}>
+                <p className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>
+                  {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
+                </p>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// ─── Latest Opportunities ─────────────────────────────────────────────────────
 
 function LatestOpportunities({ opportunities, viewerPremium }: { opportunities: CoachOpportunity[]; viewerPremium: boolean }) {
   if (opportunities.length === 0) return null
@@ -358,7 +485,7 @@ function LatestOpportunities({ opportunities, viewerPremium }: { opportunities: 
                 <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-xs" style={{ color: '#8892aa' }}>
-                    {isCoachRole ? 'Coaching Role' : opp.position ?? 'Any Position'} · {timeAgoCoach(opp.created_at)}
+                    {isCoachRole ? 'Coaching Role' : opp.position ?? 'Any Position'} · {timeAgo(opp.created_at)}
                   </p>
                   {opp.urgent && <span className="text-xs" style={{ color: '#ef4444' }}>🔴 Urgent</span>}
                 </div>
@@ -386,6 +513,10 @@ export default function CoachDashboard() {
   const [newJoiners, setNewJoiners] = useState<Player[]>([])
   const [latestOpportunities, setLatestOpportunities] = useState<CoachOpportunity[]>([])
 
+  const [recentPlayers, setRecentPlayers] = useState<RecentPlayer[]>([])
+  const [statsNewApps, setStatsNewApps] = useState(0)
+  const [statsAvailable, setStatsAvailable] = useState(0)
+  const [statsUnread, setStatsUnread] = useState(0)
   const [viewerPremium, setViewerPremium] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -444,6 +575,48 @@ export default function CoachDashboard() {
         .order('created_at', { ascending: false })
         .limit(8)
       setLatestOpportunities((opps as unknown as CoachOpportunity[]) ?? [])
+
+      // Recently joined players (approved, players only, newest first)
+      const { data: recentP } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, position, playing_level, status')
+        .in('role', ['player', 'admin'])
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(6)
+      setRecentPlayers((recentP as RecentPlayer[]) ?? [])
+
+      // Quick stats
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+
+      // New applications this week to this coach's opportunities
+      const { count: appsCount } = await supabase
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('coach_id', user.id)
+        .gte('created_at', weekAgo)
+      setStatsNewApps(appsCount ?? 0)
+
+      // Available players count
+      const { count: availCount } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .in('role', ['player', 'admin'])
+        .eq('approved', true)
+        .in('status', ['free_agent', 'loan_dual_reg', 'just_exploring'])
+      setStatsAvailable(availCount ?? 0)
+
+      // Unread messages count
+      const { data: convs } = await supabase.from('conversations').select('id').eq('coach_id', user.id)
+      if (convs?.length) {
+        const { count: unreadCount } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .in('conversation_id', convs.map((c: { id: string }) => c.id))
+          .neq('sender_id', user.id)
+          .is('read_at', null)
+        setStatsUnread(unreadCount ?? 0)
+      }
 
       setLoading(false)
 
@@ -507,13 +680,21 @@ export default function CoachDashboard() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 gap-2">
+              {[0,1,2].map(i => (
+                <div key={i} className="animate-pulse rounded-2xl" style={{ height: 72, backgroundColor: '#1e2235' }} />
+              ))}
+            </div>
+            {[0,1,2].map(i => (
+              <div key={i} className="animate-pulse rounded-xl" style={{ height: 80, backgroundColor: '#1e2235' }} />
+            ))}
           </div>
         ) : (
           <>
+            <CoachQuickStats newApps={statsNewApps} availablePlayers={statsAvailable} unread={statsUnread} />
             <NewJoiners players={newJoiners} />
+            <RecentlyJoined players={recentPlayers} />
             <LatestOpportunities opportunities={latestOpportunities} viewerPremium={viewerPremium} />
             <PremiumCarousel players={premiumPlayers} />
             <SuggestedPlayers players={suggestedPlayers} />

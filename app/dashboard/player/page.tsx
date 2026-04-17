@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { getLevelConfig } from '@/lib/opportunityLevel'
+import { timeAgo } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,11 +116,65 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
   )
 }
 
-function timeAgo(dateStr: string) {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
+// ─── Quick Stats Bar ──────────────────────────────────────────────────────────
+
+function QuickStatsBar({ views, unread, openOpps }: { views: number; unread: number; openOpps: number }) {
+  const stats = [
+    { label: 'Profile Views', value: views, href: '/dashboard/player/market?tab=activity', sub: 'this week' },
+    { label: 'Messages', value: unread, href: '/dashboard/player/messages', sub: unread === 1 ? 'unread' : 'unread' },
+    { label: 'Opportunities', value: openOpps, href: '/dashboard/player/market?tab=opportunities', sub: 'open' },
+  ]
+  return (
+    <div className="mx-4 grid grid-cols-3 gap-2">
+      {stats.map((s) => (
+        <Link key={s.label} href={s.href}
+          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-colors"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
+          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            {s.value}
+          </span>
+          <span className="text-xs mt-1 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
+          <span className="text-xs mt-0.5 text-center leading-tight font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{s.label}</span>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+// ─── Skeleton Loader ──────────────────────────────────────────────────────────
+
+function SkeletonPulse({ h = 16, w = '100%', rounded = 'rounded-lg' }: { h?: number; w?: string | number; rounded?: string }) {
+  return (
+    <div className={`animate-pulse ${rounded}`}
+      style={{ height: h, width: w, backgroundColor: '#1e2235' }} />
+  )
+}
+
+function PlayerHomeSkeleton() {
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      <header className="px-4 pt-6 pb-4 flex items-center justify-between">
+        <div className="flex flex-col gap-1.5">
+          <SkeletonPulse h={3} w={22} rounded="rounded" />
+          <SkeletonPulse h={3} w={16} rounded="rounded" />
+          <SkeletonPulse h={3} w={22} rounded="rounded" />
+        </div>
+        <SkeletonPulse h={36} w={90} rounded="rounded-lg" />
+        <div style={{ width: 22 }} />
+      </header>
+      <div className="px-4 pb-4"><SkeletonPulse h={14} w="60%" rounded="rounded-lg" /></div>
+      <div className="mx-4 mb-4"><SkeletonPulse h={56} rounded="rounded-2xl" /></div>
+      <div className="mx-4 grid grid-cols-3 gap-2 mb-6">
+        {[0,1,2].map(i => <SkeletonPulse key={i} h={72} rounded="rounded-2xl" />)}
+      </div>
+      <div className="mx-4 space-y-3">
+        <SkeletonPulse h={100} rounded="rounded-2xl" />
+        <SkeletonPulse h={100} rounded="rounded-2xl" />
+      </div>
+    </div>
+  )
 }
 
 // ─── Featured Players Carousel ────────────────────────────────────────────────
@@ -181,7 +236,14 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
       </h2>
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
         {opportunities.length === 0 ? (
-          <div className="p-6 text-center"><p className="text-sm" style={{ color: '#8892aa' }}>No opportunities yet — check back soon.</p></div>
+          <div className="p-6 text-center space-y-3">
+            <p className="text-sm" style={{ color: '#8892aa' }}>No opportunities posted yet. Check back soon — coaches post new roles regularly.</p>
+            <Link href="/dashboard/player/profile"
+              className="inline-block px-4 py-2 rounded-xl text-xs font-bold"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+              Update My Profile
+            </Link>
+          </div>
         ) : (
           opportunities.map((opp, i) => {
             const lvl = getLevelConfig(opp.level)
@@ -298,6 +360,9 @@ export default function PlayerHome() {
   const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([])
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
+  const [statsViews, setStatsViews] = useState(0)
+  const [statsUnread, setStatsUnread] = useState(0)
+  const [statsOpps, setStatsOpps] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -305,11 +370,19 @@ export default function PlayerHome() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const [profileRes, featuredRes, oppsRes, joinersRes] = await Promise.all([
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+
+      const [profileRes, featuredRes, oppsRes, joinersRes, viewsRes, convsRes, oppsCountRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).limit(10),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, club, status, coaching_role').eq('approved', true).order('created_at', { ascending: false }).limit(30),
+        // Profile views this week
+        supabase.from('player_views').select('id', { count: 'exact', head: true }).eq('player_id', user.id).gte('viewed_at', weekAgo),
+        // Unread messages
+        supabase.from('conversations').select('id').eq('player_id', user.id),
+        // Open opportunities count
+        supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('is_active', true),
       ])
 
       const profileData = profileRes.data as Profile
@@ -317,6 +390,22 @@ export default function PlayerHome() {
       setFeaturedPlayers((featuredRes.data as FeaturedPlayer[]) ?? [])
       setOpportunities((oppsRes.data as unknown as Opportunity[]) ?? [])
       setNewJoiners((joinersRes.data as NewJoiner[]) ?? [])
+
+      // Quick stats
+      setStatsViews(viewsRes.count ?? 0)
+      setStatsOpps(oppsCountRes.count ?? 0)
+      // Count unread messages
+      const convIds = (convsRes.data ?? []).map((c: { id: string }) => c.id)
+      if (convIds.length > 0) {
+        const { count: unreadCount } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .in('conversation_id', convIds)
+          .neq('sender_id', user.id)
+          .is('read_at', null)
+        setStatsUnread(unreadCount ?? 0)
+      }
+
       setLoading(false)
 
       // Auto-grant premium for existing Stripe subscribers who just claimed their account
@@ -339,13 +428,7 @@ export default function PlayerHome() {
     setSavingStatus(false)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
-        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
-      </div>
-    )
-  }
+  if (loading) return <PlayerHomeSkeleton />
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -370,6 +453,13 @@ export default function PlayerHome() {
 
       {/* Profile Completion — not shown for fans */}
       {profile && profile.role !== 'fan' && <div className="pb-4"><ProfileCompletionBar profile={profile} /></div>}
+
+      {/* Quick Stats */}
+      {profile?.role !== 'fan' && (
+        <div className="pb-5">
+          <QuickStatsBar views={statsViews} unread={statsUnread} openOpps={statsOpps} />
+        </div>
+      )}
 
       <div className="space-y-7 pb-6">
 

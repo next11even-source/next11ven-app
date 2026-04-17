@@ -145,8 +145,13 @@ function OpportunitiesTab({ playerId, playerCity, playerPosition, isPremium }: {
   return (
     <div className="space-y-4 px-4 py-4">
       {opportunities.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-sm" style={{ color: '#8892aa' }}>No opportunities yet — check back soon.</p>
+        <div className="rounded-2xl p-10 text-center space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm" style={{ color: '#8892aa' }}>No opportunities posted yet. Check back soon — coaches post new roles regularly.</p>
+          <Link href="/dashboard/player/profile"
+            className="inline-block px-5 py-2.5 rounded-xl text-sm font-bold"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            Update My Profile
+          </Link>
         </div>
       ) : opportunities.map(opp => {
         const applied = appliedIds.has(opp.id)

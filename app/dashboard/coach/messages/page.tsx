@@ -341,8 +341,17 @@ function MessagesInner() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+        <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} className="flex items-center gap-3 px-4 py-4">
+              <div className="w-12 h-12 rounded-full animate-pulse flex-shrink-0" style={{ backgroundColor: '#1e2235' }} />
+              <div className="flex-1 space-y-2">
+                <div className="animate-pulse rounded h-3 w-32" style={{ backgroundColor: '#1e2235' }} />
+                <div className="animate-pulse rounded h-2.5 w-48" style={{ backgroundColor: '#1e2235' }} />
+                <div className="animate-pulse rounded h-2.5 w-40" style={{ backgroundColor: '#1e2235' }} />
+              </div>
+            </div>
+          ))}
         </div>
       ) : displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-8 text-center space-y-3">

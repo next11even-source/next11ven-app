@@ -1,9 +1,37 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
+
+type Toast = { id: number; text: string; href: string }
+
+function ToastNotification({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
+  const router = useRouter()
+  if (toasts.length === 0) return null
+  return (
+    <div className="fixed top-4 left-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      {toasts.map(t => (
+        <div key={t.id}
+          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg"
+          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
+          <p className="flex-1 text-sm font-semibold" style={{ color: '#e8dece' }}>{t.text}</p>
+          <button onClick={() => { onDismiss(t.id); router.push(t.href) }}
+            className="text-xs px-3 py-1 rounded-lg flex-shrink-0"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+            View
+          </button>
+          <button onClick={() => onDismiss(t.id)} style={{ color: '#8892aa' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 const adminTab = {
   label: 'Admin',
@@ -24,6 +52,20 @@ export default function BottomNav() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [hasNewActivity, setHasNewActivity] = useState(false)
   const [marketTabParam, setMarketTabParam] = useState('')
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const toastCounter = useRef(0)
+  const userIdRef = useRef<string | null>(null)
+  const convIdsRef = useRef<string[]>([])
+
+  function addToast(text: string, href: string) {
+    const id = ++toastCounter.current
+    setToasts(prev => [...prev, { id, text, href }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000)
+  }
+
+  function dismissToast(id: number) {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }
 
   useEffect(() => {
     // Read ?tab= from URL without useSearchParams (avoids Suspense requirement)
@@ -33,8 +75,11 @@ export default function BottomNav() {
 
   useEffect(() => {
     const supabase = createClient()
+    let realtimeSub: ReturnType<typeof supabase.channel> | null = null
+
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
+      userIdRef.current = user.id
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -50,8 +95,10 @@ export default function BottomNav() {
         .select('id')
         .eq('player_id', user.id)
 
-      if (convs?.length) {
-        const convIds = convs.map(c => c.id)
+      const convIds = (convs ?? []).map((c: { id: string }) => c.id)
+      convIdsRef.current = convIds
+
+      if (convIds.length) {
         const { count } = await supabase
           .from('messages')
           .select('id', { count: 'exact', head: true })
@@ -70,7 +117,34 @@ export default function BottomNav() {
           .gt('viewed_at', profile.last_active)
         setHasNewActivity((viewCount ?? 0) > 0)
       }
+
+      // Realtime: new messages
+      realtimeSub = supabase
+        .channel(`player-messages-${user.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        }, async (payload) => {
+          const msg = payload.new as { sender_id: string; conversation_id: string; content: string }
+          if (msg.sender_id === user.id) return
+          if (!convIdsRef.current.includes(msg.conversation_id)) return
+          setUnreadMessages(prev => prev + 1)
+          // Look up sender name
+          const { data: sender } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', msg.sender_id)
+            .single()
+          const name = sender?.full_name?.split(' ')[0] ?? 'A coach'
+          addToast(`${name} sent you a message`, '/dashboard/player/messages')
+        })
+        .subscribe()
     })
+
+    return () => {
+      if (realtimeSub) realtimeSub.unsubscribe()
+    }
   }, [])
 
   function isActive(href: string, exact: boolean, tabParam?: string | null) {
@@ -150,6 +224,8 @@ export default function BottomNav() {
   const allTabs = isAdmin ? [...baseTabs, adminTab] : baseTabs
 
   return (
+    <>
+    <ToastNotification toasts={toasts} onDismiss={dismissToast} />
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
       style={{
@@ -192,5 +268,6 @@ export default function BottomNav() {
         )
       })}
     </nav>
+    </>
   )
 }

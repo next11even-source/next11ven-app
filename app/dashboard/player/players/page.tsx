@@ -411,8 +411,17 @@ export default function PlayersPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+        <div className="space-y-2 px-4">
+          {[0,1,2,3,4,5].map(i => (
+            <div key={i} className="flex items-center gap-3 rounded-2xl px-4 py-3 animate-pulse" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              <div className="w-14 h-14 rounded-xl flex-shrink-0" style={{ backgroundColor: '#1e2235' }} />
+              <div className="flex-1 space-y-2">
+                <div className="rounded h-3.5 w-36" style={{ backgroundColor: '#1e2235' }} />
+                <div className="rounded h-2.5 w-48" style={{ backgroundColor: '#1e2235' }} />
+                <div className="rounded h-2.5 w-24" style={{ backgroundColor: '#1e2235' }} />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div>

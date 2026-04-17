@@ -148,6 +148,8 @@ export default function RegisterPage() {
       location: location || null,
       referral: referral || null,
       gdpr_consent: gdpr,
+      approved: false,
+      approval_status: 'pending',
     }
 
     if (role === 'player') {

@@ -13,7 +13,6 @@ export type CompletionProfile = {
   height?: string | null
   playing_level?: string | null
   highlight_urls?: string[] | null
-  bio?: string | null
   goals?: number
   assists?: number
   appearances?: number
@@ -31,7 +30,6 @@ export const COMPLETION_CHECKS: { label: string; done: (p: CompletionProfile) =>
   { label: 'Height',         done: p => !!p.height },
   { label: 'Playing level',  done: p => !!p.playing_level },
   { label: 'Highlight reel', done: p => Array.isArray(p.highlight_urls) && p.highlight_urls.length > 0 },
-  { label: 'Bio',            done: p => !!p.bio && p.bio.length > 10 },
   { label: 'Season stats',   done: p => (p.goals ?? 0) > 0 || (p.assists ?? 0) > 0 || (p.appearances ?? 0) > 0 },
 ]
 

@@ -75,11 +75,13 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Fire MailerLite non-blocking — approval only, not decline
+  // Fire MailerLite — awaited so it completes before the serverless function returns
   if (isApproving && target?.email) {
-    onUserApproved(target.email, target.full_name, target.role).catch(err =>
+    try {
+      await onUserApproved(target.email, target.full_name, target.role)
+    } catch (err) {
       console.error('[MailerLite] onUserApproved error:', err)
-    )
+    }
   }
 
   return NextResponse.json({ ok: true, action, user_id })

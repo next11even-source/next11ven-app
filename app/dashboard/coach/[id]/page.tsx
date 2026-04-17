@@ -164,8 +164,8 @@ export default function CoachPublicProfile() {
   const isOwnProfile = viewer?.id === coach.id
   const viewerIsPlayer = viewer?.role === 'player' || viewer?.role === 'admin'
 
-  const backHref = viewerIsPlayer ? '/dashboard/player/market' : '/dashboard/coach'
-  const backLabel = viewerIsPlayer ? 'Market' : 'Home'
+  const backHref = viewerIsPlayer ? '/dashboard/player' : '/dashboard/coach'
+  const backLabel = viewerIsPlayer ? 'Home' : 'Home'
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>

@@ -120,9 +120,9 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
 function QuickStatsBar({ views, unread, openOpps }: { views: number; unread: number; openOpps: number }) {
   const stats = [
-    { label: 'Profile Views', value: views, href: '/dashboard/player/market?tab=activity', sub: 'this week' },
+    { label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week' },
     { label: 'Messages', value: unread, href: '/dashboard/player/messages', sub: unread === 1 ? 'unread' : 'unread' },
-    { label: 'Opportunities', value: openOpps, href: '/dashboard/player/market?tab=opportunities', sub: 'open' },
+    { label: 'Opportunities', value: openOpps, href: '/dashboard/player/opportunities', sub: 'open' },
   ]
   return (
     <div className="mx-4 grid grid-cols-3 gap-2">
@@ -248,7 +248,7 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
           opportunities.map((opp, i) => {
             const lvl = getLevelConfig(opp.level)
             return (
-              <Link key={opp.id} href="/dashboard/player/market?tab=opportunities"
+              <Link key={opp.id} href="/dashboard/player/opportunities"
                 className="flex items-center gap-3 px-4 py-3.5 transition-colors"
                 style={{ backgroundColor: '#13172a', borderBottom: i < opportunities.length - 1 ? '1px solid #1e2235' : undefined, display: 'flex', textDecoration: 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#161b30')}
@@ -272,7 +272,7 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
           })
         )}
       </div>
-      <Link href="/dashboard/player/market?tab=opportunities"
+      <Link href="/dashboard/player/opportunities"
         className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold uppercase tracking-wider transition-colors"
         style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}
         onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d4c8b8')}

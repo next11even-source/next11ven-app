@@ -37,7 +37,6 @@ const adminTab = {
   label: 'Admin',
   href: '/dashboard/admin',
   exact: false,
-  marketTab: null as null | string,
   icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -51,7 +50,6 @@ export default function BottomNav() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [hasNewActivity, setHasNewActivity] = useState(false)
-  const [marketTabParam, setMarketTabParam] = useState('')
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastCounter = useRef(0)
   const userIdRef = useRef<string | null>(null)
@@ -66,12 +64,6 @@ export default function BottomNav() {
   function dismissToast(id: number) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }
-
-  useEffect(() => {
-    // Read ?tab= from URL without useSearchParams (avoids Suspense requirement)
-    const params = new URLSearchParams(window.location.search)
-    setMarketTabParam(params.get('tab') ?? '')
-  }, [pathname])
 
   useEffect(() => {
     const supabase = createClient()
@@ -147,14 +139,8 @@ export default function BottomNav() {
     }
   }, [])
 
-  function isActive(href: string, exact: boolean, tabParam?: string | null) {
+  function isActive(href: string, exact: boolean) {
     if (exact) return pathname === href
-    if (tabParam !== undefined && tabParam !== null) {
-      // Market sub-tabs: active when on market page with matching tab param
-      if (!pathname.startsWith('/dashboard/player/market')) return false
-      if (!tabParam) return marketTabParam === '' || marketTabParam === 'opportunities'
-      return marketTabParam === tabParam
-    }
     return pathname.startsWith(href)
   }
 
@@ -163,7 +149,6 @@ export default function BottomNav() {
       label: 'Home',
       href: '/dashboard/player',
       exact: true,
-      marketTab: null as null | string,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
@@ -175,7 +160,6 @@ export default function BottomNav() {
       label: 'Messages',
       href: '/dashboard/player/messages',
       exact: false,
-      marketTab: null as null | string,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -184,9 +168,8 @@ export default function BottomNav() {
     },
     {
       label: 'Opportunities',
-      href: '/dashboard/player/market?tab=opportunities',
+      href: '/dashboard/player/opportunities',
       exact: false,
-      marketTab: 'opportunities' as null | string,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="7" width="20" height="14" rx="2" />
@@ -198,9 +181,8 @@ export default function BottomNav() {
     },
     {
       label: 'Activity',
-      href: '/dashboard/player/market?tab=activity',
+      href: '/dashboard/player/activity',
       exact: false,
-      marketTab: 'activity' as null | string,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -211,7 +193,6 @@ export default function BottomNav() {
       label: 'Profile',
       href: '/dashboard/player/profile',
       exact: false,
-      marketTab: null as null | string,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="8" r="4" />
@@ -237,7 +218,7 @@ export default function BottomNav() {
       }}
     >
       {allTabs.map((tab) => {
-        const active = isActive(tab.href, tab.exact, tab.marketTab)
+        const active = isActive(tab.href, tab.exact)
         const showMessageBadge = tab.label === 'Messages' && unreadMessages > 0
         const showActivityBadge = tab.label === 'Activity' && hasNewActivity
 

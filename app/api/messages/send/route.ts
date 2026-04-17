@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   ) {
     try {
       const smsBody = isCoach
-        ? `NEXT11VEN: You have a new message from a coach. Open the app to read it. ${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'}/dashboard/player/market?tab=messages`
+        ? `NEXT11VEN: You have a new message from a coach. Open the app to read it. ${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'}/dashboard/player/messages`
         : `NEXT11VEN: A player has sent you a message. Open the app to view it. ${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'}/dashboard/coach/messages`
 
       await fetch(

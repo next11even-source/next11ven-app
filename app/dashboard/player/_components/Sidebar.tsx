@@ -122,6 +122,16 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
 
         {/* Menu items */}
         <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+          <Link href="/dashboard/player/players" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+            style={{ textDecoration: 'none', color: '#8892aa' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="7" r="4" />
+              <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+            </svg>
+            <p className="text-sm font-semibold">Players</p>
+          </Link>
+
           <Link href="/dashboard/player/coaches" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ textDecoration: 'none', color: '#8892aa' }}>

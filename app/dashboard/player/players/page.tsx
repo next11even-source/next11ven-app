@@ -206,12 +206,78 @@ function FilterPanel({
   )
 }
 
+// ─── Hot Right Now Carousel ───────────────────────────────────────────────────
+
+type HotPlayer = Player & { viewCount: number }
+
+function HotRightNow({ players }: { players: HotPlayer[] }) {
+  if (players.length === 0) return null
+  return (
+    <section className="pt-4 pb-1">
+      <div className="px-4 mb-3 flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#ef4444' }} />
+        <h2 className="text-base font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Hot Right Now
+        </h2>
+        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+          style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+          Most viewed this week
+        </span>
+      </div>
+      <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+        {players.map((p) => {
+          const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+          const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+          return (
+            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+              className="flex-shrink-0 rounded-2xl overflow-hidden block"
+              style={{ width: 140, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
+              <div className="relative" style={{ height: 140, backgroundColor: '#1a1f3a' }}>
+                {p.avatar_url
+                  ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                  : (
+                    <div className="w-full h-full flex items-center justify-center"
+                      style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                      <span className="font-black text-4xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                        {initials}
+                      </span>
+                    </div>
+                  )}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 55%)' }} />
+                {/* View count badge */}
+                <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+                  style={{ backgroundColor: 'rgba(239,68,68,0.85)' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span className="text-xs font-black" style={{ color: '#fff', fontSize: 10 }}>{p.viewCount}</span>
+                </div>
+              </div>
+              <div className="p-2.5" style={{ backgroundColor: '#13172a' }}>
+                <p className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 10 }}>{p.position ?? '—'}</p>
+                {statusCfg && (
+                  <span className="inline-block text-xs px-1.5 py-0.5 rounded-full font-medium mt-1"
+                    style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color, fontSize: 9 }}>
+                    {statusCfg.label}
+                  </span>
+                )}
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlayersPage() {
   const { openSidebar } = useSidebar()
   const [players, setPlayers] = useState<Player[]>([])
   const [filtered, setFiltered] = useState<Player[]>([])
+  const [hotPlayers, setHotPlayers] = useState<HotPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [quickTab, setQuickTab] = useState<QuickTab>('all')
@@ -221,17 +287,53 @@ export default function PlayersPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('profiles')
-      .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at')
-      .in('role', ['player', 'admin'])
-      .eq('approved', true)
-      .order('last_active', { ascending: false, nullsFirst: false })
-      .limit(200)
-      .then(({ data }) => {
-        setPlayers((data as Player[]) ?? [])
-        setFiltered((data as Player[]) ?? [])
-        setLoading(false)
-      })
+
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+
+      const [playersRes, viewsRes] = await Promise.all([
+        supabase.from('profiles')
+          .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at')
+          .in('role', ['player', 'admin'])
+          .eq('approved', true)
+          .order('last_active', { ascending: false, nullsFirst: false })
+          .limit(200),
+        supabase.from('player_views')
+          .select('player_id, viewer_id')
+          .gte('viewed_at', weekAgo)
+          .limit(1000),
+      ])
+
+      const allPlayers = (playersRes.data as Player[]) ?? []
+      setPlayers(allPlayers)
+      setFiltered(allPlayers)
+
+      // Build Hot Right Now: group views by player_id, exclude self-views + current user's own profile
+      const viewRows = (viewsRes.data ?? []) as { player_id: string; viewer_id: string }[]
+      const countMap = new Map<string, number>()
+      for (const row of viewRows) {
+        if (row.viewer_id === row.player_id) continue          // exclude self-views
+        if (user && row.player_id === user.id) continue        // don't show yourself
+        countMap.set(row.player_id, (countMap.get(row.player_id) ?? 0) + 1)
+      }
+
+      const topIds = Array.from(countMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([id]) => id)
+
+      const profileMap = new Map(allPlayers.map(p => [p.id, p]))
+      const hot: HotPlayer[] = topIds
+        .map(id => {
+          const p = profileMap.get(id)
+          if (!p) return null
+          return { ...p, viewCount: countMap.get(id) ?? 0 }
+        })
+        .filter(Boolean) as HotPlayer[]
+
+      setHotPlayers(hot)
+      setLoading(false)
+    })
   }, [])
 
   useEffect(() => {
@@ -409,6 +511,9 @@ export default function PlayersPage() {
           {filtered.length} player{filtered.length !== 1 ? 's' : ''}
         </p>
       </div>
+
+      {/* Hot Right Now */}
+      {!loading && <HotRightNow players={hotPlayers} />}
 
       {loading ? (
         <div className="space-y-2 px-4">

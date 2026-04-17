@@ -387,7 +387,7 @@ export default function PlayerHome() {
 
       const profileData = profileRes.data as Profile
       setProfile(profileData)
-      setFeaturedPlayers((featuredRes.data as FeaturedPlayer[]) ?? [])
+      setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5))
       setOpportunities((oppsRes.data as unknown as Opportunity[]) ?? [])
       setNewJoiners((joinersRes.data as NewJoiner[]) ?? [])
 

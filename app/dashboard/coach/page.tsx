@@ -505,8 +505,6 @@ export default function CoachDashboard() {
   const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [fullName, setFullName] = useState<string | null>(null)
   const [premiumPlayers, setPremiumPlayers] = useState<Player[]>([])
-  const [suggestedPlayers, setSuggestedPlayers] = useState<Player[]>([])
-  const [newJoiners, setNewJoiners] = useState<Player[]>([])
   const [latestOpportunities, setLatestOpportunities] = useState<CoachOpportunity[]>([])
 
   const [recentPlayers, setRecentPlayers] = useState<RecentPlayer[]>([])
@@ -533,7 +531,7 @@ export default function CoachDashboard() {
 
       const playerSelect = 'id, role, full_name, position, secondary_position, club, avatar_url, status, location, city, playing_level, weekly_views, premium, created_at, last_active, coaching_role'
 
-      // Premium players
+      // Premium players — shuffled so order is random each session
       const { data: premium } = await supabase
         .from('profiles')
         .select(playerSelect)
@@ -541,27 +539,8 @@ export default function CoachDashboard() {
         .eq('approved', true)
         .eq('premium', true)
         .limit(20)
-      setPremiumPlayers((premium as Player[]) ?? [])
-
-      // Active & available players
-      const { data: suggested } = await supabase
-        .from('profiles')
-        .select(playerSelect)
-        .in('role', ['player', 'admin'])
-        .eq('approved', true)
-        .in('status', ['free_agent', 'loan_dual_reg', 'just_exploring'])
-        .order('last_active', { ascending: false })
-        .limit(12)
-      setSuggestedPlayers((suggested as Player[]) ?? [])
-
-      // New joiners — all recent approved members (players + coaches)
-      const { data: joiners } = await supabase
-        .from('profiles')
-        .select(playerSelect)
-        .eq('approved', true)
-        .order('created_at', { ascending: false })
-        .limit(30)
-      setNewJoiners((joiners as Player[]) ?? [])
+      const shuffled = ((premium as Player[]) ?? []).sort(() => Math.random() - 0.5)
+      setPremiumPlayers(shuffled)
 
       // Latest opportunities (all types, all coaches)
       const { data: opps } = await supabase
@@ -689,11 +668,9 @@ export default function CoachDashboard() {
         ) : (
           <>
             <CoachQuickStats newApps={statsNewApps} availablePlayers={statsAvailable} unread={statsUnread} />
-            <NewJoiners players={newJoiners} />
-            <RecentlyJoined players={recentPlayers} />
-            <LatestOpportunities opportunities={latestOpportunities} viewerPremium={viewerPremium} />
             <PremiumCarousel players={premiumPlayers} />
-            <SuggestedPlayers players={suggestedPlayers} />
+            <LatestOpportunities opportunities={latestOpportunities} viewerPremium={viewerPremium} />
+            <RecentlyJoined players={recentPlayers} />
           </>
         )}
       </main>

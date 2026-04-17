@@ -58,7 +58,8 @@ async function findSubscriber(email: string): Promise<{ id: string } | null> {
 export async function onUserApproved(
   email: string,
   name: string | null,
-  role: string | null
+  role: string | null,
+  city: string | null = null
 ): Promise<void> {
   if (process.env.MAILERLITE_ENABLED === 'false') {
     console.log('[MailerLite] disabled via MAILERLITE_ENABLED flag — skipping onUserApproved')
@@ -75,19 +76,35 @@ export async function onUserApproved(
     return
   }
 
-  // Check if they already exist — if so, do nothing
+  const accountTypeLabel = role === 'coach' ? 'Coach' : 'Player'
+
+  // Check if they already exist — update fields if so, otherwise create
   const existing = await findSubscriber(email)
+
+  const fields: Record<string, string> = {}
+  if (city) fields.city = city
+  fields.account_type = accountTypeLabel
+
   if (existing) {
-    console.log(`[MailerLite] ${email} already exists — skipping onboarding`)
+    // Update existing subscriber with latest fields and add to group
+    await mlFetch(`/subscribers/${existing.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        fields,
+        groups: [groupId],
+      }),
+    })
+    console.log(`[MailerLite] Updated existing subscriber ${email} and added to group`)
     return
   }
 
-  // Create subscriber and assign to group in one call
+  // Create new subscriber with all fields
   const result = await mlFetch('/subscribers', {
     method: 'POST',
     body: JSON.stringify({
       email,
       name: name ?? undefined,
+      fields,
       groups: [groupId],
       status: 'active',
     }),

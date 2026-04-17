@@ -360,7 +360,7 @@ export default function PlayerHome() {
       </header>
 
       {/* Welcome */}
-      <div className="px-4 pb-3">
+      <div className="px-4 pb-3 text-center">
         <p className="text-base" style={{ color: '#8892aa' }}>
           Welcome back,{' '}
           <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span> ✓
@@ -386,11 +386,14 @@ export default function PlayerHome() {
                 <br />
                 <span style={{ color: '#60a5fa' }}>Step 3–7 coaches registered.</span>
               </p>
-              <button
-                className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider"
+              <a
+                href="https://forms.gle/e4goiHZxEutBFGup8"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
                 style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
                 Register Interest
-              </button>
+              </a>
             </div>
 
             {/* Availability */}

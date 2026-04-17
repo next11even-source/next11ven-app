@@ -486,6 +486,26 @@ export default function CoachDashboard() {
           </p>
         </div>
 
+        {/* Event Banner */}
+        <div className="rounded-2xl p-4 flex flex-col gap-3"
+          style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
+          <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
+            🏆 <strong>End of Season Showcase Day</strong>
+            <br />
+            Register to attend and scout players at your level.
+            <br />
+            <span style={{ color: '#60a5fa' }}>Step 3–7 players registered.</span>
+          </p>
+          <a
+            href="https://forms.gle/T5w5jneVc2rFUa4y6"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
+            style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
+            Register Interest
+          </a>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"

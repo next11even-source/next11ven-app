@@ -281,7 +281,7 @@ export default function SignInPage() {
               onMouseEnter={(e) => (e.currentTarget.style.color = '#e8dece')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#8892aa')}
             >
-              First time? Claim your account →
+              No password yet? Set one up →
             </Link>
           </div>
         </div>

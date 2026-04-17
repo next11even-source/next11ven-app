@@ -33,23 +33,12 @@ function ToastNotification({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: 
   )
 }
 
-const adminTab = {
-  label: 'Admin',
-  href: '/dashboard/admin',
-  exact: false,
-  icon: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-  ),
-}
-
 export default function BottomNav() {
   const pathname = usePathname()
   const [isAdmin, setIsAdmin] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [hasNewActivity, setHasNewActivity] = useState(false)
+  const [pendingSignups, setPendingSignups] = useState(0)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastCounter = useRef(0)
   const userIdRef = useRef<string | null>(null)
@@ -58,7 +47,7 @@ export default function BottomNav() {
   function addToast(text: string, href: string) {
     const id = ++toastCounter.current
     setToasts(prev => [...prev, { id, text, href }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000)
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
   }
 
   function dismissToast(id: number) {
@@ -67,7 +56,8 @@ export default function BottomNav() {
 
   useEffect(() => {
     const supabase = createClient()
-    let realtimeSub: ReturnType<typeof supabase.channel> | null = null
+    let messageSub: ReturnType<typeof supabase.channel> | null = null
+    let signupSub: ReturnType<typeof supabase.channel> | null = null
 
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -79,7 +69,8 @@ export default function BottomNav() {
         .eq('id', user.id)
         .single()
 
-      setIsAdmin(profile?.role === 'admin')
+      const admin = profile?.role === 'admin'
+      setIsAdmin(admin)
 
       // Unread message count — conversations where this user is the player
       const { data: convs } = await supabase
@@ -110,8 +101,17 @@ export default function BottomNav() {
         setHasNewActivity((viewCount ?? 0) > 0)
       }
 
+      // Admin: fetch current pending count
+      if (admin) {
+        const { count: pendingCount } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('approval_status', 'pending')
+        setPendingSignups(pendingCount ?? 0)
+      }
+
       // Realtime: new messages
-      realtimeSub = supabase
+      messageSub = supabase
         .channel(`player-messages-${user.id}`)
         .on('postgres_changes', {
           event: 'INSERT',
@@ -122,7 +122,6 @@ export default function BottomNav() {
           if (msg.sender_id === user.id) return
           if (!convIdsRef.current.includes(msg.conversation_id)) return
           setUnreadMessages(prev => prev + 1)
-          // Look up sender name
           const { data: sender } = await supabase
             .from('profiles')
             .select('full_name')
@@ -132,10 +131,29 @@ export default function BottomNav() {
           addToast(`${name} sent you a message`, '/dashboard/player/messages')
         })
         .subscribe()
+
+      // Admin realtime: new profile sign-ups
+      if (admin) {
+        signupSub = supabase
+          .channel(`admin-signups-${user.id}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'profiles',
+          }, (payload) => {
+            const p = payload.new as { full_name: string | null; role: string | null }
+            setPendingSignups(prev => prev + 1)
+            const name = p.full_name?.split(' ')[0] ?? 'Someone'
+            const roleLabel = p.role === 'coach' ? 'coach' : 'player'
+            addToast(`${name} just signed up as a ${roleLabel}`, '/dashboard/admin')
+          })
+          .subscribe()
+      }
     })
 
     return () => {
-      if (realtimeSub) realtimeSub.unsubscribe()
+      if (messageSub) messageSub.unsubscribe()
+      if (signupSub) signupSub.unsubscribe()
     }
   }, [])
 
@@ -172,10 +190,8 @@ export default function BottomNav() {
       exact: false,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="7" width="20" height="14" rx="2" />
-          <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-          <line x1="12" y1="12" x2="12" y2="16" />
-          <line x1="10" y1="14" x2="14" y2="14" />
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       ),
     },
@@ -190,6 +206,18 @@ export default function BottomNav() {
       ),
     },
   ]
+
+  const adminTab = {
+    label: 'Admin',
+    href: '/dashboard/admin',
+    exact: false,
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    ),
+  }
 
   const allTabs = isAdmin ? [...baseTabs, adminTab] : baseTabs
 
@@ -210,6 +238,7 @@ export default function BottomNav() {
         const active = isActive(tab.href, tab.exact)
         const showMessageBadge = tab.label === 'Messages' && unreadMessages > 0
         const showActivityBadge = tab.label === 'Activity' && hasNewActivity
+        const showAdminBadge = tab.label === 'Admin' && pendingSignups > 0
 
         return (
           <Link
@@ -229,6 +258,12 @@ export default function BottomNav() {
               {showActivityBadge && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse"
                   style={{ backgroundColor: '#f87171', border: '1.5px solid #0d1020' }} />
+              )}
+              {showAdminBadge && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
+                  style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10, border: '1.5px solid #0d1020' }}>
+                  {pendingSignups > 9 ? '9+' : pendingSignups}
+                </span>
               )}
             </div>
             <span className="text-xs" style={{ fontFamily: "'Inter', sans-serif", fontWeight: active ? 600 : 400 }}>

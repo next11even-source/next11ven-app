@@ -81,7 +81,9 @@ export async function onUserApproved(
   // Check if they already exist — update fields if so, otherwise create
   const existing = await findSubscriber(email)
 
+  // MailerLite API v3: all subscriber data including name goes inside `fields`
   const fields: Record<string, string> = {}
+  if (name) fields.name = name
   if (city) fields.city = city
   fields.account_type = accountTypeLabel
 
@@ -103,7 +105,6 @@ export async function onUserApproved(
     method: 'POST',
     body: JSON.stringify({
       email,
-      name: name ?? undefined,
       fields,
       groups: [groupId],
       status: 'active',

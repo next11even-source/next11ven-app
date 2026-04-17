@@ -76,26 +76,29 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
           </button>
         </div>
 
-        {/* Profile pill */}
+        {/* Profile card */}
         <Link href="/dashboard/player/profile" onClick={onClose}
-          className="flex items-center gap-3 mx-4 mt-4 mb-4 px-4 py-3 rounded-xl"
+          className="block mx-4 mt-4 mb-4 rounded-xl overflow-hidden"
           style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', textDecoration: 'none' }}>
-          <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: '#1a1f3a' }}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-              : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+          <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+            <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: '#1a1f3a' }}>
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                : <span className="text-base font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+            </div>
+            <div>
+              <p className="text-sm font-bold leading-snug" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</p>
+              <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{profile?.position ?? 'Add your position'}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</p>
-            <p className="text-xs truncate" style={{ color: '#8892aa' }}>{profile?.position ?? 'Player'}</p>
-          </div>
-          <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center justify-center gap-2 px-4 py-2.5"
+            style={{ borderTop: '1px solid rgba(45,95,196,0.3)', backgroundColor: 'rgba(45,95,196,0.08)' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-            <span className="text-xs font-bold" style={{ color: '#2d5fc4' }}>Edit Profile</span>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#2d5fc4' }}>Edit Profile</span>
           </div>
         </Link>
 
@@ -119,14 +122,16 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
 
         {/* Menu items */}
         <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
-          <Link href="/dashboard/player/profile" onClick={onClose}
+          <Link href="/dashboard/player/coaches" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ textDecoration: 'none', color: '#8892aa' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <p className="text-sm font-semibold">Edit Profile</p>
+            <p className="text-sm font-semibold">Coaches</p>
           </Link>
 
           <Link href="/dashboard/player/profile#notifications" onClick={onClose}

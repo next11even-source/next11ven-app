@@ -76,6 +76,7 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (profile?.approved) {
+      // coach → coach dashboard, everyone else (player, fan, admin) → player dashboard
       const dest = profile.role === 'coach' ? '/dashboard/coach' : '/dashboard/player'
       return NextResponse.redirect(new URL(dest, request.url))
     }

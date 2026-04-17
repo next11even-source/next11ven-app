@@ -16,6 +16,7 @@ type Profile = {
   id: string
   full_name: string | null
   avatar_url: string | null
+  role: string | null
   status: Status | null
   premium: boolean
   position: string | null
@@ -305,7 +306,7 @@ export default function PlayerHome() {
       if (!user) { router.push('/'); return }
 
       const [profileRes, featuredRes, oppsRes, joinersRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, avatar_url, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).limit(10),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, club, status, coaching_role').eq('approved', true).order('created_at', { ascending: false }).limit(30),
@@ -367,14 +368,14 @@ export default function PlayerHome() {
         </p>
       </div>
 
-      {/* Profile Completion */}
-      {profile && <div className="pb-4"><ProfileCompletionBar profile={profile} /></div>}
+      {/* Profile Completion — not shown for fans */}
+      {profile && profile.role !== 'fan' && <div className="pb-4"><ProfileCompletionBar profile={profile} /></div>}
 
       <div className="space-y-7 pb-6">
 
         {/* Announcement + Availability — side by side on sm+ */}
         <section className="px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+          <div className={`grid gap-3 items-stretch ${profile?.role === 'fan' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
 
             {/* Announcement Banner */}
             <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
@@ -396,32 +397,34 @@ export default function PlayerHome() {
               </a>
             </div>
 
-            {/* Availability */}
-            <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
-                {!profile?.status && (
-                  <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Required</span>
-                )}
+            {/* Availability — hidden for fans */}
+            {profile?.role !== 'fan' && (
+              <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
+                  {!profile?.status && (
+                    <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Required</span>
+                  )}
+                </div>
+                <select
+                  value={profile?.status ?? ''}
+                  onChange={handleStatusChange}
+                  disabled={savingStatus}
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+                  style={{
+                    backgroundColor: '#0d1020',
+                    border: `1px solid ${profile?.status ? STATUS_COLORS[profile.status] : '#1e2235'}`,
+                    color: '#e8dece',
+                  }}>
+                  <option value="" disabled style={{ backgroundColor: '#0d1020', color: '#8892aa' }}>Select status…</option>
+                  <option value="free_agent" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Free Agent</option>
+                  <option value="signed" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Signed to a club</option>
+                  <option value="loan_dual_reg" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Looking for Loan / Dual Reg</option>
+                  <option value="just_exploring" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Just Exploring</option>
+                </select>
               </div>
-              <select
-                value={profile?.status ?? ''}
-                onChange={handleStatusChange}
-                disabled={savingStatus}
-                className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
-                style={{
-                  backgroundColor: '#0d1020',
-                  border: `1px solid ${profile?.status ? STATUS_COLORS[profile.status] : '#1e2235'}`,
-                  color: '#e8dece',
-                }}>
-                <option value="" disabled style={{ backgroundColor: '#0d1020', color: '#8892aa' }}>Select status…</option>
-                <option value="free_agent" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Free Agent</option>
-                <option value="signed" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Signed to a club</option>
-                <option value="loan_dual_reg" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Looking for Loan / Dual Reg</option>
-                <option value="just_exploring" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Just Exploring</option>
-              </select>
-            </div>
+            )}
 
           </div>
         </section>

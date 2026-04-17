@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 
 type Props = {
@@ -10,66 +11,26 @@ type Props = {
   profile: { full_name: string | null; avatar_url: string | null; position: string | null } | null
 }
 
-const NAV_ITEMS = [
-  {
-    href: '/dashboard/player',
-    exact: true,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-        <path d="M9 21V12h6v9" />
-      </svg>
-    ),
-    label: 'Home',
-  },
-  {
-    href: '/dashboard/player/market',
-    exact: false,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-        <path d="M2 12h20" />
-      </svg>
-    ),
-    label: 'The Market',
-    sub: 'Opportunities & activity',
-  },
-  {
-    href: '/dashboard/player/players',
-    exact: false,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="9" cy="7" r="4" />
-        <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
-      </svg>
-    ),
-    label: 'Players',
-    sub: 'Browse all players',
-  },
-  {
-    href: '/dashboard/player/profile',
-    exact: false,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-      </svg>
-    ),
-    label: 'My Profile',
-    sub: 'Stats, photo, highlights',
-  },
-]
-
 export default function Sidebar({ isOpen, onClose, profile }: Props) {
-  const pathname = usePathname()
   const router = useRouter()
+  const [isPremium, setIsPremium] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
-  function isActive(href: string, exact: boolean) {
-    return exact ? pathname === href : pathname.startsWith(href)
-  }
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('profiles')
+        .select('premium, role')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          setIsPremium(data?.premium ?? false)
+          setIsAdmin(data?.role === 'admin')
+        })
+    })
+  }, [])
 
   async function handleSignOut() {
     onClose()
@@ -117,7 +78,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
 
         {/* Profile pill */}
         <Link href="/dashboard/player/profile" onClick={onClose}
-          className="flex items-center gap-3 mx-4 mt-4 mb-2 px-4 py-3 rounded-xl"
+          className="flex items-center gap-3 mx-4 mt-4 mb-4 px-4 py-3 rounded-xl"
           style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}>
           <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: '#1a1f3a' }}>
@@ -131,45 +92,57 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
           </div>
         </Link>
 
-        {/* Premium CTA */}
-        <Link href="/dashboard/player/premium" onClick={onClose}
-          className="flex items-center gap-3 mx-4 mb-2 px-4 py-3 rounded-xl"
-          style={{ background: 'linear-gradient(135deg, rgba(45,95,196,0.18) 0%, rgba(45,95,196,0.08) 100%)', border: '1px solid rgba(45,95,196,0.35)', textDecoration: 'none' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold" style={{ color: '#2d5fc4' }}>Go Premium</p>
-            <p className="text-xs" style={{ color: '#8892aa' }}>£6.99/month · Get seen faster</p>
-          </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </Link>
+        {/* Go Premium CTA — only if not premium */}
+        {!isPremium && (
+          <Link href="/dashboard/player/premium" onClick={onClose}
+            className="flex items-center gap-3 mx-4 mb-4 px-4 py-3 rounded-xl"
+            style={{ background: 'linear-gradient(135deg, rgba(45,95,196,0.18) 0%, rgba(45,95,196,0.08) 100%)', border: '1px solid rgba(45,95,196,0.35)', textDecoration: 'none' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold" style={{ color: '#2d5fc4' }}>Go Premium</p>
+              <p className="text-xs" style={{ color: '#8892aa' }}>£6.99/month · Get seen faster</p>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </Link>
+        )}
 
-        {/* Nav links */}
+        {/* Menu items */}
         <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
-          {NAV_ITEMS.map(item => {
-            const active = isActive(item.href, item.exact)
-            return (
-              <Link key={item.href} href={item.href} onClick={onClose}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-                style={{
-                  backgroundColor: active ? '#2d5fc420' : 'transparent',
-                  border: `1px solid ${active ? '#2d5fc440' : 'transparent'}`,
-                  textDecoration: 'none',
-                  color: active ? '#e8dece' : '#8892aa',
-                }}>
-                <span style={{ color: active ? '#2d5fc4' : '#8892aa' }}>
-                  {item.icon}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{item.label}</p>
-                  {item.sub && <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{item.sub}</p>}
-                </div>
-              </Link>
-            )
-          })}
+          <Link href="/dashboard/player/profile" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+            style={{ textDecoration: 'none', color: '#8892aa' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <p className="text-sm font-semibold">Settings</p>
+          </Link>
+
+          <Link href="/dashboard/player/profile#notifications" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+            style={{ textDecoration: 'none', color: '#8892aa' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <p className="text-sm font-semibold">Notification Preferences</p>
+          </Link>
+
+          {isAdmin && (
+            <Link href="/dashboard/admin" onClick={onClose}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+              style={{ textDecoration: 'none', color: '#8892aa' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <p className="text-sm font-semibold">Admin Panel</p>
+            </Link>
+          )}
         </nav>
 
         {/* Sign out */}

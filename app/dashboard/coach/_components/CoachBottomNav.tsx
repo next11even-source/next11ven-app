@@ -5,67 +5,11 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 
-type NavTab = { label: string; href: string; exact: boolean; isMarket?: boolean; icon: React.ReactNode }
-
-const tabs: NavTab[] = [
-  {
-    label: 'Home',
-    href: '/dashboard/coach',
-    exact: true,
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-        <path d="M9 21V12h6v9" />
-      </svg>
-    ),
-  },
-  {
-    label: 'The Market',
-    href: '/dashboard/coach/market',
-    exact: false,
-    isMarket: true,
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="12,7 14.5,9.5 13.5,12.5 10.5,12.5 9.5,9.5" />
-        <line x1="12" y1="7" x2="12" y2="2.2" />
-        <line x1="14.5" y1="9.5" x2="19" y2="7.5" />
-        <line x1="13.5" y1="12.5" x2="17" y2="16" />
-        <line x1="10.5" y1="12.5" x2="7" y2="16" />
-        <line x1="9.5" y1="9.5" x2="5" y2="7.5" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Players',
-    href: '/dashboard/player/players',
-    exact: false,
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="9" cy="7" r="4" />
-        <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Profile',
-    href: '/dashboard/profile',
-    exact: false,
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-      </svg>
-    ),
-  },
-]
-
 export default function CoachBottomNav() {
   const pathname = usePathname()
-  const [unreadMessages, setUnreadMessages] = useState(0)
   const [isCoach, setIsCoach] = useState(false)
+  const [unreadMessages, setUnreadMessages] = useState(0)
+  const [unreadAlerts, setUnreadAlerts] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -81,28 +25,101 @@ export default function CoachBottomNav() {
       if (profile?.role !== 'coach') return
       setIsCoach(true)
 
-      const { data: convs } = await supabase.from('conversations').select('id').eq('coach_id', user.id)
-      if (!convs?.length) return
-      const { count } = await supabase.from('messages')
+      // Unread messages
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('coach_id', user.id)
+      if (convs?.length) {
+        const { count } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .in('conversation_id', convs.map(c => c.id))
+          .neq('sender_id', user.id)
+          .is('read_at', null)
+        setUnreadMessages(count ?? 0)
+      }
+
+      // Unread shortlist alerts
+      const { count: alertCount } = await supabase
+        .from('shortlist_alerts')
         .select('id', { count: 'exact', head: true })
-        .in('conversation_id', convs.map(c => c.id))
-        .neq('sender_id', user.id)
-        .is('read_at', null)
-      setUnreadMessages(count ?? 0)
+        .eq('coach_id', user.id)
+        .eq('is_read', false)
+      setUnreadAlerts(alertCount ?? 0)
     })
   }, [])
 
-  function isActive(tab: NavTab) {
-    if (tab.isMarket) {
-      return pathname.startsWith('/dashboard/coach/market') ||
-             pathname.startsWith('/dashboard/coach/messages') ||
-             pathname.startsWith('/dashboard/coach/shortlists') ||
-             pathname.startsWith('/dashboard/coach/opportunities')
-    }
-    return tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
+  function isActive(href: string, exact: boolean) {
+    return exact ? pathname === href : pathname.startsWith(href)
   }
 
   if (!isCoach) return null
+
+  const tabs = [
+    {
+      label: 'Home',
+      href: '/dashboard/coach',
+      exact: true,
+      badge: null as null | { count: number; color: string; amber?: boolean },
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+          <path d="M9 21V12h6v9" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Players',
+      href: '/dashboard/player/players',
+      exact: false,
+      badge: null as null | { count: number; color: string; amber?: boolean },
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="9" cy="7" r="4" />
+          <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Messages',
+      href: '/dashboard/coach/messages',
+      exact: false,
+      badge: unreadMessages > 0 ? { count: unreadMessages, color: '#ef4444' } : null,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Opportunities',
+      href: '/dashboard/coach/opportunities',
+      exact: false,
+      badge: null as null | { count: number; color: string; amber?: boolean },
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" />
+          <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+          <line x1="12" y1="12" x2="12" y2="16" />
+          <line x1="10" y1="14" x2="14" y2="14" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Shortlists',
+      href: '/dashboard/coach/shortlists',
+      exact: false,
+      badge: unreadAlerts > 0 ? { count: unreadAlerts, color: '#f59e0b', amber: true } : null,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
+  ]
 
   return (
     <nav
@@ -116,20 +133,28 @@ export default function CoachBottomNav() {
       }}
     >
       {tabs.map((tab) => {
-        const active = isActive(tab)
-        const showBadge = tab.isMarket && unreadMessages > 0
+        const active = isActive(tab.href, tab.exact)
         return (
           <Link
-            key={tab.href}
+            key={tab.label}
             href={tab.href}
             className="flex flex-col items-center gap-1 flex-1 py-2 transition-colors relative"
             style={{ color: active ? '#2d5fc4' : '#8892aa', textDecoration: 'none' }}
           >
             <div className="relative">
               {tab.icon}
-              {showBadge && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse"
-                  style={{ backgroundColor: '#f87171', border: '1.5px solid #0d1020' }} />
+              {tab.badge && (
+                <span
+                  className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{
+                    backgroundColor: tab.badge.color,
+                    color: tab.badge.amber ? '#0a0a0a' : '#fff',
+                    fontSize: 10,
+                    border: '1.5px solid #0d1020',
+                  }}
+                >
+                  {tab.badge.count > 9 ? '9+' : tab.badge.count}
+                </span>
               )}
             </div>
             <span className="text-xs" style={{ fontFamily: "'Inter', sans-serif", fontWeight: active ? 600 : 400 }}>

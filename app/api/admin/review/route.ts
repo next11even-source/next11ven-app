@@ -1,11 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { onUserApproved } from '@/lib/mailerlite'
 
+function serviceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
 
+  // Auth check uses the user's session (anon client)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -47,14 +56,16 @@ export async function POST(req: NextRequest) {
 
   const isApproving = action === 'approve'
 
-  // Fetch the profile being reviewed (need email, name, role for MailerLite)
-  const { data: target } = await supabase
+  // All DB writes use service role to bypass RLS
+  const service = serviceSupabase()
+
+  const { data: target } = await service
     .from('profiles')
     .select('email, full_name, role')
     .eq('id', user_id)
     .single()
 
-  const { error } = await supabase
+  const { error } = await service
     .from('profiles')
     .update({
       approved: isApproving,

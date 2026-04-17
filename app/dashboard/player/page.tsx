@@ -335,7 +335,7 @@ function NewJoinersSection({ players }: { players: NewJoiner[] }) {
                   {p.full_name ?? (isCoach ? 'Coach' : 'Player')}
                 </p>
                 <p className="text-xs truncate" style={{ color: '#8892aa' }}>{subtitle}</p>
-                {!isCoach && p.status && p.status !== 'signed' && (
+                {!isCoach && p.status && (
                   <p className="text-xs font-semibold" style={{ color: STATUS_COLORS[p.status], fontSize: 10 }}>
                     {STATUS_LABELS[p.status]}
                   </p>

@@ -291,11 +291,6 @@ function NewJoiners({ players }: { players: Player[] }) {
                     {isCoach ? 'COACH' : 'PLAYER'}
                   </span>
                 </div>
-                {!isCoach && p.status && p.status !== 'signed' && (
-                  <div className="absolute bottom-2 left-2 right-2">
-                    <StatusBadge status={p.status} />
-                  </div>
-                )}
               </div>
               <div className="px-3 py-2.5" style={{ backgroundColor: '#13172a' }}>
                 <p className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>
@@ -304,6 +299,7 @@ function NewJoiners({ players }: { players: Player[] }) {
                 <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>
                   {subtitle}
                 </p>
+                {!isCoach && p.status && <StatusBadge status={p.status} />}
               </div>
             </Link>
           )

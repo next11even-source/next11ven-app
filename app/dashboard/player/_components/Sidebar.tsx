@@ -79,7 +79,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
         {/* Profile pill */}
         <Link href="/dashboard/player/profile" onClick={onClose}
           className="flex items-center gap-3 mx-4 mt-4 mb-4 px-4 py-3 rounded-xl"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}>
+          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', textDecoration: 'none' }}>
           <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: '#1a1f3a' }}>
             {profile?.avatar_url
@@ -88,7 +88,14 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</p>
-            <p className="text-xs truncate" style={{ color: '#8892aa' }}>{profile?.position ?? 'View profile →'}</p>
+            <p className="text-xs truncate" style={{ color: '#8892aa' }}>{profile?.position ?? 'Player'}</p>
+          </div>
+          <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <span className="text-xs font-bold" style={{ color: '#2d5fc4' }}>Edit Profile</span>
           </div>
         </Link>
 
@@ -116,10 +123,10 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
             className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ textDecoration: 'none', color: '#8892aa' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-            <p className="text-sm font-semibold">Settings</p>
+            <p className="text-sm font-semibold">Edit Profile</p>
           </Link>
 
           <Link href="/dashboard/player/profile#notifications" onClick={onClose}

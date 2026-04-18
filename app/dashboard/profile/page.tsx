@@ -480,24 +480,16 @@ function CoachingHistoryEditor({ profile, onSave, onCancel }: {
   )
 }
 
-// ─── Coach Contact ────────────────────────────────────────────────────────────
+// ─── Coach Contact (phone only) ───────────────────────────────────────────────
 
 function CoachContactCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
   return (
-    <EditableCard title="Contact &amp; Notifications" editContent={(cancel) => (
+    <EditableCard title="Contact" editContent={(cancel) => (
       <CoachContactEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
     )}>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Phone</span>
-          <span className="text-sm font-medium" style={{ color: profile.phone ? '#e8dece' : '#3a4055' }}>{profile.phone ?? 'Not set'}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>SMS Notifications</span>
-          <span className="text-sm font-medium" style={{ color: profile.phone ? (profile.sms_opt_in ? '#e8dece' : '#8892aa') : '#3a4055' }}>
-            {profile.phone ? (profile.sms_opt_in ? 'On' : 'Off') : '—'}
-          </span>
-        </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Phone</span>
+        <span className="text-sm font-medium" style={{ color: profile.phone ? '#e8dece' : '#3a4055' }}>{profile.phone ?? 'Not set'}</span>
       </div>
     </EditableCard>
   )
@@ -507,30 +499,69 @@ function CoachContactEditor({ profile, onSave, onCancel }: {
   profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; onCancel: () => void
 }) {
   const [phone, setPhone] = useState(profile.phone ?? '')
-  const [smsOptIn, setSmsOptIn] = useState(profile.sms_opt_in ?? false)
   const [saving, setSaving] = useState(false)
 
   return (
     <div className="space-y-3">
       <Field label="Phone">
-        <Inp type="tel" value={phone} onChange={e => { setPhone(e.target.value); if (e.target.value && !smsOptIn) setSmsOptIn(true) }} placeholder="+447700900000" />
+        <Inp type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+447700900000" />
       </Field>
-      {phone ? (
-        <button type="button" onClick={() => setSmsOptIn(v => !v)} className="flex items-center gap-3 w-full py-1">
-          <div className="relative w-10 h-6 rounded-full transition-colors flex-shrink-0" style={{ backgroundColor: smsOptIn ? '#2d5fc4' : '#1e2235' }}>
-            <div className="absolute top-1 w-4 h-4 rounded-full transition-all" style={{ backgroundColor: '#fff', left: smsOptIn ? '22px' : '4px' }} />
-          </div>
-          <span className="text-sm" style={{ color: '#e8dece' }}>{smsOptIn ? 'SMS notifications on' : 'SMS notifications off'}</span>
-        </button>
-      ) : (
-        <p className="text-xs py-1" style={{ color: '#8892aa' }}>Add a phone number above to enable SMS notifications.</p>
-      )}
       <SaveCancel saving={saving} onCancel={onCancel}
         onSave={async () => {
           setSaving(true)
-          await onSave({ phone: phone || null, sms_opt_in: !!phone && smsOptIn })
+          await onSave({ phone: phone || null })
           setSaving(false)
         }} />
+    </div>
+  )
+}
+
+// ─── Notifications (shared, instant-save toggles) ─────────────────────────────
+
+function NotificationsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  const [smsOn, setSmsOn] = useState(profile.sms_opt_in ?? false)
+  const [saving, setSaving] = useState(false)
+
+  async function toggleSms() {
+    if (!profile.phone || saving) return
+    const next = !smsOn
+    setSmsOn(next)
+    setSaving(true)
+    await onSave({ sms_opt_in: next })
+    setSaving(false)
+  }
+
+  return (
+    <div className="rounded-xl p-5 space-y-0" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <h3 className="text-sm font-bold uppercase mb-3"
+        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Notifications</h3>
+      {/* SMS */}
+      <div className="flex items-center justify-between gap-4 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold" style={{ color: profile.phone ? '#e8dece' : '#3a4055' }}>SMS Notifications</p>
+          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+            {profile.phone ? 'Text alert when you receive a new message' : 'Add a phone number in Contact above to enable'}
+          </p>
+        </div>
+        {profile.phone ? (
+          <button type="button" onClick={toggleSms} disabled={saving}
+            className="relative w-10 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50"
+            style={{ backgroundColor: smsOn ? '#2d5fc4' : '#1e2235' }}>
+            <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all"
+              style={{ left: smsOn ? '22px' : '4px' }} />
+          </button>
+        ) : (
+          <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0" style={{ backgroundColor: '#1e2235', color: '#3a4055' }}>Off</span>
+        )}
+      </div>
+      {/* Email */}
+      <div className="flex items-center justify-between gap-4 py-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>Email Notifications</p>
+          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>New messages and key account activity</p>
+        </div>
+        <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0" style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>Always On</span>
+      </div>
     </div>
   )
 }
@@ -672,12 +703,18 @@ export default function ProfilePage() {
             <CoachDetailsCard profile={profile} onSave={saveProfile} />
             <CoachingHistoryCard profile={profile} onSave={saveProfile} />
             <CoachContactCard profile={profile} onSave={saveProfile} />
+            <div id="notifications">
+              <NotificationsCard profile={profile} onSave={saveProfile} />
+            </div>
           </>
         ) : (
           <>
             <PlayerDetailsCard profile={profile} onSave={saveProfile} />
             <StatsCard profile={profile} onSave={saveProfile} />
             <HighlightsCard profile={profile} onSave={saveProfile} />
+            <div id="notifications">
+              <NotificationsCard profile={profile} onSave={saveProfile} />
+            </div>
           </>
         )}
 

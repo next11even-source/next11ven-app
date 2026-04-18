@@ -271,6 +271,59 @@ function CompletionBar({ profile }: { profile: Profile }) {
   )
 }
 
+// ─── Notifications Section ───────────────────────────────────────────────────
+
+function NotificationsCard({ profile, onToggleSms }: {
+  profile: Profile
+  onToggleSms: (val: boolean) => Promise<void>
+}) {
+  const [smsOn, setSmsOn] = useState(profile.sms_opt_in)
+  const [saving, setSaving] = useState(false)
+
+  async function toggleSms() {
+    if (!profile.phone || saving) return
+    const next = !smsOn
+    setSmsOn(next)
+    setSaving(true)
+    await onToggleSms(next)
+    setSaving(false)
+  }
+
+  return (
+    <SectionCard title="Notifications">
+      <div className="space-y-0">
+        {/* SMS */}
+        <div className="flex items-center justify-between gap-4 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold" style={{ color: profile.phone ? '#e8dece' : '#3a4055' }}>SMS Notifications</p>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+              {profile.phone ? 'Text alert when you receive a new message' : 'Add a phone number in Personal Details to enable'}
+            </p>
+          </div>
+          {profile.phone ? (
+            <button type="button" onClick={toggleSms} disabled={saving}
+              className="relative w-10 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50"
+              style={{ backgroundColor: smsOn ? '#2d5fc4' : '#1e2235' }}>
+              <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all"
+                style={{ left: smsOn ? '22px' : '4px' }} />
+            </button>
+          ) : (
+            <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0" style={{ backgroundColor: '#1e2235', color: '#3a4055' }}>Off</span>
+          )}
+        </div>
+        {/* Email */}
+        <div className="flex items-center justify-between gap-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>Email Notifications</p>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>New messages and key account activity</p>
+          </div>
+          <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0" style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>Always On</span>
+        </div>
+      </div>
+    </SectionCard>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlayerProfilePage() {
@@ -435,22 +488,12 @@ export default function PlayerProfilePage() {
           action={
             <EditButton editing={editingPersonal} saving={saving}
               onEdit={() => setEditingPersonal(e => !e)}
-              onSave={() => save({ full_name: fullName || null, phone: phone || null, sms_opt_in: !!phone && smsOptIn, date_of_birth: dob || null, city: city || null, location: location || null }, 'personal')} />
+              onSave={() => save({ full_name: fullName || null, phone: phone || null, date_of_birth: dob || null, city: city || null, location: location || null }, 'personal')} />
           }>
           {editingPersonal ? (
             <div className="space-y-3">
               <Field label="Full Name"><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your full name" /></Field>
-              <Field label="Phone"><Input type="tel" value={phone} onChange={e => { setPhone(e.target.value); if (e.target.value && !smsOptIn) setSmsOptIn(true) }} placeholder="+447700900000" /></Field>
-              {phone ? (
-                <button type="button" onClick={() => setSmsOptIn(v => !v)} className="flex items-center gap-3 w-full py-1">
-                  <div className="relative w-10 h-6 rounded-full transition-colors flex-shrink-0" style={{ backgroundColor: smsOptIn ? '#2d5fc4' : '#1e2235' }}>
-                    <div className="absolute top-1 w-4 h-4 rounded-full transition-all" style={{ backgroundColor: '#fff', left: smsOptIn ? '22px' : '4px' }} />
-                  </div>
-                  <span className="text-sm" style={{ color: '#e8dece' }}>{smsOptIn ? 'SMS notifications on' : 'SMS notifications off'}</span>
-                </button>
-              ) : (
-                <p className="text-xs py-1" style={{ color: '#8892aa' }}>Add a phone number above to enable SMS notifications.</p>
-              )}
+              <Field label="Phone"><Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+447700900000" /></Field>
               <Field label="Date of Birth"><Input type="date" value={dob} onChange={e => setDob(e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Nearest City"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Manchester" /></Field>
@@ -603,6 +646,16 @@ export default function PlayerProfilePage() {
             </div>
           )}
         </SectionCard>
+
+        {/* ── Notifications ── */}
+        <div id="notifications">
+          <NotificationsCard
+            profile={profile}
+            onToggleSms={async (val) => {
+              await save({ sms_opt_in: val }, 'notifications')
+            }}
+          />
+        </div>
 
         {/* ── Account ── */}
         <SectionCard title="Account">

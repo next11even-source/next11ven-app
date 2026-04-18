@@ -69,11 +69,11 @@ export default function CoachBottomNav() {
       if (profile?.role !== 'coach') return
       setIsCoach(true)
 
-      // Unread messages
+      // Unread messages — include conversations where this coach is in either slot (coach-to-coach)
       const { data: convs } = await supabase
         .from('conversations')
         .select('id')
-        .eq('coach_id', user.id)
+        .or(`coach_id.eq.${user.id},player_id.eq.${user.id}`)
       const convIds = (convs ?? []).map((c: { id: string }) => c.id)
       convIdsRef.current = convIds
 

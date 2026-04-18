@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   // Get sender profile
   const { data: sender } = await supabase
     .from('profiles')
-    .select('role, full_name, premium')
+    .select('role, full_name, premium, coaching_role, position')
     .eq('id', user.id)
     .single()
 
@@ -170,10 +170,14 @@ export async function POST(req: NextRequest) {
   // Email notification — awaited so it completes before serverless function exits
   if (recipient?.email) {
     try {
+      // Use role label rather than name to intrigue the recipient
+      const senderLabel = isCoach
+        ? (sender.coaching_role ?? 'A coach')
+        : (sender.position ? `A ${sender.position.toLowerCase()}` : 'A player')
       await sendMessageNotificationEmail({
         to: recipient.email,
         toName: recipient.full_name,
-        fromName: sender.full_name,
+        senderLabel,
         isCoach: !isCoach,
       })
     } catch (err) {

@@ -64,28 +64,28 @@ function baseTemplate(content: string) {
 export async function sendMessageNotificationEmail({
   to,
   toName,
-  fromName,
+  senderLabel,
   isCoach,
 }: {
   to: string
   toName: string | null
-  fromName: string | null
+  senderLabel: string
   isCoach: boolean
 }) {
   const dashboardUrl = isCoach
     ? `${SITE}/dashboard/coach/messages`
     : `${SITE}/dashboard/player/messages`
 
-  const senderLabel = isCoach ? 'a player' : 'a coach'
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
-    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
-      ${fromName ? `<strong style="color:#e8dece;">${fromName}</strong>` : `Someone (${senderLabel})`} sent you a message on NEXT11VEN.
+    <p style="color:#8892aa;margin:0 0 6px;line-height:1.6;">
+      <strong style="color:#e8dece;">${senderLabel}</strong> has sent you a DM on NEXT11VEN.
     </p>
-    <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Read Message</a>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;">Open the app to see who it is and what they said.</p>
+    <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Message</a>
   `)
 
-  await send({ to, subject: `New message on NEXT11VEN`, html })
+  await send({ to, subject: `You have a new DM on NEXT11VEN`, html })
 }
 
 // ─── Application received (coach) ─────────────────────────────────────────────

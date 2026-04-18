@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   const { data: target } = await service
     .from('profiles')
-    .select('email, full_name, role, city, location')
+    .select('email, full_name, role, city, location, phone, sms_opt_in')
     .eq('id', user_id)
     .single()
 
@@ -83,6 +83,36 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error('[MailerLite] onUserApproved error:', err)
     }
+  }
+
+  // Approval SMS — non-blocking
+  if (
+    isApproving &&
+    target?.phone &&
+    target?.sms_opt_in &&
+    process.env.TWILIO_ENABLED !== 'false' &&
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_FROM_NUMBER
+  ) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'
+    const roleLabel = target.role === 'coach' ? 'coach' : 'player'
+    const smsBody = `NEXT11VEN: Your ${roleLabel} account has been approved! Sign in now: ${siteUrl}`
+    fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          From: process.env.TWILIO_FROM_NUMBER,
+          To: target.phone,
+          Body: smsBody,
+        }),
+      }
+    ).catch(err => console.error('[Twilio] approval SMS error:', err))
   }
 
   return NextResponse.json({ ok: true, action, user_id })

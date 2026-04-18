@@ -358,10 +358,14 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
 export default function CoachOpportunitiesPage() {
   const router = useRouter()
   const [coachId, setCoachId] = useState<string | null>(null)
+  const [isPremium, setIsPremium] = useState(false)
+  const [monthlyCount, setMonthlyCount] = useState(0)
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [viewingApplicants, setViewingApplicants] = useState<Opportunity | null>(null)
+
+  const FREE_TIER_LIMIT = 2
 
   useEffect(() => {
     async function load() {
@@ -370,11 +374,20 @@ export default function CoachOpportunitiesPage() {
       if (!user) { router.push('/'); return }
       setCoachId(user.id)
 
-      const { data: opps } = await supabase
-        .from('opportunities')
-        .select('*')
-        .eq('coach_id', user.id)
-        .order('created_at', { ascending: false })
+      const startOfMonth = new Date()
+      startOfMonth.setDate(1)
+      startOfMonth.setHours(0, 0, 0, 0)
+
+      const [profileRes, oppsRes, monthlyRes] = await Promise.all([
+        supabase.from('profiles').select('premium').eq('id', user.id).single(),
+        supabase.from('opportunities').select('*').eq('coach_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', user.id).gte('created_at', startOfMonth.toISOString()),
+      ])
+
+      setIsPremium(profileRes.data?.premium ?? false)
+      setMonthlyCount(monthlyRes.count ?? 0)
+
+      const opps = oppsRes.data
 
       if (!opps) { setLoading(false); return }
 
@@ -397,6 +410,7 @@ export default function CoachOpportunitiesPage() {
 
   function handlePosted(opp: Opportunity) {
     setOpportunities(prev => [{ ...opp, application_count: 0 }, ...prev])
+    setMonthlyCount(prev => prev + 1)
     setShowForm(false)
   }
 
@@ -437,13 +451,24 @@ export default function CoachOpportunitiesPage() {
             </p>
           </div>
           {!showForm && (
-            <button onClick={() => setShowForm(true)}
-              className="text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full transition-colors"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#3a6fda')}
-              onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d5fc4')}>
-              + Post Role
-            </button>
+            isPremium || monthlyCount < FREE_TIER_LIMIT ? (
+              <button onClick={() => setShowForm(true)}
+                className="text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full transition-colors"
+                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#3a6fda')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d5fc4')}>
+                + Post Role
+              </button>
+            ) : (
+              <div className="text-right">
+                <p className="text-xs mb-1" style={{ color: '#8892aa' }}>Monthly limit reached ({FREE_TIER_LIMIT}/{FREE_TIER_LIMIT})</p>
+                <a href="/dashboard/coach/premium"
+                  className="inline-block text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full"
+                  style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#2d5fc4', textDecoration: 'none' }}>
+                  🔒 Coach Pro for Unlimited
+                </a>
+              </div>
+            )
           )}
         </div>
 

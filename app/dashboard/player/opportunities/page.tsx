@@ -113,14 +113,12 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
   }, [playerId])
 
   async function handleApply(opp: Opportunity) {
-    const supabase = createClient()
-    const { error } = await supabase.from('applications').insert({
-      opportunity_id: opp.id,
-      player_id: playerId,
-      coach_id: opp.coach_id,
-      message: message.trim() || null,
+    const res = await fetch('/api/applications/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opportunity_id: opp.id, message: message.trim() || null }),
     })
-    if (!error) {
+    if (res.ok) {
       setAppliedIds(prev => new Set([...prev, opp.id]))
       setOpportunities(prev => prev.map(o => o.id === opp.id ? { ...o, application_count: o.application_count + 1 } : o))
       setApplying(null)
@@ -208,15 +206,23 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
               )}
 
               {!isApplying && (
-                <button onClick={() => !applied && setApplying(opp.id)} disabled={applied}
-                  className="w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider transition-colors disabled:cursor-default"
-                  style={{
-                    backgroundColor: applied ? 'transparent' : '#2d5fc4',
-                    color: applied ? '#2d5fc4' : '#fff',
-                    border: applied ? '1px solid #2d5fc4' : 'none',
-                  }}>
-                  {applied ? '✓ Applied' : 'Apply Now'}
-                </button>
+                isPremium ? (
+                  <button onClick={() => !applied && setApplying(opp.id)} disabled={applied}
+                    className="w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider transition-colors disabled:cursor-default"
+                    style={{
+                      backgroundColor: applied ? 'transparent' : '#2d5fc4',
+                      color: applied ? '#2d5fc4' : '#fff',
+                      border: applied ? '1px solid #2d5fc4' : 'none',
+                    }}>
+                    {applied ? '✓ Applied' : 'Apply Now'}
+                  </button>
+                ) : (
+                  <a href="/dashboard/player/premium"
+                    className="w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+                    style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa', textDecoration: 'none' }}>
+                    <span>🔒</span> Premium Required to Apply
+                  </a>
+                )
               )}
             </div>
           </div>

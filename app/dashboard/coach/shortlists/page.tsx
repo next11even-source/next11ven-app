@@ -41,6 +41,7 @@ export default function ShortlistsPage() {
   const router = useRouter()
   const [saved, setSaved] = useState<SavedPlayer[]>([])
   const [loading, setLoading] = useState(true)
+  const [isPremium, setIsPremium] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null)
 
@@ -50,6 +51,11 @@ export default function ShortlistsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
+
+    const { data: profile } = await supabase.from('profiles').select('premium').eq('id', user.id).single()
+    setIsPremium(profile?.premium ?? false)
+
+    if (!profile?.premium) { setLoading(false); return }
 
     // Two queries to avoid join cardinality ambiguity
     const { data: rows } = await supabase
@@ -103,6 +109,25 @@ export default function ShortlistsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+      </div>
+    )
+  }
+
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 text-center" style={{ backgroundColor: '#0a0a0a' }}>
+        <span className="text-5xl mb-4">🔒</span>
+        <p className="font-black uppercase text-2xl mb-2" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Coach Pro Feature
+        </p>
+        <p className="text-sm mb-6 leading-relaxed max-w-xs" style={{ color: '#8892aa' }}>
+          Shortlisting players and getting status alerts is a Coach Pro feature. Upgrade to build your recruitment pipeline.
+        </p>
+        <Link href="/dashboard/coach/premium"
+          className="px-6 py-3 rounded-xl text-sm font-bold"
+          style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+          Upgrade to Coach Pro — £9.99/mo
+        </Link>
       </div>
     )
   }

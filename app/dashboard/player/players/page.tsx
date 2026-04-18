@@ -293,9 +293,10 @@ export default function PlayersPage() {
 
       const [playersRes, viewsRes] = await Promise.all([
         supabase.from('profiles')
-          .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at')
+          .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
+          .order('premium', { ascending: false })
           .order('last_active', { ascending: false, nullsFirst: false })
           .limit(200),
         supabase.from('player_views')

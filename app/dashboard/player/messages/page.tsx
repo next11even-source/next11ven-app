@@ -14,6 +14,7 @@ type Conversation = {
     avatar_url: string | null
     coaching_role: string | null
     club: string | null
+    premium: boolean
   } | null
   last_message?: string
   unread?: number
@@ -41,10 +42,12 @@ function ChatView({
   conversation,
   playerId,
   onBack,
+  canRead,
 }: {
   conversation: Conversation
   playerId: string
   onBack: () => void
+  canRead: boolean
 }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -130,7 +133,22 @@ function ChatView({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ paddingBottom: '80px' }}>
-        {loading ? (
+        {!canRead ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <span className="text-5xl mb-4">🔒</span>
+            <p className="font-black uppercase text-xl mb-2" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+              Premium Required
+            </p>
+            <p className="text-sm mb-6 leading-relaxed" style={{ color: '#8892aa' }}>
+              Upgrade to Player Premium to read messages from coaches.
+            </p>
+            <a href="/dashboard/player/premium"
+              className="px-6 py-3 rounded-xl text-sm font-bold"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+              Upgrade — £6.99/mo
+            </a>
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
           </div>
@@ -167,27 +185,29 @@ function ChatView({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <form onSubmit={sendMessage}
-        className="flex items-end gap-2 px-4 py-3 flex-shrink-0"
-        style={{ borderTop: '1px solid #1e2235', backgroundColor: 'rgba(10,10,10,0.97)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e as unknown as React.FormEvent) } }}
-          placeholder="Type a message…"
-          rows={1}
-          className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none resize-none"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece', maxHeight: 120 }}
-        />
-        <button type="submit" disabled={!input.trim() || sending}
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-          style={{ backgroundColor: input.trim() ? '#2d5fc4' : '#1e2235' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
-      </form>
+      {/* Input — hidden when player can't read */}
+      {canRead && (
+        <form onSubmit={sendMessage}
+          className="flex items-end gap-2 px-4 py-3 flex-shrink-0"
+          style={{ borderTop: '1px solid #1e2235', backgroundColor: 'rgba(10,10,10,0.97)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e as unknown as React.FormEvent) } }}
+            placeholder="Type a message…"
+            rows={1}
+            className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none resize-none"
+            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece', maxHeight: 120 }}
+          />
+          <button type="submit" disabled={!input.trim() || sending}
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+            style={{ backgroundColor: input.trim() ? '#2d5fc4' : '#1e2235' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </form>
+      )}
     </div>
   )
 }
@@ -199,6 +219,7 @@ function MessagesInner() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selected, setSelected] = useState<Conversation | null>(null)
   const [playerId, setPlayerId] = useState('')
+  const [playerIsPremium, setPlayerIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -211,22 +232,23 @@ function MessagesInner() {
     if (!user) { router.push('/'); return }
     setPlayerId(user.id)
 
-    const { data } = await supabase
-      .from('conversations')
-      .select('id, coach_id, last_message_at, initiated_by')
-      .eq('player_id', user.id)
-      .order('last_message_at', { ascending: false })
+    const [profileRes, convsRes] = await Promise.all([
+      supabase.from('profiles').select('premium').eq('id', user.id).single(),
+      supabase.from('conversations').select('id, coach_id, last_message_at, initiated_by').eq('player_id', user.id).order('last_message_at', { ascending: false }),
+    ])
+    setPlayerIsPremium(profileRes.data?.premium ?? false)
 
+    const data = convsRes.data
     if (!data || data.length === 0) { setLoading(false); return }
 
-    // Fetch coach profiles
+    // Fetch coach profiles including premium status
     const coachIds = data.map((c: { coach_id: string }) => c.coach_id)
     const { data: coaches } = await supabase
       .from('profiles')
-      .select('id, full_name, avatar_url, coaching_role, club')
+      .select('id, full_name, avatar_url, coaching_role, club, premium')
       .in('id', coachIds)
     const coachMap = Object.fromEntries(
-      (coaches ?? []).map((c: { id: string; full_name: string | null; avatar_url: string | null; coaching_role: string | null; club: string | null }) => [c.id, c])
+      (coaches ?? []).map((c: { id: string; full_name: string | null; avatar_url: string | null; coaching_role: string | null; club: string | null; premium: boolean }) => [c.id, c])
     )
 
     // Get last message per conversation
@@ -266,6 +288,7 @@ function MessagesInner() {
   }
 
   if (selected) {
+    const canRead = playerIsPremium || (selected.coach?.premium ?? false)
     return (
       <ChatView
         conversation={selected}
@@ -274,11 +297,13 @@ function MessagesInner() {
           setSelected(null)
           load()
         }}
+        canRead={canRead}
       />
     )
   }
 
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread ?? 0), 0)
+  const lockedUnread = conversations.filter(c => !playerIsPremium && !(c.coach?.premium ?? false) && (c.unread ?? 0) > 0).length
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -295,6 +320,21 @@ function MessagesInner() {
           </span>
         )}
       </div>
+
+      {/* Alert banner for locked messages */}
+      {lockedUnread > 0 && (
+        <div className="mx-4 mt-3 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+          style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.3)' }}>
+          <p className="text-xs leading-snug" style={{ color: '#e8dece' }}>
+            🔒 You have {lockedUnread} message{lockedUnread > 1 ? 's' : ''} you can&apos;t read yet.
+          </p>
+          <a href="/dashboard/player/premium"
+            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            Upgrade
+          </a>
+        </div>
+      )}
 
       {loading ? (
         <div className="divide-y" style={{ borderColor: '#1e2235' }}>
@@ -324,6 +364,8 @@ function MessagesInner() {
             const c = conv.coach
             const initials = c?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const hasUnread = (conv.unread ?? 0) > 0
+            const convCanRead = playerIsPremium || (c?.premium ?? false)
+            const isLocked = !convCanRead
             return (
               <button key={conv.id} onClick={() => setSelected(conv)}
                 className="flex items-center gap-3 w-full px-4 py-4 text-left transition-colors"
@@ -339,8 +381,8 @@ function MessagesInner() {
                   </div>
                   {hasUnread && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>
-                      {conv.unread}
+                      style={{ backgroundColor: isLocked ? '#8892aa' : '#2d5fc4', color: '#fff', fontSize: 10 }}>
+                      {isLocked ? '🔒' : conv.unread}
                     </span>
                   )}
                 </div>
@@ -352,12 +394,16 @@ function MessagesInner() {
                   <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
                     {c?.coaching_role ?? 'Coach'}{c?.club ? ` · ${c.club}` : ''}
                   </p>
-                  {conv.last_message && (
+                  {isLocked && hasUnread ? (
+                    <p className="text-xs mt-0.5 font-semibold" style={{ color: '#2d5fc4' }}>
+                      🔒 Upgrade to read this message
+                    </p>
+                  ) : conv.last_message ? (
                     <p className="text-xs truncate mt-0.5"
                       style={{ color: hasUnread ? '#e8dece' : '#8892aa', fontWeight: hasUnread ? 600 : 400 }}>
                       {conv.last_message}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               </button>
             )

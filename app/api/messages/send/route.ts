@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { sendMessageNotificationEmail } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -124,11 +125,11 @@ export async function POST(req: NextRequest) {
     .update({ last_message_at: new Date().toISOString() })
     .eq('id', conversationId)
 
-  // Twilio SMS — notify the recipient if they have phone + sms_opt_in
+  // Fetch recipient for notifications
   const recipientId = isCoach ? convPlayerId : convCoachId
   const { data: recipient } = await supabase
     .from('profiles')
-    .select('phone, sms_opt_in, full_name')
+    .select('phone, sms_opt_in, full_name, email')
     .eq('id', recipientId)
     .single()
 
@@ -163,6 +164,16 @@ export async function POST(req: NextRequest) {
     } catch {
       // SMS failure is non-blocking
     }
+  }
+
+  // Email notification — non-blocking
+  if (recipient?.email) {
+    sendMessageNotificationEmail({
+      to: recipient.email,
+      toName: recipient.full_name,
+      fromName: sender.full_name,
+      isCoach: !isCoach, // recipient is coach if sender is player, vice versa
+    }).catch(err => console.error('[Email] message notification error:', err))
   }
 
   return NextResponse.json({ message, conversationId, isRequest })

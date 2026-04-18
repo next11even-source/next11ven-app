@@ -7,18 +7,24 @@ import { createClient } from '@/lib/supabase-browser'
 import { Suspense } from 'react'
 import Breadcrumb from '@/app/components/Breadcrumb'
 
+type OtherPerson = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  role: string | null
+  position: string | null
+  coaching_role: string | null
+  club: string | null
+  status: string | null
+}
+
 type Conversation = {
   id: string
+  coach_id: string
   player_id: string
   last_message_at: string
   initiated_by: string | null
-  player: {
-    full_name: string | null
-    avatar_url: string | null
-    position: string | null
-    club: string | null
-    status: string | null
-  } | null
+  other_person: OtherPerson | null
   last_message?: string
   unread?: number
 }
@@ -55,11 +61,10 @@ function ChatView({
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const p = conversation.player
+  const p = conversation.other_person
 
   useEffect(() => {
     loadMessages()
-    // Mark messages as read
     const supabase = createClient()
     supabase.from('messages')
       .update({ read_at: new Date().toISOString() })
@@ -91,10 +96,15 @@ function ChatView({
     const text = input.trim()
     setInput('')
     try {
+      // Always send with player_id = the other person's ID
+      // API handles canonical ordering for coach-to-coach
+      const otherPersonId = conversation.coach_id === coachId
+        ? conversation.player_id
+        : conversation.coach_id
       const res = await fetch('/api/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: conversation.player_id, content: text }),
+        body: JSON.stringify({ player_id: otherPersonId, content: text }),
       })
       const data = await res.json()
       if (data.message) {
@@ -107,6 +117,12 @@ function ChatView({
   }
 
   const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+  const subtitle = p?.role === 'coach'
+    ? [p.coaching_role, p.club].filter(Boolean).join(' · ')
+    : [p?.position, p?.club].filter(Boolean).join(' · ')
+  const profileHref = p?.role === 'coach'
+    ? `/dashboard/coach/${p.id}`
+    : `/dashboard/player/players/${p?.id}`
 
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -125,14 +141,16 @@ function ChatView({
             : <span className="text-xs font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'Player'}</p>
-          <p className="text-xs truncate" style={{ color: '#8892aa' }}>{p?.position ?? '—'}{p?.club ? ` · ${p.club}` : ''}</p>
+          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'User'}</p>
+          <p className="text-xs truncate" style={{ color: '#8892aa' }}>{subtitle || '—'}</p>
         </div>
-        <Link href={`/dashboard/player/players/${conversation.player_id}`}
-          className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa', textDecoration: 'none' }}>
-          View Profile
-        </Link>
+        {p?.id && (
+          <Link href={profileHref}
+            className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
+            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa', textDecoration: 'none' }}>
+            View Profile
+          </Link>
+        )}
       </div>
 
       {/* Messages */}
@@ -144,9 +162,6 @@ function ChatView({
         ) : messages.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm" style={{ color: '#8892aa' }}>Start the conversation below.</p>
-            <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
-              {p?.full_name?.split(' ')[0] ?? 'The player'} will be notified by SMS.
-            </p>
           </div>
         ) : (
           messages.map(msg => {
@@ -212,15 +227,12 @@ function MessagesInner() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'messages' | 'requests'>('messages')
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
-  // Open conversation from URL param (e.g. from player profile "Send Message")
   useEffect(() => {
     const openPlayer = searchParams.get('player')
     if (openPlayer && conversations.length > 0) {
-      const conv = conversations.find(c => c.player_id === openPlayer)
+      const conv = conversations.find(c => c.player_id === openPlayer || c.coach_id === openPlayer)
       if (conv) setSelected(conv)
     }
   }, [searchParams, conversations])
@@ -231,23 +243,30 @@ function MessagesInner() {
     if (!user) { router.push('/'); return }
     setCoachId(user.id)
 
+    // Fetch conversations where this coach is on either side
     const { data } = await supabase
       .from('conversations')
-      .select('id, player_id, last_message_at, initiated_by')
-      .eq('coach_id', user.id)
+      .select('id, coach_id, player_id, last_message_at, initiated_by')
+      .or(`coach_id.eq.${user.id},player_id.eq.${user.id}`)
       .order('last_message_at', { ascending: false })
 
     if (!data || data.length === 0) { setLoading(false); return }
 
-    // Fetch player profiles + last messages
-    const playerIds = data.map((c: { player_id: string }) => c.player_id)
-    const { data: players } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, position, club, status')
-      .in('id', playerIds)
-    const playerMap = Object.fromEntries((players ?? []).map((p: { id: string; full_name: string | null; avatar_url: string | null; position: string | null; club: string | null; status: string | null }) => [p.id, p]))
+    // Collect all "other person" IDs
+    const otherIds = data.map((c: { coach_id: string; player_id: string }) =>
+      c.coach_id === user.id ? c.player_id : c.coach_id
+    )
 
-    // Get last message per conversation
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, role, position, coaching_role, club, status')
+      .in('id', otherIds)
+
+    const profileMap = Object.fromEntries(
+      (profiles ?? []).map((p: OtherPerson) => [p.id, p])
+    )
+
+    // Last message per conversation
     const convIds = data.map((c: { id: string }) => c.id)
     const { data: lastMsgs } = await supabase
       .from('messages')
@@ -260,31 +279,35 @@ function MessagesInner() {
       if (!lastMsgMap[msg.conversation_id]) lastMsgMap[msg.conversation_id] = msg.content
     }
 
-    // Count unread
+    // Unread count
     const { data: unreadData } = await supabase
       .from('messages')
       .select('conversation_id')
       .in('conversation_id', convIds)
       .neq('sender_id', user.id)
       .is('read_at', null)
+
     const unreadMap: Record<string, number> = {}
     for (const msg of (unreadData ?? [])) {
       unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
     }
 
-    const convs: Conversation[] = data.map((c: { id: string; player_id: string; last_message_at: string; initiated_by: string | null }) => ({
-      ...c,
-      player: playerMap[c.player_id] ?? null,
-      last_message: lastMsgMap[c.id],
-      unread: unreadMap[c.id] ?? 0,
-    }))
+    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; player_id: string; last_message_at: string; initiated_by: string | null }) => {
+      const otherId = c.coach_id === user.id ? c.player_id : c.coach_id
+      return {
+        ...c,
+        other_person: profileMap[otherId] ? { ...profileMap[otherId], id: otherId } : null,
+        last_message: lastMsgMap[c.id],
+        unread: unreadMap[c.id] ?? 0,
+      }
+    })
     setConversations(convs)
     setLoading(false)
   }
 
-  // Split into coach-initiated (messages) and player-initiated (requests)
-  const myMessages = conversations.filter(c => c.initiated_by !== c.player_id)
-  const requests = conversations.filter(c => c.initiated_by === c.player_id)
+  // Coach-initiated = this coach started it; player/other-initiated = requests
+  const myMessages = conversations.filter(c => c.initiated_by === coachId)
+  const requests = conversations.filter(c => c.initiated_by !== coachId)
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread ?? 0), 0)
   const requestsUnread = requests.reduce((sum, c) => sum + (c.unread ?? 0), 0)
 
@@ -318,7 +341,6 @@ function MessagesInner() {
             </span>
           )}
         </div>
-        {/* Tabs */}
         <div className="flex gap-1">
           {(['messages', 'requests'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
@@ -362,7 +384,7 @@ function MessagesInner() {
           <p className="text-sm" style={{ color: '#8892aa' }}>
             {activeTab === 'messages'
               ? 'Browse players and tap "Send Message" to start a conversation.'
-              : 'When a player messages you, it will appear here.'}
+              : 'When a player or coach messages you, it will appear here.'}
           </p>
           {activeTab === 'messages' && (
             <Link href="/dashboard/player/players"
@@ -375,8 +397,12 @@ function MessagesInner() {
       ) : (
         <div className="divide-y" style={{ borderColor: '#1e2235' }}>
           {displayed.map(conv => {
-            const p = conv.player
+            const p = conv.other_person
             const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+            const hasUnread = (conv.unread ?? 0) > 0
+            const subtitle = p?.role === 'coach'
+              ? [p.coaching_role, p.club].filter(Boolean).join(' · ')
+              : [p?.position, p?.club].filter(Boolean).join(' · ')
             return (
               <button key={conv.id} onClick={() => setSelected(conv)}
                 className="flex items-center gap-3 w-full px-4 py-4 text-left transition-colors"
@@ -390,7 +416,7 @@ function MessagesInner() {
                       ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
                       : <span className="font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
                   </div>
-                  {(conv.unread ?? 0) > 0 && (
+                  {hasUnread && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
                       style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>
                       {conv.unread}
@@ -398,15 +424,22 @@ function MessagesInner() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{p?.full_name ?? 'Player'}</p>
-                    <p className="text-xs flex-shrink-0 ml-2" style={{ color: '#8892aa' }}>{timeAgo(conv.last_message_at)}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'User'}</p>
+                      {p?.role === 'coach' && (
+                        <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-semibold"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.2)', color: '#2d5fc4' }}>
+                          Coach
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs flex-shrink-0" style={{ color: '#8892aa' }}>{timeAgo(conv.last_message_at)}</p>
                   </div>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                    {p?.position ?? '—'}{p?.club ? ` · ${p.club}` : ''}
-                  </p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{subtitle || '—'}</p>
                   {conv.last_message && (
-                    <p className="text-xs truncate mt-0.5" style={{ color: (conv.unread ?? 0) > 0 ? '#e8dece' : '#8892aa', fontWeight: (conv.unread ?? 0) > 0 ? 600 : 400 }}>
+                    <p className="text-xs truncate mt-0.5"
+                      style={{ color: hasUnread ? '#e8dece' : '#8892aa', fontWeight: hasUnread ? 600 : 400 }}>
                       {conv.last_message}
                     </p>
                   )}

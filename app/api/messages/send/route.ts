@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  // Parse body safely
   let body: { player_id?: string; coach_id?: string; content?: string }
   try {
     body = await req.json()
@@ -44,42 +43,57 @@ export async function POST(req: NextRequest) {
 
   if (!sender) return NextResponse.json({ error: 'Sender profile not found' }, { status: 403 })
 
-  const isCoach = sender.role === 'coach'
-  const isPlayer = sender.role === 'player'
+  const senderIsCoach = sender.role === 'coach'
+  const senderIsPlayer = sender.role === 'player' || sender.role === 'admin'
 
-  if (!isCoach && !isPlayer) {
+  if (!senderIsCoach && !senderIsPlayer) {
     return NextResponse.json({ error: 'Only coaches and players can send messages' }, { status: 403 })
   }
 
-  // Determine coach_id / player_id for the conversation
+  // Recipient ID: accept either param name
+  const recipientId = senderIsCoach ? (player_id ?? coach_id) : coach_id
+  if (!recipientId) {
+    return NextResponse.json({ error: 'Recipient ID is required' }, { status: 400 })
+  }
+
+  // Fetch recipient to verify and get role
+  const { data: recipientProfile } = await supabase
+    .from('profiles')
+    .select('id, approved, role, full_name, email, phone, sms_opt_in, coaching_role, position')
+    .eq('id', recipientId)
+    .single()
+
+  if (!recipientProfile) return NextResponse.json({ error: 'Recipient not found' }, { status: 404 })
+  if (!recipientProfile.approved) return NextResponse.json({ error: 'Recipient account is not active' }, { status: 403 })
+
+  const recipientIsCoach = recipientProfile.role === 'coach'
+  const isCoachToCoach = senderIsCoach && recipientIsCoach
+
+  // Determine conversation slot assignment
   let convCoachId: string
   let convPlayerId: string
   let isRequest = false
 
-  if (isCoach) {
-    if (!player_id) return NextResponse.json({ error: 'player_id is required' }, { status: 400 })
-    convCoachId = user.id
-    convPlayerId = player_id
+  if (senderIsCoach) {
+    if (isCoachToCoach) {
+      // Canonical ordering for coach-to-coach: lower UUID in coach_id slot
+      // ensures both sides always find the same conversation row
+      if (user.id < recipientId) {
+        convCoachId = user.id
+        convPlayerId = recipientId
+      } else {
+        convCoachId = recipientId
+        convPlayerId = user.id
+      }
+    } else {
+      convCoachId = user.id
+      convPlayerId = recipientId
+    }
   } else {
-    // Player sending — goes into coach's requests
-    if (!coach_id) return NextResponse.json({ error: 'coach_id is required' }, { status: 400 })
-    convCoachId = coach_id
+    // Player → coach
+    convCoachId = recipientId
     convPlayerId = user.id
     isRequest = true
-  }
-
-  // Verify recipient exists and is approved
-  const { data: recipientCheck } = await supabase
-    .from('profiles')
-    .select('id, approved')
-    .eq('id', isCoach ? convPlayerId : convCoachId)
-    .single()
-
-  if (!recipientCheck) {
-    return NextResponse.json({ error: 'Recipient not found' }, { status: 404 })
-  }
-  if (!recipientCheck.approved) {
-    return NextResponse.json({ error: 'Recipient account is not active' }, { status: 403 })
   }
 
   // Get or create conversation
@@ -95,11 +109,7 @@ export async function POST(req: NextRequest) {
   if (!conversationId) {
     const { data: newConv, error: convErr } = await supabase
       .from('conversations')
-      .insert({
-        coach_id: convCoachId,
-        player_id: convPlayerId,
-        initiated_by: user.id,
-      })
+      .insert({ coach_id: convCoachId, player_id: convPlayerId, initiated_by: user.id })
       .select('id')
       .single()
     if (convErr) return NextResponse.json({ error: convErr.message }, { status: 500 })
@@ -109,44 +119,34 @@ export async function POST(req: NextRequest) {
   // Insert message
   const { data: message, error: msgErr } = await supabase
     .from('messages')
-    .insert({
-      conversation_id: conversationId,
-      sender_id: user.id,
-      content: content.trim(),
-    })
+    .insert({ conversation_id: conversationId, sender_id: user.id, content: content.trim() })
     .select()
     .single()
 
   if (msgErr) return NextResponse.json({ error: msgErr.message }, { status: 500 })
 
-  // Update conversation last_message_at
   await supabase
     .from('conversations')
     .update({ last_message_at: new Date().toISOString() })
     .eq('id', conversationId)
 
-  // Fetch recipient for notifications
-  const recipientId = isCoach ? convPlayerId : convCoachId
-  const { data: recipient } = await supabase
-    .from('profiles')
-    .select('phone, sms_opt_in, full_name, email')
-    .eq('id', recipientId)
-    .single()
+  // ── Notifications ──────────────────────────────────────────────────────────
 
+  const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
+  const recipientDashboardUrl = recipientIsCoach
+    ? `${appUrl}/dashboard/coach/messages`
+    : `${appUrl}/dashboard/player/messages`
+
+  // SMS
   if (
     process.env.TWILIO_ENABLED !== 'false' &&
-    recipient?.phone &&
-    recipient?.sms_opt_in &&
+    recipientProfile.phone &&
+    recipientProfile.sms_opt_in &&
     process.env.TWILIO_ACCOUNT_SID &&
     process.env.TWILIO_AUTH_TOKEN &&
     process.env.TWILIO_FROM_NUMBER
   ) {
     try {
-      const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
-      const smsBody = isCoach
-        ? `NEXT11VEN: You have a new message from a coach. Open the app to read it. ${appUrl}/dashboard/player/messages`
-        : `NEXT11VEN: A player has sent you a message. Open the app to view it. ${appUrl}/dashboard/coach/messages`
-
       await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
         {
@@ -157,28 +157,28 @@ export async function POST(req: NextRequest) {
           },
           body: new URLSearchParams({
             From: process.env.TWILIO_FROM_NUMBER,
-            To: recipient.phone,
-            Body: smsBody,
+            To: recipientProfile.phone,
+            Body: `NEXT11VEN: You have a new message. Open the app to read it. ${recipientDashboardUrl}`,
           }),
         }
       )
     } catch {
-      // SMS failure is non-blocking
+      // non-blocking
     }
   }
 
-  // Email notification — awaited so it completes before serverless function exits
-  if (recipient?.email) {
+  // Email
+  if (recipientProfile.email) {
     try {
-      // Use role label rather than name to intrigue the recipient
-      const senderLabel = isCoach
-        ? (sender.coaching_role ?? 'A coach')
+      const senderLabel = senderIsCoach
+        ? `A ${sender.coaching_role ?? 'coach'}`
         : (sender.position ? `A ${sender.position.toLowerCase()}` : 'A player')
+
       await sendMessageNotificationEmail({
-        to: recipient.email,
-        toName: recipient.full_name,
+        to: recipientProfile.email,
+        toName: recipientProfile.full_name,
         senderLabel,
-        isCoach: !isCoach,
+        isCoach: recipientIsCoach,
       })
     } catch (err) {
       console.error('[Email] message notification error:', err)

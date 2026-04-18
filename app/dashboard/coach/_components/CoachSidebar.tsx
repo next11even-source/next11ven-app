@@ -14,6 +14,7 @@ type Props = {
 export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
   const router = useRouter()
   const [isPremium, setIsPremium] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -21,10 +22,13 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
       if (!user) return
       supabase
         .from('profiles')
-        .select('premium')
+        .select('premium, role')
         .eq('id', user.id)
         .single()
-        .then(({ data }) => setIsPremium(data?.premium ?? false))
+        .then(({ data }) => {
+          setIsPremium(data?.premium ?? false)
+          setIsAdmin(data?.role === 'admin')
+        })
     })
   }, [])
 
@@ -127,6 +131,33 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
             </svg>
             <p className="text-sm font-semibold">Notification Preferences</p>
           </Link>
+
+          {isAdmin && (
+            <>
+              <div className="mx-0 my-1" style={{ borderTop: '1px solid #1e2235' }} />
+              <Link href="/dashboard/admin" onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                style={{ textDecoration: 'none', color: '#f59e0b' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <p className="text-sm font-semibold">Admin Panel</p>
+              </Link>
+              <Link href="/dashboard/admin/analytics" onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                style={{ textDecoration: 'none', color: '#f59e0b' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+                <p className="text-sm font-semibold">Analytics</p>
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Sign out */}

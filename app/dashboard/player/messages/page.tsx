@@ -287,6 +287,48 @@ function MessagesInner() {
     setLoading(false)
   }
 
+  // Lock screen for non-premium players — shown once we know premium status
+  if (!loading && !playerIsPremium) {
+    const totalUnread = conversations.reduce((sum, c) => sum + (c.unread ?? 0), 0)
+    return (
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0a0a0a' }}>
+        <div className="sticky top-0 z-10 px-4 pt-4 pb-3 flex items-center gap-3"
+          style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+          <h1 className="font-black uppercase tracking-wide text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            Messages
+          </h1>
+          {totalUnread > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-bold"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+              {totalUnread}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+          <span className="text-5xl mb-4">🔒</span>
+          <p className="font-black uppercase text-2xl mb-2"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            Premium Required
+          </p>
+          <p className="text-sm mb-2 leading-relaxed max-w-xs" style={{ color: '#8892aa' }}>
+            Upgrade to Player Premium to read your messages from coaches.
+          </p>
+          {totalUnread > 0 && (
+            <p className="text-sm font-semibold mb-6" style={{ color: '#2d5fc4' }}>
+              You have {totalUnread} unread message{totalUnread > 1 ? 's' : ''} waiting.
+            </p>
+          )}
+          {totalUnread === 0 && <div className="mb-6" />}
+          <a href="/dashboard/player/premium"
+            className="px-8 py-3 rounded-xl text-sm font-bold"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            Upgrade — £6.99/mo
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   if (selected) {
     const canRead = playerIsPremium || (selected.coach?.premium ?? false)
     return (

@@ -313,22 +313,31 @@ function NewJoiners({ players }: { players: Player[] }) {
 
 function CoachQuickStats({ newApps, availablePlayers, unread }: { newApps: number; availablePlayers: number; unread: number }) {
   const stats = [
-    { label: 'New Applications', value: newApps, href: '/dashboard/coach/opportunities', sub: 'this week' },
-    { label: 'Available Players', value: availablePlayers, href: '/dashboard/player/players', sub: 'right now' },
-    { label: 'Unread Messages', value: unread, href: '/dashboard/coach/messages', sub: 'unread' },
+    {
+      label: 'New Applications', value: newApps, href: '/dashboard/coach/opportunities', sub: 'this week',
+      color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
+    },
+    {
+      label: 'Available Players', value: availablePlayers, href: '/dashboard/player/players', sub: 'right now',
+      color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
+    },
+    {
+      label: 'Unread Messages', value: unread, href: '/dashboard/coach/messages', sub: 'unread',
+      color: '#a78bfa', bg: 'rgba(167,139,250,0.07)', border: 'rgba(167,139,250,0.4)',
+    },
   ]
   return (
     <div className="grid grid-cols-3 gap-2">
       {stats.map((s) => (
         <Link key={s.label} href={s.href}
-          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-colors"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
-          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
+          style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = s.color)}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = s.border)}>
+          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
             {s.value}
           </span>
-          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{s.label}</span>
+          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
           <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
         </Link>
       ))}

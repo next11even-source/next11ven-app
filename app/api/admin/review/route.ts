@@ -95,9 +95,9 @@ export async function POST(req: NextRequest) {
     process.env.TWILIO_AUTH_TOKEN &&
     process.env.TWILIO_FROM_NUMBER
   ) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'
+    const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
     const roleLabel = target.role === 'coach' ? 'coach' : 'player'
-    const smsBody = `NEXT11VEN: Your ${roleLabel} account has been approved! Sign in now: ${siteUrl}`
+    const smsBody = `NEXT11VEN: Your ${roleLabel} account has been approved! Sign in now: ${appUrl}`
     fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
       {

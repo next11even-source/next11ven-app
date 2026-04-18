@@ -142,9 +142,10 @@ export async function POST(req: NextRequest) {
     process.env.TWILIO_FROM_NUMBER
   ) {
     try {
+      const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
       const smsBody = isCoach
-        ? `NEXT11VEN: You have a new message from a coach. Open the app to read it. ${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'}/dashboard/player/messages`
-        : `NEXT11VEN: A player has sent you a message. Open the app to view it. ${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'}/dashboard/coach/messages`
+        ? `NEXT11VEN: You have a new message from a coach. Open the app to read it. ${appUrl}/dashboard/player/messages`
+        : `NEXT11VEN: A player has sent you a message. Open the app to view it. ${appUrl}/dashboard/coach/messages`
 
       await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,

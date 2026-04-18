@@ -9,7 +9,7 @@
  */
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'NEXT11VEN <hello@next11ven.com>'
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://next11ven.com'
+const SITE = process.env.APP_URL ?? 'https://app.next11ven.com'
 
 async function send({ to, subject, html }: { to: string; subject: string; html: string }) {
   if (process.env.RESEND_ENABLED === 'false') {

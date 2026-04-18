@@ -167,14 +167,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Email notification — non-blocking
+  // Email notification — awaited so it completes before serverless function exits
   if (recipient?.email) {
-    sendMessageNotificationEmail({
-      to: recipient.email,
-      toName: recipient.full_name,
-      fromName: sender.full_name,
-      isCoach: !isCoach, // recipient is coach if sender is player, vice versa
-    }).catch(err => console.error('[Email] message notification error:', err))
+    try {
+      await sendMessageNotificationEmail({
+        to: recipient.email,
+        toName: recipient.full_name,
+        fromName: sender.full_name,
+        isCoach: !isCoach,
+      })
+    } catch (err) {
+      console.error('[Email] message notification error:', err)
+    }
   }
 
   return NextResponse.json({ message, conversationId, isRequest })

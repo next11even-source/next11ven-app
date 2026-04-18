@@ -96,22 +96,24 @@ export async function POST(req: NextRequest) {
 
   if (appErr) return NextResponse.json({ error: appErr.message }, { status: 500 })
 
-  // Fetch coach email for notification (non-blocking)
-  service
-    .from('profiles')
-    .select('email, full_name')
-    .eq('id', opp.coach_id)
-    .single()
-    .then(({ data: coach }) => {
-      if (coach?.email) {
-        sendApplicationReceivedEmail({
-          to: coach.email,
-          coachName: coach.full_name,
-          playerName: sender.full_name,
-          opportunityTitle: opp.title,
-        }).catch(err => console.error('[Email] application notification error:', err))
-      }
-    })
+  // Fetch coach email and send notification — awaited before function exits
+  try {
+    const { data: coach } = await service
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', opp.coach_id)
+      .single()
+    if (coach?.email) {
+      await sendApplicationReceivedEmail({
+        to: coach.email,
+        coachName: coach.full_name,
+        playerName: sender.full_name,
+        opportunityTitle: opp.title,
+      })
+    }
+  } catch (err) {
+    console.error('[Email] application notification error:', err)
+  }
 
   return NextResponse.json({ application })
 }

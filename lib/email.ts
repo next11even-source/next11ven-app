@@ -51,7 +51,8 @@ function baseTemplate(content: string) {
           ${content}
         </div>
         <div style="padding:16px 28px 20px;border-top:1px solid #1e2235;text-align:center;">
-          <p style="margin:0;font-size:11px;color:#8892aa;">You're receiving this because you have an account on NEXT11VEN. <a href="${SITE}" style="color:#2d5fc4;">next11ven.com</a></p>
+          <p style="margin:0 0 6px;font-size:11px;color:#8892aa;">You're receiving this because you have an account on NEXT11VEN. <a href="${SITE}" style="color:#2d5fc4;">next11ven.com</a></p>
+          <p style="margin:0;font-size:11px;color:#8892aa;">To manage your notification preferences, visit your <a href="${SITE}/dashboard/profile" style="color:#2d5fc4;">account settings</a> in the app.</p>
         </div>
       </div>
     </body>

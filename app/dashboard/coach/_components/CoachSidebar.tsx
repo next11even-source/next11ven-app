@@ -92,15 +92,15 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
         {!isPremium && (
           <Link href="/dashboard/player/premium" onClick={onClose}
             className="flex items-center gap-3 mx-4 mb-4 px-4 py-3 rounded-xl"
-            style={{ background: 'linear-gradient(135deg, rgba(194,65,12,0.18) 0%, rgba(194,65,12,0.08) 100%)', border: '1px solid rgba(194,65,12,0.35)', textDecoration: 'none' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            style={{ background: 'linear-gradient(135deg, rgba(22,163,74,0.18) 0%, rgba(22,163,74,0.08) 100%)', border: '1px solid rgba(22,163,74,0.35)', textDecoration: 'none' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold" style={{ color: '#c2410c' }}>Coach Pro</p>
+              <p className="text-sm font-bold" style={{ color: '#16a34a' }}>Coach Pro</p>
               <p className="text-xs" style={{ color: '#8892aa' }}>£9.99/month · Recruit faster</p>
             </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 18l6-6-6-6" />
             </svg>
           </Link>

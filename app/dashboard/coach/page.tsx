@@ -328,8 +328,8 @@ function CoachQuickStats({ newApps, availablePlayers, unread }: { newApps: numbe
           <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             {s.value}
           </span>
-          <span className="text-xs mt-1 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
-          <span className="text-xs mt-0.5 text-center leading-tight font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{s.label}</span>
+          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{s.label}</span>
+          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
         </Link>
       ))}
     </div>

@@ -33,6 +33,9 @@ type Profile = {
   coaching_role: string | null
   coaching_level: string | null
   coaching_history: string | null
+  // Contact
+  phone: string | null
+  sms_opt_in: boolean
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -477,6 +480,61 @@ function CoachingHistoryEditor({ profile, onSave, onCancel }: {
   )
 }
 
+// ─── Coach Contact ────────────────────────────────────────────────────────────
+
+function CoachContactCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  return (
+    <EditableCard title="Contact &amp; Notifications" editContent={(cancel) => (
+      <CoachContactEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
+    )}>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Phone</span>
+          <span className="text-sm font-medium" style={{ color: profile.phone ? '#e8dece' : '#3a4055' }}>{profile.phone ?? 'Not set'}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>SMS Notifications</span>
+          <span className="text-sm font-medium" style={{ color: profile.phone ? (profile.sms_opt_in ? '#e8dece' : '#8892aa') : '#3a4055' }}>
+            {profile.phone ? (profile.sms_opt_in ? 'On' : 'Off') : '—'}
+          </span>
+        </div>
+      </div>
+    </EditableCard>
+  )
+}
+
+function CoachContactEditor({ profile, onSave, onCancel }: {
+  profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; onCancel: () => void
+}) {
+  const [phone, setPhone] = useState(profile.phone ?? '')
+  const [smsOptIn, setSmsOptIn] = useState(profile.sms_opt_in ?? false)
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <Field label="Phone">
+        <Inp type="tel" value={phone} onChange={e => { setPhone(e.target.value); if (e.target.value && !smsOptIn) setSmsOptIn(true) }} placeholder="+447700900000" />
+      </Field>
+      {phone ? (
+        <button type="button" onClick={() => setSmsOptIn(v => !v)} className="flex items-center gap-3 w-full py-1">
+          <div className="relative w-10 h-6 rounded-full transition-colors flex-shrink-0" style={{ backgroundColor: smsOptIn ? '#2d5fc4' : '#1e2235' }}>
+            <div className="absolute top-1 w-4 h-4 rounded-full transition-all" style={{ backgroundColor: '#fff', left: smsOptIn ? '22px' : '4px' }} />
+          </div>
+          <span className="text-sm" style={{ color: '#e8dece' }}>{smsOptIn ? 'SMS notifications on' : 'SMS notifications off'}</span>
+        </button>
+      ) : (
+        <p className="text-xs py-1" style={{ color: '#8892aa' }}>Add a phone number above to enable SMS notifications.</p>
+      )}
+      <SaveCancel saving={saving} onCancel={onCancel}
+        onSave={async () => {
+          setSaving(true)
+          await onSave({ phone: phone || null, sms_opt_in: !!phone && smsOptIn })
+          setSaving(false)
+        }} />
+    </div>
+  )
+}
+
 // ─── Bio (shared) ─────────────────────────────────────────────────────────────
 
 function BioCard({ profile, isCoach, onSave }: { profile: Profile; isCoach: boolean; onSave: (u: Partial<Profile>) => Promise<void> }) {
@@ -613,6 +671,7 @@ export default function ProfilePage() {
           <>
             <CoachDetailsCard profile={profile} onSave={saveProfile} />
             <CoachingHistoryCard profile={profile} onSave={saveProfile} />
+            <CoachContactCard profile={profile} onSave={saveProfile} />
           </>
         ) : (
           <>

@@ -142,6 +142,7 @@ export default function RegisterPage() {
       full_name: fullName,
       email,
       phone: phone || null,
+      sms_opt_in: !!phone,
       date_of_birth: dob || null,
       role,
       city: city || null,

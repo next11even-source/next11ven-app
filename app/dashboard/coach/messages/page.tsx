@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { Suspense } from 'react'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 
 type OtherPerson = {
   id: string
@@ -226,6 +227,8 @@ function MessagesInner() {
   const [coachId, setCoachId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'messages' | 'requests'>('messages')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -242,6 +245,13 @@ function MessagesInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
     setCoachId(user.id)
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, coaching_role')
+      .eq('id', user.id)
+      .single()
+    if (profile) setCoachProfile({ full_name: profile.full_name, avatar_url: profile.avatar_url, coaching_role: profile.coaching_role })
 
     // Fetch conversations where this coach is on either side
     const { data } = await supabase
@@ -329,9 +339,15 @@ function MessagesInner() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
       <div className="sticky top-0 z-10 px-4 pt-3 pb-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3 mb-3">
+          <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: 20 }}>
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          </button>
           <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Messages' }]} />
           <h1 className="sr-only">Messages</h1>
           {totalUnread > 0 && (

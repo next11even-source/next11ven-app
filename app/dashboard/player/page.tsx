@@ -120,23 +120,32 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
 function QuickStatsBar({ views, unread, openOpps }: { views: number; unread: number; openOpps: number }) {
   const stats = [
-    { label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week' },
-    { label: 'Messages', value: unread, href: '/dashboard/player/messages', sub: unread === 1 ? 'unread' : 'unread' },
-    { label: 'Opportunities', value: openOpps, href: '/dashboard/player/opportunities', sub: 'open' },
+    {
+      label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week',
+      color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
+    },
+    {
+      label: 'Messages', value: unread, href: '/dashboard/player/messages', sub: 'unread',
+      color: '#a78bfa', bg: 'rgba(167,139,250,0.07)', border: 'rgba(167,139,250,0.4)',
+    },
+    {
+      label: 'Opportunities', value: openOpps, href: '/dashboard/player/opportunities', sub: 'open',
+      color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
+    },
   ]
   return (
     <div className="mx-4 grid grid-cols-3 gap-2">
       {stats.map((s) => (
         <Link key={s.label} href={s.href}
-          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-colors"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
-          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
+          style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = s.color)}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = s.border)}>
+          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
             {s.value}
           </span>
-          <span className="text-xs mt-1 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
-          <span className="text-xs mt-0.5 text-center leading-tight font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{s.label}</span>
+          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
+          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
         </Link>
       ))}
     </div>

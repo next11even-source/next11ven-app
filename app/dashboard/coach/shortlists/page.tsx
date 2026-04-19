@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 
 type PlayerProfile = {
   id: string
@@ -39,6 +40,8 @@ function isAvailable(status: string | null) {
 
 export default function ShortlistsPage() {
   const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [saved, setSaved] = useState<SavedPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [isPremium, setIsPremium] = useState(false)
@@ -52,8 +55,9 @@ export default function ShortlistsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
 
-    const { data: profile } = await supabase.from('profiles').select('premium').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('profiles').select('premium, full_name, avatar_url, coaching_role').eq('id', user.id).single()
     setIsPremium(profile?.premium ?? false)
+    setCoachProfile({ full_name: profile?.full_name ?? null, avatar_url: profile?.avatar_url ?? null, coaching_role: profile?.coaching_role ?? null })
 
     if (!profile?.premium) { setLoading(false); return }
 
@@ -133,11 +137,18 @@ export default function ShortlistsPage() {
   }
 
   return (
-    <div className="min-h-screen pb-8" style={{ backgroundColor: '#0a0a0a' }}>
+    <>
+      <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
+      <div className="min-h-screen pb-8" style={{ backgroundColor: '#0a0a0a' }}>
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-3 pb-4"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="flex-shrink-0 p-1 -ml-1" style={{ color: '#8892aa' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
           <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Shortlists' }]} />
           <span className="ml-auto text-xs" style={{ color: '#8892aa' }}>{saved.length} player{saved.length !== 1 ? 's' : ''}</span>
         </div>
@@ -291,5 +302,6 @@ export default function ShortlistsPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -357,6 +358,8 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
 
 export default function CoachOpportunitiesPage() {
   const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isPremium, setIsPremium] = useState(false)
   const [monthlyCount, setMonthlyCount] = useState(0)
@@ -379,12 +382,13 @@ export default function CoachOpportunitiesPage() {
       startOfMonth.setHours(0, 0, 0, 0)
 
       const [profileRes, oppsRes, monthlyRes] = await Promise.all([
-        supabase.from('profiles').select('premium').eq('id', user.id).single(),
+        supabase.from('profiles').select('premium, full_name, avatar_url, coaching_role').eq('id', user.id).single(),
         supabase.from('opportunities').select('*').eq('coach_id', user.id).order('created_at', { ascending: false }),
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', user.id).gte('created_at', startOfMonth.toISOString()),
       ])
 
       setIsPremium(profileRes.data?.premium ?? false)
+      setCoachProfile({ full_name: profileRes.data?.full_name ?? null, avatar_url: profileRes.data?.avatar_url ?? null, coaching_role: profileRes.data?.coaching_role ?? null })
       setMonthlyCount(monthlyRes.count ?? 0)
 
       const opps = oppsRes.data
@@ -431,10 +435,17 @@ export default function CoachOpportunitiesPage() {
     Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000)
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+    <>
+      <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
+      <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       {/* Nav */}
-      <header className="sticky top-0 z-10 px-4 py-3 flex items-center"
+      <header className="sticky top-0 z-10 px-4 py-3 flex items-center gap-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+        <button onClick={() => setSidebarOpen(true)} className="flex-shrink-0 p-1 -ml-1" style={{ color: '#8892aa' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
         <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Opportunities' }]} />
       </header>
 
@@ -590,6 +601,7 @@ export default function CoachOpportunitiesPage() {
         )}
       </main>
     </div>
+    </>
   )
 }
 

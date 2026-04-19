@@ -118,15 +118,19 @@ function ChatView({
           </svg>
         </button>
         <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-          style={{ backgroundColor: '#1a1f3a' }}>
+          style={{ backgroundColor: '#1a1f3a', filter: !canRead ? 'blur(6px)' : 'none' }}>
           {c?.avatar_url
             ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
             : <span className="text-xs font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{c?.full_name ?? 'Coach'}</p>
+          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+            {canRead ? (c?.full_name ?? 'Coach') : (c?.coaching_role ?? 'Coach')}
+          </p>
           <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-            {c?.coaching_role ?? 'Coach'}{c?.club ? ` · ${c.club}` : ''}
+            {canRead
+              ? `${c?.coaching_role ?? 'Coach'}${c?.club ? ` · ${c.club}` : ''}`
+              : 'Identity hidden · Upgrade to reveal'}
           </p>
         </div>
       </div>
@@ -377,36 +381,60 @@ function MessagesInner() {
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#0a0a0a')}>
                 <div className="relative flex-shrink-0">
                   <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
-                    style={{ backgroundColor: '#1a1f3a' }}>
+                    style={{ backgroundColor: '#1a1f3a', filter: isLocked ? 'blur(6px)' : 'none' }}>
                     {c?.avatar_url
                       ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
                       : <span className="font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
                   </div>
-                  {hasUnread && (
+                  {hasUnread && !isLocked && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ backgroundColor: isLocked ? '#8892aa' : '#2d5fc4', color: '#fff', fontSize: 10 }}>
-                      {isLocked ? '🔒' : conv.unread}
+                      style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>
+                      {conv.unread}
+                    </span>
+                  )}
+                  {isLocked && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', fontSize: 9 }}>
+                      🔒
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{c?.full_name ?? 'Coach'}</p>
+                    {isLocked ? (
+                      <p className="text-sm font-bold" style={{ color: '#8892aa' }}>
+                        {c?.coaching_role ?? 'Coach'}
+                      </p>
+                    ) : (
+                      <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{c?.full_name ?? 'Coach'}</p>
+                    )}
                     <p className="text-xs flex-shrink-0 ml-2" style={{ color: '#8892aa' }}>{timeAgo(conv.last_message_at)}</p>
                   </div>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                    {c?.coaching_role ?? 'Coach'}{c?.club ? ` · ${c.club}` : ''}
-                  </p>
-                  {isLocked && hasUnread ? (
-                    <p className="text-xs mt-0.5 font-semibold" style={{ color: '#2d5fc4' }}>
-                      🔒 Upgrade to read this message
-                    </p>
-                  ) : conv.last_message ? (
-                    <p className="text-xs truncate mt-0.5"
-                      style={{ color: hasUnread ? '#e8dece' : '#8892aa', fontWeight: hasUnread ? 600 : 400 }}>
-                      {conv.last_message}
-                    </p>
-                  ) : null}
+                  {isLocked ? (
+                    <>
+                      <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
+                        {c?.club ?? 'Club hidden'} · Identity hidden
+                      </p>
+                      <a href="/dashboard/player/premium"
+                        onClick={e => e.stopPropagation()}
+                        className="inline-block text-xs font-semibold mt-1"
+                        style={{ color: '#2d5fc4' }}>
+                        Upgrade to read and reply →
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
+                        {c?.coaching_role ?? 'Coach'}{c?.club ? ` · ${c.club}` : ''}
+                      </p>
+                      {conv.last_message && (
+                        <p className="text-xs truncate mt-0.5"
+                          style={{ color: hasUnread ? '#e8dece' : '#8892aa', fontWeight: hasUnread ? 600 : 400 }}>
+                          {conv.last_message}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
               </button>
             )

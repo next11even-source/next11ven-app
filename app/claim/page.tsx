@@ -37,7 +37,7 @@ function ClaimContent() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${base}/auth/callback?next=/set-password`,
+        emailRedirectTo: `${base}/auth/confirm?next=/set-password`,
         shouldCreateUser: false,
       },
     })

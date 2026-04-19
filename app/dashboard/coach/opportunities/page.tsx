@@ -63,7 +63,8 @@ const STATUS_COLORS: Record<string, { color: string; bg: string; label: string }
   pending:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  label: 'Pending' },
   viewed:      { color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  label: 'Viewed' },
   shortlisted: { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', label: 'Shortlisted' },
-  rejected:    { color: '#8892aa', bg: 'rgba(136,146,170,0.1)', label: 'Rejected' },
+  accepted:    { color: '#2d5fc4', bg: 'rgba(45,95,196,0.15)',  label: 'Accepted' },
+  rejected:    { color: '#8892aa', bg: 'rgba(136,146,170,0.1)', label: 'Not Progressed' },
 }
 
 function timeAgo(dateStr: string) {
@@ -260,6 +261,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; onClose: () => void }) {
   const [applicants, setApplicants] = useState<Applicant[]>([])
   const [loading, setLoading] = useState(true)
+  const [actioning, setActioning] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -279,9 +281,16 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
   }, [opportunity.id])
 
   async function updateStatus(applicationId: string, status: string) {
-    const supabase = createClient()
-    await supabase.from('applications').update({ status }).eq('id', applicationId)
-    setApplicants(prev => prev.map(a => a.id === applicationId ? { ...a, status } : a))
+    setActioning(applicationId)
+    const res = await fetch(`/api/applications/${applicationId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (res.ok) {
+      setApplicants(prev => prev.map(a => a.id === applicationId ? { ...a, status } : a))
+    }
+    setActioning(null)
   }
 
   return (
@@ -331,20 +340,55 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
                 </div>
               </div>
 
-              {/* Status controls */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs" style={{ color: '#8892aa' }}>Status:</span>
-                {Object.entries(STATUS_COLORS).map(([key, cfg]) => (
-                  <button key={key} onClick={() => updateStatus(a.id, key)}
-                    className="text-xs px-2.5 py-1 rounded-full transition-all"
-                    style={{
-                      backgroundColor: a.status === key ? cfg.bg : 'transparent',
-                      color: a.status === key ? cfg.color : '#8892aa',
-                      border: `1px solid ${a.status === key ? cfg.color : '#1e2235'}`,
-                    }}>
-                    {cfg.label}
-                  </button>
-                ))}
+              {/* Status + actions */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                {/* Current status badge */}
+                {(() => {
+                  const cfg = STATUS_COLORS[a.status] ?? STATUS_COLORS.pending
+                  return (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                      style={{ backgroundColor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40` }}>
+                      {cfg.label}
+                    </span>
+                  )
+                })()}
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2">
+                  {a.status !== 'accepted' && (
+                    <button
+                      onClick={() => updateStatus(a.id, 'accepted')}
+                      disabled={actioning === a.id}
+                      className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
+                      style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.4)' }}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.3)')}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.15)')}>
+                      {actioning === a.id ? '…' : '✓ Accept'}
+                    </button>
+                  )}
+                  {a.status !== 'rejected' && (
+                    <button
+                      onClick={() => updateStatus(a.id, 'rejected')}
+                      disabled={actioning === a.id}
+                      className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
+                      style={{ backgroundColor: 'transparent', color: '#8892aa', border: '1px solid #1e2235' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#8892aa')}>
+                      {actioning === a.id ? '…' : '✕ Reject'}
+                    </button>
+                  )}
+                  {(a.status === 'accepted' || a.status === 'rejected') && (
+                    <button
+                      onClick={() => updateStatus(a.id, 'pending')}
+                      disabled={actioning === a.id}
+                      className="text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+                      style={{ color: '#3a4055' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#8892aa')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#3a4055')}>
+                      Undo
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

@@ -9,7 +9,7 @@ import { Suspense } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'messages' | 'opportunities' | 'shortlists' | 'activity'
+type Tab = 'messages' | 'opportunities' | 'shortlists' | 'activity' | 'players'
 
 type Conversation = {
   id: string
@@ -511,6 +511,220 @@ function ShortlistsTab({ coachId }: { coachId: string }) {
   )
 }
 
+// ─── Players Tab ─────────────────────────────────────────────────────────────
+
+type BrowsePlayer = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  secondary_position: string | null
+  club: string | null
+  city: string | null
+  playing_level: string | null
+  status: string | null
+  premium: boolean
+}
+
+const POSITIONS = [
+  'Goalkeeper','Right Back','Centre Back','Left Back',
+  'Defensive Midfielder','Central Midfielder','Right Midfielder',
+  'Left Midfielder','Attacking Midfielder','Right Winger',
+  'Left Winger','Second Striker','Striker','Centre Forward',
+]
+
+const LEVELS = [
+  'Premier League','Championship','League One','League Two',
+  'National League','National League North/South','Step 3','Step 4',
+  'Step 5','Step 6','Step 7 and below',
+]
+
+const STATUSES = [
+  { value: 'free_agent',    label: 'Free Agent' },
+  { value: 'signed',        label: 'Signed' },
+  { value: 'loan_dual_reg', label: 'Loan / Dual Reg' },
+  { value: 'just_exploring',label: 'Just Exploring' },
+]
+
+const STATUS_COLOR: Record<string, string> = {
+  free_agent: '#60a5fa', signed: '#8892aa', loan_dual_reg: '#a78bfa', just_exploring: '#f59e0b',
+}
+
+function PlayersTab() {
+  const [players, setPlayers] = useState<BrowsePlayer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [posFilter, setPosFilter] = useState('')
+  const [levelFilter, setLevelFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [clubFilter, setClubFilter] = useState('')
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 20
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('profiles')
+      .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, premium')
+      .in('role', ['player', 'admin'])
+      .eq('approved', true)
+      .not('avatar_url', 'is', null)
+      .neq('avatar_url', '')
+      .order('premium', { ascending: false })
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setPlayers((data as BrowsePlayer[]) ?? [])
+        setLoading(false)
+      })
+  }, [])
+
+  const filtered = players.filter(p => {
+    if (search && !p.full_name?.toLowerCase().includes(search.toLowerCase())) return false
+    if (posFilter && p.position !== posFilter && p.secondary_position !== posFilter) return false
+    if (levelFilter && p.playing_level !== levelFilter) return false
+    if (statusFilter && p.status !== statusFilter) return false
+    if (clubFilter && !p.club?.toLowerCase().includes(clubFilter.toLowerCase())) return false
+    return true
+  })
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const hasFilters = search || posFilter || levelFilter || statusFilter || clubFilter
+
+  function clearFilters() {
+    setSearch(''); setPosFilter(''); setLevelFilter(''); setStatusFilter(''); setClubFilter(''); setPage(0)
+  }
+
+  function handleFilterChange(setter: (v: string) => void, value: string) {
+    setter(value); setPage(0)
+  }
+
+  const iStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' as const }
+
+  return (
+    <div className="space-y-4 px-4 py-4">
+      {/* Search */}
+      <input
+        value={search}
+        onChange={e => handleFilterChange(setSearch, e.target.value)}
+        placeholder="Search by name…"
+        className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+        style={iStyle}
+        onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+        onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
+      />
+
+      {/* Filters */}
+      <div className="grid grid-cols-2 gap-2">
+        <select value={posFilter} onChange={e => handleFilterChange(setPosFilter, e.target.value)}
+          className="rounded-xl px-3 py-2 text-xs outline-none appearance-none" style={iStyle}>
+          <option value="">All positions</option>
+          {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={levelFilter} onChange={e => handleFilterChange(setLevelFilter, e.target.value)}
+          className="rounded-xl px-3 py-2 text-xs outline-none appearance-none" style={iStyle}>
+          <option value="">All levels</option>
+          {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <select value={statusFilter} onChange={e => handleFilterChange(setStatusFilter, e.target.value)}
+          className="rounded-xl px-3 py-2 text-xs outline-none appearance-none" style={iStyle}>
+          <option value="">All statuses</option>
+          {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <input
+          value={clubFilter}
+          onChange={e => handleFilterChange(setClubFilter, e.target.value)}
+          placeholder="Filter by club…"
+          className="rounded-xl px-3 py-2 text-xs outline-none"
+          style={iStyle}
+          onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+          onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
+        />
+      </div>
+
+      {/* Results header */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs" style={{ color: '#8892aa' }}>
+          {loading ? 'Loading…' : `${filtered.length} player${filtered.length !== 1 ? 's' : ''} found`}
+        </p>
+        {hasFilters && (
+          <button onClick={clearFilters}
+            className="text-xs uppercase tracking-wider"
+            style={{ color: '#2d5fc4' }}>
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {loading ? <LoadingSpinner /> : paginated.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm" style={{ color: '#8892aa' }}>No players match your filters.</p>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+            {paginated.map((p, i) => (
+              <a key={p.id} href={`/dashboard/player/players/${p.id}`}
+                className="flex items-center gap-3 px-4 py-3.5 transition-colors"
+                style={{ backgroundColor: '#13172a', borderBottom: i < paginated.length - 1 ? '1px solid #1e2235' : undefined, textDecoration: 'none', display: 'flex' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0f1428')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#13172a')}>
+                <div className="relative flex-shrink-0">
+                  {p.avatar_url
+                    ? <img src={p.avatar_url} alt={p.full_name ?? ''} className="rounded-full object-cover" style={{ width: 44, height: 44 }} />
+                    : <div className="rounded-full flex items-center justify-center font-bold text-xs" style={{ width: 44, height: 44, backgroundColor: '#1e2235', color: '#8892aa' }}>
+                        {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'}
+                      </div>
+                  }
+                  {p.premium && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-black"
+                      style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 8 }}>P</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Unknown'}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
+                    {[p.position, p.club, p.city].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                  {p.playing_level && (
+                    <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{p.playing_level}</p>
+                  )}
+                </div>
+                {p.status && (
+                  <span className="text-xs flex-shrink-0 font-medium"
+                    style={{ color: STATUS_COLOR[p.status] ?? '#8892aa' }}>
+                    {STATUSES.find(s => s.value === p.status)?.label ?? p.status}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
+                  className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+                  style={{ border: '1px solid #1e2235', color: '#e8dece', backgroundColor: '#13172a' }}>
+                  ← Prev
+                </button>
+                <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
+                  className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+                  style={{ border: '1px solid #1e2235', color: '#e8dece', backgroundColor: '#13172a' }}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ─── Status label helper ──────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = {
@@ -695,6 +909,7 @@ const BANNERS: Record<Tab, { subtitle: string; color: string }> = {
   opportunities: { subtitle: 'OPPORTUNITIES', color: '#f59e0b' },
   shortlists:    { subtitle: 'SHORTLISTS',   color: '#a78bfa' },
   activity:      { subtitle: 'ACTIVITY',     color: '#2d5fc4' },
+  players:       { subtitle: 'PLAYERS',      color: '#e8dece' },
 }
 
 function CoachMarketContent() {
@@ -738,6 +953,7 @@ function CoachMarketContent() {
     { key: 'opportunities', label: 'Opportunities' },
     { key: 'shortlists',    label: 'Shortlists' },
     { key: 'activity',      label: 'Activity' },
+    { key: 'players',       label: 'Players' },
   ]
 
   const banner = BANNERS[activeTab]
@@ -799,6 +1015,7 @@ function CoachMarketContent() {
           {activeTab === 'opportunities' && <OpportunitiesTab coachId={coachId} />}
           {activeTab === 'shortlists'    && <ShortlistsTab coachId={coachId} />}
           {activeTab === 'activity'      && <ActivityTab coachId={coachId} onAlertsRead={() => setUnreadAlerts(0)} />}
+          {activeTab === 'players'       && <PlayersTab />}
         </>
       ) : (
         <LoadingSpinner />

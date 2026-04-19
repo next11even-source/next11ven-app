@@ -160,7 +160,7 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
           )}
         </nav>
 
-        {/* Sign out */}
+        {/* Sign out + legal */}
         <div className="px-4 pt-2" style={{ borderTop: '1px solid #1e2235', paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 8px)' }}>
           <button onClick={handleSignOut}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm"
@@ -172,6 +172,10 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
             </svg>
             Sign Out
           </button>
+          <div className="flex gap-4 px-4 pb-2">
+            <Link href="/privacy" onClick={onClose} className="text-xs" style={{ color: '#4a5568' }}>Privacy</Link>
+            <Link href="/terms" onClick={onClose} className="text-xs" style={{ color: '#4a5568' }}>Terms</Link>
+          </div>
         </div>
       </div>
     </>

@@ -43,8 +43,7 @@ export default function SignInPage() {
 
     try {
       const supabase = createClient()
-      const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-      const redirectTo = `${base}/auth/callback?next=/set-password`
+      const redirectTo = `${window.location.origin}/auth/callback?next=/set-password`
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo })
 
       setResetLoading(false)
@@ -276,12 +275,12 @@ export default function SignInPage() {
           <div>
             <Link
               href="/claim"
-              className="text-sm uppercase tracking-wider transition-colors"
-              style={{ color: '#8892aa' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#e8dece')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#8892aa')}
+              className="block w-full rounded-full py-3 text-sm font-semibold uppercase tracking-wider text-center transition-colors"
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2d5fc4'; e.currentTarget.style.color = '#e8dece' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#1e2235'; e.currentTarget.style.color = '#8892aa' }}
             >
-              No password yet? Set one up →
+              First time on the new app? Create your password →
             </Link>
           </div>
         </div>

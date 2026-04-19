@@ -89,6 +89,47 @@ export async function sendMessageNotificationEmail({
   await send({ to, subject: `You have a new DM on NEXT11VEN`, html })
 }
 
+// ─── Application decision (player) ───────────────────────────────────────────
+
+export async function sendApplicationDecisionEmail({
+  to,
+  playerName,
+  opportunityTitle,
+  status,
+  message,
+}: {
+  to: string
+  playerName: string | null
+  opportunityTitle: string
+  status: 'accepted' | 'rejected'
+  message: string | null
+}) {
+  const isAccepted = status === 'accepted'
+  const dashboardUrl = `${SITE}/dashboard/player/market`
+  const accentColor = isAccepted ? '#2d5fc4' : '#6b7280'
+  const badgeText = isAccepted ? '✅ Accepted' : '❌ Not Progressed'
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${playerName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 8px;line-height:1.6;">
+      A coach has reviewed your application for:
+    </p>
+    <p style="color:#e8dece;font-weight:700;margin:0 0 16px;font-size:15px;">${opportunityTitle}</p>
+    <p style="display:inline-block;padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin:0 0 20px;background:${isAccepted ? 'rgba(45,95,196,0.15)' : 'rgba(107,114,128,0.15)'};color:${accentColor};">${badgeText}</p>
+    ${message ? `<p style="color:#8892aa;margin:16px 0 20px;font-size:13px;line-height:1.6;font-style:italic;">"${message}"</p>` : ''}
+    ${isAccepted ? `<p style="color:#8892aa;margin:0 0 20px;line-height:1.6;font-size:13px;">Log in to view your application and any next steps from the coach.</p>` : `<p style="color:#8892aa;margin:0 0 20px;line-height:1.6;font-size:13px;">Don't be discouraged — keep your profile updated and apply for more roles.</p>`}
+    <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:${accentColor};color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View My Applications</a>
+  `)
+
+  await send({
+    to,
+    subject: isAccepted
+      ? `Your application for "${opportunityTitle}" has been accepted`
+      : `Update on your application for "${opportunityTitle}"`,
+    html,
+  })
+}
+
 // ─── Application received (coach) ─────────────────────────────────────────────
 
 export async function sendApplicationReceivedEmail({

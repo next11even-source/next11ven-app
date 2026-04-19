@@ -33,12 +33,11 @@ function ClaimContent() {
     setStatus('loading')
 
     const supabase = createClient()
-    const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${base}/auth/confirm?next=/set-password`,
-        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/auth/confirm?next=/set-password`,
+        shouldCreateUser: true,
       },
     })
 

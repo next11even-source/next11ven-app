@@ -284,6 +284,8 @@ export default function PlayersPage() {
   const [appliedFilters, setAppliedFilters] = useState<Filters>(EMPTY_FILTERS)
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS)
   const [showFilters, setShowFilters] = useState(false)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 20
 
   useEffect(() => {
     const supabase = createClient()
@@ -366,7 +368,13 @@ export default function PlayersPage() {
     if (appliedFilters.hasHighlights) result = result.filter(p => (p.highlight_urls?.length ?? 0) > 0)
 
     setFiltered(result)
+    setPage(0)
   }, [search, quickTab, appliedFilters, players])
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const showingFrom = filtered.length === 0 ? 0 : page * PAGE_SIZE + 1
+  const showingTo = Math.min((page + 1) * PAGE_SIZE, filtered.length)
 
   const activeFilterCount = [
     appliedFilters.position,
@@ -509,7 +517,7 @@ export default function PlayersPage() {
         )}
 
         <p className="text-xs" style={{ color: '#8892aa' }}>
-          {filtered.length} player{filtered.length !== 1 ? 's' : ''}
+          {filtered.length === 0 ? '0 players' : `Showing ${showingFrom}–${showingTo} of ${filtered.length} player${filtered.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 
@@ -531,7 +539,7 @@ export default function PlayersPage() {
         </div>
       ) : (
         <div>
-          {filtered.map((p, i) => {
+          {paginated.map((p, i) => {
             const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
             const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const hasHighlights = (p.highlight_urls?.length ?? 0) > 0
@@ -587,6 +595,30 @@ export default function PlayersPage() {
               </Link>
             )
           })}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-4" style={{ borderTop: '1px solid #1e2235' }}>
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                {showingFrom}–{showingTo} of {filtered.length}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setPage(p => Math.max(0, p - 1)); window.scrollTo(0, 0) }}
+                  disabled={page === 0}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
+                  style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                  Previous
+                </button>
+                <button
+                  onClick={() => { setPage(p => Math.min(totalPages - 1, p + 1)); window.scrollTo(0, 0) }}
+                  disabled={page >= totalPages - 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
+                  style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
 
           {filtered.length === 0 && (
             <div className="py-16 text-center px-6 space-y-3">

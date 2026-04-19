@@ -424,6 +424,11 @@ export default function RegisterPage() {
               Already have an account?{' '}
               <Link href="/" style={{ color: '#2d5fc4' }}>Sign in</Link>
             </p>
+            <p className="text-center text-xs" style={{ color: '#4a5568' }}>
+              <Link href="/privacy" style={{ color: '#4a5568' }}>Privacy Policy</Link>
+              {' · '}
+              <Link href="/terms" style={{ color: '#4a5568' }}>Terms of Service</Link>
+            </p>
           </form>
         )}
       </div>

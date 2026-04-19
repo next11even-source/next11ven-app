@@ -40,6 +40,8 @@ export default function AdminPage() {
   const [counts, setCounts] = useState({ pending: 0, approved: 0, declined: 0 })
   const [reconciling, setReconciling] = useState(false)
   const [reconcileResult, setReconcileResult] = useState<{ granted: number; revoked: number; checked: number } | null>(null)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 20
 
   useEffect(() => {
     load()
@@ -105,6 +107,10 @@ export default function AdminPage() {
     const status = p.approval_status ?? 'pending'
     return status === tab
   })
+  const totalPages = Math.ceil(displayed.length / PAGE_SIZE)
+  const paginated = displayed.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const showingFrom = displayed.length === 0 ? 0 : page * PAGE_SIZE + 1
+  const showingTo = Math.min((page + 1) * PAGE_SIZE, displayed.length)
 
   const TABS: { key: TabFilter; label: string; color: string }[] = [
     { key: 'pending', label: 'Pending', color: '#f59e0b' },
@@ -163,7 +169,7 @@ export default function AdminPage() {
         {/* Tab selector */}
         <div className="flex gap-1.5">
           {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            <button key={t.key} onClick={() => { setTab(t.key); setPage(0) }}
               className="flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors"
               style={{
                 backgroundColor: tab === t.key ? t.color : '#13172a',
@@ -193,7 +199,7 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="px-4 py-4 space-y-3">
-          {displayed.map(p => (
+          {paginated.map(p => (
             <div key={p.id} className="rounded-2xl p-4"
               style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
               {/* Top row */}
@@ -280,6 +286,30 @@ export default function AdminPage() {
               )}
             </div>
           ))}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                Showing {showingFrom}–{showingTo} of {displayed.length}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
+                  style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
+                  style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

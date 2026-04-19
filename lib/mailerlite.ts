@@ -76,7 +76,7 @@ export async function onUserApproved(
     return
   }
 
-  const accountTypeLabel = role === 'coach' ? 'Coach' : 'Player'
+  const accountTypeLabel = role === 'coach' ? 'Coach' : role === 'fan' ? 'Supporter' : 'Player'
 
   // Check if they already exist — update fields if so, otherwise create
   const existing = await findSubscriber(email)
@@ -85,7 +85,7 @@ export async function onUserApproved(
   const fields: Record<string, string> = {}
   if (name) fields.name = name
   if (city) fields.city = city
-  fields.account_type = accountTypeLabel
+  fields.are_you_a = accountTypeLabel
 
   if (existing) {
     // Update existing subscriber with latest fields and add to group

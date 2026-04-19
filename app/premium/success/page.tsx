@@ -50,7 +50,7 @@ function SuccessContent() {
   const isCoach = role === 'coach'
   const tierLabel = isCoach ? 'Coach Pro' : 'Player Premium'
   const dashboardHref = isCoach ? '/dashboard/coach' : '/dashboard/player'
-  const accentColor = isCoach ? '#c2410c' : '#2d5fc4'
+  const accentColor = isCoach ? '#16a34a' : '#2d5fc4'
 
   if (loading) {
     return (

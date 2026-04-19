@@ -46,13 +46,15 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
   }
 
+  const premiumPath = role === 'coach' ? '/dashboard/coach/premium' : '/dashboard/player/premium'
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     payment_method_types: ['card'],
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/dashboard/player/premium`,
+    cancel_url: `${origin}${premiumPath}`,
     metadata: {
       supabase_user_id: user.id,
       role,

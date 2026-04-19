@@ -20,7 +20,7 @@ Auth + Storage), Stripe, Twilio, MailerLite, Vercel (hosting soon — not live y
 ## Database
 Single source of truth: `profiles` table.
 - `player_profiles` and `coach_profiles` exist in Supabase but are **ORPHANED — do not read or write to them, do not reference them**
-- Role: `'player' | 'coach' | 'admin'` (fan removed)
+- Role: `'player' | 'coach' | 'admin' | 'fan'` — fan/supporter accounts are accepted (view-only, no posting or messaging)
 - `admin` role also counts as a player — use `.in('role', ['player', 'admin'])` for player queries
 - `approved`: boolean — `approval_status`: text (`pending` | `approved` | `declined`)
 - `premium`: boolean — flipped by Stripe webhook

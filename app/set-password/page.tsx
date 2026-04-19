@@ -56,19 +56,41 @@ export default function SetPasswordPage() {
       return
     }
 
-    const { data: profile } = await supabase
+    // Primary lookup by auth user ID
+    let { data: profile } = await supabase
       .from('profiles')
-      .select('role, approved')
+      .select('role, approved, approval_status')
       .eq('id', user.id)
       .single()
 
-    if (!profile?.approved) {
+    // Migration fallback: profile exists under the old Glide ID but same email.
+    // Update the profile ID so future logins work normally.
+    if ((!profile || !profile.approved) && user.email) {
+      const { data: byEmail } = await supabase
+        .from('profiles')
+        .select('role, approved, approval_status')
+        .eq('email', user.email)
+        .neq('id', user.id)
+        .single()
+
+      if (byEmail?.approved || byEmail?.approval_status === 'approved') {
+        // Re-link profile to the new auth user ID
+        await supabase
+          .from('profiles')
+          .update({ id: user.id })
+          .eq('email', user.email)
+        profile = byEmail
+      }
+    }
+
+    const isApproved = profile?.approved === true || profile?.approval_status === 'approved'
+    if (!isApproved) {
       router.push('/pending')
       return
     }
 
-    const dest = profile.role === 'coach' ? '/dashboard/coach'
-               : profile.role === 'admin'  ? '/dashboard/player'
+    const dest = profile!.role === 'coach' ? '/dashboard/coach'
+               : profile!.role === 'admin'  ? '/dashboard/player'
                : '/dashboard/player'
     router.push(dest)
   }

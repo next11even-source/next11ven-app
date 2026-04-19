@@ -76,7 +76,7 @@ function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEle
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [role, setRole] = useState<'player' | 'coach' | 'fan' | null>(null)
+  const [role, setRole] = useState<'player' | 'coach' | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -168,7 +168,6 @@ export default function RegisterPage() {
       profilePayload.club = coachClub || null
       profilePayload.coaching_history = coachingHistory || null
     }
-    // fan: no extra fields needed
 
     // 3. Upsert profile (handles cases where trigger may not have fired)
     const { error: profileError } = await supabase
@@ -223,17 +222,6 @@ export default function RegisterPage() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setRole('fan')}
-              className="w-full rounded-xl py-3 text-center transition-all"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#8892aa')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-            >
-              <span className="text-sm uppercase tracking-wider" style={{ color: '#8892aa' }}>
-                👀 Just browsing / Supporter
-              </span>
-            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -244,7 +232,7 @@ export default function RegisterPage() {
                 className="text-xs uppercase tracking-wider px-3 py-1 rounded-full"
                 style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#2d5fc4' }}
               >
-                {role === 'player' ? 'Player' : role === 'coach' ? 'Coach / Manager' : 'Supporter'}
+                {role === 'player' ? 'Player' : 'Coach / Manager'}
               </span>
               <button
                 type="button"
@@ -270,21 +258,17 @@ export default function RegisterPage() {
               <Field label="Phone (+44 format)">
                 <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+447700900000" />
               </Field>
-              {role !== 'fan' && (
-                <>
-                  <Field label="Date of Birth">
-                    <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Nearest City">
-                      <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
-                    </Field>
-                    <Field label="Town / City Based In">
-                      <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Salford" />
-                    </Field>
-                  </div>
-                </>
-              )}
+              <Field label="Date of Birth">
+                <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nearest City">
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+                </Field>
+                <Field label="Town / City Based In">
+                  <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Salford" />
+                </Field>
+              </div>
             </Section>
 
             {/* Player fields */}
@@ -373,14 +357,11 @@ export default function RegisterPage() {
               </Section>
             )}
 
-            {/* Referral — not shown for fans */}
-            {role !== 'fan' && (
-              <Section title="Referral (Optional)">
-                <Field label="Referred by (full name)">
-                  <Input value={referral} onChange={(e) => setReferral(e.target.value)} placeholder="Friend's full name" />
-                </Field>
-              </Section>
-            )}
+            <Section title="Referral (Optional)">
+              <Field label="Referred by (full name)">
+                <Input value={referral} onChange={(e) => setReferral(e.target.value)} placeholder="Friend's full name" />
+              </Field>
+            </Section>
 
             {/* GDPR */}
             <div

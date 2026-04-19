@@ -43,14 +43,22 @@ function AuthConfirmContent() {
         return
       }
 
-      // Implicit flow — access_token in hash fragment, detectSessionInUrl already processed it
+      // Implicit flow — access_token arrives in the hash fragment (#access_token=...).
+      // detectSessionInUrl:true (default) processes it on client init, so getSession() has it.
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         router.replace(next)
         return
       }
 
-      // Nothing in the URL — likely opened a stale/direct URL
+      // Hash fragment may not have been processed yet — wait one tick and retry
+      await new Promise(r => setTimeout(r, 500))
+      const { data: { session: session2 } } = await supabase.auth.getSession()
+      if (session2) {
+        router.replace(next)
+        return
+      }
+
       setErrorMsg('No verification token found in the link. Try requesting a new one.')
     }
 

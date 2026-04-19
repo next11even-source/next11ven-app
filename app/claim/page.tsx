@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase-browser'
+import { createBrowserClient } from '@supabase/ssr'
 
 export default function ClaimPage() {
   return (
@@ -32,7 +32,14 @@ function ClaimContent() {
     setErrorMsg(null)
     setStatus('loading')
 
-    const supabase = createClient()
+    // Use implicit flow so the magic link works when opened in a different
+    // browser or email app (Outlook, Gmail app) — PKCE requires the code
+    // verifier to be in the same browser session where it was generated.
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { flowType: 'implicit' } }
+    )
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

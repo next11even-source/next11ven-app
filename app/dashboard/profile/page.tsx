@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
+import Sidebar from '@/app/dashboard/player/_components/Sidebar'
+import BottomNav from '@/app/dashboard/player/_components/BottomNav'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -612,6 +616,7 @@ function BioEditor({ profile, isCoach, onSave, onCancel }: {
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -656,15 +661,30 @@ export default function ProfilePage() {
     ? [profile.coaching_role, profile.club].filter(Boolean).join(' · ') || 'Add your role and club'
     : [profile.position, profile.club].filter(Boolean).join(' · ') || 'Add your position and club'
 
+  const coachSidebarProfile = { full_name: profile.full_name, avatar_url: profile.avatar_url, coaching_role: profile.coaching_role }
+  const playerSidebarProfile = { full_name: profile.full_name, avatar_url: profile.avatar_url, position: profile.position }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      {/* Sidebars */}
+      {isCoach
+        ? <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachSidebarProfile} />
+        : <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={playerSidebarProfile} />}
+
       {/* Nav */}
       <header className="sticky top-0 z-10 px-4 py-2"
         style={{ backgroundColor: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
-        <Breadcrumb crumbs={[{ label: 'Home', href: homeHref }, { label: 'My Profile' }]} />
+        <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: 20 }}>
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          </button>
+          <Breadcrumb crumbs={[{ label: 'Home', href: homeHref }, { label: 'My Profile' }]} />
+        </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-2xl mx-auto px-6 py-8 space-y-6" style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom) + 32px)' }}>
 
         {/* Hero Card */}
         <div className="rounded-xl p-6" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -695,8 +715,6 @@ export default function ProfilePage() {
         </div>
 
         {/* Bio (shared) */}
-        {!isCoach && <BioCard profile={profile} isCoach={isCoach} onSave={saveProfile} />}
-
         {/* Role-specific sections */}
         {isCoach ? (
           <>
@@ -719,6 +737,9 @@ export default function ProfilePage() {
         )}
 
       </main>
+
+      {/* Bottom nav — each self-manages and returns null for the wrong role */}
+      {isCoach ? <CoachBottomNav /> : <BottomNav />}
     </div>
   )
 }

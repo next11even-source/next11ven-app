@@ -205,7 +205,7 @@ function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
             style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
             <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
               {p.avatar_url ? (
-                <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-top" />
+                <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center"
                   style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
@@ -319,7 +319,7 @@ function NewJoinersSection({ players }: { players: NewJoiner[] }) {
               style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
               <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
                 {p.avatar_url ? (
-                  <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-top" />
+                  <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"
                     style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
@@ -383,9 +383,9 @@ export default function PlayerHome() {
 
       const [profileRes, featuredRes, oppsRes, joinersRes, viewsRes, convsRes, oppsCountRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
-        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).limit(10),
+        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', '').limit(10),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
-        supabase.from('profiles').select('id, role, full_name, avatar_url, position, club, status, coaching_role').eq('approved', true).order('created_at', { ascending: false }).limit(30),
+        supabase.from('profiles').select('id, role, full_name, avatar_url, position, club, status, coaching_role').eq('approved', true).not('avatar_url', 'is', null).neq('avatar_url', '').order('created_at', { ascending: false }).limit(30),
         // Profile views this week
         supabase.from('player_views').select('id', { count: 'exact', head: true }).eq('player_id', user.id).gte('viewed_at', weekAgo),
         // Unread messages

@@ -567,6 +567,7 @@ export default function CoachDashboard() {
         .in('role', ['player', 'admin'])
         .eq('approved', true)
         .not('avatar_url', 'is', null)
+        .neq('avatar_url', '')
         .order('created_at', { ascending: false })
         .limit(30)
       setRecentPlayers((recentP as RecentPlayer[]) ?? [])

@@ -144,6 +144,67 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="space-y-1"><Lbl>{label}</Lbl>{children}</div>
 }
 
+function ManageSubscriptionCard() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handlePortal() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) { setError(json.error ?? 'Something went wrong'); return }
+      window.location.href = json.url
+    } catch {
+      setError('Failed to open billing portal')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl p-5 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <h3 className="text-base font-black uppercase tracking-wide"
+        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        Subscription
+      </h3>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#60a5fa', border: '1px solid rgba(45,95,196,0.3)' }}>
+          Premium Active
+        </span>
+      </div>
+      <p className="text-sm" style={{ color: '#8892aa' }}>
+        Manage your billing, update your payment method, or cancel your subscription at any time.
+      </p>
+      {error && <p className="text-xs" style={{ color: '#fca5a5' }}>{error}</p>}
+      <button
+        onClick={handlePortal}
+        disabled={loading}
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-black uppercase tracking-widest disabled:opacity-60"
+        style={{ backgroundColor: '#0a0a0a', color: '#e8dece', border: '1px solid #1e2235', fontFamily: "'Barlow Condensed', sans-serif" }}
+      >
+        {loading ? (
+          <span className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
+              style={{ borderColor: '#e8dece', borderTopColor: 'transparent' }} />
+            Loading…
+          </span>
+        ) : (
+          <>
+            Manage Subscription
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </>
+        )}
+      </button>
+    </div>
+  )
+}
+
 function SaveCancel({ saving, onSave, onCancel }: { saving: boolean; onSave: () => void; onCancel: () => void }) {
   return (
     <div className="flex justify-end gap-2 pt-1">
@@ -724,6 +785,7 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
+            {profile.premium && <ManageSubscriptionCard />}
           </>
         ) : (
           <>
@@ -733,6 +795,7 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
+            {profile.premium && <ManageSubscriptionCard />}
           </>
         )}
 

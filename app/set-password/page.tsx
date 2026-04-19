@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 
@@ -8,8 +8,21 @@ export default function SetPasswordPage() {
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'checking'>('checking')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Guard: if no active session (expired link, different device), redirect to
+  // /claim so the user can request a fresh link rather than seeing a broken form.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace('/claim?error=session_expired')
+      } else {
+        setStatus('idle')
+      }
+    })
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,6 +71,14 @@ export default function SetPasswordPage() {
                : profile.role === 'admin'  ? '/dashboard/player'
                : '/dashboard/player'
     router.push(dest)
+  }
+
+  if (status === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
+        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+      </div>
+    )
   }
 
   return (

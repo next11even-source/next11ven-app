@@ -11,6 +11,23 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "NEXT11VEN — Non-League Recruitment",
   description: "The scouting platform built for non-league football.",
+  openGraph: {
+    title: "NEXT11VEN — Non-League Recruitment",
+    description: "The scouting platform built for non-league football.",
+    images: [{ url: "/logo.jpg", width: 1200, height: 630, alt: "NEXT11VEN" }],
+    siteName: "NEXT11VEN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NEXT11VEN — Non-League Recruitment",
+    description: "The scouting platform built for non-league football.",
+    images: ["/logo.jpg"],
+  },
+  icons: {
+    icon: "/logo.jpg",
+    apple: "/logo.jpg",
+  },
 };
 
 export default function RootLayout({

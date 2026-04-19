@@ -7,7 +7,7 @@ Solo founder build. Stack is production-ready, approaching first deployment.
 
 ## Stack
 Next.js 14 App Router, TypeScript, Tailwind CSS, Supabase (PostgreSQL +
-Auth + Storage), Stripe, Twilio, MailerLite, Vercel (hosting soon — not live yet, running locally)
+Auth + Storage), Stripe, Twilio, MailerLite, Vercel (hosting live at app.next11ven.com)
 
 ## Brand & Style
 - Background: `#0a0a0a` — Surface: `#13172a` — Border: `#1e2235`
@@ -71,6 +71,13 @@ Key columns: `id, email, full_name, role, approved, approval_status, position, s
 - SMS notifications on new messages (non-blocking, won't break message send if it fails)
 - Feature flagged: `TWILIO_ENABLED` in `.env`
 - Env vars: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
+
+### Resend ✅
+- Transactional emails: new message notifications, 
+  application received notifications
+- From: NEXT11VEN <hello@next11ven.com>
+- Feature flagged: RESEND_ENABLED in .env
+- Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
 
 ## Feature Flags
 ```

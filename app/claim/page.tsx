@@ -19,6 +19,7 @@ function ClaimContent() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const linkExpired = searchParams.get('error') === 'invalid_link'
+  const sessionExpired = searchParams.get('error') === 'session_expired'
 
   // Pre-fill email from query param if redirected from an expired link
   useEffect(() => {
@@ -92,11 +93,15 @@ function ClaimContent() {
         </div>
 
         {/* Expired link banner */}
-        {linkExpired && (
+        {(linkExpired || sessionExpired) && (
           <div className="rounded-xl px-4 py-3" style={{ backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
-            <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>Your link has expired</p>
+            <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>
+              {sessionExpired ? 'Your session has expired' : 'Your link has expired'}
+            </p>
             <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
-              Password setup links are single-use and expire after 1 hour. Enter your email below to get a fresh one.
+              {sessionExpired
+                ? 'The setup link has expired or was opened on a different device. Enter your email below to get a fresh link.'
+                : 'Password setup links are single-use and expire after 1 hour. Enter your email below to get a fresh one.'}
             </p>
           </div>
         )}

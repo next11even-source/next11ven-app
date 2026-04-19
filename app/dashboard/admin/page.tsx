@@ -61,7 +61,7 @@ export default function AdminPage() {
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approval_status, created_at, gdpr_consent, phone')
-      .neq('role', 'admin')
+      .or('role.neq.admin,role.is.null')
       .order('created_at', { ascending: false })
 
     const all = (data ?? []) as ApplicantProfile[]
@@ -205,10 +205,10 @@ export default function AdminPage() {
                     </p>
                     <span className="text-xs px-2 py-0.5 rounded-full font-bold uppercase"
                       style={{
-                        backgroundColor: p.role === 'coach' ? 'rgba(168,139,250,0.15)' : 'rgba(45,95,196,0.15)',
-                        color: p.role === 'coach' ? '#a78bfa' : '#2d5fc4',
+                        backgroundColor: p.role === 'coach' ? 'rgba(168,139,250,0.15)' : p.role === 'fan' ? 'rgba(136,146,170,0.15)' : 'rgba(45,95,196,0.15)',
+                        color: p.role === 'coach' ? '#a78bfa' : p.role === 'fan' ? '#8892aa' : '#2d5fc4',
                       }}>
-                      {p.role}
+                      {p.role ?? 'unknown'}
                     </span>
                   </div>
                   <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{p.email ?? '—'}</p>
@@ -225,13 +225,15 @@ export default function AdminPage() {
                     <Detail label="City" value={p.city} />
                     <Detail label="Level" value={p.playing_level} />
                   </>
-                ) : (
+                ) : p.role === 'coach' ? (
                   <>
                     <Detail label="Role" value={p.coaching_role} />
                     <Detail label="Club" value={p.club} />
                     <Detail label="City" value={p.city} />
                     <Detail label="Level" value={p.coaching_level} />
                   </>
+                ) : (
+                  <Detail label="Type" value="Supporter / Viewer" />
                 )}
                 <Detail label="Phone" value={p.phone} />
                 <Detail label="GDPR" value={p.gdpr_consent ? 'Consented' : 'Not consented'} />

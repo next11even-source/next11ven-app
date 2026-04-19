@@ -127,11 +127,11 @@ function PremiumCarousel({ players }: { players: Player[] }) {
           <Link key={p.id}
             href={`/dashboard/player/players/${p.id}`}
             className="flex-shrink-0 rounded-xl overflow-hidden transition-all block"
-            style={{ width: 220, scrollSnapAlign: 'start', backgroundColor: '#13172a', border: '1px solid #2d5fc4', textDecoration: 'none' }}
+            style={{ width: 170, scrollSnapAlign: 'start', backgroundColor: '#13172a', border: '1px solid #2d5fc4', textDecoration: 'none' }}
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#3a6fda')}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}>
             {/* Photo or gradient header */}
-            <div className="relative" style={{ height: 120, backgroundColor: '#1a1f3a' }}>
+            <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
               {p.avatar_url ? (
                 <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
               ) : (
@@ -143,24 +143,23 @@ function PremiumCarousel({ players }: { players: Player[] }) {
                   </span>
                 </div>
               )}
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #13172a 0%, transparent 60%)' }} />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
               <div className="absolute top-2 right-2">
-                <span className="text-xs font-bold px-2 py-0.5 rounded"
-                  style={{ backgroundColor: 'rgba(45,95,196,0.9)', color: '#fff' }}>PRO</span>
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
               </div>
             </div>
 
-            <div className="p-4 space-y-2">
-              <div>
-                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-                  {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
+            <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+              <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+              <p className="text-xs truncate" style={{ color: '#8892aa' }}>
+                {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
+              </p>
+              {p.status && (
+                <p className="text-xs font-semibold" style={{ color: STATUS_CONFIG[p.status]?.color, fontSize: 10 }}>
+                  {STATUS_CONFIG[p.status]?.label}
                 </p>
-              </div>
-              {p.playing_level && (
-                <p className="text-xs" style={{ color: '#8892aa' }}>{p.playing_level}</p>
               )}
-              <StatusBadge status={p.status} />
             </div>
           </Link>
         ))}
@@ -414,34 +413,32 @@ function RecentlyJoined({ players }: { players: RecentPlayer[] }) {
           return (
             <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
               className="flex-shrink-0 rounded-xl overflow-hidden block"
-              style={{ width: 160, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
+              style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
-              <div className="relative" style={{ height: 200 }}>
+              <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
                 {p.avatar_url ? (
                   <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
-                    <span className="text-4xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d3050' }}>
+                  <div className="w-full h-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                    <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
                       {initials}
                     </span>
                   </div>
                 )}
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)' }} />
-                {statusCfg && (
-                  <div className="absolute bottom-2 left-2 right-2">
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ backgroundColor: statusCfg.bg, color: statusCfg.color }}>
-                      {statusCfg.label}
-                    </span>
-                  </div>
-                )}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
               </div>
-              <div className="px-3 py-2.5" style={{ backgroundColor: '#13172a' }}>
-                <p className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>
+              <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                   {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
                 </p>
+                {statusCfg && (
+                  <p className="text-xs font-semibold" style={{ color: statusCfg.color, fontSize: 10 }}>
+                    {statusCfg.label}
+                  </p>
+                )}
               </div>
             </Link>
           )
@@ -453,55 +450,75 @@ function RecentlyJoined({ players }: { players: RecentPlayer[] }) {
 
 // ─── Latest Opportunities ─────────────────────────────────────────────────────
 
-function LatestOpportunities({ opportunities, viewerPremium }: { opportunities: CoachOpportunity[]; viewerPremium: boolean }) {
-  if (opportunities.length === 0) return null
+function LatestOpportunities({ opportunities, viewerRole }: { opportunities: CoachOpportunity[]; viewerRole: string | null }) {
+  const isCoach = viewerRole === 'coach'
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Latest Opportunities
         </h2>
-        <Link href="/dashboard/coach/opportunities" className="text-xs" style={{ color: '#2d5fc4', textDecoration: 'none' }}>
-          Post a role →
-        </Link>
+        {isCoach && (
+          <Link href="/dashboard/coach/opportunities" className="text-xs" style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+            Post a role →
+          </Link>
+        )}
       </div>
-      <div className="space-y-2">
-        {opportunities.map(opp => {
-          const isCoachRole = opp.opportunity_type === 'coach'
-          const lvl = getLevelConfig(opp.level)
-          return (
-            <Link key={opp.id} href="/dashboard/coach/opportunities"
-              className="flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-              {/* Level badge */}
-              <div className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl px-2"
-                style={{ minWidth: 44, height: 44, backgroundColor: lvl.bg, border: `1px solid ${lvl.color}40` }}>
-                <span className="font-black leading-none" style={{ color: lvl.color, fontSize: 9, letterSpacing: '0.05em' }}>{lvl.line1}</span>
-                {lvl.line2 && <span className="font-black leading-none mt-0.5" style={{ color: lvl.color, fontSize: lvl.line2.length <= 2 ? 16 : 10 }}>{lvl.line2}</span>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-xs font-semibold truncate" style={{ color: lvl.color }}>
-                    {opp.coach?.club ?? 'Unknown Club'}
-                  </p>
-                </div>
-                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-xs" style={{ color: '#8892aa' }}>
-                    {isCoachRole ? 'Coaching Role' : opp.position ?? 'Any Position'} · {timeAgo(opp.created_at)}
-                  </p>
-                  {opp.urgent && <span className="text-xs" style={{ color: '#ef4444' }}>🔴 Urgent</span>}
-                </div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e2235" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+
+      {opportunities.length === 0 ? (
+        <div className="rounded-xl px-5 py-8 flex flex-col items-center text-center gap-4"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
+            {isCoach
+              ? 'No roles posted yet. Post a role to start connecting with players looking for clubs.'
+              : 'No opportunities posted yet. Check back soon — coaches post new roles regularly.'}
+          </p>
+          {isCoach && (
+            <Link href="/dashboard/coach/opportunities"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+              Post a Role
             </Link>
-          )
-        })}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {opportunities.map(opp => {
+            const isCoachRole = opp.opportunity_type === 'coach'
+            const lvl = getLevelConfig(opp.level)
+            return (
+              <Link key={opp.id} href="/dashboard/coach/opportunities"
+                className="flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
+                <div className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl px-2"
+                  style={{ minWidth: 44, height: 44, backgroundColor: lvl.bg, border: `1px solid ${lvl.color}40` }}>
+                  <span className="font-black leading-none" style={{ color: lvl.color, fontSize: 9, letterSpacing: '0.05em' }}>{lvl.line1}</span>
+                  {lvl.line2 && <span className="font-black leading-none mt-0.5" style={{ color: lvl.color, fontSize: lvl.line2.length <= 2 ? 16 : 10 }}>{lvl.line2}</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-xs font-semibold truncate" style={{ color: lvl.color }}>
+                      {opp.coach?.club ?? 'Unknown Club'}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      {isCoachRole ? 'Coaching Role' : opp.position ?? 'Any Position'} · {timeAgo(opp.created_at)}
+                    </p>
+                    {opp.urgent && <span className="text-xs" style={{ color: '#ef4444' }}>🔴 Urgent</span>}
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e2235" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }
@@ -521,6 +538,7 @@ export default function CoachDashboard() {
   const [statsAvailable, setStatsAvailable] = useState(0)
   const [statsUnread, setStatsUnread] = useState(0)
   const [viewerPremium, setViewerPremium] = useState(false)
+  const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -531,11 +549,12 @@ export default function CoachDashboard() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, premium, avatar_url, coaching_role')
+        .select('full_name, premium, avatar_url, coaching_role, role')
         .eq('id', user.id)
         .single()
       setFullName(profile?.full_name ?? null)
       setViewerPremium(profile?.premium ?? false)
+      setViewerRole(profile?.role ?? null)
       setCoachProfile({ full_name: profile?.full_name ?? null, avatar_url: profile?.avatar_url ?? null, coaching_role: profile?.coaching_role ?? null })
 
       const playerSelect = 'id, role, full_name, position, secondary_position, club, avatar_url, status, location, city, playing_level, weekly_views, premium, created_at, last_active, coaching_role'
@@ -680,7 +699,7 @@ export default function CoachDashboard() {
           <>
             <CoachQuickStats newApps={statsNewApps} availablePlayers={statsAvailable} unread={statsUnread} />
             <PremiumCarousel players={premiumPlayers} />
-            <LatestOpportunities opportunities={latestOpportunities} viewerPremium={viewerPremium} />
+            <LatestOpportunities opportunities={latestOpportunities} viewerRole={viewerRole} />
             <RecentlyJoined players={recentPlayers} />
           </>
         )}

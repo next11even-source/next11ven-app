@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { useSidebar } from '../_components/SidebarContext'
 
 type Conversation = {
   id: string
@@ -220,6 +221,7 @@ function ChatView({
 
 function MessagesInner() {
   const router = useRouter()
+  const { openSidebar } = useSidebar()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selected, setSelected] = useState<Conversation | null>(null)
   const [playerId, setPlayerId] = useState('')
@@ -314,6 +316,11 @@ function MessagesInner() {
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3 flex items-center gap-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+        <button onClick={openSidebar} className="flex-shrink-0 p-1 -ml-1" style={{ color: '#8892aa' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
         <h1 className="font-black uppercase tracking-wide text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Messages
         </h1>

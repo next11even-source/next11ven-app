@@ -270,7 +270,7 @@ function NewJoiners({ players }: { players: Player[] }) {
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>
               <div className="relative" style={{ height: 150 }}>
                 {p.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
                     <span className="text-4xl font-black"
@@ -414,12 +414,12 @@ function RecentlyJoined({ players }: { players: RecentPlayer[] }) {
           return (
             <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
               className="flex-shrink-0 rounded-xl overflow-hidden block"
-              style={{ width: 150, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
+              style={{ width: 160, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
-              <div className="relative" style={{ height: 150 }}>
+              <div className="relative" style={{ height: 200 }}>
                 {p.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
                     <span className="text-4xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d3050' }}>
@@ -560,14 +560,15 @@ export default function CoachDashboard() {
         .limit(8)
       setLatestOpportunities((opps as unknown as CoachOpportunity[]) ?? [])
 
-      // Recently joined players (approved, players only, newest first)
+      // Recently joined players (approved, players only, with avatar, newest first)
       const { data: recentP } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, position, playing_level, status')
         .in('role', ['player', 'admin'])
         .eq('approved', true)
+        .not('avatar_url', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(6)
+        .limit(30)
       setRecentPlayers((recentP as RecentPlayer[]) ?? [])
 
       // Quick stats

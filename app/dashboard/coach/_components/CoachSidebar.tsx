@@ -94,7 +94,7 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
 
         {/* Coach Pro CTA — only if not premium */}
         {!isPremium && (
-          <Link href="/dashboard/player/premium" onClick={onClose}
+          <Link href="/dashboard/coach/premium" onClick={onClose}
             className="flex items-center gap-3 mx-4 mb-4 px-4 py-3 rounded-xl"
             style={{ background: 'linear-gradient(135deg, rgba(22,163,74,0.18) 0%, rgba(22,163,74,0.08) 100%)', border: '1px solid rgba(22,163,74,0.35)', textDecoration: 'none' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

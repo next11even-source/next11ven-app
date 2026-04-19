@@ -695,7 +695,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Bio (shared) */}
-        <BioCard profile={profile} isCoach={isCoach} onSave={saveProfile} />
+        {!isCoach && <BioCard profile={profile} isCoach={isCoach} onSave={saveProfile} />}
 
         {/* Role-specific sections */}
         {isCoach ? (

@@ -367,7 +367,10 @@ function MessagesInner() {
             const convCanRead = playerIsPremium || (c?.premium ?? false)
             const isLocked = !convCanRead
             return (
-              <button key={conv.id} onClick={() => setSelected(conv)}
+              <button key={conv.id} onClick={() => {
+                setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread: 0 } : c))
+                setSelected(conv)
+              }}
                 className="flex items-center gap-3 w-full px-4 py-4 text-left transition-colors"
                 style={{ backgroundColor: '#0a0a0a' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0d1020')}

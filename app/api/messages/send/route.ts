@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendMessageNotificationEmail } from '@/lib/email'
@@ -166,8 +167,9 @@ export async function POST(req: NextRequest) {
           }),
         }
       )
-      // Record timestamp so we don't SMS again today
-      await supabase.from('profiles').update({ last_sms_at: new Date().toISOString() }).eq('id', recipientId)
+      // Record timestamp — use service role to bypass RLS
+      const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+      await adminClient.from('profiles').update({ last_sms_at: new Date().toISOString() }).eq('id', recipientId)
     } catch {
       // non-blocking
     }

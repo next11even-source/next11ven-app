@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             supabase.from('profiles')
               .update({ password_set_at: new Date().toISOString() })
               .eq('id', user.id)
+              .then(() => {})
           }
         })
     })

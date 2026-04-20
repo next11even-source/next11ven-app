@@ -7,7 +7,7 @@ export default function InstallBanner() {
 
   useEffect(() => {
     // Don't show if already dismissed, or if running as installed PWA
-    const dismissed = localStorage.getItem('install_banner_dismissed')
+    const dismissed = localStorage.getItem('install_banner_v2')
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       ('standalone' in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true)
@@ -20,7 +20,7 @@ export default function InstallBanner() {
   }, [])
 
   function dismiss() {
-    localStorage.setItem('install_banner_dismissed', '1')
+    localStorage.setItem('install_banner_v2', '1')
     setVisible(false)
   }
 

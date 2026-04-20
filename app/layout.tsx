@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     images: ["/logo.jpg"],
   },
   icons: {
-    icon: "/logo.jpg",
-    apple: "/logo.jpg",
+    icon: "/next11ven_favicon.png",
+    apple: "/next11ven_square_logo.png",
   },
 };
 

@@ -56,9 +56,13 @@ export default function CoachesPage() {
         .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, bio')
         .eq('role', 'coach')
         .eq('approved', true)
-        .order('full_name', { ascending: true })
 
       const list = (data ?? []) as Coach[]
+      // Shuffle on every load for fair distribution
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [list[i], list[j]] = [list[j], list[i]]
+      }
       setCoaches(list)
       setFiltered(list)
       setLoading(false)

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-browser'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
+import InstallBanner from '@/app/components/InstallBanner'
 
 type SidebarProfile = {
   full_name: string | null
@@ -59,6 +60,7 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
         {children}
       </div>
       {role === null ? null : isCoach ? <CoachBottomNav /> : <BottomNav />}
+      <InstallBanner />
     </>
   )
 }

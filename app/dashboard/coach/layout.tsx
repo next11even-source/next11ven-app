@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import CoachBottomNav from './_components/CoachBottomNav'
+import InstallBanner from '@/app/components/InstallBanner'
 
 export default function CoachLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
         {children}
       </div>
       <CoachBottomNav />
+      <InstallBanner />
     </div>
   )
 }

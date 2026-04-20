@@ -91,55 +91,34 @@ function StatusBadge({ status }: { status: Status | null }) {
 // ─── Premium Carousel ─────────────────────────────────────────────────────────
 
 function PremiumCarousel({ players }: { players: Player[] }) {
-  const ref = useRef<HTMLDivElement>(null)
-
   if (players.length === 0) return null
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded"
-            style={{ backgroundColor: 'rgba(45,95,196,0.2)', color: '#2d5fc4' }}>
-            Premium
-          </span>
-          <h2 className="text-base font-bold uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Featured Players
-          </h2>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => ref.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-            className="w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>‹</button>
-          <button onClick={() => ref.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-            className="w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>›</button>
-        </div>
+      <div className="px-1">
+        <h2 className="text-xl font-black uppercase"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Featured Players ✓
+        </h2>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Premium players appear first to clubs</p>
       </div>
 
-      <div ref={ref} className="flex gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4"
+        style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
         {players.map((p) => (
           <Link key={p.id}
             href={`/dashboard/player/players/${p.id}`}
-            className="flex-shrink-0 rounded-xl overflow-hidden transition-all block"
-            style={{ width: 170, scrollSnapAlign: 'start', backgroundColor: '#13172a', border: '1px solid #2d5fc4', textDecoration: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#3a6fda')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}>
-            {/* Photo or gradient header */}
+            className="flex-shrink-0 rounded-2xl overflow-hidden block"
+            style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
             <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
               {p.avatar_url ? (
-                <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #1e2235 0%, #0d1020 100%)' }}>
-                  <span className="text-3xl font-black"
+                  style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                  <span className="font-black text-5xl"
                     style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                    {p.position?.slice(0, 2).toUpperCase() ?? '??'}
+                    {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '??'}
                   </span>
                 </div>
               )}
@@ -149,7 +128,6 @@ function PremiumCarousel({ players }: { players: Player[] }) {
                   style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
               </div>
             </div>
-
             <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
               <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
               <p className="text-xs truncate" style={{ color: '#8892aa' }}>
@@ -406,13 +384,13 @@ function RecentlyJoined({ players }: { players: RecentPlayer[] }) {
           {players.length}
         </span>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
         {players.map(p => {
           const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
           const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
           return (
             <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-              className="flex-shrink-0 rounded-xl overflow-hidden block"
+              className="flex-shrink-0 rounded-2xl overflow-hidden block"
               style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>

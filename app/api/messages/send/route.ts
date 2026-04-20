@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   // Fetch recipient to verify and get role
   const { data: recipientProfile } = await supabase
     .from('profiles')
-    .select('id, approved, role, full_name, email, phone, sms_opt_in, coaching_role, position')
+    .select('id, approved, role, full_name, email, phone, sms_opt_in, coaching_role, position, last_sms_at')
     .eq('id', recipientId)
     .single()
 
@@ -137,8 +137,12 @@ export async function POST(req: NextRequest) {
     ? `${appUrl}/dashboard/coach/messages`
     : `${appUrl}/dashboard/player/messages`
 
-  // SMS
+  // SMS — max 1 per recipient per day
+  const lastSms = recipientProfile.last_sms_at ? new Date(recipientProfile.last_sms_at) : null
+  const smsAllowed = !lastSms || (Date.now() - lastSms.getTime()) > 86_400_000
+
   if (
+    smsAllowed &&
     process.env.TWILIO_ENABLED !== 'false' &&
     recipientProfile.phone &&
     recipientProfile.sms_opt_in &&
@@ -162,6 +166,8 @@ export async function POST(req: NextRequest) {
           }),
         }
       )
+      // Record timestamp so we don't SMS again today
+      await supabase.from('profiles').update({ last_sms_at: new Date().toISOString() }).eq('id', recipientId)
     } catch {
       // non-blocking
     }

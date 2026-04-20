@@ -162,14 +162,14 @@ function PostOpportunityForm({ coachId, onPosted, onCancel }: {
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Club Area (shown publicly)">
+          <Field label="Club Name (premium players only)">
             <input value={club} onChange={e => setClub(e.target.value)}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
               onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
-              placeholder="e.g. Manchester club" />
+              placeholder="e.g. Abbey Hey FC" />
           </Field>
-          <Field label="Location">
+          <Field label="Area (shown to all)">
             <input value={location} onChange={e => setLocation(e.target.value)}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}

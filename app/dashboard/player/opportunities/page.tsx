@@ -162,11 +162,22 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
                     onClick={e => e.stopPropagation()}>
                     {opp.coach?.full_name ?? 'Coach'}
                   </Link>{' · '}
-                  {isPremium
-                    ? (opp.club ?? 'Club TBC')
-                    : <span className="inline-flex items-center gap-1" style={{ color: '#2d5fc4' }}><span>🔒</span><span>Premium</span></span>
-                  }{' · '}{timeAgo(opp.created_at)}
+                  {opp.location && <span>{opp.location}</span>}
+                  {opp.location && ' · '}
+                  {timeAgo(opp.created_at)}
                 </p>
+                {opp.club && (
+                  isPremium ? (
+                    <p className="text-xs mt-1 font-semibold" style={{ color: '#e8dece' }}>{opp.club}</p>
+                  ) : (
+                    <a href="/dashboard/player/premium"
+                      className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded-lg text-xs font-semibold"
+                      style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.3)', color: '#2d5fc4', textDecoration: 'none' }}>
+                      <span>🔒</span>
+                      <span>Unlock club name — go Premium</span>
+                    </a>
+                  )
+                )}
               </div>
 
               <div className="flex flex-wrap gap-1.5">
@@ -178,7 +189,6 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
                 {!lowApplicants && <Chip color="#8892aa" bg="rgba(136,146,170,0.08)">👥 {opp.application_count} applicants</Chip>}
                 {opp.position && <Chip color="#e8dece" bg="rgba(232,222,206,0.06)">⚽ {opp.position}</Chip>}
                 {opp.level && <Chip color="#e8dece" bg="rgba(232,222,206,0.06)">{opp.level}</Chip>}
-                {opp.location && <Chip color="#e8dece" bg="rgba(232,222,206,0.06)">📍 {opp.location}</Chip>}
                 {deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 14 && <Chip color="#f87171" bg="rgba(248,113,113,0.1)">⏳ {deadlineDays}d left</Chip>}
               </div>
 
@@ -219,8 +229,8 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
                 ) : (
                   <a href="/dashboard/player/premium"
                     className="w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa', textDecoration: 'none' }}>
-                    <span>🔒</span> Premium Required to Apply
+                    style={{ backgroundColor: 'rgba(45,95,196,0.1)', border: '1px solid rgba(45,95,196,0.35)', color: '#2d5fc4', textDecoration: 'none' }}>
+                    <span>🔒</span> Go Premium to See Club &amp; Apply
                   </a>
                 )
               )}

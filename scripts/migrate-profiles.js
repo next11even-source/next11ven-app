@@ -164,6 +164,7 @@ async function main() {
       gdpr_consent: gdprConsent,
       sms_opt_in: !!phone,
       created_at: parseTimestamp(row['Timestamp']),
+      status: 'just_exploring', // default for all; overridden below for players/coaches
     }
 
     if (role === 'player' || role === 'coach') {

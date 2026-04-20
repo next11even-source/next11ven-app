@@ -9,6 +9,7 @@ import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
 import Sidebar from '@/app/dashboard/player/_components/Sidebar'
 import BottomNav from '@/app/dashboard/player/_components/BottomNav'
+import { POSITIONS } from '@/lib/positions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,12 +59,7 @@ const STATUS_COLORS: Record<string, string> = {
   just_exploring:'#f59e0b',
 }
 
-const PLAYER_POSITIONS = [
-  'Goalkeeper','Right Back','Centre Back','Left Back',
-  'Defensive Midfielder','Central Midfielder','Right Midfielder',
-  'Left Midfielder','Attacking Midfielder','Right Winger',
-  'Left Winger','Second Striker','Striker','Centre Forward',
-]
+const PLAYER_POSITIONS = POSITIONS
 
 const COACHING_ROLES = [
   'Head Coach / Manager','Assistant Manager','First Team Coach',

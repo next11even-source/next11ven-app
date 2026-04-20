@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { Suspense } from 'react'
+import { POSITIONS } from '@/lib/positions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -525,13 +526,6 @@ type BrowsePlayer = {
   status: string | null
   premium: boolean
 }
-
-const POSITIONS = [
-  'Goalkeeper','Right Back','Centre Back','Left Back',
-  'Defensive Midfielder','Central Midfielder','Right Midfielder',
-  'Left Midfielder','Attacking Midfielder','Right Winger',
-  'Left Winger','Second Striker','Striker','Centre Forward',
-]
 
 const LEVELS = [
   'Premier League','Championship','League One','League Two',

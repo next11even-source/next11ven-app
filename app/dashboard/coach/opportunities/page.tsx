@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import { POSITIONS } from '@/lib/positions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,13 +41,6 @@ type Applicant = {
     status: string | null
   }
 }
-
-const POSITIONS = [
-  'Goalkeeper','Right Back','Centre Back','Left Back',
-  'Defensive Midfielder','Central Midfielder','Right Midfielder',
-  'Left Midfielder','Attacking Midfielder','Right Winger',
-  'Left Winger','Second Striker','Striker','Centre Forward',
-]
 
 const COACHING_ROLES = [
   'Head Coach / Manager','Assistant Manager','First Team Coach',

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '../_components/SidebarContext'
+import { POSITIONS } from '@/lib/positions'
 
 type Player = {
   id: string
@@ -43,13 +44,6 @@ const STATUS_CONFIG = {
   loan_dual_reg: { color: '#a78bfa', label: 'Looking for Loan / Dual Reg' },
   just_exploring:{ color: '#f59e0b', label: 'Just Exploring' },
 }
-
-const POSITIONS = [
-  'Goalkeeper','Right Back','Centre Back','Left Back',
-  'Defensive Midfielder','Central Midfielder','Right Midfielder',
-  'Left Midfielder','Attacking Midfielder','Right Winger',
-  'Left Winger','Second Striker','Striker','Centre Forward',
-]
 
 const LEVELS = [
   'Premier League','Championship','League One','League Two',

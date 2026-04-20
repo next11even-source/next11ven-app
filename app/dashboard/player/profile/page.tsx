@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
+import { POSITIONS } from '@/lib/positions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,13 +34,6 @@ type Profile = {
   streak_weeks: number
   last_active: string | null
 }
-
-const POSITIONS = [
-  'Goalkeeper','Right Back','Centre Back','Left Back',
-  'Defensive Midfielder','Central Midfielder','Right Midfielder',
-  'Left Midfielder','Attacking Midfielder','Right Winger',
-  'Left Winger','Second Striker','Striker','Centre Forward',
-]
 
 const LEVELS = [
   'Premier League','Championship','League One','League Two',

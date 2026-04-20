@@ -4,13 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
-
-const POSITIONS = [
-  'Goalkeeper', 'Right Back', 'Centre Back', 'Left Back',
-  'Defensive Midfielder', 'Central Midfielder', 'Right Midfielder',
-  'Left Midfielder', 'Attacking Midfielder', 'Right Winger',
-  'Left Winger', 'Second Striker', 'Striker', 'Centre Forward',
-]
+import { POSITIONS } from '@/lib/positions'
 
 const PLAYING_LEVELS = [
   'Premier League', 'Championship', 'League One', 'League Two',

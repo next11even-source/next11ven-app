@@ -129,7 +129,7 @@ function FilterPanel({
         </div>
 
         {/* Filters */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
           {/* Position */}
           <div className="space-y-1.5">

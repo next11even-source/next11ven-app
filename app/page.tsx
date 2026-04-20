@@ -276,9 +276,9 @@ export default function SignInPage() {
             <Link
               href="/claim"
               className="block w-full rounded-full py-3 text-sm font-semibold uppercase tracking-wider text-center transition-colors"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa' }}
+              style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#7eaaed' }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2d5fc4'; e.currentTarget.style.color = '#e8dece' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#1e2235'; e.currentTarget.style.color = '#8892aa' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(45,95,196,0.4)'; e.currentTarget.style.color = '#7eaaed' }}
             >
               First time on the new app? Create your password →
             </Link>

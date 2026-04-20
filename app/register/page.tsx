@@ -5,18 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
-const PLAYING_LEVELS = [
-  'Premier League', 'Championship', 'League One', 'League Two',
-  'National League', 'National League North/South', 'Step 3', 'Step 4',
-  'Step 5', 'Step 6', 'Step 7 and below',
-]
-
-const COACHING_LEVELS = [
-  'Premier League', 'Championship', 'League One', 'League Two',
-  'National League', 'National League North/South', 'Step 3', 'Step 4',
-  'Step 5', 'Step 6', 'Step 7 and below',
-]
+const PLAYING_LEVELS = LEVELS
+const COACHING_LEVELS = LEVELS
 
 const COACHING_ROLES = [
   'Head Coach / Manager', 'Assistant Manager', 'Goalkeeper Coach',

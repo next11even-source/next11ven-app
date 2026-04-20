@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '../_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
 type Player = {
   id: string
@@ -45,11 +46,6 @@ const STATUS_CONFIG = {
   just_exploring:{ color: '#f59e0b', label: 'Just Exploring' },
 }
 
-const LEVELS = [
-  'Premier League','Championship','League One','League Two',
-  'National League','National League North/South','Step 3','Step 4',
-  'Step 5','Step 6','Step 7 and below',
-]
 
 const STATUSES = [
   { value: 'free_agent',    label: 'Free Agent',                  color: '#60a5fa' },
@@ -358,7 +354,7 @@ export default function PlayersPage() {
       result = result.filter(p => p.city?.toLowerCase().includes(loc))
     }
     if (appliedFilters.status) result = result.filter(p => p.status === appliedFilters.status)
-    if (appliedFilters.level) result = result.filter(p => p.playing_level === appliedFilters.level)
+    if (appliedFilters.level) result = result.filter(p => p.playing_level?.toLowerCase().includes(appliedFilters.level.toLowerCase()))
     if (appliedFilters.hasHighlights) result = result.filter(p => (p.highlight_urls?.length ?? 0) > 0)
 
     setFiltered(result)

@@ -10,6 +10,7 @@ import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
 import Sidebar from '@/app/dashboard/player/_components/Sidebar'
 import BottomNav from '@/app/dashboard/player/_components/BottomNav'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,11 +68,7 @@ const COACHING_ROLES = [
   'Scout / Analyst','Player-Coach',
 ]
 
-const COACHING_LEVELS = [
-  'Premier League','Championship','League One','League Two',
-  'National League','National League North/South','Step 3','Step 4',
-  'Step 5','Step 6','Step 7 and below',
-]
+const COACHING_LEVELS = LEVELS
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 

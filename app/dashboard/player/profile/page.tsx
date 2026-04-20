@@ -6,6 +6,7 @@ import { calcCompletion } from '@/lib/profileCompletion'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,11 +36,6 @@ type Profile = {
   last_active: string | null
 }
 
-const LEVELS = [
-  'Premier League','Championship','League One','League Two',
-  'National League','National League North/South','Step 3','Step 4',
-  'Step 5','Step 6','Step 7 and below',
-]
 
 const STATUS_COLORS: Record<string, string> = {
   free_agent:    '#60a5fa',

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { Suspense } from 'react'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -527,12 +528,6 @@ type BrowsePlayer = {
   premium: boolean
 }
 
-const LEVELS = [
-  'Premier League','Championship','League One','League Two',
-  'National League','National League North/South','Step 3','Step 4',
-  'Step 5','Step 6','Step 7 and below',
-]
-
 const STATUSES = [
   { value: 'free_agent',    label: 'Free Agent' },
   { value: 'signed',        label: 'Signed' },
@@ -574,7 +569,7 @@ function PlayersTab() {
   const filtered = players.filter(p => {
     if (search && !p.full_name?.toLowerCase().includes(search.toLowerCase())) return false
     if (posFilter && p.position !== posFilter && p.secondary_position !== posFilter) return false
-    if (levelFilter && p.playing_level !== levelFilter) return false
+    if (levelFilter && !p.playing_level?.toLowerCase().includes(levelFilter.toLowerCase())) return false
     if (statusFilter && p.status !== statusFilter) return false
     if (clubFilter && !p.club?.toLowerCase().includes(clubFilter.toLowerCase())) return false
     return true

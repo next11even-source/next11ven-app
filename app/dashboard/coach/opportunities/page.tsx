@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,10 +49,6 @@ const COACHING_ROLES = [
   'Scout / Analyst','Player-Coach',
 ]
 
-const LEVELS = [
-  'National League','National League North/South','Step 3','Step 4',
-  'Step 5','Step 6','Step 7 and below',
-]
 
 const STATUS_COLORS: Record<string, { color: string; bg: string; label: string }> = {
   pending:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  label: 'Pending' },

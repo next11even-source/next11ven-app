@@ -253,6 +253,8 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
   const [applicants, setApplicants] = useState<Applicant[]>([])
   const [loading, setLoading] = useState(true)
   const [actioning, setActioning] = useState<string | null>(null)
+  const [acceptingId, setAcceptingId] = useState<string | null>(null)
+  const [acceptMsg, setAcceptMsg] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -281,6 +283,25 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
     if (res.ok) {
       setApplicants(prev => prev.map(a => a.id === applicationId ? { ...a, status } : a))
     }
+    setActioning(null)
+  }
+
+  async function handleAcceptAndMessage(applicant: Applicant) {
+    setActioning(applicant.id)
+    const content = `Your application for ${opportunity.title} has been accepted.${acceptMsg.trim() ? ' ' + acceptMsg.trim() : ''}`
+    await fetch(`/api/applications/${applicant.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'accepted' }),
+    })
+    await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: applicant.player.id, content }),
+    })
+    setApplicants(prev => prev.map(a => a.id === applicant.id ? { ...a, status: 'accepted' } : a))
+    setAcceptingId(null)
+    setAcceptMsg('')
     setActioning(null)
   }
 
@@ -332,54 +353,89 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opportunity; o
               </div>
 
               {/* Status + actions */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                {/* Current status badge */}
-                {(() => {
-                  const cfg = STATUS_COLORS[a.status] ?? STATUS_COLORS.pending
-                  return (
-                    <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
-                      style={{ backgroundColor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40` }}>
-                      {cfg.label}
-                    </span>
-                  )
-                })()}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  {/* Current status badge */}
+                  {(() => {
+                    const cfg = STATUS_COLORS[a.status] ?? STATUS_COLORS.pending
+                    return (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                        style={{ backgroundColor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40` }}>
+                        {cfg.label}
+                      </span>
+                    )
+                  })()}
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                  {a.status !== 'accepted' && (
-                    <button
-                      onClick={() => updateStatus(a.id, 'accepted')}
-                      disabled={actioning === a.id}
-                      className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
-                      style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.4)' }}
-                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.3)')}
-                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.15)')}>
-                      {actioning === a.id ? '…' : '✓ Accept'}
-                    </button>
-                  )}
-                  {a.status !== 'rejected' && (
-                    <button
-                      onClick={() => updateStatus(a.id, 'rejected')}
-                      disabled={actioning === a.id}
-                      className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
-                      style={{ backgroundColor: 'transparent', color: '#8892aa', border: '1px solid #1e2235' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#8892aa')}>
-                      {actioning === a.id ? '…' : '✕ Reject'}
-                    </button>
-                  )}
-                  {(a.status === 'accepted' || a.status === 'rejected') && (
-                    <button
-                      onClick={() => updateStatus(a.id, 'pending')}
-                      disabled={actioning === a.id}
-                      className="text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
-                      style={{ color: '#3a4055' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#8892aa')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#3a4055')}>
-                      Undo
-                    </button>
-                  )}
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    {a.status !== 'accepted' && acceptingId !== a.id && (
+                      <button
+                        onClick={() => { setAcceptingId(a.id); setAcceptMsg('') }}
+                        disabled={actioning === a.id}
+                        className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
+                        style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.4)' }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.3)')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.15)')}>
+                        ✓ Accept &amp; Message
+                      </button>
+                    )}
+                    {a.status !== 'rejected' && acceptingId !== a.id && (
+                      <button
+                        onClick={() => updateStatus(a.id, 'rejected')}
+                        disabled={actioning === a.id}
+                        className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
+                        style={{ backgroundColor: 'transparent', color: '#8892aa', border: '1px solid #1e2235' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#8892aa')}>
+                        {actioning === a.id ? '…' : '✕ Reject'}
+                      </button>
+                    )}
+                    {(a.status === 'accepted' || a.status === 'rejected') && acceptingId !== a.id && (
+                      <button
+                        onClick={() => updateStatus(a.id, 'pending')}
+                        disabled={actioning === a.id}
+                        className="text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+                        style={{ color: '#3a4055' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#8892aa')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#3a4055')}>
+                        Undo
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Inline accept + message composer */}
+                {acceptingId === a.id && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      Player will receive: <span style={{ color: '#e8dece' }}>"Your application for {opportunity.title} has been accepted."</span> + your message below.
+                    </p>
+                    <textarea
+                      value={acceptMsg}
+                      onChange={e => setAcceptMsg(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+                      style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
+                      placeholder="Add a message — training times, next steps, contact info…"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setAcceptingId(null); setAcceptMsg('') }}
+                        className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider"
+                        style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleAcceptAndMessage(a)}
+                        disabled={actioning === a.id}
+                        className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider disabled:opacity-50"
+                        style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+                        {actioning === a.id ? 'Sending…' : 'Accept & Send Message'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

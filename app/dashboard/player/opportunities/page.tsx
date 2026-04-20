@@ -64,6 +64,7 @@ const APP_STATUS: Record<string, { color: string; bg: string; label: string }> =
   pending:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  label: 'Pending' },
   viewed:      { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  label: 'Viewed' },
   shortlisted: { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: 'Shortlisted' },
+  accepted:    { color: '#2d5fc4', bg: 'rgba(45,95,196,0.15)',   label: '✓ Accepted' },
   rejected:    { color: '#8892aa', bg: 'rgba(136,146,170,0.1)',  label: 'Not Progressed' },
 }
 

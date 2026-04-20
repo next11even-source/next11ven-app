@@ -20,6 +20,7 @@ type ApplicantProfile = {
   created_at: string
   gdpr_consent: boolean | null
   phone: string | null
+  password_set_at: string | null
 }
 
 type TabFilter = 'pending' | 'approved' | 'declined'
@@ -62,7 +63,7 @@ export default function AdminPage() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approval_status, created_at, gdpr_consent, phone')
+      .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approval_status, created_at, gdpr_consent, phone, password_set_at')
       .or('role.neq.admin,role.is.null')
       .order('created_at', { ascending: false })
 
@@ -102,6 +103,14 @@ export default function AdminPage() {
     }
     setProcessing(null)
   }
+
+  const approvedNonAdmin = profiles.filter(p => p.approval_status === 'approved')
+  const claimed = approvedNonAdmin.filter(p => p.password_set_at !== null)
+  const claimedPlayers = claimed.filter(p => p.role === 'player' || p.role === 'admin')
+  const claimedCoaches = claimed.filter(p => p.role === 'coach')
+  const migrationPct = approvedNonAdmin.length > 0
+    ? Math.round((claimed.length / approvedNonAdmin.length) * 100)
+    : 0
 
   const displayed = profiles.filter(p => {
     const status = p.approval_status ?? 'pending'
@@ -153,6 +162,53 @@ export default function AdminPage() {
             style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
             {reconciling ? 'Syncing…' : 'Run Sync'}
           </button>
+        </div>
+
+        {/* Migration tracker */}
+        <div className="mb-4 rounded-xl p-4 space-y-3"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold uppercase tracking-wide"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+              Migration Tracker
+            </p>
+            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+              style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+              {claimed.length} / {approvedNonAdmin.length} claimed
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs" style={{ color: '#8892aa' }}>Users signed in to new app</p>
+              <p className="text-xs font-bold" style={{ color: migrationPct >= 75 ? '#60a5fa' : migrationPct >= 40 ? '#f59e0b' : '#8892aa' }}>
+                {migrationPct}%
+              </p>
+            </div>
+            <div className="w-full rounded-full h-2" style={{ backgroundColor: '#1e2235' }}>
+              <div className="h-2 rounded-full transition-all"
+                style={{ width: `${migrationPct}%`, backgroundColor: migrationPct >= 75 ? '#60a5fa' : migrationPct >= 40 ? '#f59e0b' : '#2d5fc4' }} />
+            </div>
+          </div>
+
+          {/* Breakdown */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Players', value: claimedPlayers.length, color: '#2d5fc4' },
+              { label: 'Coaches', value: claimedCoaches.length, color: '#a78bfa' },
+              { label: 'Total', value: claimed.length, color: '#e8dece' },
+            ].map(s => (
+              <div key={s.label} className="rounded-lg px-2 py-2 text-center"
+                style={{ backgroundColor: '#0d1020', border: '1px solid #1e2235' }}>
+                <p className="text-lg font-black leading-none"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
+                  {s.value}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Stats row */}

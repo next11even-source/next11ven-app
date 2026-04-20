@@ -51,6 +51,14 @@ export default function SetPasswordPage() {
 
     // Fetch profile to route to correct dashboard
     const { data: { user } } = await supabase.auth.getUser()
+
+    // Stamp the moment this user claimed their account on the new app
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ password_set_at: new Date().toISOString() })
+        .eq('id', user.id)
+    }
     if (!user) {
       router.push('/')
       return

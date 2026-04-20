@@ -672,6 +672,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [stripeChecked, setStripeChecked] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -683,12 +684,17 @@ export default function ProfilePage() {
       await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id)
       setProfile({ ...data, highlight_urls: data.highlight_urls ?? [] })
 
-      // Sync Stripe premium status — same as dashboard does on load
-      if (!data.premium || !data.stripe_customer_id) {
-        fetch('/api/stripe/sync', { method: 'POST' })
-          .then(r => r.json())
-          .then(d => { if (d.synced) setProfile(p => p ? { ...p, premium: true } : p) })
-          .catch(() => {})
+      // Always sync Stripe premium — wait for result before showing subscription card
+      try {
+        const res = await fetch('/api/stripe/sync', { method: 'POST' })
+        const d = await res.json()
+        if (d.synced || d.premium) {
+          setProfile(p => p ? { ...p, premium: true } : p)
+        }
+      } catch {
+        // Stripe not configured — fall back to DB value
+      } finally {
+        setStripeChecked(true)
       }
     }
     load()
@@ -787,7 +793,9 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
-            {(profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
+            {!stripeChecked
+              ? <div className="rounded-2xl p-5 animate-pulse" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', height: 140 }} />
+              : (profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
           </>
         ) : (
           <>
@@ -797,7 +805,9 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
-            {(profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
+            {!stripeChecked
+              ? <div className="rounded-2xl p-5 animate-pulse" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', height: 140 }} />
+              : (profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
           </>
         )}
 

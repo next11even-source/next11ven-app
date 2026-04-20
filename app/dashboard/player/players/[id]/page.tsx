@@ -241,9 +241,9 @@ export default function PlayerPublicProfile() {
         setPlayer({ ...playerRes.data, highlight_urls: playerRes.data.highlight_urls ?? [] } as PublicProfile)
         setViewer(viewerRes.data as ViewerProfile)
 
-        // Record view — insert a new row per visit, dedup within 1 hour from same viewer
-        if (user.id !== id) {
-          const viewerRole = viewerRes.data?.role ?? null
+        // Record view — players and coaches only, not fans
+        const viewerRole = viewerRes.data?.role ?? null
+        if (user.id !== id && viewerRole !== 'fan') {
           const oneHourAgo = new Date(Date.now() - 3600000).toISOString()
           supabase
             .from('player_views')

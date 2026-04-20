@@ -73,7 +73,8 @@ export default function ActivityPage() {
       ])
 
       setIsPremium(profileRes.data?.premium ?? false)
-      setViews((viewsRes.data as unknown as ProfileView[]) ?? [])
+      const allViews = (viewsRes.data as unknown as ProfileView[]) ?? []
+      setViews(allViews.filter(v => v.viewer?.role === 'player' || v.viewer?.role === 'coach' || v.viewer?.role === 'admin'))
       setLoading(false)
     })
   }, [])

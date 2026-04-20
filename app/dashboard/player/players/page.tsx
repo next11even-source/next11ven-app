@@ -107,7 +107,7 @@ function FilterPanel({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end" onClick={onClose}>
       <div
         className="w-full rounded-t-3xl flex flex-col"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', maxHeight: '85vh' }}
@@ -189,7 +189,7 @@ function FilterPanel({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 px-5 py-4" style={{ borderTop: '1px solid #1e2235' }}>
+        <div className="flex gap-3 px-5 pt-4" style={{ borderTop: '1px solid #1e2235', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
           <button onClick={onClear}
             className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
             style={{ border: '1px solid #1e2235', color: '#8892aa' }}>

@@ -16,6 +16,7 @@ type ApplicantProfile = {
   playing_level: string | null
   coaching_level: string | null
   coaching_role: string | null
+  approved: boolean | null
   approval_status: string | null
   created_at: string
   gdpr_consent: boolean | null
@@ -63,7 +64,7 @@ export default function AdminPage() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approval_status, created_at, gdpr_consent, phone, password_set_at')
+      .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approved, approval_status, created_at, gdpr_consent, phone, password_set_at')
       .or('role.neq.admin,role.is.null')
       .order('created_at', { ascending: false })
 
@@ -104,7 +105,7 @@ export default function AdminPage() {
     setProcessing(null)
   }
 
-  const approvedNonAdmin = profiles.filter(p => p.approval_status === 'approved')
+  const approvedNonAdmin = profiles.filter(p => p.approval_status === 'approved' || p.approved === true)
   const claimed = approvedNonAdmin.filter(p => p.password_set_at !== null)
   const claimedPlayers = claimed.filter(p => p.role === 'player' || p.role === 'admin')
   const claimedCoaches = claimed.filter(p => p.role === 'coach')
@@ -131,7 +132,18 @@ export default function AdminPage() {
     <div className="pb-4">
       {/* Header */}
       <div className="px-4 pt-3 pb-4" style={{ borderBottom: '1px solid #1e2235' }}>
-        <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/player' }, { label: 'Admin Panel' }]} />
+        <div className="flex items-center justify-between mb-1">
+          <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/player' }, { label: 'Admin Panel' }]} />
+          <button
+            onClick={() => window.dispatchEvent(new Event('player:sidebar:open'))}
+            className="p-2 rounded-lg"
+            style={{ color: '#8892aa' }}
+            aria-label="Open menu">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
+            </svg>
+          </button>
+        </div>
         <h1 className="text-3xl font-black uppercase mb-4 px-2"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Admin Panel

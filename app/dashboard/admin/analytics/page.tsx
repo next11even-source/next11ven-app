@@ -280,11 +280,15 @@ export default function AnalyticsPage() {
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/admin"
-              className="text-xs uppercase tracking-wider"
-              style={{ color: '#8892aa', textDecoration: 'none' }}>
-              ← Admin
-            </Link>
+            <button
+              onClick={() => window.dispatchEvent(new Event('player:sidebar:open'))}
+              className="p-2 rounded-lg"
+              style={{ color: '#8892aa' }}
+              aria-label="Open menu">
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
+              </svg>
+            </button>
             <h1 className="text-2xl font-black uppercase"
               style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
               Analytics

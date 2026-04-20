@@ -167,7 +167,7 @@ export default function CoachBottomNav() {
     },
     {
       label: 'Players',
-      href: '/dashboard/coach/market?tab=players',
+      href: '/dashboard/coach/players',
       exact: false,
       badge: null as null | { count: number; color: string; amber?: boolean },
       icon: (

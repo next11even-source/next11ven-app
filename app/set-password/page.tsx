@@ -81,14 +81,25 @@ export default function SetPasswordPage() {
         .neq('id', user.id)
         .single()
 
-      if (byEmail?.approved || byEmail?.approval_status === 'approved') {
-        // Re-link profile to the new auth user ID
-        await supabase
-          .from('profiles')
-          .update({ id: user.id })
-          .eq('email', user.email)
-        profile = byEmail
+      if (byEmail) {
+        const shouldAutoApprove = byEmail.role === 'fan'
+        const updates: Record<string, unknown> = { id: user.id }
+        if (shouldAutoApprove) {
+          updates.approved = true
+          updates.approval_status = 'approved'
+        }
+        await supabase.from('profiles').update(updates).eq('email', user.email)
+        profile = { ...byEmail, ...(shouldAutoApprove ? { approved: true, approval_status: 'approved' } : {}) }
       }
+    }
+
+    // Fans are view-only — auto-approve if not already approved
+    if (profile?.role === 'fan' && !profile.approved) {
+      await supabase
+        .from('profiles')
+        .update({ approved: true, approval_status: 'approved' })
+        .eq('id', user.id)
+      profile = { ...profile, approved: true, approval_status: 'approved' }
     }
 
     const isApproved = profile?.approved === true || profile?.approval_status === 'approved'

@@ -139,24 +139,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ManageSubscriptionCard() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handlePortal() {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' })
-      const json = await res.json()
-      if (!res.ok) { setError(json.error ?? 'Something went wrong'); return }
-      window.location.href = json.url
-    } catch {
-      setError('Failed to open billing portal')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="rounded-2xl p-5 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
       <h3 className="text-base font-black uppercase tracking-wide"
@@ -172,29 +154,19 @@ function ManageSubscriptionCard() {
       <p className="text-sm" style={{ color: '#8892aa' }}>
         Manage your billing, update your payment method, or cancel your subscription at any time.
       </p>
-      {error && <p className="text-xs" style={{ color: '#fca5a5' }}>{error}</p>}
-      <button
-        onClick={handlePortal}
-        disabled={loading}
-        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-black uppercase tracking-widest disabled:opacity-60"
-        style={{ backgroundColor: '#0a0a0a', color: '#e8dece', border: '1px solid #1e2235', fontFamily: "'Barlow Condensed', sans-serif" }}
+      <a
+        href="https://billing.stripe.com/p/login/14A7sMbQgcuG0YRg2b2Ry00"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-black uppercase tracking-widest"
+        style={{ backgroundColor: '#0a0a0a', color: '#e8dece', border: '1px solid #1e2235', fontFamily: "'Barlow Condensed', sans-serif", textDecoration: 'none' }}
       >
-        {loading ? (
-          <span className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: '#e8dece', borderTopColor: 'transparent' }} />
-            Loading…
-          </span>
-        ) : (
-          <>
-            Manage Subscription
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </>
-        )}
-      </button>
+        Manage Subscription
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+      </a>
     </div>
   )
 }
@@ -672,7 +644,6 @@ export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [stripeChecked, setStripeChecked] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -683,19 +654,6 @@ export default function ProfilePage() {
       if (!data) return
       await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id)
       setProfile({ ...data, highlight_urls: data.highlight_urls ?? [] })
-
-      // Always sync Stripe premium — wait for result before showing subscription card
-      try {
-        const res = await fetch('/api/stripe/sync', { method: 'POST' })
-        const d = await res.json()
-        if (d.synced || d.premium) {
-          setProfile(p => p ? { ...p, premium: true } : p)
-        }
-      } catch {
-        // Stripe not configured — fall back to DB value
-      } finally {
-        setStripeChecked(true)
-      }
     }
     load()
   }, [])
@@ -793,9 +751,7 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
-            {!stripeChecked
-              ? <div className="rounded-2xl p-5 animate-pulse" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', height: 140 }} />
-              : (profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
+            {profile.premium && <ManageSubscriptionCard />}
           </>
         ) : (
           <>
@@ -805,9 +761,7 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
-            {!stripeChecked
-              ? <div className="rounded-2xl p-5 animate-pulse" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', height: 140 }} />
-              : (profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
+            {profile.premium && <ManageSubscriptionCard />}
           </>
         )}
 

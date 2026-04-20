@@ -46,7 +46,8 @@ export default function InstallBanner() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/next11ven_square_logo.png" alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/next11ven_square_logo.png" alt="NEXT11VEN" width={48} height={48} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
             <div>
               <p className="text-base font-black uppercase tracking-widest"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>

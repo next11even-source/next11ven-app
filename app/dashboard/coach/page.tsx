@@ -317,7 +317,7 @@ function CoachQuickStats({ newApps, availablePlayers, unread }: { newApps: numbe
       color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
     },
     {
-      label: 'Available Players', value: availablePlayers, href: '/dashboard/player/players', sub: 'right now',
+      label: 'Available Players', value: availablePlayers, href: '/dashboard/coach/market?tab=players', sub: 'right now',
       color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
     },
     {

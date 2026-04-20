@@ -98,6 +98,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/pending', request.url))
     }
 
+    // Role isolation: coaches must stay on /dashboard/coach/*
+    // Exception: /dashboard/player/players/[id] — coaches can view individual player profiles
+    if (profile?.role === 'coach' && pathname.startsWith('/dashboard/player')) {
+      const isIndividualProfile = /^\/dashboard\/player\/players\/[^/]+$/.test(pathname)
+      if (!isIndividualProfile) {
+        return NextResponse.redirect(new URL('/dashboard/coach', request.url))
+      }
+    }
+
     return supabaseResponse
   }
 

@@ -469,7 +469,7 @@ function ShortlistsTab({ coachId }: { coachId: string }) {
       {loading ? <LoadingSpinner /> : saved.length === 0 ? (
         <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <p className="text-sm" style={{ color: '#8892aa' }}>No players saved yet. Browse players and save them to folders.</p>
-          <Link href="/dashboard/player/players"
+          <Link href="/dashboard/coach/market?tab=players"
             className="inline-block mt-3 text-xs px-4 py-2 rounded-full font-semibold"
             style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
             Browse players

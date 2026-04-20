@@ -163,7 +163,7 @@ export default function ShortlistsPage() {
           <p className="text-sm" style={{ color: '#8892aa' }}>
             Browse players and tap &quot;Save to Shortlist&quot; to build your recruitment folders.
           </p>
-          <Link href="/dashboard/player/players"
+          <Link href="/dashboard/coach/market?tab=players"
             className="mt-2 px-6 py-3 rounded-xl text-sm font-bold"
             style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
             Browse Players
@@ -294,7 +294,7 @@ export default function ShortlistsPage() {
             )
           })}
 
-          <Link href="/dashboard/player/players"
+          <Link href="/dashboard/coach/market?tab=players"
             className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 text-sm font-bold uppercase"
             style={{ border: '1px dashed #1e2235', color: '#8892aa', textDecoration: 'none' }}>
             + Browse more players

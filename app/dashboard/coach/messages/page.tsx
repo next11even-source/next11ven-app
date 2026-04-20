@@ -403,7 +403,7 @@ function MessagesInner() {
               : 'When a player or coach messages you, it will appear here.'}
           </p>
           {activeTab === 'messages' && (
-            <Link href="/dashboard/player/players"
+            <Link href="/dashboard/coach/market?tab=players"
               className="mt-2 px-6 py-3 rounded-xl text-sm font-bold"
               style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
               Browse Players

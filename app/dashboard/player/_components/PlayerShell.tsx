@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
+import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
 
 type SidebarProfile = {
   full_name: string | null
@@ -14,8 +15,8 @@ type SidebarProfile = {
 export default function PlayerShell({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
   const [profile, setProfile] = useState<SidebarProfile | null>(null)
+  const [role, setRole] = useState<string | null>(null)
 
-  // Listen for open/close events dispatched by any page
   useEffect(() => {
     const open = () => setIsOpen(true)
     const close = () => setIsOpen(false)
@@ -27,27 +28,31 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
     }
   }, [])
 
-  // Fetch profile for sidebar display
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       supabase
         .from('profiles')
-        .select('full_name, avatar_url, position')
+        .select('full_name, avatar_url, position, role')
         .eq('id', user.id)
         .single()
-        .then(({ data }) => setProfile(data))
+        .then(({ data }) => {
+          setProfile(data)
+          setRole(data?.role ?? null)
+        })
     })
   }, [])
 
+  const isCoach = role === 'coach'
+
   return (
     <>
-      <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)} profile={profile} />
+      {!isCoach && <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)} profile={profile} />}
       <div style={{ paddingBottom: '72px' }}>
         {children}
       </div>
-      <BottomNav />
+      {role === null ? null : isCoach ? <CoachBottomNav /> : <BottomNav />}
     </>
   )
 }

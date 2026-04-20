@@ -13,8 +13,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('profiles').select('full_name, avatar_url, position').eq('id', user.id).single()
-        .then(({ data }) => setProfile(data))
+      supabase.from('profiles').select('full_name, avatar_url, position, password_set_at').eq('id', user.id).single()
+        .then(({ data }) => {
+          setProfile(data)
+          if (data && !data.password_set_at) {
+            supabase.from('profiles')
+              .update({ password_set_at: new Date().toISOString() })
+              .eq('id', user.id)
+          }
+        })
     })
     function open() { setIsOpen(true) }
     window.addEventListener('player:sidebar:open', open)

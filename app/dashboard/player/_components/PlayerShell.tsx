@@ -34,12 +34,17 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
       if (!user) return
       supabase
         .from('profiles')
-        .select('full_name, avatar_url, position, role')
+        .select('full_name, avatar_url, position, role, password_set_at')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
           setProfile(data)
           setRole(data?.role ?? null)
+          if (data && !data.password_set_at) {
+            supabase.from('profiles')
+              .update({ password_set_at: new Date().toISOString() })
+              .eq('id', user.id)
+          }
         })
     })
   }, [])

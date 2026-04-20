@@ -11,6 +11,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "NEXT11VEN — Non-League Recruitment",
   description: "The scouting platform built for non-league football.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "NEXT11VEN",
+  },
   openGraph: {
     title: "NEXT11VEN — Non-League Recruitment",
     description: "The scouting platform built for non-league football.",

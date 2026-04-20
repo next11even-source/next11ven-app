@@ -16,6 +16,11 @@ type Stats = {
   totalPlayers: number
   totalCoaches: number
   premiumCount: number
+  // Migration
+  totalApproved: number
+  claimed: number
+  claimedPlayers: number
+  claimedCoaches: number
   // In-period counts
   newSignups: number
   messagesSent: number
@@ -225,6 +230,26 @@ export default function AnalyticsPage() {
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('premium', true),
     ])
 
+    // ── Migration stats ──────────────────────────────────────────────────────
+    const { data: approvedProfiles } = await supabase
+      .from('profiles')
+      .select('role, password_set_at, approved, approval_status')
+      .or('role.neq.admin,role.is.null')
+
+    const approvedAll = (approvedProfiles ?? []).filter(
+      (p: { approved: boolean | null; approval_status: string | null }) =>
+        p.approval_status === 'approved' || p.approved === true
+    )
+    const claimedAll = approvedAll.filter(
+      (p: { password_set_at: string | null }) => p.password_set_at !== null
+    )
+    const claimedPlayersCount = claimedAll.filter(
+      (p: { role: string | null }) => p.role === 'player' || p.role === 'admin'
+    ).length
+    const claimedCoachesCount = claimedAll.filter(
+      (p: { role: string | null }) => p.role === 'coach'
+    ).length
+
     // ── In-period counts ─────────────────────────────────────────────────────
     const signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
     const msgsQ = supabase.from('messages').select('created_at', { count: 'exact' })
@@ -254,6 +279,10 @@ export default function AnalyticsPage() {
       totalPlayers: totalPlayers ?? 0,
       totalCoaches: totalCoaches ?? 0,
       premiumCount: premiumCount ?? 0,
+      totalApproved: approvedAll.length,
+      claimed: claimedAll.length,
+      claimedPlayers: claimedPlayersCount,
+      claimedCoaches: claimedCoachesCount,
       newSignups: signupsRes.count ?? 0,
       messagesSent: msgsRes.count ?? 0,
       newConversations: convsRes.count ?? 0,
@@ -327,6 +356,56 @@ export default function AnalyticsPage() {
               <StatCard label="Premium Subscribers" value={stats.premiumCount} color="#f59e0b" />
               <StatCard label="Players" value={stats.totalPlayers} />
               <StatCard label="Coaches" value={stats.totalCoaches} />
+            </div>
+          </section>
+
+          {/* Migration tracker */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Migration Tracker</p>
+            <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Users signed in to new app</p>
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                  style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+                  {stats.claimed} / {stats.totalApproved}
+                </span>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs" style={{ color: '#8892aa' }}>Migration progress</p>
+                  <p className="text-xs font-bold" style={{
+                    color: stats.totalApproved > 0 && stats.claimed / stats.totalApproved >= 0.75 ? '#60a5fa'
+                      : stats.totalApproved > 0 && stats.claimed / stats.totalApproved >= 0.4 ? '#f59e0b'
+                      : '#8892aa'
+                  }}>
+                    {stats.totalApproved > 0 ? Math.round((stats.claimed / stats.totalApproved) * 100) : 0}%
+                  </p>
+                </div>
+                <div className="w-full rounded-full h-2" style={{ backgroundColor: '#1e2235' }}>
+                  <div className="h-2 rounded-full transition-all" style={{
+                    width: `${stats.totalApproved > 0 ? Math.round((stats.claimed / stats.totalApproved) * 100) : 0}%`,
+                    backgroundColor: stats.totalApproved > 0 && stats.claimed / stats.totalApproved >= 0.75 ? '#60a5fa'
+                      : stats.totalApproved > 0 && stats.claimed / stats.totalApproved >= 0.4 ? '#f59e0b'
+                      : '#2d5fc4'
+                  }} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Players', value: stats.claimedPlayers, color: '#2d5fc4' },
+                  { label: 'Coaches', value: stats.claimedCoaches, color: '#a78bfa' },
+                  { label: 'Total', value: stats.claimed, color: '#e8dece' },
+                ].map(s => (
+                  <div key={s.label} className="rounded-lg px-2 py-2 text-center"
+                    style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                    <p className="text-lg font-black leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
+                      {s.value}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
 

@@ -1,0 +1,18 @@
+{
+  "name": "NEXT11VEN",
+  "short_name": "NEXT11VEN",
+  "description": "The scouting platform built for non-league football.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

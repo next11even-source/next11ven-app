@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 
 type Player = {
   id: string
@@ -35,6 +36,8 @@ const iStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color:
 
 export default function CoachPlayersPage() {
   const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -49,6 +52,8 @@ export default function CoachPlayersPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push('/'); return }
+      supabase.from('profiles').select('full_name, avatar_url, coaching_role').eq('id', user.id).single()
+        .then(({ data }) => setCoachProfile(data ?? null))
     })
     supabase
       .from('profiles')
@@ -87,15 +92,24 @@ export default function CoachPlayersPage() {
   }
 
   return (
+    <>
+      <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
     <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3 space-y-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-black uppercase tracking-widest"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Players
-          </h1>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="flex-shrink-0 p-1 -ml-1" style={{ color: '#8892aa' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <h1 className="text-xl font-black uppercase tracking-widest"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+              Players
+            </h1>
+          </div>
           <button
             onClick={() => setShowFilters(v => !v)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors"
@@ -253,5 +267,6 @@ export default function CoachPlayersPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

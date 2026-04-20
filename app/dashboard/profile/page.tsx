@@ -24,6 +24,7 @@ type Profile = {
   city: string | null
   location: string | null
   premium: boolean
+  stripe_customer_id: string | null
   streak_weeks: number
   streak_last_week: string | null
   last_active: string | null
@@ -681,6 +682,14 @@ export default function ProfilePage() {
       if (!data) return
       await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id)
       setProfile({ ...data, highlight_urls: data.highlight_urls ?? [] })
+
+      // Sync Stripe premium status — same as dashboard does on load
+      if (!data.premium || !data.stripe_customer_id) {
+        fetch('/api/stripe/sync', { method: 'POST' })
+          .then(r => r.json())
+          .then(d => { if (d.synced) setProfile(p => p ? { ...p, premium: true } : p) })
+          .catch(() => {})
+      }
     }
     load()
   }, [])
@@ -778,7 +787,7 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
-            {profile.premium && <ManageSubscriptionCard />}
+            {(profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
           </>
         ) : (
           <>
@@ -788,7 +797,7 @@ export default function ProfilePage() {
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
-            {profile.premium && <ManageSubscriptionCard />}
+            {(profile.premium || profile.stripe_customer_id) && <ManageSubscriptionCard />}
           </>
         )}
 

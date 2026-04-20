@@ -60,8 +60,6 @@ export default function CoachPlayersPage() {
       .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
-      .not('avatar_url', 'is', null)
-      .neq('avatar_url', '')
       .order('premium', { ascending: false })
       .order('created_at', { ascending: false })
       .then(({ data }) => {

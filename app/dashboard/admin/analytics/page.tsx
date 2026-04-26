@@ -11,11 +11,27 @@ type Period = '7d' | '30d' | '90d' | 'all'
 
 type DayPoint = { label: string; value: number }
 
+type MessageEntry = {
+  id: string
+  content: string
+  created_at: string
+  sender_name: string | null
+  sender_club: string | null
+  sender_role: string | null
+  other_name: string | null
+  other_club: string | null
+  other_role: string | null
+}
+
 type Stats = {
   totalUsers: number
   totalPlayers: number
   totalCoaches: number
   premiumCount: number
+  premiumPlayers: number
+  premiumCoaches: number
+  cancellingCount: number
+  mrrPence: number
   // Migration
   totalApproved: number
   claimed: number
@@ -194,15 +210,86 @@ function ChartCard({ title, data, color, total }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const MSG_PAGE_SIZE = 20
+
 export default function AnalyticsPage() {
   const router = useRouter()
   const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
+  const [msgLoading, setMsgLoading] = useState(true)
+  const [msgPage, setMsgPage] = useState(0)
+  const [msgTotal, setMsgTotal] = useState(0)
 
   useEffect(() => {
     load(period)
   }, [period])
+
+  useEffect(() => {
+    loadMsgLog(msgPage)
+  }, [msgPage])
+
+  async function loadMsgLog(page: number) {
+    setMsgLoading(true)
+    const supabase = createClient()
+    const offset = page * MSG_PAGE_SIZE
+
+    const { data: msgs, count } = await supabase
+      .from('messages')
+      .select('id, content, created_at, sender_id, conversation_id, conversations(coach_id, player_id)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + MSG_PAGE_SIZE - 1)
+
+    if (!msgs || msgs.length === 0) {
+      setMsgLog([])
+      setMsgTotal(count ?? 0)
+      setMsgLoading(false)
+      return
+    }
+
+    setMsgTotal(count ?? 0)
+
+    type ConvRow = { coach_id: string; player_id: string }
+
+    const userIds = [...new Set(msgs.flatMap(m => {
+      const raw = m.conversations
+      const conv = (Array.isArray(raw) ? raw[0] : raw) as ConvRow | null | undefined
+      if (!conv) return [m.sender_id]
+      return [m.sender_id, conv.coach_id, conv.player_id]
+    }))]
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, club, role')
+      .in('id', userIds)
+
+    const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+
+    const entries: MessageEntry[] = msgs.map(m => {
+      const raw = m.conversations
+      const conv = (Array.isArray(raw) ? raw[0] : raw) as ConvRow | null | undefined
+      const sender = profileMap[m.sender_id] as { full_name: string | null; club: string | null; role: string | null } | undefined
+      const otherId = conv
+        ? (conv.coach_id === m.sender_id ? conv.player_id : conv.coach_id)
+        : null
+      const other = otherId ? profileMap[otherId] as { full_name: string | null; club: string | null; role: string | null } | undefined : undefined
+      return {
+        id: m.id,
+        content: m.content,
+        created_at: m.created_at,
+        sender_name: sender?.full_name ?? null,
+        sender_club: sender?.club ?? null,
+        sender_role: sender?.role ?? null,
+        other_name: other?.full_name ?? null,
+        other_club: other?.club ?? null,
+        other_role: other?.role ?? null,
+      }
+    })
+
+    setMsgLog(entries)
+    setMsgLoading(false)
+  }
 
   async function load(p: Period) {
     setLoading(true)
@@ -223,12 +310,24 @@ export default function AnalyticsPage() {
       { count: totalPlayers },
       { count: totalCoaches },
       { count: premiumCount },
+      { count: premiumPlayerCount },
+      { count: premiumCoachCount },
     ] = await Promise.all([
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).in('role', ['player', 'admin']),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'coach'),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('premium', true),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('premium', true).in('role', ['player', 'admin']),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('premium', true).eq('role', 'coach'),
     ])
+
+    const { count: cancellingCount } = await supabase
+      .from('subscriptions')
+      .select('stripe_subscription_id', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .eq('cancel_at_period_end', true)
+
+    const mrrPence = (premiumPlayerCount ?? 0) * 699 + (premiumCoachCount ?? 0) * 999
 
     // ── Migration stats ──────────────────────────────────────────────────────
     const { data: approvedProfiles } = await supabase
@@ -251,19 +350,24 @@ export default function AnalyticsPage() {
     ).length
 
     // ── In-period counts ─────────────────────────────────────────────────────
-    const signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
-    const msgsQ = supabase.from('messages').select('created_at', { count: 'exact' })
-    const convsQ = supabase.from('conversations').select('created_at', { count: 'exact' })
-    const viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
-    const appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
+    let signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
+    let msgsQ = supabase.from('messages').select('created_at', { count: 'exact' })
+    let convsQ = supabase.from('conversations').select('created_at', { count: 'exact' })
+    let viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
+    let appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
 
     if (sinceIso) {
-      signupsQ.gte('created_at', sinceIso)
-      msgsQ.gte('created_at', sinceIso)
-      convsQ.gte('created_at', sinceIso)
-      viewsQ.gte('viewed_at', sinceIso)
-      appsQ.gte('created_at', sinceIso)
+      signupsQ = signupsQ.gte('created_at', sinceIso)
+      msgsQ = msgsQ.gte('created_at', sinceIso)
+      convsQ = convsQ.gte('created_at', sinceIso)
+      viewsQ = viewsQ.gte('viewed_at', sinceIso)
+      appsQ = appsQ.gte('created_at', sinceIso)
     }
+
+    // Cap at 1000 rows for time series (avoids Supabase page limit silently truncating)
+    signupsQ = signupsQ.limit(1000)
+    msgsQ = msgsQ.limit(1000)
+    viewsQ = viewsQ.limit(1000)
 
     const [signupsRes, msgsRes, convsRes, viewsRes, appsRes] = await Promise.all([
       signupsQ, msgsQ, convsQ, viewsQ, appsQ,
@@ -279,6 +383,10 @@ export default function AnalyticsPage() {
       totalPlayers: totalPlayers ?? 0,
       totalCoaches: totalCoaches ?? 0,
       premiumCount: premiumCount ?? 0,
+      premiumPlayers: premiumPlayerCount ?? 0,
+      premiumCoaches: premiumCoachCount ?? 0,
+      cancellingCount: cancellingCount ?? 0,
+      mrrPence,
       totalApproved: approvedAll.length,
       claimed: claimedAll.length,
       claimedPlayers: claimedPlayersCount,
@@ -356,6 +464,70 @@ export default function AnalyticsPage() {
               <StatCard label="Premium Subscribers" value={stats.premiumCount} color="#f59e0b" />
               <StatCard label="Players" value={stats.totalPlayers} />
               <StatCard label="Coaches" value={stats.totalCoaches} />
+            </div>
+          </section>
+
+          {/* Revenue */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Revenue</p>
+            <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              {/* MRR */}
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Est. MRR</p>
+                  <p className="text-4xl font-black leading-none"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
+                    £{(stats.mrrPence / 100).toFixed(2)}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
+                    £{(stats.mrrPence / 100 * 12).toFixed(0)} annualised
+                  </p>
+                </div>
+                {stats.cancellingCount > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Cancelling</p>
+                    <p className="text-2xl font-black leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#ef4444' }}>
+                      {stats.cancellingCount}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: '#8892aa' }}>at period end</p>
+                  </div>
+                )}
+              </div>
+              {/* Breakdown */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Premium</p>
+                  <p className="text-xl font-black leading-none"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                    {stats.premiumPlayers}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(stats.premiumPlayers * 6.99).toFixed(2)}/mo</p>
+                </div>
+                <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Coach Pro</p>
+                  <p className="text-xl font-black leading-none"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
+                    {stats.premiumCoaches}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(stats.premiumCoaches * 9.99).toFixed(2)}/mo</p>
+                </div>
+              </div>
+              {/* Conversion rate */}
+              {stats.totalApproved > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs" style={{ color: '#8892aa' }}>Premium conversion</p>
+                    <p className="text-xs font-bold" style={{ color: '#f59e0b' }}>
+                      {Math.round((stats.premiumCount / stats.totalApproved) * 100)}%
+                    </p>
+                  </div>
+                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+                    <div className="h-1.5 rounded-full"
+                      style={{ width: `${Math.round((stats.premiumCount / stats.totalApproved) * 100)}%`, backgroundColor: '#f59e0b' }} />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
@@ -463,8 +635,106 @@ export default function AnalyticsPage() {
             </div>
           </section>
 
+          {/* Message Log */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Message Log</p>
+              {msgTotal > 0 && (
+                <span className="text-xs" style={{ color: '#8892aa' }}>
+                  {msgTotal.toLocaleString()} total
+                </span>
+              )}
+            </div>
+
+            {msgLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <div className="w-6 h-6 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+              </div>
+            ) : msgLog.length === 0 ? (
+              <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>No messages yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {msgLog.map(m => (
+                  <div key={m.id} className="rounded-xl p-3 space-y-2"
+                    style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <RoleBadge role={m.sender_role} />
+                          <span className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>
+                            {m.sender_name ?? '—'}
+                          </span>
+                          {m.sender_club && (
+                            <span className="text-xs truncate" style={{ color: '#8892aa' }}>· {m.sender_club}</span>
+                          )}
+                          <span className="text-xs" style={{ color: '#3a4055' }}>→</span>
+                          <span className="text-xs font-semibold truncate" style={{ color: '#8892aa' }}>
+                            {m.other_name ?? '—'}
+                          </span>
+                          {m.other_club && (
+                            <span className="text-xs truncate" style={{ color: '#3a4055' }}>· {m.other_club}</span>
+                          )}
+                        </div>
+                        <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+                          {m.content.length > 120 ? m.content.slice(0, 120) + '…' : m.content}
+                        </p>
+                      </div>
+                      <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
+                        {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        {' '}
+                        {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Pagination */}
+                {msgTotal > MSG_PAGE_SIZE && (
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      {msgPage * MSG_PAGE_SIZE + 1}–{Math.min((msgPage + 1) * MSG_PAGE_SIZE, msgTotal)} of {msgTotal.toLocaleString()}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setMsgPage(p => Math.max(0, p - 1))}
+                        disabled={msgPage === 0}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
+                        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setMsgPage(p => p + 1)}
+                        disabled={(msgPage + 1) * MSG_PAGE_SIZE >= msgTotal}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
+                        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
         </div>
       ) : null}
     </div>
+  )
+}
+
+function RoleBadge({ role }: { role: string | null }) {
+  if (!role) return null
+  const isCoach = role === 'coach'
+  return (
+    <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+      style={{
+        backgroundColor: isCoach ? 'rgba(168,139,250,0.15)' : 'rgba(45,95,196,0.15)',
+        color: isCoach ? '#a78bfa' : '#2d5fc4',
+      }}>
+      {isCoach ? 'Coach' : 'Player'}
+    </span>
   )
 }

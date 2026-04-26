@@ -618,20 +618,32 @@ export default function AnalyticsPage() {
             />
           </section>
 
-          {/* Site visits note */}
+          {/* Vercel Analytics */}
           <section>
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              <p className="text-sm font-bold mb-1" style={{ color: '#e8dece' }}>Page-Level Site Visits</p>
-              <p className="text-xs leading-relaxed mb-3" style={{ color: '#8892aa' }}>
-                The stats above are pulled from the database. For browser-level page visit data (sessions, bounce rate, geography), enable{' '}
-                <strong style={{ color: '#e8dece' }}>Vercel Analytics</strong> — it's free and takes one minute to set up.
-              </p>
-              <div className="rounded-lg px-3 py-2 font-mono text-xs" style={{ backgroundColor: '#0a0a0a', color: '#2d5fc4' }}>
-                npm install @vercel/analytics
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Vercel Analytics</p>
+            <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#22c55e' }} />
+                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Installed and collecting data</p>
               </div>
-              <p className="text-xs mt-2" style={{ color: '#8892aa' }}>
-                Then add <code style={{ color: '#e8dece' }}>&lt;Analytics /&gt;</code> to your root layout, and enable it in your Vercel project settings. Data appears in the Vercel dashboard instantly.
+              <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+                Vercel Analytics runs in the browser and tracks what the database can't — page views, unique visitors, geography, devices, referrers, and Web Vitals (load speed, layout shift). View it in your Vercel project dashboard under the Analytics tab.
               </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { label: 'Page views', desc: 'Every route visited' },
+                  { label: 'Unique visitors', desc: 'Deduplicated by device' },
+                  { label: 'Top pages', desc: 'Where users spend time' },
+                  { label: 'Geography', desc: 'Country / region breakdown' },
+                  { label: 'Referrers', desc: 'Where traffic comes from' },
+                  { label: 'Web Vitals', desc: 'LCP, CLS, FCP scores' },
+                ].map(({ label, desc }) => (
+                  <div key={label} className="rounded-lg px-3 py-2" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                    <p className="font-semibold" style={{ color: '#e8dece' }}>{label}</p>
+                    <p style={{ color: '#8892aa' }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
 

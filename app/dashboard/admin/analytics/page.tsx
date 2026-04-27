@@ -11,6 +11,15 @@ type Period = '7d' | '30d' | '90d' | 'all'
 
 type DayPoint = { label: string; value: number }
 
+type RecentLogin = {
+  id: string
+  email: string | null
+  last_sign_in_at: string
+  full_name: string | null
+  role: string | null
+  club: string | null
+}
+
 type MessageEntry = {
   id: string
   content: string
@@ -221,10 +230,19 @@ export default function AnalyticsPage() {
   const [msgLoading, setMsgLoading] = useState(true)
   const [msgPage, setMsgPage] = useState(0)
   const [msgTotal, setMsgTotal] = useState(0)
+  const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([])
+  const [loginsLoading, setLoginsLoading] = useState(true)
 
   useEffect(() => {
     load(period)
   }, [period])
+
+  useEffect(() => {
+    fetch('/api/admin/recent-logins')
+      .then(r => r.json())
+      .then(d => { setRecentLogins(d.logins ?? []); setLoginsLoading(false) })
+      .catch(() => setLoginsLoading(false))
+  }, [])
 
   useEffect(() => {
     loadMsgLog(msgPage)
@@ -464,6 +482,50 @@ export default function AnalyticsPage() {
               <StatCard label="Premium Subscribers" value={stats.premiumCount} color="#f59e0b" />
               <StatCard label="Players" value={stats.totalPlayers} />
               <StatCard label="Coaches" value={stats.totalCoaches} />
+            </div>
+          </section>
+
+          {/* Recent Logins */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Recently Online</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+              {loginsLoading ? (
+                <div className="flex items-center justify-center py-8" style={{ backgroundColor: '#13172a' }}>
+                  <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                    style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+                </div>
+              ) : recentLogins.length === 0 ? (
+                <div className="py-8 text-center" style={{ backgroundColor: '#13172a' }}>
+                  <p className="text-sm" style={{ color: '#8892aa' }}>No sign-in data yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                  {recentLogins.map((u, i) => (
+                    <div key={u.id} className="flex items-center gap-3 px-4 py-3"
+                      style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                            {u.full_name ?? u.email ?? '—'}
+                          </span>
+                          <RoleBadge role={u.role} />
+                        </div>
+                        {u.club && (
+                          <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs tabular-nums" style={{ color: '#8892aa' }}>
+                          {new Date(u.last_sign_in_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </p>
+                        <p className="text-xs tabular-nums" style={{ color: '#3a4055' }}>
+                          {new Date(u.last_sign_in_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 

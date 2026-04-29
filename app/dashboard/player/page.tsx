@@ -641,11 +641,11 @@ export default function PlayerHome() {
           </div>
         </section>
 
-        {/* Featured Players */}
-        <FeaturedCarousel players={featuredPlayers} />
-
         {/* Feed Preview */}
         <FeedPreviewSection posts={feedPosts} />
+
+        {/* Featured Players */}
+        <FeaturedCarousel players={featuredPlayers} />
 
         {/* Opportunities */}
         <OpportunitiesPreview opportunities={opportunities} />

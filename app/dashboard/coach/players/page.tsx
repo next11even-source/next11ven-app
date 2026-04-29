@@ -60,10 +60,19 @@ export default function CoachPlayersPage() {
       .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
-      .order('premium', { ascending: false })
-      .order('updated_at', { ascending: false, nullsFirst: false })
       .then(({ data }) => {
-        setPlayers((data as Player[]) ?? [])
+        const raw = (data as Player[]) ?? []
+        const shuffle = <T,>(arr: T[]): T[] => {
+          const a = [...arr]
+          for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]]
+          }
+          return a
+        }
+        const premium = shuffle(raw.filter(p => p.premium))
+        const standard = shuffle(raw.filter(p => !p.premium))
+        setPlayers([...premium, ...standard])
         setLoading(false)
       })
   }, [])

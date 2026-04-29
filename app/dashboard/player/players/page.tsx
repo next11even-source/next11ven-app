@@ -18,6 +18,7 @@ type Player = {
   status: 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring' | null
   highlight_urls: string[] | null
   created_at: string
+  premium: boolean
 }
 
 type QuickTab = 'all' | 'free_agents' | 'loan' | 'new'
@@ -287,16 +288,25 @@ export default function PlayersPage() {
         supabase.from('profiles')
           .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at, premium')
           .in('role', ['player', 'admin'])
-          .eq('approved', true)
-          .order('premium', { ascending: false })
-          .order('updated_at', { ascending: false, nullsFirst: false }),
+          .eq('approved', true),
         supabase.from('player_views')
           .select('player_id, viewer_id')
           .gte('viewed_at', weekAgo)
           .limit(1000),
       ])
 
-      const allPlayers = (playersRes.data as Player[]) ?? []
+      const raw = (playersRes.data as Player[]) ?? []
+      const shuffle = <T,>(arr: T[]): T[] => {
+        const a = [...arr]
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]]
+        }
+        return a
+      }
+      const premium = shuffle(raw.filter(p => p.premium))
+      const standard = shuffle(raw.filter(p => !p.premium))
+      const allPlayers = [...premium, ...standard]
       setPlayers(allPlayers)
       setFiltered(allPlayers)
 

@@ -278,12 +278,22 @@ export default function PostCard({
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         {/* Header */}
         <div className="flex items-start gap-3 p-4 pb-3">
-          <Avatar url={post.author.avatar_url} name={post.author.full_name} size={42} />
+          <Link
+            href={post.author.role === 'coach' ? `/dashboard/coach/${post.author_id}` : `/dashboard/player/players/${post.author_id}`}
+            style={{ flexShrink: 0, textDecoration: 'none' }}
+          >
+            <Avatar url={post.author.avatar_url} name={post.author.full_name} size={42} />
+          </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 17, fontWeight: 700, color: '#e8dece', lineHeight: 1 }}>
-                {post.author.full_name ?? 'Unknown'}
-              </span>
+              <Link
+                href={post.author.role === 'coach' ? `/dashboard/coach/${post.author_id}` : `/dashboard/player/players/${post.author_id}`}
+                style={{ textDecoration: 'none' }}
+              >
+                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 17, fontWeight: 700, color: '#e8dece', lineHeight: 1 }}>
+                  {post.author.full_name ?? 'Unknown'}
+                </span>
+              </Link>
               <span className="px-1.5 py-0.5 rounded"
                 style={{ backgroundColor: roleStyle.bg, color: roleStyle.color, fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700 }}>
                 {roleStyle.label}

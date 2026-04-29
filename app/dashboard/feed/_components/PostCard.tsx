@@ -270,6 +270,7 @@ export default function PostCard({
   const roleStyle = ROLE_STYLE[post.author.role ?? 'player'] ?? ROLE_STYLE.player
   const isCoachViewer = viewerRole === 'coach'
   const isOwnPost = post.author_id === viewerId
+  const isAdmin = viewerRole === 'admin'
   const authorIsCoach = post.author.role === 'coach'
   const showMessageButton = isCoachViewer && !isOwnPost && !authorIsCoach
 
@@ -372,8 +373,8 @@ export default function PostCard({
             </button>
           )}
 
-          {/* Own post: delete */}
-          {isOwnPost && (
+          {/* Own post or admin: delete */}
+          {(isOwnPost || isAdmin) && (
             <button
               onClick={handleDelete}
               disabled={deleting}

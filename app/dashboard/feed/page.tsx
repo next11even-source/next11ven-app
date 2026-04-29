@@ -145,6 +145,30 @@ export default function FeedPage() {
         )}
       </div>
 
+      {/* Intro banner */}
+      <div className="px-4 pt-4">
+        <div className="rounded-2xl px-4 py-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 17, fontWeight: 700, color: '#e8dece', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            Your stage. Use it.
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: '#8892aa', fontFamily: "'Inter', sans-serif" }}>
+            Share what you're doing on the pitch. Post a season review, let clubs know you're available, drop a highlight, or just talk football. Coaches are watching.
+          </p>
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {[
+              { label: 'Highlight', color: '#4d8ae8' },
+              { label: 'Looking for Club', color: '#f59e0b' },
+              { label: 'Season Review', color: '#a78bfa' },
+              { label: 'General', color: '#9ca3af' },
+            ].map(t => (
+              <span key={t.label} className="text-xs px-2 py-1 rounded-lg font-semibold" style={{ backgroundColor: `${t.color}18`, color: t.color, border: `1px solid ${t.color}33`, fontFamily: "'Inter', sans-serif" }}>
+                {t.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Feed */}
       <div className="px-4 pt-4 pb-6 space-y-4">
         {posts.length === 0 ? (

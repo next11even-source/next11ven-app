@@ -1,113 +1,331 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
-import { getLevelConfig } from '@/lib/opportunityLevel'
 import CoachSidebar from './_components/CoachSidebar'
-import { timeAgo } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Status = 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring'
 
-type CoachOpportunity = {
+type PremiumPlayer = {
   id: string
-  title: string
-  location: string | null
-  level: string | null
-  position: string | null
-  urgent: boolean
-  created_at: string
-  opportunity_type: string | null
-  coach: { full_name: string | null; club: string | null } | null
-}
-
-type Player = {
-  id: string
-  role: string | null
   full_name: string | null
   position: string | null
-  secondary_position: string | null
-  club: string | null
   avatar_url: string | null
   status: Status | null
   location: string | null
   city: string | null
-  playing_level: string | null
-  weekly_views: number
   premium: boolean
-  created_at: string
-  last_active: string | null
-  coaching_role: string | null
+}
+
+type FeedPost = {
+  id: string
+  post_type: string
+  caption: string
+  image_url: string | null
+  author: {
+    full_name: string | null
+    avatar_url: string | null
+    role: string | null
+  } | null
+}
+
+type MyOpportunity = {
+  id: string
+  title: string
+  club: string | null
+  position: string | null
+  is_active: boolean
+  applicationCount: number
+}
+
+type ShortlistPlayer = {
+  savedId: string
+  player_id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  city: string | null
+  location: string | null
+  status: Status | null
+  updated_at: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string }> = {
-  free_agent:    { label: 'Free Agent',                   color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-  signed:        { label: 'Signed to a club',             color: '#8892aa', bg: 'rgba(136,146,170,0.1)' },
-  loan_dual_reg: { label: 'Looking for Loan / Dual Reg',  color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-  just_exploring:{ label: 'Just Exploring',               color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  free_agent:    { label: 'Free Agent',          color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
+  signed:        { label: 'Signed',              color: '#8892aa', bg: 'rgba(136,146,170,0.1)' },
+  loan_dual_reg: { label: 'Loan / Dual Reg',     color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+  just_exploring:{ label: 'Just Exploring',      color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+}
+
+const POST_TYPE_STYLE: Record<string, { color: string; bg: string; label: string }> = {
+  highlight:        { bg: '#2d5fc422', color: '#4d8ae8', label: 'HIGHLIGHT' },
+  looking_for_club: { bg: '#f59e0b22', color: '#f59e0b', label: 'LOOKING FOR CLUB' },
+  season_review:    { bg: '#7c3aed22', color: '#a78bfa', label: 'SEASON REVIEW' },
+  general:          { bg: '#37415130', color: '#9ca3af', label: 'GENERAL' },
+}
+
+function getInitials(name: string | null) {
+  return name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
 }
 
 function Avatar({ name, url, size = 40 }: { name: string | null; url: string | null; size?: number }) {
-  const initials = name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   if (url) {
     return (
-      <img
-        src={url}
-        alt={name ?? ''}
-        className="rounded-full object-cover flex-shrink-0"
-        style={{ width: size, height: size }}
-      />
+      <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0"
+        style={{ width: size, height: size }} />
     )
   }
   return (
-    <div
-      className="rounded-full flex items-center justify-center flex-shrink-0 font-bold"
-      style={{ width: size, height: size, backgroundColor: '#1e2235', color: '#8892aa', fontSize: size * 0.35 }}
-    >
-      {initials}
+    <div className="rounded-full flex items-center justify-center flex-shrink-0 font-bold"
+      style={{ width: size, height: size, backgroundColor: '#1e2235', color: '#8892aa', fontSize: Math.max(size * 0.35, 10) }}>
+      {getInitials(name)}
     </div>
   )
 }
 
-function StatusBadge({ status }: { status: Status | null }) {
-  if (!status) return null
-  const cfg = STATUS_CONFIG[status]
-  if (!cfg) return null
+// ─── Section 1: Stats Row ─────────────────────────────────────────────────────
+
+function CoachQuickStats({ newApps, lookingForClub, unread }: {
+  newApps: number
+  lookingForClub: number
+  unread: number
+}) {
+  const stats = [
+    {
+      label: 'New Applications',
+      value: newApps,
+      href: '/dashboard/coach/opportunities',
+      sub: 'this week',
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.07)',
+      border: 'rgba(245,158,11,0.35)',
+    },
+    {
+      label: 'Players Available',
+      value: lookingForClub,
+      href: '/dashboard/coach/players',
+      sub: 'right now',
+      color: '#fbbf24',
+      bg: 'rgba(251,191,36,0.07)',
+      border: 'rgba(251,191,36,0.35)',
+    },
+    {
+      label: 'Unread Messages',
+      value: unread,
+      href: '/dashboard/coach/messages',
+      sub: 'unread',
+      color: '#a78bfa',
+      bg: 'rgba(167,139,250,0.07)',
+      border: 'rgba(167,139,250,0.4)',
+    },
+  ]
   return (
-    <span
-      className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-      style={{ backgroundColor: cfg.bg, color: cfg.color }}
-    >
-      {cfg.label}
-    </span>
+    <div className="grid grid-cols-3 gap-2">
+      {stats.map(s => (
+        <Link key={s.label} href={s.href}
+          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2"
+          style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}>
+          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
+            {s.value}
+          </span>
+          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
+          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa', fontSize: 10 }}>{s.sub}</span>
+        </Link>
+      ))}
+    </div>
   )
 }
 
-// ─── Premium Carousel ─────────────────────────────────────────────────────────
+// ─── Section 2: From the Feed ─────────────────────────────────────────────────
 
-function PremiumCarousel({ players }: { players: Player[] }) {
+function FeedPreview({ posts }: { posts: FeedPost[] }) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-xl font-black uppercase"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          From the Feed
+        </h2>
+        <Link href="/dashboard/feed" className="text-xs font-semibold"
+          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          See all →
+        </Link>
+      </div>
+
+      {posts.length === 0 ? (
+        <div className="rounded-xl px-5 py-6 text-center"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm" style={{ color: '#8892aa' }}>No posts yet — check back soon.</p>
+          <Link href="/dashboard/feed" className="mt-3 inline-block text-xs font-semibold"
+            style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+            Visit the feed →
+          </Link>
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4"
+          style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+          {posts.map(post => {
+            const typeStyle = POST_TYPE_STYLE[post.post_type] ?? POST_TYPE_STYLE.general
+            const authorRole = post.author?.role ?? 'player'
+            const roleIsCoach = authorRole === 'coach'
+            return (
+              <Link key={post.id} href="/dashboard/feed"
+                className="flex-shrink-0 rounded-2xl overflow-hidden block"
+                style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none', backgroundColor: '#13172a' }}>
+                {/* Thumbnail */}
+                <div className="relative" style={{ height: 120, backgroundColor: '#1a1f3a' }}>
+                  {post.image_url ? (
+                    <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"
+                      style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                      <span className="font-black text-4xl"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                        {getInitials(post.author?.full_name ?? null)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0"
+                    style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.5) 0%, transparent 60%)' }} />
+                  <div className="absolute top-2 left-2">
+                    <span className="font-bold px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontSize: 9, letterSpacing: '0.04em' }}>
+                      {typeStyle.label}
+                    </span>
+                  </div>
+                </div>
+                {/* Body */}
+                <div className="p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Avatar name={post.author?.full_name ?? null} url={post.author?.avatar_url ?? null} size={20} />
+                    <span className="text-xs font-bold truncate"
+                      style={{ color: '#e8dece', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12 }}>
+                      {post.author?.full_name ?? 'Unknown'}
+                    </span>
+                    <span className="flex-shrink-0 px-1 py-0.5 rounded font-bold"
+                      style={{
+                        backgroundColor: roleIsCoach ? '#f59e0b22' : '#2d5fc422',
+                        color: roleIsCoach ? '#f59e0b' : '#4d8ae8',
+                        fontSize: 8,
+                      }}>
+                      {roleIsCoach ? 'COACH' : 'PLAYER'}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-tight" style={{
+                    color: '#8892aa',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  } as React.CSSProperties}>
+                    {post.caption}
+                  </p>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ─── Section 3: Your Opportunities ───────────────────────────────────────────
+
+function MyOpportunities({ opps }: { opps: MyOpportunity[] }) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-xl font-black uppercase"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Your Opportunities 🔥
+        </h2>
+        <Link href="/dashboard/coach/opportunities" className="text-xs font-semibold"
+          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          Manage →
+        </Link>
+      </div>
+
+      {opps.length === 0 ? (
+        <div className="rounded-xl px-5 py-8 flex flex-col items-center text-center gap-4"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
+            You're not currently recruiting. Post a role to start receiving applications.
+          </p>
+          <Link href="/dashboard/coach/opportunities"
+            className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
+            style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}>
+            Post a Role
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {opps.map(opp => (
+            <Link key={opp.id} href="/dashboard/coach/opportunities"
+              className="flex items-center gap-3 rounded-xl px-4 py-3.5"
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <p className="text-xs truncate" style={{ color: '#8892aa' }}>
+                    {opp.club ?? 'Your Club'}
+                  </p>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                    style={{
+                      backgroundColor: opp.is_active ? 'rgba(245,158,11,0.12)' : 'rgba(136,146,170,0.1)',
+                      color: opp.is_active ? '#f59e0b' : '#8892aa',
+                    }}>
+                    {opp.is_active ? 'OPEN' : 'CLOSED'}
+                  </span>
+                </div>
+                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  {opp.position && (
+                    <p className="text-xs" style={{ color: '#8892aa' }}>{opp.position}</p>
+                  )}
+                  {opp.position && <span style={{ color: '#374151' }}>·</span>}
+                  <p className="text-xs" style={{ color: '#4b5563' }}>
+                    {opp.applicationCount === 0
+                      ? 'No applications yet'
+                      : `${opp.applicationCount} application${opp.applicationCount === 1 ? '' : 's'}`}
+                  </p>
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ─── Section 4: Featured Players (Premium Carousel) ──────────────────────────
+
+function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
   if (players.length === 0) return null
-
   return (
     <section className="space-y-3">
       <div className="px-1">
         <h2 className="text-xl font-black uppercase"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          Featured Players ✓
+          Featured Players
         </h2>
         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Premium players appear first to clubs</p>
       </div>
-
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4"
         style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
-        {players.map((p) => (
-          <Link key={p.id}
-            href={`/dashboard/player/players/${p.id}`}
+        {players.map(p => (
+          <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
             className="flex-shrink-0 rounded-2xl overflow-hidden block"
             style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
             <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
@@ -118,11 +336,12 @@ function PremiumCarousel({ players }: { players: Player[] }) {
                   style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
                   <span className="font-black text-5xl"
                     style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                    {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '??'}
+                    {getInitials(p.full_name)}
                   </span>
                 </div>
               )}
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+              <div className="absolute inset-0"
+                style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
               <div className="absolute top-2 right-2">
                 <span className="text-xs font-bold px-1.5 py-0.5 rounded"
                   style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
@@ -146,352 +365,88 @@ function PremiumCarousel({ players }: { players: Player[] }) {
   )
 }
 
-// ─── Suggested Players Grid ───────────────────────────────────────────────────
+// ─── Section 5: Your Shortlist ────────────────────────────────────────────────
 
-function SuggestedPlayers({ players }: { players: Player[] }) {
-  if (players.length === 0) return null
-
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <div className="space-y-0.5">
-          <h2 className="text-base font-bold uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Active &amp; Available
-          </h2>
-          <p className="text-xs" style={{ color: '#8892aa' }}>Players currently looking for clubs</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {players.map((p) => (
-          <Link key={p.id}
-            href={`/dashboard/player/players/${p.id}`}
-            className="rounded-xl p-4 flex items-center gap-3 transition-all"
-            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>
-            <Avatar name={p.full_name} url={p.avatar_url} size={48} />
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
-                  {p.full_name ?? 'Player'}
-                </p>
-                {p.premium && (
-                  <span className="text-xs px-1.5 py-0.5 rounded font-bold"
-                    style={{ backgroundColor: 'rgba(45,95,196,0.2)', color: '#2d5fc4', fontSize: 10 }}>PRO</span>
-                )}
-              </div>
-              <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
-              </p>
-              {p.playing_level && (
-                <p className="text-xs truncate" style={{ color: '#8892aa' }}>{p.playing_level}</p>
-              )}
-              <StatusBadge status={p.status} />
-            </div>
-          </Link>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// ─── New Joiners ──────────────────────────────────────────────────────────────
-
-function NewJoiners({ players }: { players: Player[] }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  if (players.length === 0) return null
-
+function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
+  const weekAgo = Date.now() - 7 * 86400000
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#2d5fc4' }} />
-          <h2 className="text-base font-bold uppercase"
+          <h2 className="text-xl font-black uppercase"
             style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            New to the Platform
+            Your Shortlist
           </h2>
-          <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-            style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
-            {players.length}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => ref.current?.scrollBy({ left: -200, behavior: 'smooth' })}
-            className="w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>‹</button>
-          <button onClick={() => ref.current?.scrollBy({ left: 200, behavior: 'smooth' })}
-            className="w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>›</button>
-        </div>
-      </div>
-
-      <div ref={ref} className="flex gap-3 overflow-x-auto pb-2"
-        style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {players.map((p) => {
-          const isCoach = p.role === 'coach'
-          const subtitle = isCoach ? (p.coaching_role ?? p.city ?? '—') : (p.position ?? p.city ?? '—')
-          const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-          return (
-            <Link key={p.id}
-              href={`/dashboard/player/players/${p.id}`}
-              className="flex-shrink-0 rounded-xl overflow-hidden block"
-              style={{ width: 150, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}>
-              <div className="relative" style={{ height: 150 }}>
-                {p.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
-                    <span className="text-4xl font-black"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d3050' }}>
-                      {initials}
-                    </span>
-                  </div>
-                )}
-                <div className="absolute inset-0"
-                  style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)' }} />
-                {/* Role badge */}
-                <div className="absolute top-2 left-2">
-                  <span className="text-xs font-bold px-1.5 py-0.5 rounded"
-                    style={{
-                      backgroundColor: isCoach ? 'rgba(167,139,250,0.85)' : 'rgba(45,95,196,0.85)',
-                      color: '#fff', fontSize: 10,
-                    }}>
-                    {isCoach ? 'COACH' : 'PLAYER'}
-                  </span>
-                </div>
-              </div>
-              <div className="px-3 py-2.5" style={{ backgroundColor: '#13172a' }}>
-                <p className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>
-                  {p.full_name ?? (isCoach ? 'Coach' : 'Player')}
-                </p>
-                <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>
-                  {subtitle}
-                </p>
-                {!isCoach && p.status && <StatusBadge status={p.status} />}
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-// ─── Quick Stats Bar ──────────────────────────────────────────────────────────
-
-function CoachQuickStats({ newApps, availablePlayers, unread }: { newApps: number; availablePlayers: number; unread: number }) {
-  const stats = [
-    {
-      label: 'New Applications', value: newApps, href: '/dashboard/coach/opportunities', sub: 'this week',
-      color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
-    },
-    {
-      label: 'Available Players', value: availablePlayers, href: '/dashboard/coach/market?tab=players', sub: 'right now',
-      color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
-    },
-    {
-      label: 'Unread Messages', value: unread, href: '/dashboard/coach/messages', sub: 'unread',
-      color: '#a78bfa', bg: 'rgba(167,139,250,0.07)', border: 'rgba(167,139,250,0.4)',
-    },
-  ]
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {stats.map((s) => (
-        <Link key={s.label} href={s.href}
-          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-          style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = s.color)}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = s.border)}>
-          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
-            {s.value}
-          </span>
-          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
-          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
-        </Link>
-      ))}
-    </div>
-  )
-}
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function SkeletonPulse({ h = 16, rounded = 'rounded-lg' }: { h?: number; rounded?: string }) {
-  return <div className={`animate-pulse ${rounded} w-full`} style={{ height: h, backgroundColor: '#1e2235' }} />
-}
-
-function CoachHomeSkeleton() {
-  return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
-      <header className="px-4 pt-6 pb-4 flex items-center justify-between">
-        <div className="flex flex-col gap-1.5">
-          <div className="animate-pulse rounded h-0.5 w-5" style={{ backgroundColor: '#1e2235' }} />
-          <div className="animate-pulse rounded h-0.5 w-4" style={{ backgroundColor: '#1e2235' }} />
-          <div className="animate-pulse rounded h-0.5 w-5" style={{ backgroundColor: '#1e2235' }} />
-        </div>
-        <SkeletonPulse h={36} rounded="rounded-lg" />
-        <div style={{ width: 22 }} />
-      </header>
-      <main className="max-w-5xl mx-auto px-6 py-4 space-y-6" style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 24px)' }}>
-        <div className="space-y-2">
-          <SkeletonPulse h={32} rounded="rounded-lg" />
-          <SkeletonPulse h={16} rounded="rounded-lg" />
-        </div>
-        <SkeletonPulse h={100} rounded="rounded-2xl" />
-        <div className="grid grid-cols-3 gap-2">
-          {[0,1,2].map(i => <SkeletonPulse key={i} h={72} rounded="rounded-2xl" />)}
-        </div>
-        <div className="space-y-3">
-          <SkeletonPulse h={80} rounded="rounded-xl" />
-          <SkeletonPulse h={80} rounded="rounded-xl" />
-          <SkeletonPulse h={80} rounded="rounded-xl" />
-        </div>
-      </main>
-    </div>
-  )
-}
-
-// ─── Recently Joined Players ──────────────────────────────────────────────────
-
-type RecentPlayer = {
-  id: string
-  full_name: string | null
-  avatar_url: string | null
-  position: string | null
-  playing_level: string | null
-  status: Status | null
-}
-
-function RecentlyJoined({ players }: { players: RecentPlayer[] }) {
-  if (players.length === 0) return null
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#2d5fc4' }} />
-        <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          New to the Platform
-        </h2>
-        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-          style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
-          {players.length}
-        </span>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
-        {players.map(p => {
-          const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-          const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
-          return (
-            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-              className="flex-shrink-0 rounded-2xl overflow-hidden block"
-              style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
-              <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
-                {p.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"
-                    style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                    <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                      {initials}
-                    </span>
-                  </div>
-                )}
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
-              </div>
-              <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                  {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
-                </p>
-                {statusCfg && (
-                  <p className="text-xs font-semibold" style={{ color: statusCfg.color, fontSize: 10 }}>
-                    {statusCfg.label}
-                  </p>
-                )}
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-// ─── Latest Opportunities ─────────────────────────────────────────────────────
-
-function LatestOpportunities({ opportunities, viewerRole }: { opportunities: CoachOpportunity[]; viewerRole: string | null }) {
-  const isCoach = viewerRole === 'coach'
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          Latest Opportunities
-        </h2>
-        {isCoach && (
-          <Link href="/dashboard/coach/opportunities" className="text-xs" style={{ color: '#2d5fc4', textDecoration: 'none' }}>
-            Post a role →
-          </Link>
-        )}
-      </div>
-
-      {opportunities.length === 0 ? (
-        <div className="rounded-xl px-5 py-8 flex flex-col items-center text-center gap-4"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
-            {isCoach
-              ? 'No roles posted yet. Post a role to start connecting with players looking for clubs.'
-              : 'No opportunities posted yet. Check back soon — coaches post new roles regularly.'}
-          </p>
-          {isCoach && (
-            <Link href="/dashboard/coach/opportunities"
-              className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-              Post a Role
-            </Link>
+          {players.length > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+              style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+              {players.length}
+            </span>
           )}
         </div>
+        <Link href="/dashboard/coach/shortlists" className="text-xs font-semibold"
+          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          View all →
+        </Link>
+      </div>
+
+      {players.length === 0 ? (
+        <div className="rounded-xl px-5 py-6 text-center"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
+            You haven't shortlisted any players yet. Browse players to start building your shortlist.
+          </p>
+          <Link href="/dashboard/coach/players" className="mt-3 inline-block text-xs font-semibold"
+            style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+            Browse Players →
+          </Link>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {opportunities.map(opp => {
-            const isCoachRole = opp.opportunity_type === 'coach'
-            const lvl = getLevelConfig(opp.level)
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4"
+          style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+          {players.map(p => {
+            const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+            const wasUpdated = p.updated_at ? new Date(p.updated_at).getTime() > weekAgo : false
             return (
-              <Link key={opp.id} href="/dashboard/coach/opportunities"
-                className="flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all"
-                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-                <div className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl px-2"
-                  style={{ minWidth: 44, height: 44, backgroundColor: lvl.bg, border: `1px solid ${lvl.color}40` }}>
-                  <span className="font-black leading-none" style={{ color: lvl.color, fontSize: 9, letterSpacing: '0.05em' }}>{lvl.line1}</span>
-                  {lvl.line2 && <span className="font-black leading-none mt-0.5" style={{ color: lvl.color, fontSize: lvl.line2.length <= 2 ? 16 : 10 }}>{lvl.line2}</span>}
+              <Link key={p.savedId} href={`/dashboard/player/players/${p.player_id}`}
+                className="flex-shrink-0 rounded-2xl overflow-hidden block"
+                style={{ width: 150, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
+                <div className="relative" style={{ height: 150, backgroundColor: '#1a1f3a' }}>
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"
+                      style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                      <span className="font-black text-4xl"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                        {getInitials(p.full_name)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0"
+                    style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.7) 0%, transparent 55%)' }} />
+                  {wasUpdated && (
+                    <div className="absolute top-2 right-2">
+                      <span className="font-bold px-1.5 py-0.5 rounded"
+                        style={{ backgroundColor: 'rgba(245,158,11,0.9)', color: '#0a0a0a', fontSize: 9 }}>
+                        UPDATED
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-xs font-semibold truncate" style={{ color: lvl.color }}>
-                      {opp.coach?.club ?? 'Unknown Club'}
+                <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                  <p className="text-xs truncate" style={{ color: '#8892aa' }}>
+                    {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                  {statusCfg && (
+                    <p className="text-xs font-semibold" style={{ color: statusCfg.color, fontSize: 10 }}>
+                      {statusCfg.label}
                     </p>
-                  </div>
-                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      {isCoachRole ? 'Coaching Role' : opp.position ?? 'Any Position'} · {timeAgo(opp.created_at)}
-                    </p>
-                    {opp.urgent && <span className="text-xs" style={{ color: '#ef4444' }}>🔴 Urgent</span>}
-                  </div>
+                  )}
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e2235" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
               </Link>
             )
           })}
@@ -508,16 +463,15 @@ export default function CoachDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [fullName, setFullName] = useState<string | null>(null)
-  const [premiumPlayers, setPremiumPlayers] = useState<Player[]>([])
-  const [latestOpportunities, setLatestOpportunities] = useState<CoachOpportunity[]>([])
-
-  const [recentPlayers, setRecentPlayers] = useState<RecentPlayer[]>([])
-  const [statsNewApps, setStatsNewApps] = useState(0)
-  const [statsAvailable, setStatsAvailable] = useState(0)
-  const [statsUnread, setStatsUnread] = useState(0)
-  const [viewerPremium, setViewerPremium] = useState(false)
-  const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const [statsNewApps, setStatsNewApps] = useState(0)
+  const [statsLookingForClub, setStatsLookingForClub] = useState(0)
+  const [statsUnread, setStatsUnread] = useState(0)
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
+  const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
+  const [premiumPlayers, setPremiumPlayers] = useState<PremiumPlayer[]>([])
+  const [myShortlist, setMyShortlist] = useState<ShortlistPlayer[]>([])
 
   useEffect(() => {
     async function load() {
@@ -525,93 +479,165 @@ export default function CoachDashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, premium, avatar_url, coaching_role, role')
-        .eq('id', user.id)
-        .single()
-      setFullName(profile?.full_name ?? null)
-      setViewerPremium(profile?.premium ?? false)
-      setViewerRole(profile?.role ?? null)
-      setCoachProfile({ full_name: profile?.full_name ?? null, avatar_url: profile?.avatar_url ?? null, coaching_role: profile?.coaching_role ?? null })
-
-      const playerSelect = 'id, role, full_name, position, secondary_position, club, avatar_url, status, location, city, playing_level, weekly_views, premium, created_at, last_active, coaching_role'
-
-      // Premium players — shuffled so order is random each session
-      const { data: premium } = await supabase
-        .from('profiles')
-        .select(playerSelect)
-        .in('role', ['player', 'admin'])
-        .eq('approved', true)
-        .eq('premium', true)
-        .limit(20)
-      const shuffled = ((premium as Player[]) ?? []).sort(() => Math.random() - 0.5)
-      setPremiumPlayers(shuffled)
-
-      // Latest opportunities (all types, all coaches)
-      const { data: opps } = await supabase
-        .from('opportunities')
-        .select('id, title, location, level, position, urgent, created_at, opportunity_type, coach:coach_id(full_name, club)')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(8)
-      setLatestOpportunities((opps as unknown as CoachOpportunity[]) ?? [])
-
-      // Recently joined players (approved, players only, with avatar, newest first)
-      const { data: recentP } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, position, playing_level, status')
-        .in('role', ['player', 'admin'])
-        .eq('approved', true)
-        .not('avatar_url', 'is', null)
-        .neq('avatar_url', '')
-        .order('updated_at', { ascending: false })
-        .limit(30)
-      setRecentPlayers((recentP as RecentPlayer[]) ?? [])
-
-      // Quick stats
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
-      // New applications this week to this coach's opportunities
-      const { count: appsCount } = await supabase
-        .from('applications')
-        .select('id', { count: 'exact', head: true })
-        .eq('coach_id', user.id)
-        .gte('created_at', weekAgo)
-      setStatsNewApps(appsCount ?? 0)
+      // ── Phase 1: all independent queries in parallel ──────────────────────
+      const [
+        profileRes,
+        appsRes,
+        lookingRes,
+        myOppsRes,
+        savedRes,
+        feedRes,
+        premiumRes,
+        convsRes,
+      ] = await Promise.all([
+        supabase.from('profiles')
+          .select('full_name, premium, avatar_url, coaching_role, role')
+          .eq('id', user.id).single(),
 
-      // Available players count
-      const { count: availCount } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .in('role', ['player', 'admin'])
-        .eq('approved', true)
-        .in('status', ['free_agent', 'loan_dual_reg', 'just_exploring'])
-      setStatsAvailable(availCount ?? 0)
-
-      // Unread messages count
-      const { data: convs } = await supabase.from('conversations').select('id').eq('coach_id', user.id)
-      if (convs?.length) {
-        const { count: unreadCount } = await supabase
-          .from('messages')
+        supabase.from('applications')
           .select('id', { count: 'exact', head: true })
-          .in('conversation_id', convs.map((c: { id: string }) => c.id))
+          .eq('coach_id', user.id)
+          .gte('created_at', weekAgo),
+
+        supabase.from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .in('role', ['player', 'admin'])
+          .eq('approved', true)
+          .in('status', ['free_agent', 'loan_dual_reg', 'just_exploring']),
+
+        supabase.from('opportunities')
+          .select('id, title, club, position, is_active')
+          .eq('coach_id', user.id)
+          .order('is_active', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(10),
+
+        supabase.from('coach_saved_players')
+          .select('id, player_id, folder_name, created_at')
+          .eq('coach_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20),
+
+        supabase.from('posts')
+          .select('id, post_type, caption, image_url, author:profiles!author_id(full_name, avatar_url, role)')
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(3),
+
+        supabase.from('profiles')
+          .select('id, full_name, position, avatar_url, status, location, city, premium')
+          .in('role', ['player', 'admin'])
+          .eq('approved', true)
+          .eq('premium', true)
+          .limit(20),
+
+        supabase.from('conversations')
+          .select('id')
+          .eq('coach_id', user.id),
+      ])
+
+      // Profile
+      const profile = profileRes.data
+      setFullName(profile?.full_name ?? null)
+      setCoachProfile({
+        full_name: profile?.full_name ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+        coaching_role: profile?.coaching_role ?? null,
+      })
+
+      // Stats
+      setStatsNewApps(appsRes.count ?? 0)
+      setStatsLookingForClub(lookingRes.count ?? 0)
+
+      // Feed posts — normalize author join (Supabase returns as array)
+      const rawPosts = (feedRes.data ?? []) as any[]
+      setFeedPosts(rawPosts.map(p => ({
+        id: p.id,
+        post_type: p.post_type,
+        caption: p.caption,
+        image_url: p.image_url,
+        author: Array.isArray(p.author) ? (p.author[0] ?? null) : (p.author ?? null),
+      })))
+
+      // Premium players — random order each session
+      const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5)
+      setPremiumPlayers(shuffled)
+
+      // ── Phase 2: queries that depend on phase 1 results ───────────────────
+
+      // Unread messages
+      const convIds = (convsRes.data ?? []).map((c: { id: string }) => c.id)
+      if (convIds.length) {
+        const { count } = await supabase.from('messages')
+          .select('id', { count: 'exact', head: true })
+          .in('conversation_id', convIds)
           .neq('sender_id', user.id)
           .is('read_at', null)
-        setStatsUnread(unreadCount ?? 0)
+        setStatsUnread(count ?? 0)
+      }
+
+      // Application counts per opportunity
+      const myOppsData = (myOppsRes.data ?? []) as Array<{ id: string; title: string; club: string | null; position: string | null; is_active: boolean }>
+      if (myOppsData.length) {
+        const oppIds = myOppsData.map(o => o.id)
+        const { data: appData } = await supabase
+          .from('applications')
+          .select('opportunity_id')
+          .in('opportunity_id', oppIds)
+        const countMap: Record<string, number> = {}
+        for (const a of appData ?? []) {
+          countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
+        }
+        setMyOpportunities(myOppsData.map(o => ({
+          id: o.id,
+          title: o.title,
+          club: o.club,
+          position: o.position,
+          is_active: o.is_active,
+          applicationCount: countMap[o.id] ?? 0,
+        })))
+      } else {
+        setMyOpportunities([])
+      }
+
+      // Shortlist player profiles
+      const savedRows = (savedRes.data ?? []) as Array<{ id: string; player_id: string; folder_name: string; created_at: string }>
+      if (savedRows.length) {
+        const playerIds = savedRows.map(r => r.player_id)
+        const { data: playerData } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, position, city, location, status, updated_at')
+          .in('id', playerIds)
+        const playerMap = Object.fromEntries((playerData ?? []).map((p: any) => [p.id, p]))
+        setMyShortlist(savedRows.map(r => {
+          const p = playerMap[r.player_id] ?? {}
+          return {
+            savedId: r.id,
+            player_id: r.player_id,
+            full_name: p.full_name ?? null,
+            avatar_url: p.avatar_url ?? null,
+            position: p.position ?? null,
+            city: p.city ?? null,
+            location: p.location ?? null,
+            status: p.status ?? null,
+            updated_at: p.updated_at ?? null,
+          }
+        }))
+      } else {
+        setMyShortlist([])
       }
 
       setLoading(false)
 
-      // Auto-grant premium for existing Stripe subscribers who just claimed their account
+      // Auto-sync Stripe premium state
       if (!profile?.premium) {
-        fetch('/api/stripe/sync', { method: 'POST' }).then(r => r.json()).then(d => {
-          if (d.synced) setViewerPremium(true)
-        }).catch(() => {})
+        fetch('/api/stripe/sync', { method: 'POST' }).catch(() => {})
       }
     }
     load()
-  }, [])
+  }, [router])
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -628,13 +654,13 @@ export default function CoachDashboard() {
         <div style={{ width: 22 }} />
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-10" style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 24px)' }}>
+      <main className="max-w-5xl mx-auto px-6 py-6 space-y-10"
+        style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 24px)' }}>
+
         {/* Welcome */}
         <div>
-          <h1
-            className="text-3xl font-extrabold uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}
-          >
+          <h1 className="text-3xl font-extrabold uppercase"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             Welcome{fullName ? `, ${fullName.split(' ')[0]}` : ' Back'}
           </h1>
           <p className="text-sm mt-1" style={{ color: '#8892aa' }}>
@@ -642,43 +668,62 @@ export default function CoachDashboard() {
           </p>
         </div>
 
-        {/* Event Banner */}
+        {/* Showcase Day Banner */}
         <div className="rounded-2xl p-4 flex flex-col gap-3"
           style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
           <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
-            🏆 <strong>End of Season Showcase Day</strong>
-            <br />
-            Register to attend and scout players at your level.
-            <br />
+            🏆 <strong>End of Season Showcase Day</strong><br />
+            Register to attend and scout players at your level.<br />
             <span style={{ color: '#60a5fa' }}>Step 3–7 players registered.</span>
           </p>
-          <a
-            href="https://forms.gle/T5w5jneVc2rFUa4y6"
-            target="_blank"
-            rel="noopener noreferrer"
+          <a href="https://forms.gle/T5w5jneVc2rFUa4y6"
+            target="_blank" rel="noopener noreferrer"
             className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
             style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
             Register Interest
           </a>
         </div>
 
+        {/* Loading skeleton */}
         {loading ? (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="grid grid-cols-3 gap-2">
-              {[0,1,2].map(i => (
-                <div key={i} className="animate-pulse rounded-2xl" style={{ height: 72, backgroundColor: '#1e2235' }} />
+              {[0, 1, 2].map(i => (
+                <div key={i} className="animate-pulse rounded-2xl" style={{ height: 80, backgroundColor: '#1e2235' }} />
               ))}
             </div>
-            {[0,1,2].map(i => (
-              <div key={i} className="animate-pulse rounded-xl" style={{ height: 80, backgroundColor: '#1e2235' }} />
+            <div className="space-y-2">
+              <div className="animate-pulse rounded-lg" style={{ height: 20, width: '40%', backgroundColor: '#1e2235' }} />
+              <div className="flex gap-3">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="flex-shrink-0 animate-pulse rounded-2xl" style={{ width: 170, height: 200, backgroundColor: '#1e2235' }} />
+                ))}
+              </div>
+            </div>
+            {[0, 1, 2].map(i => (
+              <div key={i} className="animate-pulse rounded-xl" style={{ height: 72, backgroundColor: '#1e2235' }} />
             ))}
           </div>
         ) : (
           <>
-            <CoachQuickStats newApps={statsNewApps} availablePlayers={statsAvailable} unread={statsUnread} />
+            {/* Section 1 */}
+            <CoachQuickStats
+              newApps={statsNewApps}
+              lookingForClub={statsLookingForClub}
+              unread={statsUnread}
+            />
+
+            {/* Section 2 */}
+            <FeedPreview posts={feedPosts} />
+
+            {/* Section 3 */}
+            <MyOpportunities opps={myOpportunities} />
+
+            {/* Section 4 */}
             <PremiumCarousel players={premiumPlayers} />
-            <LatestOpportunities opportunities={latestOpportunities} viewerRole={viewerRole} />
-            <RecentlyJoined players={recentPlayers} />
+
+            {/* Section 5 */}
+            <MyShortlist players={myShortlist} />
           </>
         )}
       </main>

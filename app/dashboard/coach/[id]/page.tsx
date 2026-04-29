@@ -104,6 +104,17 @@ export default function CoachPublicProfile() {
         setViewer(viewerRes.data as ViewerProfile)
         setOpportunities((oppsRes.data ?? []) as Opportunity[])
         setLoading(false)
+
+        // Track this view — skip if the coach is viewing their own profile
+        const viewerProfile = viewerRes.data as ViewerProfile
+        if (viewerProfile && viewerProfile.id !== id) {
+          supabase.from('player_views').insert({
+            player_id: id,
+            viewer_id: viewerProfile.id,
+            viewer_role: viewerProfile.role,
+            viewed_at: new Date().toISOString(),
+          }).then(() => {})
+        }
       } catch (err) {
         console.error('Error loading coach profile:', err)
         setLoadError('Something went wrong loading this profile.')

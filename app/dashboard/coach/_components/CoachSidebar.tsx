@@ -112,6 +112,27 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
 
         {/* Secondary nav */}
         <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+          <Link href="/dashboard/coach/shortlists" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+            style={{ textDecoration: 'none', color: '#e8dece' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+            <p className="text-sm font-semibold">Shortlists</p>
+          </Link>
+
+          <Link href="/dashboard/coach/opportunities" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+            style={{ textDecoration: 'none', color: '#e8dece' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" />
+              <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+            </svg>
+            <p className="text-sm font-semibold">Opportunities</p>
+          </Link>
+
+          <div className="my-1" style={{ borderTop: '1px solid #1e2235' }} />
+
           <Link href="/dashboard/profile" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ textDecoration: 'none', color: '#8892aa' }}>

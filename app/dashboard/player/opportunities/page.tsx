@@ -158,11 +158,15 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
               <div>
                 <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{opp.title}</p>
                 <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-                  <Link href={`/dashboard/coach/${opp.coach_id}`}
-                    style={{ color: '#2d5fc4', textDecoration: 'none' }}
-                    onClick={e => e.stopPropagation()}>
-                    {opp.coach?.full_name ?? 'Coach'}
-                  </Link>{' · '}
+                  {isPremium && (
+                    <>
+                      <Link href={`/dashboard/coach/${opp.coach_id}`}
+                        style={{ color: '#2d5fc4', textDecoration: 'none' }}
+                        onClick={e => e.stopPropagation()}>
+                        {opp.coach?.full_name ?? 'Coach'}
+                      </Link>{' · '}
+                    </>
+                  )}
                   {opp.location && <span>{opp.location}</span>}
                   {opp.location && ' · '}
                   {timeAgo(opp.created_at)}

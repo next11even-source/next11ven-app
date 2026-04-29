@@ -57,6 +57,21 @@ type Opportunity = {
   coach: { full_name: string | null } | null
 }
 
+type FeedPost = {
+  id: string
+  post_type: string
+  caption: string
+  image_url: string | null
+  created_at: string
+  author: {
+    full_name: string | null
+    avatar_url: string | null
+    role: string | null
+    position: string | null
+    location: string | null
+  } | null
+}
+
 type NewJoiner = {
   id: string
   role: string | null
@@ -194,7 +209,7 @@ function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
     <section className="space-y-3">
       <div className="px-4">
         <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          Featured Players ✓
+          Featured Players
         </h2>
         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Premium players appear first to clubs</p>
       </div>
@@ -358,6 +373,96 @@ function NewJoinersSection({ players }: { players: NewJoiner[] }) {
   )
 }
 
+// ─── Feed Preview ─────────────────────────────────────────────────────────────
+
+const FEED_TYPE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  highlight:        { bg: '#2d5fc422', color: '#4d8ae8', label: 'HIGHLIGHT' },
+  looking_for_club: { bg: '#f59e0b22', color: '#f59e0b', label: 'LOOKING FOR CLUB' },
+  season_review:    { bg: '#7c3aed22', color: '#a78bfa', label: 'SEASON REVIEW' },
+  general:          { bg: '#37415130', color: '#9ca3af', label: 'GENERAL' },
+}
+
+function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
+  if (posts.length === 0) return null
+
+  return (
+    <section className="space-y-3">
+      <div className="px-4 flex items-center justify-between">
+        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          From the Feed
+        </h2>
+        <Link href="/dashboard/feed" className="text-xs font-semibold" style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          See all →
+        </Link>
+      </div>
+      <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+        {posts.map((post) => {
+          const typeStyle = FEED_TYPE_STYLE[post.post_type] ?? FEED_TYPE_STYLE.general
+          const author = post.author
+          const initials = author?.full_name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2) ?? '??'
+
+          return (
+            <Link
+              key={post.id}
+              href="/dashboard/feed"
+              className="flex-shrink-0 rounded-2xl overflow-hidden flex flex-col"
+              style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', backgroundColor: '#13172a', textDecoration: 'none' }}
+            >
+              {/* Image or gradient placeholder */}
+              <div className="relative flex-shrink-0" style={{ height: 96, backgroundColor: '#0d1020' }}>
+                {post.image_url ? (
+                  <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)' }}>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#1e2235' }}>
+                      {initials}
+                    </span>
+                  </div>
+                )}
+                {/* Post type badge */}
+                <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-bold"
+                  style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, letterSpacing: '0.04em', backdropFilter: 'blur(4px)' }}>
+                  {typeStyle.label}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="p-2.5 flex flex-col gap-1.5 flex-1">
+                {/* Author */}
+                <div className="flex items-center gap-1.5">
+                  {author?.avatar_url ? (
+                    <img src={author.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1e2235', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#8892aa' }}>{initials}</span>
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold truncate" style={{ color: '#e8dece', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12 }}>
+                    {author?.full_name ?? 'Unknown'}
+                  </span>
+                </div>
+
+                {/* Caption */}
+                <p className="text-xs leading-snug" style={{
+                  color: '#8892aa',
+                  fontFamily: "'Inter', sans-serif",
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}>
+                  {post.caption}
+                </p>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlayerHome() {
@@ -367,6 +472,7 @@ export default function PlayerHome() {
   const [featuredPlayers, setFeaturedPlayers] = useState<FeaturedPlayer[]>([])
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([])
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
   const [statsViews, setStatsViews] = useState(0)
@@ -381,7 +487,7 @@ export default function PlayerHome() {
 
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
-      const [profileRes, featuredRes, oppsRes, joinersRes, viewsRes, convsRes, oppsCountRes] = await Promise.all([
+      const [profileRes, featuredRes, oppsRes, joinersRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', '').limit(10),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
@@ -392,6 +498,8 @@ export default function PlayerHome() {
         supabase.from('conversations').select('id').eq('player_id', user.id),
         // Open opportunities count
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        // Feed preview — 3 most recent posts
+        supabase.from('posts').select('id, post_type, caption, image_url, created_at, author:profiles!author_id(full_name, avatar_url, role, position, location)').eq('is_deleted', false).order('created_at', { ascending: false }).limit(3),
       ])
 
       const profileData = profileRes.data as Profile
@@ -399,6 +507,11 @@ export default function PlayerHome() {
       setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5))
       setOpportunities((oppsRes.data as unknown as Opportunity[]) ?? [])
       setNewJoiners((joinersRes.data as NewJoiner[]) ?? [])
+      const rawFeed = (feedRes.data as any[]) ?? []
+      setFeedPosts(rawFeed.map(p => ({
+        ...p,
+        author: Array.isArray(p.author) ? (p.author[0] ?? null) : p.author,
+      })))
 
       // Quick stats
       setStatsViews(viewsRes.count ?? 0)
@@ -530,6 +643,9 @@ export default function PlayerHome() {
 
         {/* Featured Players */}
         <FeaturedCarousel players={featuredPlayers} />
+
+        {/* Feed Preview */}
+        <FeedPreviewSection posts={feedPosts} />
 
         {/* Opportunities */}
         <OpportunitiesPreview opportunities={opportunities} />

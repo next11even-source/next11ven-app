@@ -289,8 +289,7 @@ export default function PlayersPage() {
           .in('role', ['player', 'admin'])
           .eq('approved', true)
           .order('premium', { ascending: false })
-          .order('last_active', { ascending: false, nullsFirst: false })
-          .limit(200),
+          .order('updated_at', { ascending: false, nullsFirst: false }),
         supabase.from('player_views')
           .select('player_id, viewer_id')
           .gte('viewed_at', weekAgo)
@@ -506,9 +505,6 @@ export default function PlayersPage() {
           </div>
         )}
 
-        <p className="text-xs" style={{ color: '#8892aa' }}>
-          {filtered.length === 0 ? '0 players' : `Showing ${showingFrom}–${showingTo} of ${filtered.length} player${filtered.length !== 1 ? 's' : ''}`}
-        </p>
       </div>
 
       {/* Hot Right Now */}
@@ -587,10 +583,7 @@ export default function PlayersPage() {
           })}
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-4" style={{ borderTop: '1px solid #1e2235' }}>
-              <p className="text-xs" style={{ color: '#8892aa' }}>
-                {showingFrom}–{showingTo} of {filtered.length}
-              </p>
+            <div className="flex items-center justify-end px-4 py-4" style={{ borderTop: '1px solid #1e2235' }}>
               <div className="flex gap-2">
                 <button
                   onClick={() => { setPage(p => Math.max(0, p - 1)); window.scrollTo(0, 0) }}

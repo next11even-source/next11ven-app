@@ -228,7 +228,7 @@ export default function BottomNav() {
       icon: <LayoutList size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Opportunities',
+      label: 'Explore',
       href: '/dashboard/player/opportunities',
       exact: false,
       icon: <Briefcase size={22} strokeWidth={1.8} />,
@@ -240,7 +240,7 @@ export default function BottomNav() {
       icon: <MessageCircle size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Notifications',
+      label: 'Alerts',
       href: '/dashboard/player/activity',
       exact: false,
       icon: <Bell size={22} strokeWidth={1.8} />,
@@ -277,10 +277,10 @@ export default function BottomNav() {
       {allTabs.map((tab) => {
         const active = isActive(tab.href, tab.exact)
         const showMessageBadge = tab.label === 'Messages' && unreadMessages > 0
-        const showNotifBadge = tab.label === 'Notifications' && unreadNotifications > 0
+        const showNotifBadge = tab.label === 'Alerts' && unreadNotifications > 0
         const showAdminBadge = tab.label === 'Admin' && pendingSignups > 0
         const showFeedBadge = tab.label === 'Feed' && unseenFeed > 0
-        const showOppsBadge = tab.label === 'Opportunities' && unseenOpps > 0
+        const showOppsBadge = tab.label === 'Explore' && unseenOpps > 0
 
         return (
           <Link

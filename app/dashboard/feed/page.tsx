@@ -154,18 +154,6 @@ export default function FeedPage() {
           <p className="text-sm leading-relaxed" style={{ color: '#8892aa', fontFamily: "'Inter', sans-serif" }}>
             Share what you're doing on the pitch. Post a season review, let clubs know you're available, drop a highlight, or just talk football.
           </p>
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {[
-              { label: 'Highlight', color: '#4d8ae8' },
-              { label: 'Looking for Club', color: '#f59e0b' },
-              { label: 'Season Review', color: '#a78bfa' },
-              { label: 'General', color: '#9ca3af' },
-            ].map(t => (
-              <span key={t.label} className="text-xs px-2 py-1 rounded-lg font-semibold" style={{ backgroundColor: `${t.color}18`, color: t.color, border: `1px solid ${t.color}33`, fontFamily: "'Inter', sans-serif" }}>
-                {t.label}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 

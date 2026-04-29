@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { Bell, Home, LayoutList, MessageCircle, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 
 type Toast = { id: number; text: string; href: string }
@@ -17,7 +18,8 @@ function ToastNotification({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: 
           className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg"
           style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
           <p className="flex-1 text-sm font-semibold" style={{ color: '#e8dece' }}>{t.text}</p>
-          <button onClick={() => { onDismiss(t.id); router.push(t.href) }}
+          <button
+            onClick={() => { onDismiss(t.id); router.push(t.href) }}
             className="text-xs px-3 py-1 rounded-lg flex-shrink-0"
             style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
             View
@@ -37,7 +39,7 @@ export default function CoachBottomNav() {
   const pathname = usePathname()
   const [isCoach, setIsCoach] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
-  const [unreadAlerts, setUnreadAlerts] = useState(0)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastCounter = useRef(0)
   const convIdsRef = useRef<string[]>([])
@@ -55,7 +57,7 @@ export default function CoachBottomNav() {
   useEffect(() => {
     const supabase = createClient()
     let msgSub: ReturnType<typeof supabase.channel> | null = null
-    let alertSub: ReturnType<typeof supabase.channel> | null = null
+    let notifSub: ReturnType<typeof supabase.channel> | null = null
 
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -69,7 +71,7 @@ export default function CoachBottomNav() {
       if (profile?.role !== 'coach') return
       setIsCoach(true)
 
-      // Unread messages — include conversations where this coach is in either slot (coach-to-coach)
+      // Unread messages
       const { data: convs } = await supabase
         .from('conversations')
         .select('id')
@@ -87,13 +89,13 @@ export default function CoachBottomNav() {
         setUnreadMessages(count ?? 0)
       }
 
-      // Unread shortlist alerts
-      const { count: alertCount } = await supabase
-        .from('shortlist_alerts')
+      // Unread notifications
+      const { count: notifCount } = await supabase
+        .from('notifications')
         .select('id', { count: 'exact', head: true })
-        .eq('coach_id', user.id)
+        .eq('recipient_id', user.id)
         .eq('is_read', false)
-      setUnreadAlerts(alertCount ?? 0)
+      setUnreadNotifications(notifCount ?? 0)
 
       // Realtime: new messages
       msgSub = supabase
@@ -117,34 +119,40 @@ export default function CoachBottomNav() {
         })
         .subscribe()
 
-      // Realtime: shortlist alerts
-      alertSub = supabase
-        .channel(`coach-alerts-${user.id}`)
+      // Realtime: new notifications
+      notifSub = supabase
+        .channel(`coach-notifications-${user.id}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
-          table: 'shortlist_alerts',
-          filter: `coach_id=eq.${user.id}`,
-        }, async (payload) => {
-          const alert = payload.new as { player_id: string; new_status: string }
-          setUnreadAlerts(prev => prev + 1)
-          const { data: player } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', alert.player_id)
-            .single()
-          const name = player?.full_name?.split(' ')[0] ?? 'A player'
-          const status = alert.new_status?.replace(/_/g, ' ') ?? 'updated their status'
-          addToast(`${name} is now ${status}`, '/dashboard/coach/shortlists')
+          table: 'notifications',
+          filter: `recipient_id=eq.${user.id}`,
+        }, (payload) => {
+          const n = payload.new as { message: string; type: string }
+          setUnreadNotifications(prev => prev + 1)
+
+          // Route toast to the most relevant page based on notification type
+          let href = '/dashboard/coach'
+          if (n.type === 'new_opportunity_application') href = '/dashboard/coach/opportunities'
+          else if (n.type === 'shortlist_post') href = '/dashboard/feed'
+          else if (n.type === 'shortlist_availability') href = '/dashboard/coach/shortlists'
+
+          addToast(n.message, href)
         })
         .subscribe()
     })
 
     return () => {
       if (msgSub) msgSub.unsubscribe()
-      if (alertSub) alertSub.unsubscribe()
+      if (notifSub) notifSub.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    if (pathname.startsWith('/dashboard/coach/notifications')) {
+      setUnreadNotifications(0)
+    }
+  }, [pathname])
 
   function isActive(href: string, exact: boolean) {
     return exact ? pathname === href : pathname.startsWith(href)
@@ -157,61 +165,36 @@ export default function CoachBottomNav() {
       label: 'Home',
       href: '/dashboard/coach',
       exact: true,
-      badge: null as null | { count: number; color: string; amber?: boolean },
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-          <path d="M9 21V12h6v9" />
-        </svg>
-      ),
+      badge: null as null | { count: number },
+      icon: <Home size={22} strokeWidth={1.8} />,
+    },
+    {
+      label: 'Feed',
+      href: '/dashboard/feed',
+      exact: false,
+      badge: null as null | { count: number },
+      icon: <LayoutList size={22} strokeWidth={1.8} />,
     },
     {
       label: 'Players',
       href: '/dashboard/coach/players',
       exact: false,
-      badge: null as null | { count: number; color: string; amber?: boolean },
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="9" cy="7" r="4" />
-          <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
-        </svg>
-      ),
+      badge: null as null | { count: number },
+      icon: <Users size={22} strokeWidth={1.8} />,
     },
     {
       label: 'Messages',
       href: '/dashboard/coach/messages',
       exact: false,
-      badge: unreadMessages > 0 ? { count: unreadMessages, color: '#ef4444' } : null,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
+      badge: unreadMessages > 0 ? { count: unreadMessages } : null,
+      icon: <MessageCircle size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Opportunities',
-      href: '/dashboard/coach/opportunities',
+      label: 'Notifications',
+      href: '/dashboard/coach/notifications',
       exact: false,
-      badge: null as null | { count: number; color: string; amber?: boolean },
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Shortlists',
-      href: '/dashboard/coach/shortlists',
-      exact: false,
-      badge: unreadAlerts > 0 ? { count: unreadAlerts, color: '#f59e0b', amber: true } : null,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
+      badge: unreadNotifications > 0 ? { count: unreadNotifications } : null,
+      icon: <Bell size={22} strokeWidth={1.8} />,
     },
   ]
 
@@ -228,7 +211,7 @@ export default function CoachBottomNav() {
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        {tabs.map((tab) => {
+        {tabs.map(tab => {
           const active = isActive(tab.href, tab.exact)
           return (
             <Link
@@ -241,10 +224,10 @@ export default function CoachBottomNav() {
                 {tab.icon}
                 {tab.badge && (
                   <span
-                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-xs font-bold"
+                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
                     style={{
-                      backgroundColor: tab.badge.color,
-                      color: tab.badge.amber ? '#0a0a0a' : '#fff',
+                      backgroundColor: '#ef4444',
+                      color: '#fff',
                       fontSize: 10,
                       border: '1.5px solid #0d1020',
                     }}

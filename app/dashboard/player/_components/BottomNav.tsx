@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { Bell, Briefcase, Home, LayoutList, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 
 type Toast = { id: number; text: string; href: string }
@@ -37,8 +38,10 @@ export default function BottomNav() {
   const pathname = usePathname()
   const [isAdmin, setIsAdmin] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
-  const [hasNewActivity, setHasNewActivity] = useState(false)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [pendingSignups, setPendingSignups] = useState(0)
+  const [unseenFeed, setUnseenFeed] = useState(0)
+  const [unseenOpps, setUnseenOpps] = useState(0)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastCounter = useRef(0)
   const userIdRef = useRef<string | null>(null)
@@ -57,6 +60,7 @@ export default function BottomNav() {
   useEffect(() => {
     const supabase = createClient()
     let messageSub: ReturnType<typeof supabase.channel> | null = null
+    let notifSub: ReturnType<typeof supabase.channel> | null = null
     let signupSub: ReturnType<typeof supabase.channel> | null = null
 
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -72,7 +76,7 @@ export default function BottomNav() {
       const admin = profile?.role === 'admin'
       setIsAdmin(admin)
 
-      // Unread message count — conversations where this user is the player
+      // Unread messages
       const { data: convs } = await supabase
         .from('conversations')
         .select('id')
@@ -91,17 +95,34 @@ export default function BottomNav() {
         setUnreadMessages(count ?? 0)
       }
 
-      // New profile views since last_active
-      if (profile?.last_active) {
-        const { count: viewCount } = await supabase
-          .from('player_views')
-          .select('id', { count: 'exact', head: true })
-          .eq('player_id', user.id)
-          .gt('viewed_at', profile.last_active)
-        setHasNewActivity((viewCount ?? 0) > 0)
-      }
+      // Unread notifications
+      const { count: notifCount } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false)
+      setUnreadNotifications(notifCount ?? 0)
 
-      // Admin: fetch current pending count
+      // Unseen feed posts since last visit
+      const feedLastSeen = (typeof window !== 'undefined' && localStorage.getItem('n11v_feed_last_seen')) || new Date(0).toISOString()
+      const { count: feedCount } = await supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_deleted', false)
+        .gt('created_at', feedLastSeen)
+        .neq('author_id', user.id)
+      setUnseenFeed(feedCount ?? 0)
+
+      // Unseen opportunities since last visit
+      const oppsLastSeen = (typeof window !== 'undefined' && localStorage.getItem('n11v_opps_last_seen')) || new Date(0).toISOString()
+      const { count: oppsCount } = await supabase
+        .from('opportunities')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .gt('created_at', oppsLastSeen)
+      setUnseenOpps(oppsCount ?? 0)
+
+      // Admin: pending signups
       if (admin) {
         const { count: pendingCount } = await supabase
           .from('profiles')
@@ -132,7 +153,22 @@ export default function BottomNav() {
         })
         .subscribe()
 
-      // Admin realtime: new profile sign-ups
+      // Realtime: new notifications
+      notifSub = supabase
+        .channel(`player-notifications-${user.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_id=eq.${user.id}`,
+        }, (payload) => {
+          const n = payload.new as { message: string }
+          setUnreadNotifications(prev => prev + 1)
+          addToast(n.message, '/dashboard/player/activity')
+        })
+        .subscribe()
+
+      // Admin realtime: new sign-ups
       if (admin) {
         signupSub = supabase
           .channel(`admin-signups-${user.id}`)
@@ -153,9 +189,25 @@ export default function BottomNav() {
 
     return () => {
       if (messageSub) messageSub.unsubscribe()
+      if (notifSub) notifSub.unsubscribe()
       if (signupSub) signupSub.unsubscribe()
     }
   }, [])
+
+  // Clear badges when the user lands on the respective pages
+  useEffect(() => {
+    if (pathname.startsWith('/dashboard/feed')) {
+      localStorage.setItem('n11v_feed_last_seen', new Date().toISOString())
+      setUnseenFeed(0)
+    }
+    if (pathname.startsWith('/dashboard/player/opportunities') || pathname.startsWith('/dashboard/player/market')) {
+      localStorage.setItem('n11v_opps_last_seen', new Date().toISOString())
+      setUnseenOpps(0)
+    }
+    if (pathname.startsWith('/dashboard/player/activity')) {
+      setUnreadNotifications(0)
+    }
+  }, [pathname])
 
   function isActive(href: string, exact: boolean) {
     if (exact) return pathname === href
@@ -167,43 +219,31 @@ export default function BottomNav() {
       label: 'Home',
       href: '/dashboard/player',
       exact: true,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-          <path d="M9 21V12h6v9" />
-        </svg>
-      ),
+      icon: <Home size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Messages',
-      href: '/dashboard/player/messages',
+      label: 'Feed',
+      href: '/dashboard/feed',
       exact: false,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
+      icon: <LayoutList size={22} strokeWidth={1.8} />,
     },
     {
       label: 'Opportunities',
       href: '/dashboard/player/opportunities',
       exact: false,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      ),
+      icon: <Briefcase size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Activity',
+      label: 'Messages',
+      href: '/dashboard/player/messages',
+      exact: false,
+      icon: <MessageCircle size={22} strokeWidth={1.8} />,
+    },
+    {
+      label: 'Notifications',
       href: '/dashboard/player/activity',
       exact: false,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-        </svg>
-      ),
+      icon: <Bell size={22} strokeWidth={1.8} />,
     },
   ]
 
@@ -237,8 +277,10 @@ export default function BottomNav() {
       {allTabs.map((tab) => {
         const active = isActive(tab.href, tab.exact)
         const showMessageBadge = tab.label === 'Messages' && unreadMessages > 0
-        const showActivityBadge = tab.label === 'Activity' && hasNewActivity
+        const showNotifBadge = tab.label === 'Notifications' && unreadNotifications > 0
         const showAdminBadge = tab.label === 'Admin' && pendingSignups > 0
+        const showFeedBadge = tab.label === 'Feed' && unseenFeed > 0
+        const showOppsBadge = tab.label === 'Opportunities' && unseenOpps > 0
 
         return (
           <Link
@@ -255,14 +297,28 @@ export default function BottomNav() {
                   {unreadMessages > 9 ? '9+' : unreadMessages}
                 </span>
               )}
-              {showActivityBadge && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse"
-                  style={{ backgroundColor: '#f87171', border: '1.5px solid #0d1020' }} />
+              {showNotifBadge && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{ backgroundColor: '#ef4444', color: '#fff', fontSize: 10, border: '1.5px solid #0d1020' }}>
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
               )}
               {showAdminBadge && (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
                   style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10, border: '1.5px solid #0d1020' }}>
                   {pendingSignups > 9 ? '9+' : pendingSignups}
+                </span>
+              )}
+              {showFeedBadge && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
+                  style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10, border: '1.5px solid #0d1020' }}>
+                  {unseenFeed > 9 ? '9+' : unseenFeed}
+                </span>
+              )}
+              {showOppsBadge && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
+                  style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10, border: '1.5px solid #0d1020' }}>
+                  {unseenOpps > 9 ? '9+' : unseenOpps}
                 </span>
               )}
             </div>

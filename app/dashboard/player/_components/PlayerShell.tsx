@@ -5,12 +5,14 @@ import { createClient } from '@/lib/supabase-browser'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import InstallBanner from '@/app/components/InstallBanner'
 
 type SidebarProfile = {
   full_name: string | null
   avatar_url: string | null
   position: string | null
+  coaching_role: string | null
 }
 
 export default function PlayerShell({ children }: { children: React.ReactNode }) {
@@ -35,7 +37,7 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
       if (!user) return
       supabase
         .from('profiles')
-        .select('full_name, avatar_url, position, role, password_set_at')
+        .select('full_name, avatar_url, position, role, coaching_role, password_set_at')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
@@ -55,7 +57,10 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
 
   return (
     <>
-      {!isCoach && <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)} profile={profile} />}
+      {isCoach
+        ? <CoachSidebar isOpen={isOpen} onClose={() => setIsOpen(false)} profile={profile} />
+        : <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)} profile={profile} />
+      }
       <div style={{ paddingBottom: '72px' }}>
         {children}
       </div>

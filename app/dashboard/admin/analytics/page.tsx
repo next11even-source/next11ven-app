@@ -52,10 +52,12 @@ type Stats = {
   newConversations: number
   profileViews: number
   applicationsSubmitted: number
+  postsSent: number
   // Time series
   signupSeries: DayPoint[]
   messageSeries: DayPoint[]
   viewSeries: DayPoint[]
+  postSeries: DayPoint[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -373,6 +375,7 @@ export default function AnalyticsPage() {
     let convsQ = supabase.from('conversations').select('created_at', { count: 'exact' })
     let viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
     let appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
+    let postsQ = supabase.from('posts').select('created_at', { count: 'exact' }).eq('is_deleted', false)
 
     if (sinceIso) {
       signupsQ = signupsQ.gte('created_at', sinceIso)
@@ -380,21 +383,24 @@ export default function AnalyticsPage() {
       convsQ = convsQ.gte('created_at', sinceIso)
       viewsQ = viewsQ.gte('viewed_at', sinceIso)
       appsQ = appsQ.gte('created_at', sinceIso)
+      postsQ = postsQ.gte('created_at', sinceIso)
     }
 
     // Cap at 1000 rows for time series (avoids Supabase page limit silently truncating)
     signupsQ = signupsQ.limit(1000)
     msgsQ = msgsQ.limit(1000)
     viewsQ = viewsQ.limit(1000)
+    postsQ = postsQ.limit(1000)
 
-    const [signupsRes, msgsRes, convsRes, viewsRes, appsRes] = await Promise.all([
-      signupsQ, msgsQ, convsQ, viewsQ, appsQ,
+    const [signupsRes, msgsRes, convsRes, viewsRes, appsRes, postsRes] = await Promise.all([
+      signupsQ, msgsQ, convsQ, viewsQ, appsQ, postsQ,
     ])
 
     // ── Time series ──────────────────────────────────────────────────────────
     const signupTs = (signupsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
     const msgTs = (msgsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
     const viewTs = (viewsRes.data ?? []).map((r: { viewed_at: string }) => r.viewed_at)
+    const postTs = (postsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
 
     setStats({
       totalUsers: totalUsers ?? 0,
@@ -414,9 +420,11 @@ export default function AnalyticsPage() {
       newConversations: convsRes.count ?? 0,
       profileViews: viewsRes.count ?? 0,
       applicationsSubmitted: appsRes.count ?? 0,
+      postsSent: postsRes.count ?? 0,
       signupSeries: buildSeries(signupTs, p),
       messageSeries: buildSeries(msgTs, p),
       viewSeries: buildSeries(viewTs, p),
+      postSeries: buildSeries(postTs, p),
     })
     setLoading(false)
   }
@@ -654,6 +662,7 @@ export default function AnalyticsPage() {
               <StatCard label="New Conversations" value={stats.newConversations} color="#a78bfa" />
               <StatCard label="Profile Views" value={stats.profileViews} color="#60a5fa" />
               <StatCard label="Applications" value={stats.applicationsSubmitted} color="#f59e0b" />
+              <StatCard label="Posts" value={stats.postsSent} color="#34d399" />
             </div>
           </section>
 
@@ -678,35 +687,12 @@ export default function AnalyticsPage() {
               color="#60a5fa"
               total={stats.profileViews}
             />
-          </section>
-
-          {/* Vercel Analytics */}
-          <section>
-            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Vercel Analytics</p>
-            <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#22c55e' }} />
-                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Installed and collecting data</p>
-              </div>
-              <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
-                Vercel Analytics runs in the browser and tracks what the database can't — page views, unique visitors, geography, devices, referrers, and Web Vitals (load speed, layout shift). View it in your Vercel project dashboard under the Analytics tab.
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {[
-                  { label: 'Page views', desc: 'Every route visited' },
-                  { label: 'Unique visitors', desc: 'Deduplicated by device' },
-                  { label: 'Top pages', desc: 'Where users spend time' },
-                  { label: 'Geography', desc: 'Country / region breakdown' },
-                  { label: 'Referrers', desc: 'Where traffic comes from' },
-                  { label: 'Web Vitals', desc: 'LCP, CLS, FCP scores' },
-                ].map(({ label, desc }) => (
-                  <div key={label} className="rounded-lg px-3 py-2" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                    <p className="font-semibold" style={{ color: '#e8dece' }}>{label}</p>
-                    <p style={{ color: '#8892aa' }}>{desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ChartCard
+              title="Community Posts"
+              data={stats.postSeries}
+              color="#34d399"
+              total={stats.postsSent}
+            />
           </section>
 
           {/* Message Log */}

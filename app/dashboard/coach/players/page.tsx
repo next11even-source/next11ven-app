@@ -61,7 +61,7 @@ export default function CoachPlayersPage() {
       .in('role', ['player', 'admin'])
       .eq('approved', true)
       .order('premium', { ascending: false })
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false, nullsFirst: false })
       .then(({ data }) => {
         setPlayers((data as Player[]) ?? [])
         setLoading(false)
@@ -180,12 +180,6 @@ export default function CoachPlayersPage() {
         )}
       </div>
 
-      {/* Results count */}
-      <div className="px-4 pt-3 pb-1">
-        <p className="text-xs" style={{ color: '#8892aa' }}>
-          {loading ? 'Loading…' : `${filtered.length} player${filtered.length !== 1 ? 's' : ''}`}
-        </p>
-      </div>
 
       {/* List */}
       {loading ? (
@@ -244,10 +238,7 @@ export default function CoachPlayersPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-1 pb-2">
-              <p className="text-xs" style={{ color: '#8892aa' }}>
-                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
-              </p>
+            <div className="flex items-center justify-end pt-1 pb-2">
               <div className="flex gap-2">
                 <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
                   className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"

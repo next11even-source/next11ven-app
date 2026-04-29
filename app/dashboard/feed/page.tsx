@@ -148,6 +148,9 @@ export default function FeedPage() {
       {/* Intro banner */}
       <div className="px-4 pt-4">
         <div className="rounded-2xl px-4 py-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 17, fontWeight: 700, color: '#e8dece', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            New Feature 🔥
+          </p>
           <p className="text-sm leading-relaxed" style={{ color: '#8892aa', fontFamily: "'Inter', sans-serif" }}>
             Share what you're doing on the pitch. Post a season review, let clubs know you're available, drop a highlight, or just talk football.
           </p>

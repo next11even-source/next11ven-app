@@ -689,7 +689,7 @@ export default function AnalyticsPage() {
                         </p>
                       </div>
                       <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
-                        {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         {' '}
                         {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                       </p>

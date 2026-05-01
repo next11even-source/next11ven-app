@@ -227,6 +227,7 @@ function MessagesInner() {
   const [playerId, setPlayerId] = useState('')
   const [playerIsPremium, setPlayerIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [quotaData, setQuotaData] = useState<{ messagesUsed: number; messagesLimit: number; periodEnd: string | null } | null>(null)
 
   useEffect(() => {
     load()
@@ -242,7 +243,15 @@ function MessagesInner() {
       supabase.from('profiles').select('premium').eq('id', user.id).single(),
       supabase.from('conversations').select('id, coach_id, last_message_at, initiated_by').eq('player_id', user.id).order('last_message_at', { ascending: false }),
     ])
-    setPlayerIsPremium(profileRes.data?.premium ?? false)
+    const isPremium = profileRes.data?.premium ?? false
+    setPlayerIsPremium(isPremium)
+
+    if (isPremium) {
+      fetch('/api/messages/quota')
+        .then(r => r.json())
+        .then(d => setQuotaData({ messagesUsed: d.messagesUsed ?? 0, messagesLimit: d.messagesLimit ?? 5, periodEnd: d.periodEnd ?? null }))
+        .catch(() => {})
+    }
 
     const data = convsRes.data
     if (!data || data.length === 0) { setLoading(false); return }
@@ -331,6 +340,24 @@ function MessagesInner() {
           </span>
         )}
       </div>
+
+      {/* Quota indicator — premium players only */}
+      {playerIsPremium && quotaData && (
+        <div className="mx-4 mt-3 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-xs" style={{ color: '#8892aa' }}>
+            Coach messages:{' '}
+            <span style={{ color: '#e8dece', fontWeight: 600 }}>
+              {quotaData.messagesUsed} / {quotaData.messagesLimit} used
+            </span>
+          </p>
+          {quotaData.periodEnd && (
+            <p className="text-xs flex-shrink-0" style={{ color: '#8892aa' }}>
+              Resets {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Alert banner for locked messages */}
       {lockedUnread > 0 && (

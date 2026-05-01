@@ -33,6 +33,14 @@ type Opportunity = {
 type ViewerProfile = {
   id: string
   role: string
+  premium: boolean
+}
+
+type QuotaData = {
+  messagesUsed: number
+  messagesLimit: number
+  periodEnd: string | null
+  hasExisting: boolean
 }
 
 function isActiveThisWeek(lastActive: string | null) {
@@ -61,6 +69,10 @@ export default function CoachPublicProfile() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const [quotaData, setQuotaData] = useState<QuotaData | null>(null)
+  const [quotaLoading, setQuotaLoading] = useState(true)
+  const [initiating, setInitiating] = useState(false)
+
   const [toast, setToast] = useState('')
 
   useEffect(() => {
@@ -79,7 +91,7 @@ export default function CoachPublicProfile() {
             .single(),
           supabase
             .from('profiles')
-            .select('id, role')
+            .select('id, role, premium')
             .eq('id', user.id)
             .single(),
           supabase
@@ -97,13 +109,13 @@ export default function CoachPublicProfile() {
           return
         }
 
+        const viewerProfile = viewerRes.data as ViewerProfile
         setCoach(coachRes.data as CoachProfile)
-        setViewer(viewerRes.data as ViewerProfile)
+        setViewer(viewerProfile)
         setOpportunities((oppsRes.data ?? []) as Opportunity[])
         setLoading(false)
 
         // Track this view — skip if the coach is viewing their own profile
-        const viewerProfile = viewerRes.data as ViewerProfile
         if (viewerProfile && viewerProfile.id !== id) {
           supabase.from('player_views').insert({
             player_id: id,
@@ -112,16 +124,70 @@ export default function CoachPublicProfile() {
             viewed_at: new Date().toISOString(),
           }).then(() => {})
         }
+
+        // Load quota + existing conversation check for players viewing another profile
+        const viewerIsPlayer = viewerProfile?.role === 'player' || viewerProfile?.role === 'admin'
+        if (viewerIsPlayer && viewerProfile.id !== id) {
+          setQuotaLoading(true)
+          const [quotaRes, existingConvRes] = await Promise.all([
+            fetch('/api/messages/quota').then(r => r.json()),
+            supabase
+              .from('conversations')
+              .select('id')
+              .eq('coach_id', id)
+              .eq('player_id', user.id)
+              .limit(1)
+              .maybeSingle(),
+          ])
+          setQuotaData({
+            messagesUsed: quotaRes.messagesUsed ?? 0,
+            messagesLimit: quotaRes.messagesLimit ?? 5,
+            periodEnd: quotaRes.periodEnd ?? null,
+            hasExisting: !!existingConvRes.data,
+          })
+          setQuotaLoading(false)
+        } else {
+          setQuotaLoading(false)
+        }
       } catch (err) {
         console.error('Error loading coach profile:', err)
         setLoadError('Something went wrong loading this profile.')
         setLoading(false)
+        setQuotaLoading(false)
       }
     }
     load()
   }, [id])
 
-if (loading) {
+  async function handleInitiate() {
+    if (initiating) return
+    setInitiating(true)
+    try {
+      const res = await fetch('/api/messages/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: id }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        router.push('/dashboard/player/messages')
+        return
+      }
+      if (data.error === 'QUOTA_EXHAUSTED') {
+        setToast('No messages remaining this month.')
+        setTimeout(() => setToast(''), 3000)
+      } else {
+        setToast('Something went wrong. Please try again.')
+        setTimeout(() => setToast(''), 3000)
+      }
+    } catch {
+      setToast('Something went wrong. Please try again.')
+      setTimeout(() => setToast(''), 3000)
+    }
+    setInitiating(false)
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
@@ -144,6 +210,7 @@ if (loading) {
   const subtitle = [coach.coaching_role, coach.club].filter(Boolean).join(' · ') || 'Coach'
   const isOwnProfile = viewer?.id === coach.id
   const viewerIsPlayer = viewer?.role === 'player' || viewer?.role === 'admin'
+  const firstName = coach.full_name?.split(' ')[0] ?? 'Coach'
 
   const backHref = viewerIsPlayer ? '/dashboard/player' : '/dashboard/coach'
   const backLabel = viewerIsPlayer ? 'Home' : 'Home'
@@ -202,6 +269,99 @@ if (loading) {
             style={{ border: '1px solid #2d5fc4', color: '#2d5fc4', textDecoration: 'none' }}>
             Edit Your Profile
           </Link>
+        )}
+
+        {/* Message section for players */}
+        {viewerIsPlayer && !isOwnProfile && (
+          <div className="w-full mt-5 px-2">
+
+            {/* State A: free player */}
+            {!viewer?.premium && (
+              <div className="flex flex-col items-center gap-2">
+                <Link
+                  href="/dashboard/player/premium"
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
+                  style={{ border: '1px solid #1e2235', backgroundColor: '#13172a', color: '#e8dece', textDecoration: 'none' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  Message {firstName} — Premium Only
+                </Link>
+                <p className="text-xs" style={{ color: '#8892aa' }}>
+                  Upgrade to Player Premium to message coaches directly
+                </p>
+              </div>
+            )}
+
+            {/* State B: premium, quota loading */}
+            {viewer?.premium && quotaLoading && (
+              <div className="flex items-center justify-center py-3">
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+              </div>
+            )}
+
+            {/* States C / D / E: premium, quota loaded */}
+            {viewer?.premium && !quotaLoading && quotaData && (
+
+              <>
+                {/* State C: existing conversation */}
+                {quotaData.hasExisting && (
+                  <div className="flex flex-col items-center gap-2">
+                    <Link
+                      href="/dashboard/player/messages"
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
+                      style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+                      Continue Conversation →
+                    </Link>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      You already have an open thread with this coach
+                    </p>
+                  </div>
+                )}
+
+                {/* State D: quota available */}
+                {!quotaData.hasExisting && quotaData.messagesUsed < quotaData.messagesLimit && (
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      onClick={handleInitiate}
+                      disabled={initiating}
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-colors"
+                      style={{ backgroundColor: initiating ? '#1e2a4a' : '#2d5fc4', color: '#fff' }}>
+                      {initiating ? 'Opening…' : 'Message Coach'}
+                    </button>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      {quotaData.messagesUsed} of {quotaData.messagesLimit} messages used this month
+                      {quotaData.periodEnd && (
+                        <> · Resets {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* State E: quota exhausted */}
+                {!quotaData.hasExisting && quotaData.messagesUsed >= quotaData.messagesLimit && (
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      disabled
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold cursor-not-allowed"
+                      style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>
+                      No messages remaining this month
+                    </button>
+                    {quotaData.periodEnd && (
+                      <p className="text-xs" style={{ color: '#8892aa' }}>
+                        Resets on {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    )}
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      Need more? Additional message packs coming soon.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -266,7 +426,7 @@ if (loading) {
               <rect x="5" y="2" width="14" height="20" rx="2" /><path d="M12 18h.01" />
             </svg>
             <p className="text-xs" style={{ color: '#8892aa' }}>
-              Phone &amp; email are private. Use the message button to make contact.
+              Phone &amp; email are private. Premium players can message coaches directly.
             </p>
           </div>
         )}

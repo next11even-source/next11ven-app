@@ -157,8 +157,30 @@ async function handleSubscriptionChange(
     role: role ?? null,
     status: sub.status,
     cancel_at_period_end: sub.cancel_at_period_end,
+    current_period_start: sub.items.data[0]?.current_period_start
+      ? new Date(sub.items.data[0].current_period_start * 1000).toISOString()
+      : null,
+    current_period_end: sub.items.data[0]?.current_period_end
+      ? new Date(sub.items.data[0].current_period_end * 1000).toISOString()
+      : null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'stripe_subscription_id' })
+
+  // Upsert quota row for premium players on each subscription event
+  const profileRole = role ?? existingProfile?.role
+  const isPlayerRole = profileRole === 'player' || profileRole === 'admin'
+  if (isActive && isPlayerRole && sub.items.data[0]?.current_period_start) {
+    const periodStart = new Date(sub.items.data[0].current_period_start * 1000).toISOString()
+    const periodEnd = new Date(sub.items.data[0].current_period_end * 1000).toISOString()
+    await supabase.from('player_message_quota').upsert({
+      player_id: userId,
+      period_start: periodStart,
+      period_end: periodEnd,
+      messages_used: 0,
+      messages_limit: 5,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'player_id,period_start', ignoreDuplicates: true })
+  }
 }
 
 async function handleSubscriptionDeleted(

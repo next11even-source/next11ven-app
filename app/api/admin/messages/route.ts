@@ -81,5 +81,7 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  messages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
   return NextResponse.json({ messages, total: count ?? 0 })
 }

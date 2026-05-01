@@ -61,9 +61,6 @@ export default function CoachPublicProfile() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [showDMInput, setShowDMInput] = useState(false)
-  const [dmText, setDmText] = useState('')
-  const [dmSending, setDmSending] = useState(false)
   const [toast, setToast] = useState('')
 
   useEffect(() => {
@@ -124,34 +121,7 @@ export default function CoachPublicProfile() {
     load()
   }, [id])
 
-  async function handleSendDM(e: React.FormEvent) {
-    e.preventDefault()
-    if (!dmText.trim()) return
-    setDmSending(true)
-    try {
-      const res = await fetch('/api/messages/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coach_id: id, content: dmText.trim() }),
-      })
-      const data = await res.json()
-      if (data.error) {
-        setToast(`Error: ${data.error}`)
-        setTimeout(() => setToast(''), 3000)
-      } else {
-        setDmText('')
-        setShowDMInput(false)
-        setToast('Message sent ✓')
-        setTimeout(() => setToast(''), 2500)
-      }
-    } catch {
-      setToast('Failed to send — please try again')
-      setTimeout(() => setToast(''), 3000)
-    }
-    setDmSending(false)
-  }
-
-  if (loading) {
+if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
@@ -224,46 +194,6 @@ export default function CoachPublicProfile() {
           {coach.full_name ?? 'Coach'}
         </h1>
         <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>{subtitle}</p>
-
-        {/* Message button — players only, not own profile */}
-        {!isOwnProfile && viewerIsPlayer && (
-          <div className="w-full mt-5 px-2">
-            {showDMInput ? (
-              <form onSubmit={handleSendDM} className="space-y-2">
-                <textarea
-                  autoFocus
-                  value={dmText}
-                  onChange={e => setDmText(e.target.value)}
-                  placeholder={`Message ${coach.full_name?.split(' ')[0] ?? 'coach'}…`}
-                  rows={3}
-                  className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-none"
-                  style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#e8dece' }}
-                />
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowDMInput(false)}
-                    className="flex-1 py-3 rounded-2xl text-sm font-bold"
-                    style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={!dmText.trim() || dmSending}
-                    className="flex-1 py-3 rounded-2xl text-sm font-bold"
-                    style={{ backgroundColor: dmText.trim() ? '#2d5fc4' : '#1e2235', color: '#fff' }}>
-                    {dmSending ? 'Sending…' : 'Send Message'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <button onClick={() => setShowDMInput(true)}
-                className="w-full py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                Message Coach
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Own profile edit shortcut */}
         {isOwnProfile && (

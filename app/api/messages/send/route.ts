@@ -105,6 +105,11 @@ export async function POST(req: NextRequest) {
     .eq('player_id', convPlayerId)
     .maybeSingle()
 
+  // Players can only reply — they cannot start new conversations with coaches
+  if (senderIsPlayer && !existingConv) {
+    return NextResponse.json({ error: 'Players cannot initiate conversations with coaches' }, { status: 403 })
+  }
+
   let conversationId = existingConv?.id
 
   if (!conversationId) {

@@ -252,62 +252,11 @@ export default function AnalyticsPage() {
 
   async function loadMsgLog(page: number) {
     setMsgLoading(true)
-    const supabase = createClient()
-    const offset = page * MSG_PAGE_SIZE
-
-    const { data: msgs, count } = await supabase
-      .from('messages')
-      .select('id, content, created_at, sender_id, conversation_id, conversations(coach_id, player_id)', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + MSG_PAGE_SIZE - 1)
-
-    if (!msgs || msgs.length === 0) {
-      setMsgLog([])
-      setMsgTotal(count ?? 0)
-      setMsgLoading(false)
-      return
-    }
-
-    setMsgTotal(count ?? 0)
-
-    type ConvRow = { coach_id: string; player_id: string }
-
-    const userIds = [...new Set(msgs.flatMap(m => {
-      const raw = m.conversations
-      const conv = (Array.isArray(raw) ? raw[0] : raw) as ConvRow | null | undefined
-      if (!conv) return [m.sender_id]
-      return [m.sender_id, conv.coach_id, conv.player_id]
-    }))]
-
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, club, role')
-      .in('id', userIds)
-
-    const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
-
-    const entries: MessageEntry[] = msgs.map(m => {
-      const raw = m.conversations
-      const conv = (Array.isArray(raw) ? raw[0] : raw) as ConvRow | null | undefined
-      const sender = profileMap[m.sender_id] as { full_name: string | null; club: string | null; role: string | null } | undefined
-      const otherId = conv
-        ? (conv.coach_id === m.sender_id ? conv.player_id : conv.coach_id)
-        : null
-      const other = otherId ? profileMap[otherId] as { full_name: string | null; club: string | null; role: string | null } | undefined : undefined
-      return {
-        id: m.id,
-        content: m.content,
-        created_at: m.created_at,
-        sender_name: sender?.full_name ?? null,
-        sender_club: sender?.club ?? null,
-        sender_role: sender?.role ?? null,
-        other_name: other?.full_name ?? null,
-        other_club: other?.club ?? null,
-        other_role: other?.role ?? null,
-      }
-    })
-
-    setMsgLog(entries)
+    const res = await fetch(`/api/admin/messages?page=${page}`)
+    if (!res.ok) { setMsgLoading(false); return }
+    const data = await res.json()
+    setMsgLog(data.messages ?? [])
+    setMsgTotal(data.total ?? 0)
     setMsgLoading(false)
   }
 
@@ -371,34 +320,31 @@ export default function AnalyticsPage() {
 
     // ── In-period counts ─────────────────────────────────────────────────────
     let signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
-    let msgsQ = supabase.from('messages').select('created_at', { count: 'exact' })
-    let convsQ = supabase.from('conversations').select('created_at', { count: 'exact' })
     let viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
     let appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
     let postsQ = supabase.from('posts').select('created_at', { count: 'exact' }).eq('is_deleted', false)
 
     if (sinceIso) {
       signupsQ = signupsQ.gte('created_at', sinceIso)
-      msgsQ = msgsQ.gte('created_at', sinceIso)
-      convsQ = convsQ.gte('created_at', sinceIso)
       viewsQ = viewsQ.gte('viewed_at', sinceIso)
       appsQ = appsQ.gte('created_at', sinceIso)
       postsQ = postsQ.gte('created_at', sinceIso)
     }
 
-    // Cap at 1000 rows for time series (avoids Supabase page limit silently truncating)
     signupsQ = signupsQ.limit(1000)
-    msgsQ = msgsQ.limit(1000)
     viewsQ = viewsQ.limit(1000)
     postsQ = postsQ.limit(1000)
 
-    const [signupsRes, msgsRes, convsRes, viewsRes, appsRes, postsRes] = await Promise.all([
-      signupsQ, msgsQ, convsQ, viewsQ, appsQ, postsQ,
+    const msgStatsUrl = `/api/admin/message-stats${sinceIso ? `?since=${encodeURIComponent(sinceIso)}` : ''}`
+
+    const [signupsRes, viewsRes, appsRes, postsRes, msgStatsRes] = await Promise.all([
+      signupsQ, viewsQ, appsQ, postsQ,
+      fetch(msgStatsUrl).then(r => r.json()),
     ])
 
     // ── Time series ──────────────────────────────────────────────────────────
     const signupTs = (signupsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
-    const msgTs = (msgsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
+    const msgTs: string[] = msgStatsRes.messageTimestamps ?? []
     const viewTs = (viewsRes.data ?? []).map((r: { viewed_at: string }) => r.viewed_at)
     const postTs = (postsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
 
@@ -416,8 +362,8 @@ export default function AnalyticsPage() {
       claimedPlayers: claimedPlayersCount,
       claimedCoaches: claimedCoachesCount,
       newSignups: signupsRes.count ?? 0,
-      messagesSent: msgsRes.count ?? 0,
-      newConversations: convsRes.count ?? 0,
+      messagesSent: msgStatsRes.messagesSent ?? 0,
+      newConversations: msgStatsRes.newConversations ?? 0,
       profileViews: viewsRes.count ?? 0,
       applicationsSubmitted: appsRes.count ?? 0,
       postsSent: postsRes.count ?? 0,

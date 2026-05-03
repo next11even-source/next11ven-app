@@ -101,7 +101,7 @@ export default function CoachPremiumPage() {
 
         <div className="px-4 space-y-5">
           {/* Hero card */}
-          <div className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #0a2e1a 0%, #16a34a 60%, #14532d 100%)', padding: '28px 24px' }}>
+          <div className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #2d5fc4 60%, #1a3070 100%)', padding: '28px 24px' }}>
             <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10" style={{ backgroundColor: '#fff' }} />
             <div className="absolute -bottom-10 -left-6 w-28 h-28 rounded-full opacity-10" style={{ backgroundColor: '#fff' }} />
 
@@ -158,8 +158,8 @@ export default function CoachPremiumPage() {
           {/* CTA */}
           {premium ? (
             <div className="space-y-3">
-              <div className="rounded-2xl p-4 flex items-start gap-3" style={{ backgroundColor: '#0a1f12', border: '1px solid rgba(22,163,74,0.4)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+              <div className="rounded-2xl p-4 flex items-start gap-3" style={{ backgroundColor: '#0d1428', border: '1px solid rgba(45,95,196,0.4)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 <p className="text-sm" style={{ color: '#8892aa' }}>
@@ -193,7 +193,7 @@ export default function CoachPremiumPage() {
               onClick={handleCheckout}
               disabled={checkoutLoading}
               className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-center font-black text-base uppercase tracking-widest disabled:opacity-60"
-              style={{ backgroundColor: '#16a34a', color: '#fff', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.08em' }}
+              style={{ backgroundColor: '#2d5fc4', color: '#fff', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.08em' }}
             >
               {checkoutLoading ? (
                 <span className="flex items-center gap-2">

@@ -312,8 +312,8 @@ export default function PostCard({
         {/* Image */}
         {post.image_url && (
           <div style={{ padding: '0 16px 12px' }}>
-            <div style={{ aspectRatio: '4 / 5', overflow: 'hidden', borderRadius: 10 }}>
-              <img src={post.image_url} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ maxHeight: 360, maxWidth: 420, overflow: 'hidden', borderRadius: 10 }}>
+              <img src={post.image_url} alt="" style={{ display: 'block', width: '100%', height: 'auto' }} />
             </div>
           </div>
         )}

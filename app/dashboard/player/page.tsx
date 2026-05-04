@@ -409,7 +409,7 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
               style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', backgroundColor: '#13172a', textDecoration: 'none' }}
             >
               {/* Image or gradient placeholder */}
-              <div className="relative flex-shrink-0" style={{ height: 96, backgroundColor: '#0d1020' }}>
+              <div className="relative flex-shrink-0" style={{ aspectRatio: '4 / 5', backgroundColor: '#0d1020' }}>
                 {post.image_url ? (
                   <img src={post.image_url} alt="" className="w-full h-full object-cover" />
                 ) : (

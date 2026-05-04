@@ -73,7 +73,10 @@ export async function POST(req: NextRequest) {
     })
     .eq('id', user_id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[Admin] review update error:', error)
+    return NextResponse.json({ error: 'Failed to update approval status' }, { status: 500 })
+  }
 
   // Fire MailerLite — awaited so it completes before the serverless function returns
   if (isApproving && target?.email) {

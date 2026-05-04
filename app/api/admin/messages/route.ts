@@ -40,7 +40,10 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[Admin] messages fetch error:', error)
+    return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 })
+  }
 
   if (!msgs || msgs.length === 0) {
     return NextResponse.json({ messages: [], total: count ?? 0 })

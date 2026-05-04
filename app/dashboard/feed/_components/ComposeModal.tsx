@@ -2,14 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
-import type { PostType, PostWithAuthor } from '@/types/feed'
-
-const POST_TYPES: { value: PostType; label: string; color: string }[] = [
-  { value: 'highlight',        label: 'Highlight',        color: '#4d8ae8' },
-  { value: 'looking_for_club', label: 'Looking for Club', color: '#f59e0b' },
-  { value: 'season_review',    label: 'Season Review',    color: '#a78bfa' },
-  { value: 'general',          label: 'General',          color: '#9ca3af' },
-]
+import type { PostWithAuthor } from '@/types/feed'
 
 export default function ComposeModal({
   userId,
@@ -20,7 +13,7 @@ export default function ComposeModal({
   onClose: () => void
   onPost: (post: PostWithAuthor) => void
 }) {
-  const [postType, setPostType] = useState<PostType>('general')
+  const [postType] = useState('general')
   const [caption, setCaption] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -112,28 +105,6 @@ export default function ComposeModal({
           <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 700, color: '#e8dece', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 20 }}>
             New Post
           </h2>
-
-          {/* Post type pills */}
-          <div className="flex flex-wrap gap-2 mb-5">
-            {POST_TYPES.map(pt => {
-              const active = postType === pt.value
-              return (
-                <button
-                  key={pt.value}
-                  onClick={() => setPostType(pt.value)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={{
-                    border: `1px solid ${active ? pt.color : '#1e2235'}`,
-                    backgroundColor: active ? `${pt.color}22` : 'transparent',
-                    color: active ? pt.color : '#8892aa',
-                    fontFamily: "'Inter', sans-serif",
-                  }}
-                >
-                  {pt.label}
-                </button>
-              )
-            })}
-          </div>
 
           {/* Caption */}
           <div className="relative mb-4">

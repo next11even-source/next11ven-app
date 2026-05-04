@@ -20,10 +20,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No subscription found' }, { status: 404 })
   }
 
-  const origin = req.headers.get('origin') ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.next11ven.com'
   const returnUrl = profile.role === 'coach'
-    ? `${origin}/dashboard/coach`
-    : `${origin}/dashboard/player/premium`
+    ? `${baseUrl}/dashboard/coach`
+    : `${baseUrl}/dashboard/player/premium`
 
   const session = await stripe.billingPortal.sessions.create({
     customer: profile.stripe_customer_id,

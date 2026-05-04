@@ -6,13 +6,6 @@ import { MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import type { PostWithAuthor, PostComment } from '@/types/feed'
 
-const TYPE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  highlight:        { bg: '#2d5fc422', color: '#4d8ae8', label: 'HIGHLIGHT' },
-  looking_for_club: { bg: '#f59e0b22', color: '#f59e0b', label: 'LOOKING FOR CLUB' },
-  season_review:    { bg: '#7c3aed22', color: '#a78bfa', label: 'SEASON REVIEW' },
-  general:          { bg: '#37415130', color: '#9ca3af', label: 'GENERAL' },
-}
-
 const ROLE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   player: { bg: '#2d5fc422', color: '#4d8ae8', label: 'PLAYER' },
   admin:  { bg: '#2d5fc422', color: '#4d8ae8', label: 'PLAYER' },
@@ -266,7 +259,6 @@ export default function PostCard({
     onDelete?.(post.id)
   }
 
-  const typeStyle = TYPE_STYLE[post.post_type] ?? TYPE_STYLE.general
   const roleStyle = ROLE_STYLE[post.author.role ?? 'player'] ?? ROLE_STYLE.player
   const isCoachViewer = viewerRole === 'coach'
   const isOwnPost = post.author_id === viewerId
@@ -308,10 +300,6 @@ export default function PostCard({
               <span className="text-xs" style={{ color: '#4b5563' }}>{timeAgo(post.created_at)}</span>
             </div>
           </div>
-          <span className="px-2 py-1 rounded-lg flex-shrink-0"
-            style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>
-            {typeStyle.label}
-          </span>
         </div>
 
         {/* Caption */}
@@ -324,8 +312,8 @@ export default function PostCard({
         {/* Image */}
         {post.image_url && (
           <div style={{ padding: '0 16px 12px' }}>
-            <div style={{ maxHeight: 360, maxWidth: 420, overflow: 'hidden', borderRadius: 10 }}>
-              <img src={post.image_url} alt="" style={{ display: 'block', width: '100%', height: 'auto' }} />
+            <div style={{ aspectRatio: '4 / 5', overflow: 'hidden', borderRadius: 10 }}>
+              <img src={post.image_url} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           </div>
         )}

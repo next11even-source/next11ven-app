@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
   if (!content?.trim()) {
     return NextResponse.json({ error: 'Message content is required' }, { status: 400 })
   }
+  if (content.trim().length > 2000) {
+    return NextResponse.json({ error: 'Message must be 2000 characters or fewer' }, { status: 400 })
+  }
 
   // Get sender profile
   const { data: sender } = await supabase
@@ -118,7 +121,10 @@ export async function POST(req: NextRequest) {
       .insert({ coach_id: convCoachId, player_id: convPlayerId, initiated_by: user.id })
       .select('id')
       .single()
-    if (convErr) return NextResponse.json({ error: convErr.message }, { status: 500 })
+    if (convErr) {
+      console.error('[Messages] conversation create error:', convErr)
+      return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
+    }
     conversationId = newConv.id
   }
 
@@ -129,7 +135,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (msgErr) return NextResponse.json({ error: msgErr.message }, { status: 500 })
+  if (msgErr) {
+    console.error('[Messages] insert error:', msgErr)
+    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
+  }
 
   await supabase
     .from('conversations')

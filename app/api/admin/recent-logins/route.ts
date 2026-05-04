@@ -32,7 +32,10 @@ export async function GET() {
 
   // Fetch all auth users (paginated at 1000 by default — fine for this platform size)
   const { data: { users }, error } = await admin.auth.admin.listUsers({ perPage: 1000 })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[Admin] recent-logins error:', error)
+    return NextResponse.json({ error: 'Failed to fetch recent logins' }, { status: 500 })
+  }
 
   // Sort by last_sign_in_at desc, take top 10
   const recent = [...users]

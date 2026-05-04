@@ -96,7 +96,8 @@ export async function POST(req: NextRequest) {
     if (rpcError.message.includes('QUOTA_NOT_FOUND')) {
       return NextResponse.json({ error: 'QUOTA_NOT_FOUND' }, { status: 500 })
     }
-    return NextResponse.json({ error: rpcError.message }, { status: 500 })
+    console.error('[Initiate] rpc error:', rpcError)
+    return NextResponse.json({ error: 'Failed to initiate conversation' }, { status: 500 })
   }
 
   const r = result as { conversationId: string; messagesUsed: number; messagesLimit: number; existing: boolean }

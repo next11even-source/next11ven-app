@@ -56,6 +56,9 @@ export async function POST(req: NextRequest) {
   if (!opportunity_id) {
     return NextResponse.json({ error: 'opportunity_id is required' }, { status: 400 })
   }
+  if (message && message.trim().length > 2000) {
+    return NextResponse.json({ error: 'Message must be 2000 characters or fewer' }, { status: 400 })
+  }
 
   // Fetch opportunity + coach details
   const service = serviceSupabase()
@@ -94,7 +97,14 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (appErr) return NextResponse.json({ error: appErr.message }, { status: 500 })
+  if (appErr) {
+    // Unique constraint violation — concurrent duplicate request
+    if (appErr.code === '23505') {
+      return NextResponse.json({ error: 'Already applied' }, { status: 409 })
+    }
+    console.error('[Apply] insert error:', appErr)
+    return NextResponse.json({ error: 'Failed to submit application' }, { status: 500 })
+  }
 
   // Fetch coach email and send notification — awaited before function exits
   try {

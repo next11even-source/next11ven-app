@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
     smsAllowed &&
     process.env.TWILIO_ENABLED !== 'false' &&
     recipientProfile.phone &&
-    recipientProfile.sms_opt_in &&
+    recipientProfile.sms_opt_in !== false &&
     process.env.TWILIO_ACCOUNT_SID &&
     process.env.TWILIO_AUTH_TOKEN &&
     process.env.TWILIO_FROM_NUMBER

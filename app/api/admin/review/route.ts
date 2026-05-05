@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   if (
     isApproving &&
     target?.phone &&
-    target?.sms_opt_in &&
+    target?.sms_opt_in !== false &&
     process.env.TWILIO_ENABLED !== 'false' &&
     process.env.TWILIO_ACCOUNT_SID &&
     process.env.TWILIO_AUTH_TOKEN &&

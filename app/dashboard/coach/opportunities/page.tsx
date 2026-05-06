@@ -26,6 +26,21 @@ type Opportunity = {
   application_count?: number
 }
 
+type OtherOpportunity = {
+  id: string
+  title: string
+  club: string | null
+  location: string | null
+  position: string | null
+  level: string | null
+  description: string | null
+  urgent: boolean
+  deadline: string | null
+  opportunity_type: string | null
+  created_at: string
+  coach: { full_name: string | null } | null
+}
+
 type Applicant = {
   id: string
   message: string | null
@@ -456,6 +471,7 @@ export default function CoachOpportunitiesPage() {
   const [isPremium, setIsPremium] = useState(false)
   const [monthlyCount, setMonthlyCount] = useState(0)
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [viewingApplicants, setViewingApplicants] = useState<Opportunity | null>(null)
@@ -473,10 +489,11 @@ export default function CoachOpportunitiesPage() {
       startOfMonth.setDate(1)
       startOfMonth.setHours(0, 0, 0, 0)
 
-      const [profileRes, oppsRes, monthlyRes] = await Promise.all([
+      const [profileRes, oppsRes, monthlyRes, otherOppsRes] = await Promise.all([
         supabase.from('profiles').select('premium, full_name, avatar_url, coaching_role').eq('id', user.id).single(),
         supabase.from('opportunities').select('*').eq('coach_id', user.id).order('created_at', { ascending: false }),
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', user.id).gte('created_at', startOfMonth.toISOString()),
+        supabase.from('opportunities').select('id, title, club, location, position, level, description, urgent, deadline, opportunity_type, created_at, coach:coach_id(full_name)').neq('coach_id', user.id).eq('is_active', true).order('created_at', { ascending: false }).limit(20),
       ])
 
       setIsPremium(profileRes.data?.premium ?? false)
@@ -499,6 +516,7 @@ export default function CoachOpportunitiesPage() {
       )
       const countMap = Object.fromEntries(counts.map(c => [c.id, c.count]))
       setOpportunities(opps.map(o => ({ ...o, application_count: countMap[o.id] ?? 0 })))
+      setOtherOpportunities((otherOppsRes.data as unknown as OtherOpportunity[]) ?? [])
       setLoading(false)
     }
     load()
@@ -691,6 +709,71 @@ export default function CoachOpportunitiesPage() {
             })}
           </div>
         )}
+        {/* Other Coaches' Opportunities */}
+        {!loading && (
+          <div className="space-y-4 pt-4" style={{ borderTop: '1px solid #1e2235' }}>
+            <div>
+              <h2 className="text-2xl font-extrabold uppercase"
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                Other Opportunities
+              </h2>
+              <p className="text-sm mt-1" style={{ color: '#8892aa' }}>
+                Active roles posted by other coaches — including coaching staff vacancies
+              </p>
+            </div>
+
+            {otherOpportunities.length === 0 ? (
+              <div className="rounded-xl p-8 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>No active opportunities from other coaches right now.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {otherOpportunities.map(opp => {
+                  const deadlineDays = opp.deadline ? daysUntilDeadline(opp.deadline) : null
+                  const isCoachingRole = opp.opportunity_type === 'coach'
+                  return (
+                    <div key={opp.id} className="rounded-xl p-5 space-y-3"
+                      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-base font-bold" style={{ color: '#e8dece' }}>{opp.title}</p>
+                          {isCoachingRole && (
+                            <Chip color="#a78bfa" bg="rgba(167,139,250,0.1)">Coaching Staff</Chip>
+                          )}
+                        </div>
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          {opp.coach?.full_name ?? 'Unknown Coach'}{[opp.club, opp.location, opp.level].filter(Boolean).length > 0 ? ' · ' : ''}{[opp.club, opp.location, opp.level].filter(Boolean).join(' · ')}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {opp.urgent && (
+                            <Chip color="#f59e0b" bg="rgba(245,158,11,0.12)">🔴 Urgent</Chip>
+                          )}
+                          {deadlineDays !== null && deadlineDays <= 7 && deadlineDays >= 0 && (
+                            <Chip color="#f87171" bg="rgba(248,113,113,0.1)">⏳ {deadlineDays}d left</Chip>
+                          )}
+                          {opp.position && (
+                            <Chip color="#a78bfa" bg="rgba(167,139,250,0.1)">{opp.position}</Chip>
+                          )}
+                          {opp.location && (
+                            <Chip color="#60a5fa" bg="rgba(96,165,250,0.1)">📍 {opp.location}</Chip>
+                          )}
+                          {opp.level && (
+                            <Chip color="#e8dece" bg="rgba(232,222,206,0.05)">{opp.level}</Chip>
+                          )}
+                          <Chip color="#8892aa" bg="rgba(136,146,170,0.05)">{timeAgo(opp.created_at)}</Chip>
+                        </div>
+                        {opp.description && (
+                          <p className="text-xs pt-1 line-clamp-2" style={{ color: '#8892aa' }}>{opp.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
     </div>
     </>

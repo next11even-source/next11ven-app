@@ -141,7 +141,7 @@ export default function CoachPublicProfile() {
           ])
           setQuotaData({
             messagesUsed: quotaRes.messagesUsed ?? 0,
-            messagesLimit: quotaRes.messagesLimit ?? 5,
+            messagesLimit: quotaRes.messagesLimit ?? 3,
             periodEnd: quotaRes.periodEnd ?? null,
             hasExisting: !!existingConvRes.data,
           })

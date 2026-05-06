@@ -177,7 +177,7 @@ async function handleSubscriptionChange(
       period_start: periodStart,
       period_end: periodEnd,
       messages_used: 0,
-      messages_limit: 5,
+      messages_limit: 3,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'player_id,period_start', ignoreDuplicates: true })
   }

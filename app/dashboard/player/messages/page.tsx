@@ -249,7 +249,7 @@ function MessagesInner() {
     if (isPremium) {
       fetch('/api/messages/quota')
         .then(r => r.json())
-        .then(d => setQuotaData({ messagesUsed: d.messagesUsed ?? 0, messagesLimit: d.messagesLimit ?? 5, periodEnd: d.periodEnd ?? null }))
+        .then(d => setQuotaData({ messagesUsed: d.messagesUsed ?? 0, messagesLimit: d.messagesLimit ?? 3, periodEnd: d.periodEnd ?? null }))
         .catch(() => {})
     }
 

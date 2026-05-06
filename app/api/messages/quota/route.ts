@@ -29,7 +29,7 @@ export async function GET() {
     .limit(1)
     .maybeSingle()
 
-  if (!quota) return NextResponse.json({ messagesUsed: 0, messagesLimit: 5, periodEnd: null })
+  if (!quota) return NextResponse.json({ messagesUsed: 0, messagesLimit: 3, periodEnd: null })
 
   return NextResponse.json({
     messagesUsed: quota.messages_used,

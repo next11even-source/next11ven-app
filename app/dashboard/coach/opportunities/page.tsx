@@ -38,7 +38,6 @@ type OtherOpportunity = {
   deadline: string | null
   opportunity_type: string | null
   created_at: string
-  coach: { full_name: string | null } | null
 }
 
 type Applicant = {
@@ -493,7 +492,7 @@ export default function CoachOpportunitiesPage() {
         supabase.from('profiles').select('premium, full_name, avatar_url, coaching_role').eq('id', user.id).single(),
         supabase.from('opportunities').select('*').eq('coach_id', user.id).order('created_at', { ascending: false }),
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', user.id).gte('created_at', startOfMonth.toISOString()),
-        supabase.from('opportunities').select('id, title, club, location, position, level, description, urgent, deadline, opportunity_type, created_at, coach:coach_id(full_name)').neq('coach_id', user.id).eq('is_active', true).order('created_at', { ascending: false }).limit(20),
+        supabase.from('opportunities').select('id, title, club, location, position, level, description, urgent, deadline, opportunity_type, created_at').neq('coach_id', user.id).eq('is_active', true).order('created_at', { ascending: false }).limit(20),
       ])
 
       setIsPremium(profileRes.data?.premium ?? false)
@@ -742,7 +741,7 @@ export default function CoachOpportunitiesPage() {
                           )}
                         </div>
                         <p className="text-xs" style={{ color: '#8892aa' }}>
-                          {opp.coach?.full_name ?? 'Unknown Coach'}{[opp.club, opp.location, opp.level].filter(Boolean).length > 0 ? ' · ' : ''}{[opp.club, opp.location, opp.level].filter(Boolean).join(' · ')}
+                          {[opp.club, opp.location, opp.level].filter(Boolean).join(' · ') || '—'}
                         </p>
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {opp.urgent && (

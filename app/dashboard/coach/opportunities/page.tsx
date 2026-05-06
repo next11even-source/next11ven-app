@@ -101,6 +101,7 @@ function PostOpportunityForm({ coachId, onPosted, onCancel }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) { setError('Title is required.'); return }
+    if (!level) { setError('Club level is required — select the level your club plays at.'); return }
     setSaving(true)
     setError(null)
 
@@ -188,12 +189,12 @@ function PostOpportunityForm({ coachId, onPosted, onCancel }: {
               {(opportunityType === 'coach' ? COACHING_ROLES : POSITIONS).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </Field>
-          <Field label="Level">
+          <Field label="Club Level *">
             <select value={level} onChange={e => setLevel(e.target.value)}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
               onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-              <option value="">Any level</option>
+              <option value="">What level does your club play at?</option>
               {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </Field>

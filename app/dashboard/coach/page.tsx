@@ -530,8 +530,7 @@ export default function CoachDashboard() {
           .select('id, full_name, position, avatar_url, status, location, city, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
-          .eq('premium', true)
-          .limit(20),
+          .eq('premium', true),
 
         supabase.from('conversations')
           .select('id')
@@ -562,7 +561,7 @@ export default function CoachDashboard() {
       })))
 
       // Premium players — random order each session
-      const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5)
+      const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5).slice(0, 10)
       setPremiumPlayers(shuffled)
 
       // ── Phase 2: queries that depend on phase 1 results ───────────────────

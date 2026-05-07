@@ -28,6 +28,7 @@ type Conversation = {
   other_person: OtherPerson | null
   last_message?: string
   unread?: number
+  coachHasReplied?: boolean
 }
 
 type Message = {
@@ -302,6 +303,23 @@ function MessagesInner() {
       unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
     }
 
+    // Find request conversations the coach has already replied to — these should show in Messages
+    const requestConvIds = data
+      .filter((c: { initiated_by: string | null }) => c.initiated_by !== user.id)
+      .map((c: { id: string }) => c.id)
+
+    const repliedConvIds = new Set<string>()
+    if (requestConvIds.length > 0) {
+      const { data: coachReplies } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', requestConvIds)
+        .eq('sender_id', user.id)
+      for (const msg of (coachReplies ?? [])) {
+        repliedConvIds.add(msg.conversation_id)
+      }
+    }
+
     const convs: Conversation[] = data.map((c: { id: string; coach_id: string; player_id: string; last_message_at: string; initiated_by: string | null }) => {
       const otherId = c.coach_id === user.id ? c.player_id : c.coach_id
       return {
@@ -309,15 +327,16 @@ function MessagesInner() {
         other_person: profileMap[otherId] ? { ...profileMap[otherId], id: otherId } : null,
         last_message: lastMsgMap[c.id],
         unread: unreadMap[c.id] ?? 0,
+        coachHasReplied: repliedConvIds.has(c.id),
       }
     })
     setConversations(convs)
     setLoading(false)
   }
 
-  // Coach-initiated = this coach started it; player/other-initiated = requests
-  const myMessages = conversations.filter(c => c.initiated_by === coachId)
-  const requests = conversations.filter(c => c.initiated_by !== coachId)
+  // Requests = player-initiated AND coach hasn't replied yet; once coach replies it moves to Messages
+  const myMessages = conversations.filter(c => c.initiated_by === coachId || c.coachHasReplied)
+  const requests = conversations.filter(c => c.initiated_by !== coachId && !c.coachHasReplied)
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread ?? 0), 0)
   const requestsUnread = requests.reduce((sum, c) => sum + (c.unread ?? 0), 0)
 

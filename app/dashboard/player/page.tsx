@@ -133,15 +133,11 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
 // ─── Quick Stats Bar ──────────────────────────────────────────────────────────
 
-function QuickStatsBar({ views, unread, openOpps }: { views: number; unread: number; openOpps: number }) {
+function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number }) {
   const stats = [
     {
       label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week',
       color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
-    },
-    {
-      label: 'Messages', value: unread, href: '/dashboard/player/messages', sub: 'unread',
-      color: '#a78bfa', bg: 'rgba(167,139,250,0.07)', border: 'rgba(167,139,250,0.4)',
     },
     {
       label: 'Opportunities', value: openOpps, href: '/dashboard/player/opportunities', sub: 'open',
@@ -149,7 +145,7 @@ function QuickStatsBar({ views, unread, openOpps }: { views: number; unread: num
     },
   ]
   return (
-    <div className="mx-4 grid grid-cols-3 gap-2">
+    <div className="mx-4 grid grid-cols-2 gap-2">
       {stats.map((s) => (
         <Link key={s.label} href={s.href}
           className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
@@ -476,7 +472,6 @@ export default function PlayerHome() {
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
   const [statsViews, setStatsViews] = useState(0)
-  const [statsUnread, setStatsUnread] = useState(0)
   const [statsOpps, setStatsOpps] = useState(0)
 
   useEffect(() => {
@@ -516,18 +511,6 @@ export default function PlayerHome() {
       // Quick stats
       setStatsViews(viewsRes.count ?? 0)
       setStatsOpps(oppsCountRes.count ?? 0)
-      // Count unread messages
-      const convIds = (convsRes.data ?? []).map((c: { id: string }) => c.id)
-      if (convIds.length > 0) {
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .in('conversation_id', convIds)
-          .neq('sender_id', user.id)
-          .is('read_at', null)
-        setStatsUnread(unreadCount ?? 0)
-      }
-
       setLoading(false)
 
       // Auto-grant premium for existing Stripe subscribers who just claimed their account
@@ -579,7 +562,7 @@ export default function PlayerHome() {
       {/* Quick Stats */}
       {profile?.role !== 'fan' && (
         <div className="pb-5">
-          <QuickStatsBar views={statsViews} unread={statsUnread} openOpps={statsOpps} />
+          <QuickStatsBar views={statsViews} openOpps={statsOpps} />
         </div>
       )}
 

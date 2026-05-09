@@ -19,21 +19,39 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   const now = new Date().toISOString()
-  const { data: quota } = await supabase
-    .from('player_message_quota')
-    .select('messages_used, messages_limit, period_end')
-    .eq('player_id', user.id)
-    .lte('period_start', now)
-    .gt('period_end', now)
-    .order('period_start', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  if (!quota) return NextResponse.json({ messagesUsed: 0, messagesLimit: 3, periodEnd: null })
+  const [quotaRes, profileRes] = await Promise.all([
+    supabase
+      .from('player_message_quota')
+      .select('messages_used, messages_limit, period_end')
+      .eq('player_id', user.id)
+      .lte('period_start', now)
+      .gt('period_end', now)
+      .order('period_start', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('purchased_message_credits')
+      .eq('id', user.id)
+      .single(),
+  ])
+
+  const purchasedCredits = profileRes.data?.purchased_message_credits ?? 0
+
+  if (!quotaRes.data) {
+    return NextResponse.json({
+      messagesUsed: 0,
+      messagesLimit: 3,
+      periodEnd: null,
+      purchasedCredits,
+    })
+  }
 
   return NextResponse.json({
-    messagesUsed: quota.messages_used,
-    messagesLimit: quota.messages_limit,
-    periodEnd: quota.period_end,
+    messagesUsed: quotaRes.data.messages_used,
+    messagesLimit: quotaRes.data.messages_limit,
+    periodEnd: quotaRes.data.period_end,
+    purchasedCredits,
   })
 }

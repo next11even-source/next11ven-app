@@ -96,15 +96,26 @@ export async function POST(req: NextRequest) {
     if (rpcError.message.includes('QUOTA_NOT_FOUND')) {
       return NextResponse.json({ error: 'QUOTA_NOT_FOUND' }, { status: 500 })
     }
+    if (rpcError.message.includes('COOLDOWN_ACTIVE')) {
+      const cooldownUntil = rpcError.message.split('COOLDOWN_ACTIVE:')[1]?.trim() ?? null
+      return NextResponse.json({ error: 'COOLDOWN_ACTIVE', cooldownUntil }, { status: 403 })
+    }
     console.error('[Initiate] rpc error:', rpcError)
     return NextResponse.json({ error: 'Failed to initiate conversation' }, { status: 500 })
   }
 
-  const r = result as { conversationId: string; messagesUsed: number; messagesLimit: number; existing: boolean }
+  const r = result as {
+    conversationId: string
+    messagesUsed: number
+    messagesLimit: number
+    usedPurchased: boolean
+    existing: boolean
+  }
 
   return NextResponse.json({
     conversationId: r.conversationId,
     messagesUsed: r.messagesUsed,
     messagesLimit: r.messagesLimit,
+    usedPurchased: r.usedPurchased ?? false,
   })
 }

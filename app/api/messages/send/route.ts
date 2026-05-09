@@ -140,10 +140,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
   }
 
+  const now = new Date().toISOString()
   await supabase
     .from('conversations')
-    .update({ last_message_at: new Date().toISOString() })
+    .update({ last_message_at: now })
     .eq('id', conversationId)
+
+  // If a coach sends into a player-initiated conversation that has no reply yet, mark it replied
+  if (senderIsCoach && existingConv?.initiated_by && existingConv.initiated_by !== user.id) {
+    await supabase
+      .from('conversations')
+      .update({ coach_replied_at: now })
+      .eq('id', conversationId)
+      .is('coach_replied_at', null)
+  }
 
   // ── Notifications ──────────────────────────────────────────────────────────
 

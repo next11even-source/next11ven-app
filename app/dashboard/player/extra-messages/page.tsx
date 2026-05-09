@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Breadcrumb from '@/app/components/Breadcrumb'
@@ -13,7 +13,7 @@ type QuotaState = {
   purchasedCredits: number
 }
 
-export default function ExtraMessagesPage() {
+function ExtraMessagesInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const justPurchased = searchParams.get('purchased') === 'true'
@@ -227,5 +227,13 @@ export default function ExtraMessagesPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function ExtraMessagesPage() {
+  return (
+    <Suspense>
+      <ExtraMessagesInner />
+    </Suspense>
   )
 }

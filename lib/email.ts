@@ -45,7 +45,7 @@ function baseTemplate(content: string) {
     <body style="margin:0;padding:0;background:#0a0a0a;font-family:Inter,Arial,sans-serif;">
       <div style="max-width:520px;margin:40px auto;background:#13172a;border-radius:16px;border:1px solid #1e2235;overflow:hidden;">
         <div style="padding:24px 28px 0;text-align:center;">
-          <p style="font-size:22px;font-weight:900;letter-spacing:0.05em;color:#e8dece;margin:0;text-transform:uppercase;font-family:Arial Black,Arial,sans-serif;">NEXT11VEN</p>
+          <img src="${SITE}/logo.jpg" alt="NEXT11VEN" width="140" style="width:140px;height:auto;display:block;margin:0 auto;" />
         </div>
         <div style="padding:28px;">
           ${content}
@@ -128,6 +128,45 @@ export async function sendApplicationDecisionEmail({
       : `Update on your application for "${opportunityTitle}"`,
     html,
   })
+}
+
+// ─── Extra Messages purchase confirmation ────────────────────────────────────
+
+export async function sendExtraMessagesPurchaseEmail({
+  to,
+  playerName,
+  credits,
+  totalCredits,
+}: {
+  to: string
+  playerName: string | null
+  credits: number
+  totalCredits: number
+}) {
+  const dashboardUrl = `${SITE}/dashboard/player/extra-messages`
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${playerName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      Your purchase was successful. <strong style="color:#e8dece;">${credits} Extra Messages</strong> have been added to your account and are ready to use.
+    </p>
+    <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:16px 20px;margin:0 0 24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;">
+        <span style="color:#8892aa;font-size:13px;">Credits added</span>
+        <span style="color:#2d5fc4;font-weight:700;font-size:15px;">+${credits}</span>
+      </div>
+      <div style="border-top:1px solid #1e2235;padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#8892aa;font-size:13px;">Total Extra Messages available</span>
+        <span style="color:#e8dece;font-weight:700;font-size:15px;">${totalCredits}</span>
+      </div>
+    </div>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
+      Credits never expire and stack with any future purchases. They kick in automatically once your monthly messages run out.
+    </p>
+    <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Your Balance</a>
+  `)
+
+  await send({ to, subject: `Your ${credits} Extra Messages are ready`, html })
 }
 
 // ─── Application received (coach) ─────────────────────────────────────────────

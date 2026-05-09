@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,12 +41,19 @@ type QuotaData = {
   messagesUsed: number
   messagesLimit: number
   periodEnd: string | null
+  purchasedCredits: number
   hasExisting: boolean
+  cooldownUntil: string | null
+  coachInitiated: boolean
 }
 
 function isActiveThisWeek(lastActive: string | null) {
   if (!lastActive) return false
   return Date.now() - new Date(lastActive).getTime() < 7 * 86400000
+}
+
+function daysUntil(iso: string) {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)
 }
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
@@ -115,7 +123,6 @@ export default function CoachPublicProfile() {
         setOpportunities((oppsRes.data ?? []) as Opportunity[])
         setLoading(false)
 
-        // Track this view — skip if the coach is viewing their own profile
         if (viewerProfile && viewerProfile.id !== id) {
           supabase.from('player_views').insert({
             player_id: id,
@@ -125,25 +132,49 @@ export default function CoachPublicProfile() {
           }).then(() => {})
         }
 
-        // Load quota + existing conversation check for players viewing another profile
         const viewerIsPlayer = viewerProfile?.role === 'player' || viewerProfile?.role === 'admin'
         if (viewerIsPlayer && viewerProfile.id !== id) {
           setQuotaLoading(true)
-          const [quotaRes, existingConvRes] = await Promise.all([
+          const [quotaRes, convRes] = await Promise.all([
             fetch('/api/messages/quota').then(r => r.json()),
             supabase
               .from('conversations')
-              .select('id')
+              .select('id, initiated_by, coach_replied_at, created_at')
               .eq('coach_id', id)
               .eq('player_id', user.id)
-              .limit(1)
               .maybeSingle(),
           ])
+
+          const conv = convRes.data as {
+            id: string
+            initiated_by: string | null
+            coach_replied_at: string | null
+            created_at: string
+          } | null
+
+          let cooldownUntil: string | null = null
+          let coachInitiated = false
+
+          if (conv) {
+            if (conv.initiated_by === id) {
+              coachInitiated = true
+            } else if (!conv.coach_replied_at) {
+              const cooldownEnd = new Date(conv.created_at)
+              cooldownEnd.setMonth(cooldownEnd.getMonth() + 3)
+              if (cooldownEnd > new Date()) {
+                cooldownUntil = cooldownEnd.toISOString()
+              }
+            }
+          }
+
           setQuotaData({
             messagesUsed: quotaRes.messagesUsed ?? 0,
             messagesLimit: quotaRes.messagesLimit ?? 3,
             periodEnd: quotaRes.periodEnd ?? null,
-            hasExisting: !!existingConvRes.data,
+            purchasedCredits: quotaRes.purchasedCredits ?? 0,
+            hasExisting: !!conv,
+            cooldownUntil,
+            coachInitiated,
           })
           setQuotaLoading(false)
         } else {
@@ -174,8 +205,11 @@ export default function CoachPublicProfile() {
         return
       }
       if (data.error === 'QUOTA_EXHAUSTED') {
-        setToast('No messages remaining this month.')
-        setTimeout(() => setToast(''), 3000)
+        setToast('No messages remaining. Buy Extra Messages to continue.')
+        setTimeout(() => setToast(''), 4000)
+      } else if (data.error === 'COOLDOWN_ACTIVE') {
+        setToast('You\'ve already reached out to this coach. Check back later.')
+        setTimeout(() => setToast(''), 4000)
       } else {
         setToast('Something went wrong. Please try again.')
         setTimeout(() => setToast(''), 3000)
@@ -213,15 +247,21 @@ export default function CoachPublicProfile() {
   const firstName = coach.full_name?.split(' ')[0] ?? 'Coach'
 
   const backHref = viewerIsPlayer ? '/dashboard/player' : '/dashboard/coach'
-  const backLabel = viewerIsPlayer ? 'Home' : 'Home'
+
+  // Derived quota state
+  const periodExhausted = quotaData ? quotaData.messagesUsed >= quotaData.messagesLimit : false
+  const hasPurchased = (quotaData?.purchasedCredits ?? 0) > 0
+  const canMessage = !periodExhausted || hasPurchased
+  const totalRemaining = quotaData
+    ? Math.max(0, quotaData.messagesLimit - quotaData.messagesUsed) + (quotaData.purchasedCredits ?? 0)
+    : 0
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
 
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-lg"
-          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#e8dece', whiteSpace: 'nowrap' }}>
+          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#e8dece', whiteSpace: 'nowrap', maxWidth: 'calc(100vw - 32px)' }}>
           {toast}
         </div>
       )}
@@ -230,7 +270,7 @@ export default function CoachPublicProfile() {
       <div className="px-4 pt-3 pb-3 flex items-center gap-3"
         style={{ borderBottom: '1px solid #1e2235' }}>
         <Breadcrumb crumbs={[
-          { label: backLabel, href: backHref },
+          { label: 'Home', href: backHref },
           { label: coach.full_name ?? 'Coach' },
         ]} />
         {active && (
@@ -262,7 +302,6 @@ export default function CoachPublicProfile() {
         </h1>
         <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>{subtitle}</p>
 
-        {/* Own profile edit shortcut */}
         {isOwnProfile && (
           <Link href="/dashboard/profile"
             className="mt-5 flex items-center justify-center gap-2 w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider"
@@ -271,13 +310,13 @@ export default function CoachPublicProfile() {
           </Link>
         )}
 
-        {/* Message section for players */}
+        {/* ── Message section for players ─────────────────────────────────── */}
         {viewerIsPlayer && !isOwnProfile && (
-          <div className="w-full mt-5 px-2">
+          <div className="w-full mt-5 space-y-3">
 
             {/* State A: free player */}
             {!viewer?.premium && (
-              <div className="flex flex-col items-center gap-2">
+              <div className="space-y-2">
                 <Link
                   href="/dashboard/player/premium"
                   className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
@@ -294,7 +333,7 @@ export default function CoachPublicProfile() {
               </div>
             )}
 
-            {/* State B: premium, quota loading */}
+            {/* State B: loading */}
             {viewer?.premium && quotaLoading && (
               <div className="flex items-center justify-center py-3">
                 <div className="w-5 h-5 rounded-full border-2 animate-spin"
@@ -302,61 +341,132 @@ export default function CoachPublicProfile() {
               </div>
             )}
 
-            {/* States C / D / E: premium, quota loaded */}
             {viewer?.premium && !quotaLoading && quotaData && (
-
               <>
-                {/* State C: existing conversation */}
-                {quotaData.hasExisting && (
-                  <div className="flex flex-col items-center gap-2">
+                {/* State C: existing conversation, coach replied or coach initiated — just continue */}
+                {quotaData.hasExisting && (quotaData.coachInitiated || !quotaData.cooldownUntil) && (
+                  <div className="space-y-2">
                     <Link
                       href="/dashboard/player/messages"
                       className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
                       style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
                       Continue Conversation →
                     </Link>
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      You already have an open thread with this coach
-                    </p>
+                    {!quotaData.coachInitiated && (
+                      <p className="text-xs" style={{ color: '#8892aa' }}>
+                        {firstName} has replied — conversation is open
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* State D: quota available */}
-                {!quotaData.hasExisting && quotaData.messagesUsed < quotaData.messagesLimit && (
-                  <div className="flex flex-col items-center gap-2">
+                {/* State C2: player initiated, coach hasn't replied, within cooldown */}
+                {quotaData.hasExisting && !quotaData.coachInitiated && quotaData.cooldownUntil && (
+                  <div className="space-y-3">
+                    <Link
+                      href="/dashboard/player/messages"
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
+                      style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+                      View Conversation →
+                    </Link>
+                    <div className="rounded-xl px-4 py-3 text-left space-y-1"
+                      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                      <p className="text-xs font-semibold" style={{ color: '#e8dece' }}>
+                        Awaiting {firstName}'s reply
+                      </p>
+                      <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+                        You've already reached out. If {firstName} hasn't replied in{' '}
+                        {daysUntil(quotaData.cooldownUntil)} more day{daysUntil(quotaData.cooldownUntil) !== 1 ? 's' : ''},
+                        this slot will free up and you can try a different approach.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* State D: no existing conversation, has period or purchased credits */}
+                {!quotaData.hasExisting && canMessage && (
+                  <div className="space-y-2">
                     <button
                       onClick={handleInitiate}
                       disabled={initiating}
                       className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-colors"
                       style={{ backgroundColor: initiating ? '#1e2a4a' : '#2d5fc4', color: '#fff' }}>
-                      {initiating ? 'Opening…' : 'Message Coach'}
+                      {initiating ? 'Opening…' : `Message ${firstName}`}
                     </button>
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      {quotaData.messagesUsed} of {quotaData.messagesLimit} messages used this month
-                      {quotaData.periodEnd && (
-                        <> · Resets {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>
+
+                    {/* Credit status pill */}
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      {!periodExhausted ? (
+                        <span className="text-xs px-3 py-1 rounded-full"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.12)', color: '#8892aa' }}>
+                          {quotaData.messagesLimit - quotaData.messagesUsed} of {quotaData.messagesLimit} monthly messages left
+                          {quotaData.periodEnd && (
+                            <> · resets {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-xs px-3 py-1 rounded-full"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.12)', color: '#2d5fc4' }}>
+                          Using Extra Messages · {quotaData.purchasedCredits} remaining
+                        </span>
                       )}
-                    </p>
+                    </div>
+
+                    {/* Show purchased balance when they have both */}
+                    {!periodExhausted && hasPurchased && (
+                      <p className="text-xs text-center" style={{ color: '#8892aa' }}>
+                        + {quotaData.purchasedCredits} Extra Message{quotaData.purchasedCredits !== 1 ? 's' : ''} in reserve
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* State E: quota exhausted */}
-                {!quotaData.hasExisting && quotaData.messagesUsed >= quotaData.messagesLimit && (
-                  <div className="flex flex-col items-center gap-2">
+                {/* State E: both exhausted — buy more CTA */}
+                {!quotaData.hasExisting && !canMessage && (
+                  <div className="space-y-3">
                     <button
                       disabled
-                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold cursor-not-allowed"
+                      className="w-full flex items-center justify-center rounded-2xl py-3 text-sm font-bold cursor-not-allowed"
                       style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>
-                      No messages remaining this month
+                      No outreach messages remaining
                     </button>
-                    {quotaData.periodEnd && (
-                      <p className="text-xs" style={{ color: '#8892aa' }}>
-                        Resets on {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                    )}
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      Need more? Additional message packs coming soon.
-                    </p>
+
+                    {/* Buy Extra Messages card */}
+                    <Link
+                      href="/dashboard/player/extra-messages"
+                      className="block rounded-2xl overflow-hidden"
+                      style={{ textDecoration: 'none', border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(135deg, rgba(45,95,196,0.15) 0%, rgba(45,95,196,0.06) 100%)' }}>
+                      <div className="px-4 py-4 flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.2)' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold" style={{ color: '#e8dece' }}>
+                            Get Extra Messages
+                          </p>
+                          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#8892aa' }}>
+                            {MESSAGE_PACK_CREDITS} outreach credits for {MESSAGE_PACK_PRICE_GBP}. Stack them up — they never expire.
+                          </p>
+                        </div>
+                        <svg className="flex-shrink-0 mt-1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
+                      </div>
+                      <div className="px-4 py-2.5 flex items-center justify-between"
+                        style={{ borderTop: '1px solid rgba(45,95,196,0.2)', backgroundColor: 'rgba(45,95,196,0.06)' }}>
+                        <span className="text-xs font-semibold" style={{ color: '#2d5fc4' }}>
+                          Monthly messages reset {quotaData.periodEnd
+                            ? new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                            : 'next billing date'}
+                        </span>
+                        <span className="text-xs font-bold" style={{ color: '#2d5fc4' }}>
+                          {MESSAGE_PACK_PRICE_GBP} →
+                        </span>
+                      </div>
+                    </Link>
                   </div>
                 )}
               </>

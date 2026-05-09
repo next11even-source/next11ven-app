@@ -569,7 +569,7 @@ export default function PlayerHome() {
       <div className="px-4 pb-3 text-center">
         <p className="text-base" style={{ color: '#8892aa' }}>
           Welcome back,{' '}
-          <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span> ✓
+          <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span>
         </p>
       </div>
 

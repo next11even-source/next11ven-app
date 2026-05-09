@@ -227,7 +227,7 @@ function MessagesInner() {
   const [playerId, setPlayerId] = useState('')
   const [playerIsPremium, setPlayerIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [quotaData, setQuotaData] = useState<{ messagesUsed: number; messagesLimit: number; periodEnd: string | null } | null>(null)
+  const [quotaData, setQuotaData] = useState<{ messagesUsed: number; messagesLimit: number; periodEnd: string | null; purchasedCredits: number } | null>(null)
 
   useEffect(() => {
     load()
@@ -249,7 +249,12 @@ function MessagesInner() {
     if (isPremium) {
       fetch('/api/messages/quota')
         .then(r => r.json())
-        .then(d => setQuotaData({ messagesUsed: d.messagesUsed ?? 0, messagesLimit: d.messagesLimit ?? 3, periodEnd: d.periodEnd ?? null }))
+        .then(d => setQuotaData({
+          messagesUsed: d.messagesUsed ?? 0,
+          messagesLimit: d.messagesLimit ?? 3,
+          periodEnd: d.periodEnd ?? null,
+          purchasedCredits: d.purchasedCredits ?? 0,
+        }))
         .catch(() => {})
     }
 
@@ -343,18 +348,47 @@ function MessagesInner() {
 
       {/* Quota indicator — premium players only */}
       {playerIsPremium && quotaData && (
-        <div className="mx-4 mt-3 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3"
+        <div className="mx-4 mt-3 rounded-xl px-4 py-3 space-y-2"
           style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-xs" style={{ color: '#8892aa' }}>
-            Coach messages:{' '}
-            <span style={{ color: '#e8dece', fontWeight: 600 }}>
-              {quotaData.messagesUsed} / {quotaData.messagesLimit} used
-            </span>
-          </p>
-          {quotaData.periodEnd && (
-            <p className="text-xs flex-shrink-0" style={{ color: '#8892aa' }}>
-              Resets {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+          {/* Monthly quota row */}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs" style={{ color: '#8892aa' }}>
+              Monthly messages:{' '}
+              <span style={{ color: '#e8dece', fontWeight: 600 }}>
+                {Math.max(0, quotaData.messagesLimit - quotaData.messagesUsed)} left
+              </span>
+              <span style={{ color: '#8892aa' }}> ({quotaData.messagesUsed}/{quotaData.messagesLimit} used)</span>
             </p>
+            {quotaData.periodEnd && (
+              <p className="text-xs flex-shrink-0" style={{ color: '#8892aa' }}>
+                Resets {new Date(quotaData.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </p>
+            )}
+          </div>
+          {/* Purchased credits row */}
+          {quotaData.purchasedCredits > 0 ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                Extra messages:{' '}
+                <span style={{ color: '#2d5fc4', fontWeight: 600 }}>
+                  {quotaData.purchasedCredits} available
+                </span>
+              </p>
+              <a href="/dashboard/player/extra-messages"
+                className="text-xs flex-shrink-0"
+                style={{ color: '#2d5fc4', textDecoration: 'none', fontWeight: 600 }}>
+                Buy more →
+              </a>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs" style={{ color: '#8892aa' }}>No extra messages</p>
+              <a href="/dashboard/player/extra-messages"
+                className="text-xs flex-shrink-0"
+                style={{ color: '#2d5fc4', textDecoration: 'none', fontWeight: 600 }}>
+                Buy a pack →
+              </a>
+            </div>
           )}
         </div>
       )}

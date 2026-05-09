@@ -10,4 +10,6 @@ export const PRICE_IDS = {
   coach: process.env.STRIPE_COACH_PRICE_ID!,
 } as const
 
+export const MESSAGE_PACK_PRICE_ID = process.env.STRIPE_MESSAGE_PACK_PRICE_ID!
+
 export type PremiumRole = keyof typeof PRICE_IDS

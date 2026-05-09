@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
+import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 
 type Props = {
   isOpen: boolean
@@ -15,6 +16,8 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
   const router = useRouter()
   const [isPremium, setIsPremium] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [monthlyLeft, setMonthlyLeft] = useState<number | null>(null)
+  const [purchasedCredits, setPurchasedCredits] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -28,6 +31,15 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
         .then(({ data }) => {
           setIsPremium(data?.premium ?? false)
           setIsAdmin(data?.role === 'admin')
+          if (data?.premium) {
+            fetch('/api/messages/quota')
+              .then(r => r.json())
+              .then(q => {
+                setMonthlyLeft(Math.max(0, (q.messagesLimit ?? 3) - (q.messagesUsed ?? 0)))
+                setPurchasedCredits(q.purchasedCredits ?? 0)
+              })
+              .catch(() => {})
+          }
         })
     })
   }, [])
@@ -118,6 +130,49 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
               <path d="M9 18l6-6-6-6" />
             </svg>
           </Link>
+        )}
+
+        {/* Extra Messages — shown for premium players */}
+        {isPremium && monthlyLeft !== null && (
+          monthlyLeft === 0 && purchasedCredits === 0 ? (
+            /* No messages left — prompt to buy */
+            <Link href="/dashboard/player/extra-messages" onClick={onClose}
+              className="flex items-center gap-3 mx-4 mb-4 px-4 py-3 rounded-xl"
+              style={{ background: 'linear-gradient(135deg, rgba(45,95,196,0.18) 0%, rgba(45,95,196,0.08) 100%)', border: '1px solid rgba(45,95,196,0.35)', textDecoration: 'none' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold" style={{ color: '#2d5fc4' }}>No messages left</p>
+                <p className="text-xs" style={{ color: '#8892aa' }}>{MESSAGE_PACK_CREDITS} Extra Messages · {MESSAGE_PACK_PRICE_GBP}</p>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
+          ) : (
+            /* Has credits — show balance */
+            <Link href="/dashboard/player/extra-messages" onClick={onClose}
+              className="flex items-center justify-between mx-4 mb-4 px-4 py-3 rounded-xl"
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}>
+              <div className="flex items-center gap-3">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: '#e8dece' }}>Coach Outreach</p>
+                  <p className="text-xs" style={{ color: '#8892aa' }}>
+                    {monthlyLeft} monthly
+                    {purchasedCredits > 0 && <> · {purchasedCredits} extra</>}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold px-2 py-1 rounded-lg"
+                style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+                {monthlyLeft + purchasedCredits} left
+              </span>
+            </Link>
+          )
         )}
 
         {/* Menu items */}

@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import { onUserUpgradedToPremium } from '@/lib/mailerlite'
+import { sendExtraMessagesPurchaseEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +58,15 @@ export async function POST(req: NextRequest) {
         if (subId) {
           const sub = await stripe.subscriptions.retrieve(subId)
           await handleSubscriptionChange(supabase, sub)
+        }
+        break
+      }
+
+      // ── One-time message pack purchase ──────────────────────────────────────
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        if (session.metadata?.type === 'message_pack') {
+          await handleMessagePackPurchase(supabase, session)
         }
         break
       }
@@ -188,6 +198,45 @@ async function handleSubscriptionDeleted(
   sub: Stripe.Subscription
 ) {
   await revokeAccess(supabase, sub)
+}
+
+async function handleMessagePackPurchase(
+  supabase: ReturnType<typeof serviceSupabase>,
+  session: Stripe.Checkout.Session
+) {
+  const userId = session.metadata?.supabase_user_id
+  const credits = parseInt(session.metadata?.credits ?? '5', 10)
+
+  if (!userId) {
+    console.error('[Stripe webhook] message_pack: missing supabase_user_id in metadata')
+    return
+  }
+
+  const { error } = await supabase.rpc('add_message_credits', {
+    p_user_id: userId,
+    p_amount: credits,
+  })
+
+  if (error) {
+    console.error('[Stripe webhook] message_pack: failed to add credits:', error)
+    return
+  }
+
+  // Fetch updated profile for confirmation email
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email, full_name, purchased_message_credits')
+    .eq('id', userId)
+    .single()
+
+  if (profile?.email) {
+    sendExtraMessagesPurchaseEmail({
+      to: profile.email,
+      playerName: profile.full_name,
+      credits,
+      totalCredits: profile.purchased_message_credits ?? credits,
+    }).catch(err => console.error('[Email] extra messages confirmation error:', err))
+  }
 }
 
 async function revokeAccess(

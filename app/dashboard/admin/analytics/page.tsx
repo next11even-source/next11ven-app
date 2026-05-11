@@ -7,6 +7,26 @@ import { createClient } from '@/lib/supabase-browser'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type RevenueStats = {
+  mrr_pence: number
+  active_subs: number
+  cancelling: number
+  player_subs: number
+  coach_subs: number
+  player_mrr_pence: number
+  coach_mrr_pence: number
+  mrr_trend: { label: string; value: number }[]
+  churn_risk: {
+    id: string
+    full_name: string | null
+    role: string | null
+    club: string | null
+    last_seen: string | null
+    period_end: string | null
+  }[]
+  non_converting_count: number
+}
+
 type Period = '7d' | '30d' | '90d' | 'all'
 
 type DayPoint = { label: string; value: number }
@@ -198,8 +218,8 @@ function StatCard({ label, value, sub, color = '#e8dece' }: {
 
 // ─── Chart Card ───────────────────────────────────────────────────────────────
 
-function ChartCard({ title, data, color, total }: {
-  title: string; data: DayPoint[]; color: string; total: number
+function ChartCard({ title, data, color, total, valuePrefix = '' }: {
+  title: string; data: DayPoint[]; color: string; total: number; valuePrefix?: string
 }) {
   return (
     <div className="rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -207,7 +227,7 @@ function ChartCard({ title, data, color, total }: {
         <p className="text-sm font-bold uppercase"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{title}</p>
         <span className="text-sm font-black" style={{ color, fontFamily: "'Barlow Condensed', sans-serif" }}>
-          {total.toLocaleString()}
+          {valuePrefix}{total.toLocaleString()}
         </span>
       </div>
       {total === 0
@@ -228,6 +248,8 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
+  const [revenueLoading, setRevenueLoading] = useState(true)
   const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
   const [msgLoading, setMsgLoading] = useState(true)
   const [msgPage, setMsgPage] = useState(0)
@@ -238,6 +260,13 @@ export default function AnalyticsPage() {
   useEffect(() => {
     load(period)
   }, [period])
+
+  useEffect(() => {
+    fetch('/api/admin/revenue-stats')
+      .then(r => r.json())
+      .then(d => { setRevenueStats(d); setRevenueLoading(false) })
+      .catch(() => setRevenueLoading(false))
+  }, [])
 
   useEffect(() => {
     fetch('/api/admin/recent-logins')
@@ -483,68 +512,162 @@ export default function AnalyticsPage() {
             </div>
           </section>
 
-          {/* Revenue */}
+          {/* Revenue — Live from Stripe */}
           <section>
-            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Revenue</p>
-            <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              {/* MRR */}
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Est. MRR</p>
-                  <p className="text-4xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
-                    £{(stats.mrrPence / 100).toFixed(2)}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
-                    £{(stats.mrrPence / 100 * 12).toFixed(0)} annualised
-                  </p>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Revenue</p>
+              <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                Live from Stripe
+              </span>
+            </div>
+
+            {revenueLoading ? (
+              <div className="rounded-xl p-6 flex items-center justify-center"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#f59e0b', borderTopColor: 'transparent' }} />
+              </div>
+            ) : revenueStats ? (
+              <div className="space-y-3">
+                {/* MRR card */}
+                <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>MRR</p>
+                      <p className="text-4xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
+                        £{(revenueStats.mrr_pence / 100).toFixed(2)}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
+                        £{(revenueStats.mrr_pence / 100 * 12).toFixed(0)} annualised
+                      </p>
+                    </div>
+                    {revenueStats.cancelling > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Cancelling</p>
+                        <p className="text-2xl font-black leading-none"
+                          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#ef4444' }}>
+                          {revenueStats.cancelling}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: '#8892aa' }}>at period end</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Player / Coach breakdown */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                      <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Premium</p>
+                      <p className="text-xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                        {revenueStats.player_subs}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                        £{(revenueStats.player_mrr_pence / 100).toFixed(2)}/mo
+                      </p>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                      <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Coach Pro</p>
+                      <p className="text-xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
+                        {revenueStats.coach_subs}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                        £{(revenueStats.coach_mrr_pence / 100).toFixed(2)}/mo
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Conversion rate */}
+                  {stats && stats.totalApproved > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          Premium conversion
+                          {revenueStats.non_converting_count > 0 && (
+                            <span style={{ color: '#3a4055' }}>
+                              {' '}· {revenueStats.non_converting_count} approved users not yet subscribed
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs font-bold" style={{ color: '#f59e0b' }}>
+                          {Math.round((revenueStats.active_subs / stats.totalApproved) * 100)}%
+                        </p>
+                      </div>
+                      <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+                        <div className="h-1.5 rounded-full"
+                          style={{
+                            width: `${Math.round((revenueStats.active_subs / stats.totalApproved) * 100)}%`,
+                            backgroundColor: '#f59e0b',
+                          }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {stats.cancellingCount > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Cancelling</p>
-                    <p className="text-2xl font-black leading-none"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#ef4444' }}>
-                      {stats.cancellingCount}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: '#8892aa' }}>at period end</p>
+
+                {/* MRR trend chart */}
+                {revenueStats.mrr_trend.length > 0 && (
+                  <ChartCard
+                    title="MRR Trend (6 months)"
+                    data={revenueStats.mrr_trend.map(d => ({ ...d, value: Math.round(d.value / 100) }))}
+                    color="#f59e0b"
+                    total={Math.round(revenueStats.mrr_pence / 100)}
+                    valuePrefix="£"
+                  />
+                )}
+
+                {/* Churn risk */}
+                {revenueStats.churn_risk.length > 0 && (
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                    <div className="px-4 py-2.5 flex items-center gap-2"
+                      style={{ backgroundColor: '#13172a', borderBottom: '1px solid #1e2235' }}>
+                      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ef4444' }}>
+                        Churn Risk
+                      </p>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
+                        style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                        {revenueStats.churn_risk.length} subscribers · 14+ days inactive
+                      </span>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                      {revenueStats.churn_risk.map((u, i) => (
+                        <div key={u.id} className="flex items-center gap-3 px-4 py-3"
+                          style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                                {u.full_name ?? '—'}
+                              </span>
+                              <RoleBadge role={u.role} />
+                            </div>
+                            {u.club && (
+                              <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0 space-y-0.5">
+                            <p className="text-xs" style={{ color: '#8892aa' }}>
+                              {u.last_seen
+                                ? `Last seen ${new Date(u.last_seen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                                : 'Never signed in'}
+                            </p>
+                            {u.period_end && (
+                              <p className="text-xs" style={{ color: '#3a4055' }}>
+                                renews {new Date(u.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-              {/* Breakdown */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Premium</p>
-                  <p className="text-xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                    {stats.premiumPlayers}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(stats.premiumPlayers * 6.99).toFixed(2)}/mo</p>
-                </div>
-                <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Coach Pro</p>
-                  <p className="text-xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-                    {stats.premiumCoaches}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(stats.premiumCoaches * 9.99).toFixed(2)}/mo</p>
-                </div>
+            ) : (
+              <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>Could not load Stripe data.</p>
               </div>
-              {/* Conversion rate */}
-              {stats.totalApproved > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs" style={{ color: '#8892aa' }}>Premium conversion</p>
-                    <p className="text-xs font-bold" style={{ color: '#f59e0b' }}>
-                      {Math.round((stats.premiumCount / stats.totalApproved) * 100)}%
-                    </p>
-                  </div>
-                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
-                    <div className="h-1.5 rounded-full"
-                      style={{ width: `${Math.round((stats.premiumCount / stats.totalApproved) * 100)}%`, backgroundColor: '#f59e0b' }} />
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </section>
 
           {/* Migration tracker */}

@@ -60,8 +60,6 @@ type PlatformStats = {
   legacy_upgrade_pence: number
 }
 
-type Period = '7d' | '30d' | '90d' | 'all'
-
 type DayPoint = { label: string; value: number }
 
 type RecentLogin = {
@@ -115,10 +113,8 @@ type Stats = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function periodStart(p: Period): Date | null {
-  if (p === 'all') return null
-  const days = p === '7d' ? 7 : p === '30d' ? 30 : 90
-  return new Date(Date.now() - days * 86400000)
+function periodStart(): Date {
+  return new Date(Date.now() - 30 * 86400000)
 }
 
 function bucketDays(rows: string[], days: number): DayPoint[] {
@@ -136,44 +132,12 @@ function bucketDays(rows: string[], days: number): DayPoint[] {
   return Object.entries(buckets).map(([label, value]) => ({ label, value }))
 }
 
-function bucketWeeks(rows: string[], weeks: number): DayPoint[] {
-  const now = Date.now()
-  const buckets: Record<string, number> = {}
-  for (let i = weeks - 1; i >= 0; i--) {
-    const d = new Date(now - i * 7 * 86400000)
-    buckets[weekKey(d)] = 0
-  }
-  for (const ts of rows) {
-    const d = new Date(ts)
-    const k = weekKey(d)
-    if (k in buckets) buckets[k] = (buckets[k] ?? 0) + 1
-  }
-  return Object.entries(buckets).map(([label, value]) => ({ label, value }))
-}
-
-function bucketMonths(rows: string[]): DayPoint[] {
-  const buckets: Record<string, number> = {}
-  for (const ts of rows) {
-    const d = new Date(ts)
-    const k = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
-    buckets[k] = (buckets[k] ?? 0) + 1
-  }
-  return Object.entries(buckets).map(([label, value]) => ({ label, value }))
-}
-
 function dayKey(d: Date) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-function weekKey(d: Date) {
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-function buildSeries(timestamps: string[], period: Period): DayPoint[] {
-  if (period === '7d') return bucketDays(timestamps, 7)
-  if (period === '30d') return bucketDays(timestamps, 30)
-  if (period === '90d') return bucketWeeks(timestamps, 13)
-  return bucketMonths(timestamps)
+function buildSeries(timestamps: string[]): DayPoint[] {
+  return bucketDays(timestamps, 30)
 }
 
 // ─── Line Chart ───────────────────────────────────────────────────────────────
@@ -274,11 +238,8 @@ function ChartCard({ title, data, color, total, valuePrefix = '' }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const MSG_PAGE_SIZE = 20
-
 export default function AnalyticsPage() {
   const router = useRouter()
-  const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
@@ -288,14 +249,14 @@ export default function AnalyticsPage() {
   const [platformLoading, setPlatformLoading] = useState(true)
   const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
   const [msgLoading, setMsgLoading] = useState(true)
-  const [msgPage, setMsgPage] = useState(0)
   const [msgTotal, setMsgTotal] = useState(0)
+  const [showAllMessages, setShowAllMessages] = useState(false)
   const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([])
   const [loginsLoading, setLoginsLoading] = useState(true)
 
   useEffect(() => {
-    load(period)
-  }, [period])
+    load()
+  }, [])
 
   useEffect(() => {
     fetch('/api/admin/revenue-stats')
@@ -306,7 +267,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetch('/api/admin/platform-stats')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setPlatformStats(d); setPlatformLoading(false) })
       .catch(() => setPlatformLoading(false))
   }, [])
@@ -319,12 +280,12 @@ export default function AnalyticsPage() {
   }, [])
 
   useEffect(() => {
-    loadMsgLog(msgPage)
-  }, [msgPage])
+    loadMsgLog()
+  }, [])
 
-  async function loadMsgLog(page: number) {
+  async function loadMsgLog() {
     setMsgLoading(true)
-    const res = await fetch(`/api/admin/messages?page=${page}`)
+    const res = await fetch('/api/admin/messages?page=0')
     if (!res.ok) { setMsgLoading(false); return }
     const data = await res.json()
     setMsgLog(data.messages ?? [])
@@ -332,7 +293,7 @@ export default function AnalyticsPage() {
     setMsgLoading(false)
   }
 
-  async function load(p: Period) {
+  async function load() {
     setLoading(true)
     const supabase = createClient()
 
@@ -342,8 +303,8 @@ export default function AnalyticsPage() {
     const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     if (me?.role !== 'admin') { router.push('/dashboard/player'); return }
 
-    const since = periodStart(p)
-    const sinceIso = since?.toISOString()
+    const since = periodStart()
+    const sinceIso = since.toISOString()
 
     // ── All-time totals ──────────────────────────────────────────────────────
     const [
@@ -391,21 +352,14 @@ export default function AnalyticsPage() {
     ).length
 
     // ── In-period counts ─────────────────────────────────────────────────────
-    let signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
-    let viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
-    let appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
-    let postsQ = supabase.from('posts').select('created_at', { count: 'exact' }).eq('is_deleted', false)
-
-    if (sinceIso) {
-      signupsQ = signupsQ.gte('created_at', sinceIso)
-      viewsQ = viewsQ.gte('viewed_at', sinceIso)
-      appsQ = appsQ.gte('created_at', sinceIso)
-      postsQ = postsQ.gte('created_at', sinceIso)
-    }
-
-    signupsQ = signupsQ.limit(1000)
-    viewsQ = viewsQ.limit(1000)
-    postsQ = postsQ.limit(1000)
+    const signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
+      .gte('created_at', sinceIso).limit(1000)
+    const viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
+      .gte('viewed_at', sinceIso).limit(1000)
+    const appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
+      .gte('created_at', sinceIso)
+    const postsQ = supabase.from('posts').select('created_at', { count: 'exact' })
+      .eq('is_deleted', false).gte('created_at', sinceIso).limit(1000)
 
     const msgStatsUrl = `/api/admin/message-stats${sinceIso ? `?since=${encodeURIComponent(sinceIso)}` : ''}`
 
@@ -439,56 +393,33 @@ export default function AnalyticsPage() {
       profileViews: viewsRes.count ?? 0,
       applicationsSubmitted: appsRes.count ?? 0,
       postsSent: postsRes.count ?? 0,
-      signupSeries: buildSeries(signupTs, p),
-      messageSeries: buildSeries(msgTs, p),
-      viewSeries: buildSeries(viewTs, p),
-      postSeries: buildSeries(postTs, p),
+      signupSeries: buildSeries(signupTs),
+      messageSeries: buildSeries(msgTs),
+      viewSeries: buildSeries(viewTs),
+      postSeries: buildSeries(postTs),
     })
     setLoading(false)
   }
-
-  const PERIODS: { key: Period; label: string }[] = [
-    { key: '7d', label: '7D' },
-    { key: '30d', label: '30D' },
-    { key: '90d', label: '90D' },
-    { key: 'all', label: 'All' },
-  ]
 
   return (
     <div className="pb-8">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-3 pb-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.dispatchEvent(new Event('player:sidebar:open'))}
-              className="p-2 rounded-lg"
-              style={{ color: '#8892aa' }}
-              aria-label="Open menu">
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
-              </svg>
-            </button>
-            <h1 className="text-2xl font-black uppercase"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-              Analytics
-            </h1>
-          </div>
-          {/* Period selector */}
-          <div className="flex gap-1">
-            {PERIODS.map(({ key, label }) => (
-              <button key={key} onClick={() => setPeriod(key)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
-                style={{
-                  backgroundColor: period === key ? '#2d5fc4' : '#13172a',
-                  color: period === key ? '#fff' : '#8892aa',
-                  border: period === key ? 'none' : '1px solid #1e2235',
-                }}>
-                {label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.dispatchEvent(new Event('player:sidebar:open'))}
+            className="p-2 rounded-lg"
+            style={{ color: '#8892aa' }}
+            aria-label="Open menu">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-black uppercase"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            Analytics
+          </h1>
         </div>
       </div>
 
@@ -1013,7 +944,7 @@ export default function AnalyticsPage() {
           {/* Period stats */}
           <section>
             <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>
-              {period === 'all' ? 'All Time Activity' : `Last ${period.replace('d', ' Days')} Activity`}
+              Last 30 Days
             </p>
             <div className="grid grid-cols-2 gap-2">
               <StatCard label="New Signups" value={stats.newSignups} color="#2d5fc4" />
@@ -1075,64 +1006,48 @@ export default function AnalyticsPage() {
                 <p className="text-sm" style={{ color: '#8892aa' }}>No messages yet.</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {msgLog.map(m => (
-                  <div key={m.id} className="rounded-xl p-3 space-y-2"
-                    style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <RoleBadge role={m.sender_role} />
-                          <span className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>
-                            {m.sender_name ?? '—'}
-                          </span>
-                          {m.sender_club && (
-                            <span className="text-xs truncate" style={{ color: '#8892aa' }}>· {m.sender_club}</span>
-                          )}
-                          <span className="text-xs" style={{ color: '#3a4055' }}>→</span>
-                          <span className="text-xs font-semibold truncate" style={{ color: '#8892aa' }}>
-                            {m.other_name ?? '—'}
-                          </span>
-                          {m.other_club && (
-                            <span className="text-xs truncate" style={{ color: '#3a4055' }}>· {m.other_club}</span>
-                          )}
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                  {(showAllMessages ? msgLog : msgLog.slice(0, 5)).map((m, i) => (
+                    <div key={m.id} className="px-4 py-3"
+                      style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <RoleBadge role={m.sender_role} />
+                            <span className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>
+                              {m.sender_name ?? '—'}
+                            </span>
+                            {m.sender_club && (
+                              <span className="text-xs truncate" style={{ color: '#8892aa' }}>· {m.sender_club}</span>
+                            )}
+                            <span className="text-xs" style={{ color: '#3a4055' }}>→</span>
+                            <span className="text-xs font-semibold truncate" style={{ color: '#8892aa' }}>
+                              {m.other_name ?? '—'}
+                            </span>
+                          </div>
+                          <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+                            {m.content.length > 100 ? m.content.slice(0, 100) + '…' : m.content}
+                          </p>
                         </div>
-                        <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
-                          {m.content.length > 120 ? m.content.slice(0, 120) + '…' : m.content}
+                        <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
+                          {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                         </p>
                       </div>
-                      <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
-                        {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' '}
-                        {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
                     </div>
-                  </div>
-                ))}
-
-                {/* Pagination */}
-                {msgTotal > MSG_PAGE_SIZE && (
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      {msgPage * MSG_PAGE_SIZE + 1}–{Math.min((msgPage + 1) * MSG_PAGE_SIZE, msgTotal)} of {msgTotal.toLocaleString()}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setMsgPage(p => Math.max(0, p - 1))}
-                        disabled={msgPage === 0}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
-                        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setMsgPage(p => p + 1)}
-                        disabled={(msgPage + 1) * MSG_PAGE_SIZE >= msgTotal}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
-                        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+                {msgLog.length > 5 && (
+                  <button
+                    onClick={() => setShowAllMessages(v => !v)}
+                    className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                    style={{
+                      backgroundColor: '#0d1020',
+                      borderTop: '1px solid #1e2235',
+                      color: '#8892aa',
+                    }}>
+                    {showAllMessages ? 'Show less' : `See ${msgLog.length - 5} more recent`}
+                  </button>
                 )}
               </div>
             )}

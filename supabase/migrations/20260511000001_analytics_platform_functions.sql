@@ -47,6 +47,7 @@ begin
     ), 0),
 
     -- Reply rate: % of player-initiated convos where coach replied (last 90 days)
+    -- Uses last_message_at for date filtering (conversations table has no created_at)
     'reply_rate_pct', (
       select
         case
@@ -58,13 +59,13 @@ begin
           )::int
         end
       from conversations
-      where created_at >= now() - interval '90 days'
+      where last_message_at >= now() - interval '90 days'
     ),
 
     'reply_total_convos', coalesce((
       select count(*)::int from conversations
       where initiated_by = player_id
-        and created_at >= now() - interval '90 days'
+        and last_message_at >= now() - interval '90 days'
     ), 0),
 
     -- Live opportunities posted
@@ -120,10 +121,13 @@ begin
         group by 1
       ),
       churned as (
-        select date_trunc('month', to_timestamp(canceled_at))::timestamptz as month, count(*)::int as n
+        select
+          date_trunc('month', to_timestamp(coalesce(nullif(cancel_at, 0), nullif(canceled_at, 0))))::timestamptz as month,
+          count(*)::int as n
         from stripe.subscriptions
-        where canceled_at is not null
-          and to_timestamp(canceled_at) >= now() - interval '6 months'
+        where (cancel_at_period_end = true or status = 'canceled')
+          and coalesce(nullif(cancel_at, 0), nullif(canceled_at, 0)) is not null
+          and to_timestamp(coalesce(nullif(cancel_at, 0), nullif(canceled_at, 0))) >= now() - interval '6 months'
         group by 1
       ),
       msgs as (
@@ -158,12 +162,13 @@ begin
         and s.items->'data'->0->'price'->>'unit_amount' is not null
     ), 0),
 
-    -- Churned MRR: subscriptions cancelled this calendar month
+    -- Churned MRR: subscriptions ending this calendar month (scheduled or immediate)
     'churned_mrr_pence', coalesce((
       select sum((s.items->'data'->0->'price'->>'unit_amount')::bigint)
       from stripe.subscriptions s
-      where s.canceled_at is not null
-        and to_timestamp(s.canceled_at) >= date_trunc('month', now())
+      where (s.cancel_at_period_end = true or s.status = 'canceled')
+        and coalesce(nullif(s.cancel_at, 0), nullif(s.canceled_at, 0)) is not null
+        and to_timestamp(coalesce(nullif(s.cancel_at, 0), nullif(s.canceled_at, 0))) >= date_trunc('month', now())
         and s.items->'data'->0->'price'->>'unit_amount' is not null
     ), 0),
 

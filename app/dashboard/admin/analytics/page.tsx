@@ -7,7 +7,58 @@ import { createClient } from '@/lib/supabase-browser'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Period = '7d' | '30d' | '90d' | 'all'
+type PricePoint = {
+  price_id: string
+  unit_amount_pence: number
+  currency: string
+  subscriber_count: number
+  mrr_pence: number
+}
+
+type RevenueStats = {
+  mrr_pence: number
+  active_subs: number
+  cancelling: number
+  player_subs: number
+  coach_subs: number
+  player_mrr_pence: number
+  coach_mrr_pence: number
+  price_breakdown: PricePoint[]
+  mrr_trend: { label: string; value: number }[]
+  churn_risk: {
+    id: string
+    full_name: string | null
+    role: string | null
+    club: string | null
+    last_seen: string | null
+    period_end: string | null
+  }[]
+  non_converting_count: number
+}
+
+type MonthRow = {
+  label: string
+  new_signups: number
+  new_premium: number
+  churned: number
+  messages: number
+}
+
+type PlatformStats = {
+  mau: number
+  mau_prev: number
+  player_count: number
+  coach_count: number
+  reply_rate_pct: number | null
+  reply_total_convos: number
+  open_opportunities: number
+  funnel: { registered: number; approved: number; active_30d: number; premium: number }
+  monthly_table: MonthRow[]
+  new_mrr_pence: number
+  churned_mrr_pence: number
+  legacy_count: number
+  legacy_upgrade_pence: number
+}
 
 type DayPoint = { label: string; value: number }
 
@@ -62,10 +113,8 @@ type Stats = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function periodStart(p: Period): Date | null {
-  if (p === 'all') return null
-  const days = p === '7d' ? 7 : p === '30d' ? 30 : 90
-  return new Date(Date.now() - days * 86400000)
+function periodStart(): Date {
+  return new Date(Date.now() - 30 * 86400000)
 }
 
 function bucketDays(rows: string[], days: number): DayPoint[] {
@@ -83,44 +132,12 @@ function bucketDays(rows: string[], days: number): DayPoint[] {
   return Object.entries(buckets).map(([label, value]) => ({ label, value }))
 }
 
-function bucketWeeks(rows: string[], weeks: number): DayPoint[] {
-  const now = Date.now()
-  const buckets: Record<string, number> = {}
-  for (let i = weeks - 1; i >= 0; i--) {
-    const d = new Date(now - i * 7 * 86400000)
-    buckets[weekKey(d)] = 0
-  }
-  for (const ts of rows) {
-    const d = new Date(ts)
-    const k = weekKey(d)
-    if (k in buckets) buckets[k] = (buckets[k] ?? 0) + 1
-  }
-  return Object.entries(buckets).map(([label, value]) => ({ label, value }))
-}
-
-function bucketMonths(rows: string[]): DayPoint[] {
-  const buckets: Record<string, number> = {}
-  for (const ts of rows) {
-    const d = new Date(ts)
-    const k = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
-    buckets[k] = (buckets[k] ?? 0) + 1
-  }
-  return Object.entries(buckets).map(([label, value]) => ({ label, value }))
-}
-
 function dayKey(d: Date) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-function weekKey(d: Date) {
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-function buildSeries(timestamps: string[], period: Period): DayPoint[] {
-  if (period === '7d') return bucketDays(timestamps, 7)
-  if (period === '30d') return bucketDays(timestamps, 30)
-  if (period === '90d') return bucketWeeks(timestamps, 13)
-  return bucketMonths(timestamps)
+function buildSeries(timestamps: string[]): DayPoint[] {
+  return bucketDays(timestamps, 30)
 }
 
 // ─── Line Chart ───────────────────────────────────────────────────────────────
@@ -198,8 +215,8 @@ function StatCard({ label, value, sub, color = '#e8dece' }: {
 
 // ─── Chart Card ───────────────────────────────────────────────────────────────
 
-function ChartCard({ title, data, color, total }: {
-  title: string; data: DayPoint[]; color: string; total: number
+function ChartCard({ title, data, color, total, valuePrefix = '' }: {
+  title: string; data: DayPoint[]; color: string; total: number; valuePrefix?: string
 }) {
   return (
     <div className="rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -207,7 +224,7 @@ function ChartCard({ title, data, color, total }: {
         <p className="text-sm font-bold uppercase"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{title}</p>
         <span className="text-sm font-black" style={{ color, fontFamily: "'Barlow Condensed', sans-serif" }}>
-          {total.toLocaleString()}
+          {valuePrefix}{total.toLocaleString()}
         </span>
       </div>
       {total === 0
@@ -221,23 +238,39 @@ function ChartCard({ title, data, color, total }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const MSG_PAGE_SIZE = 20
-
 export default function AnalyticsPage() {
   const router = useRouter()
-  const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
+  const [revenueLoading, setRevenueLoading] = useState(true)
+  const [showAllChurn, setShowAllChurn] = useState(false)
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null)
+  const [platformLoading, setPlatformLoading] = useState(true)
   const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
   const [msgLoading, setMsgLoading] = useState(true)
-  const [msgPage, setMsgPage] = useState(0)
   const [msgTotal, setMsgTotal] = useState(0)
+  const [showAllMessages, setShowAllMessages] = useState(false)
   const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([])
   const [loginsLoading, setLoginsLoading] = useState(true)
 
   useEffect(() => {
-    load(period)
-  }, [period])
+    load()
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/revenue-stats')
+      .then(r => r.json())
+      .then(d => { setRevenueStats(d); setRevenueLoading(false) })
+      .catch(() => setRevenueLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/platform-stats')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setPlatformStats(d); setPlatformLoading(false) })
+      .catch(() => setPlatformLoading(false))
+  }, [])
 
   useEffect(() => {
     fetch('/api/admin/recent-logins')
@@ -247,12 +280,12 @@ export default function AnalyticsPage() {
   }, [])
 
   useEffect(() => {
-    loadMsgLog(msgPage)
-  }, [msgPage])
+    loadMsgLog()
+  }, [])
 
-  async function loadMsgLog(page: number) {
+  async function loadMsgLog() {
     setMsgLoading(true)
-    const res = await fetch(`/api/admin/messages?page=${page}`)
+    const res = await fetch('/api/admin/messages?page=0')
     if (!res.ok) { setMsgLoading(false); return }
     const data = await res.json()
     setMsgLog(data.messages ?? [])
@@ -260,7 +293,7 @@ export default function AnalyticsPage() {
     setMsgLoading(false)
   }
 
-  async function load(p: Period) {
+  async function load() {
     setLoading(true)
     const supabase = createClient()
 
@@ -270,8 +303,8 @@ export default function AnalyticsPage() {
     const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     if (me?.role !== 'admin') { router.push('/dashboard/player'); return }
 
-    const since = periodStart(p)
-    const sinceIso = since?.toISOString()
+    const since = periodStart()
+    const sinceIso = since.toISOString()
 
     // ── All-time totals ──────────────────────────────────────────────────────
     const [
@@ -319,21 +352,14 @@ export default function AnalyticsPage() {
     ).length
 
     // ── In-period counts ─────────────────────────────────────────────────────
-    let signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
-    let viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
-    let appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
-    let postsQ = supabase.from('posts').select('created_at', { count: 'exact' }).eq('is_deleted', false)
-
-    if (sinceIso) {
-      signupsQ = signupsQ.gte('created_at', sinceIso)
-      viewsQ = viewsQ.gte('viewed_at', sinceIso)
-      appsQ = appsQ.gte('created_at', sinceIso)
-      postsQ = postsQ.gte('created_at', sinceIso)
-    }
-
-    signupsQ = signupsQ.limit(1000)
-    viewsQ = viewsQ.limit(1000)
-    postsQ = postsQ.limit(1000)
+    const signupsQ = supabase.from('profiles').select('created_at', { count: 'exact' })
+      .gte('created_at', sinceIso).limit(1000)
+    const viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
+      .gte('viewed_at', sinceIso).limit(1000)
+    const appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
+      .gte('created_at', sinceIso)
+    const postsQ = supabase.from('posts').select('created_at', { count: 'exact' })
+      .eq('is_deleted', false).gte('created_at', sinceIso).limit(1000)
 
     const msgStatsUrl = `/api/admin/message-stats${sinceIso ? `?since=${encodeURIComponent(sinceIso)}` : ''}`
 
@@ -367,56 +393,33 @@ export default function AnalyticsPage() {
       profileViews: viewsRes.count ?? 0,
       applicationsSubmitted: appsRes.count ?? 0,
       postsSent: postsRes.count ?? 0,
-      signupSeries: buildSeries(signupTs, p),
-      messageSeries: buildSeries(msgTs, p),
-      viewSeries: buildSeries(viewTs, p),
-      postSeries: buildSeries(postTs, p),
+      signupSeries: buildSeries(signupTs),
+      messageSeries: buildSeries(msgTs),
+      viewSeries: buildSeries(viewTs),
+      postSeries: buildSeries(postTs),
     })
     setLoading(false)
   }
-
-  const PERIODS: { key: Period; label: string }[] = [
-    { key: '7d', label: '7D' },
-    { key: '30d', label: '30D' },
-    { key: '90d', label: '90D' },
-    { key: 'all', label: 'All' },
-  ]
 
   return (
     <div className="pb-8">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-3 pb-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.dispatchEvent(new Event('player:sidebar:open'))}
-              className="p-2 rounded-lg"
-              style={{ color: '#8892aa' }}
-              aria-label="Open menu">
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
-              </svg>
-            </button>
-            <h1 className="text-2xl font-black uppercase"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-              Analytics
-            </h1>
-          </div>
-          {/* Period selector */}
-          <div className="flex gap-1">
-            {PERIODS.map(({ key, label }) => (
-              <button key={key} onClick={() => setPeriod(key)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
-                style={{
-                  backgroundColor: period === key ? '#2d5fc4' : '#13172a',
-                  color: period === key ? '#fff' : '#8892aa',
-                  border: period === key ? 'none' : '1px solid #1e2235',
-                }}>
-                {label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.dispatchEvent(new Event('player:sidebar:open'))}
+            className="p-2 rounded-lg"
+            style={{ color: '#8892aa' }}
+            aria-label="Open menu">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-black uppercase"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            Analytics
+          </h1>
         </div>
       </div>
 
@@ -427,6 +430,95 @@ export default function AnalyticsPage() {
         </div>
       ) : stats ? (
         <div className="px-4 pt-4 space-y-4">
+
+          {/* ── Insight Cards ─────────────────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Key Metrics</p>
+            <div className="grid grid-cols-2 gap-2">
+              <InsightCard
+                label="Monthly Active Users"
+                value={platformLoading ? '…' : (platformStats?.mau ?? 0)}
+                color="#2d5fc4"
+                trend={platformStats && platformStats.mau_prev > 0
+                  ? { delta: platformStats.mau - platformStats.mau_prev, label: 'vs prev 30d' }
+                  : null}
+              />
+              <InsightCard
+                label="Players per Coach"
+                value={platformLoading ? '…' : (
+                  platformStats && platformStats.coach_count > 0
+                    ? (platformStats.player_count / platformStats.coach_count).toFixed(1) + ':1'
+                    : '—'
+                )}
+                color="#a78bfa"
+                sub={platformStats ? `${platformStats.player_count}p · ${platformStats.coach_count}c` : undefined}
+              />
+              <InsightCard
+                label="Coach Reply Rate"
+                value={platformLoading ? '…' : (
+                  platformStats?.reply_rate_pct != null
+                    ? platformStats.reply_rate_pct + '%'
+                    : '—'
+                )}
+                color="#60a5fa"
+                sub={platformStats?.reply_total_convos
+                  ? `${platformStats.reply_total_convos} convos (90d)`
+                  : undefined}
+              />
+              <InsightCard
+                label="Live Opportunities"
+                value={platformLoading ? '…' : (platformStats?.open_opportunities ?? 0)}
+                color="#f59e0b"
+              />
+            </div>
+          </section>
+
+          {/* ── Engagement Funnel ─────────────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Engagement Funnel</p>
+            <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              {platformLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                    style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+                </div>
+              ) : platformStats ? (() => {
+                const base = platformStats.funnel.registered || 1
+                const steps = [
+                  { label: 'Registered',  value: platformStats.funnel.registered, color: '#2d5fc4' },
+                  { label: 'Approved',    value: platformStats.funnel.approved,   color: '#3a6fda' },
+                  { label: 'Active 30d',  value: platformStats.funnel.active_30d, color: '#60a5fa' },
+                  { label: 'Premium',     value: platformStats.funnel.premium,    color: '#f59e0b' },
+                ]
+                return steps.map((step, i) => {
+                  const pct = Math.round(step.value / base * 100)
+                  return (
+                    <div key={step.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs" style={{ color: '#8892aa' }}>{step.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black tabular-nums"
+                            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: step.color }}>
+                            {step.value.toLocaleString()}
+                          </span>
+                          {i > 0 && (
+                            <span className="text-xs tabular-nums w-8 text-right"
+                              style={{ color: '#3a4055' }}>{pct}%</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+                        <div className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: step.color }} />
+                      </div>
+                    </div>
+                  )
+                })
+              })() : (
+                <p className="text-xs text-center" style={{ color: '#8892aa' }}>No data</p>
+              )}
+            </div>
+          </section>
 
           {/* All-time platform totals */}
           <section>
@@ -483,65 +575,317 @@ export default function AnalyticsPage() {
             </div>
           </section>
 
-          {/* Revenue */}
+          {/* Revenue — Live from Stripe */}
           <section>
-            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Revenue</p>
-            <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              {/* MRR */}
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Est. MRR</p>
-                  <p className="text-4xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
-                    £{(stats.mrrPence / 100).toFixed(2)}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
-                    £{(stats.mrrPence / 100 * 12).toFixed(0)} annualised
-                  </p>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Revenue</p>
+              <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                Live from Stripe
+              </span>
+            </div>
+
+            {revenueLoading ? (
+              <div className="rounded-xl p-6 flex items-center justify-center"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#f59e0b', borderTopColor: 'transparent' }} />
+              </div>
+            ) : revenueStats ? (
+              <div className="space-y-3">
+                {/* MRR card */}
+                <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>MRR</p>
+                      <p className="text-4xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
+                        £{(revenueStats.mrr_pence / 100).toFixed(2)}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
+                        £{(revenueStats.mrr_pence / 100 * 12).toFixed(0)} annualised
+                      </p>
+                      {platformStats && (platformStats.new_mrr_pence > 0 || platformStats.churned_mrr_pence > 0) && (
+                        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                          {platformStats.new_mrr_pence > 0 && (
+                            <span style={{ color: '#2d5fc4' }}>+£{(platformStats.new_mrr_pence / 100).toFixed(2)} </span>
+                          )}
+                          {platformStats.churned_mrr_pence > 0 && (
+                            <span style={{ color: '#ef4444' }}>−£{(platformStats.churned_mrr_pence / 100).toFixed(2)} </span>
+                          )}
+                          <span>this month</span>
+                        </p>
+                      )}
+                    </div>
+                    {revenueStats.cancelling > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Cancelling</p>
+                        <p className="text-2xl font-black leading-none"
+                          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#ef4444' }}>
+                          {revenueStats.cancelling}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: '#8892aa' }}>at period end</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Player / Coach breakdown */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                      <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Premium</p>
+                      <p className="text-xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                        {revenueStats.player_subs}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                        £{(revenueStats.player_mrr_pence / 100).toFixed(2)}/mo
+                      </p>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                      <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Coach Pro</p>
+                      <p className="text-xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
+                        {revenueStats.coach_subs}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                        £{(revenueStats.coach_mrr_pence / 100).toFixed(2)}/mo
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Price tier breakdown — shows legacy vs current pricing split */}
+                  {revenueStats.price_breakdown.length > 0 && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: '#8892aa' }}>Pricing Tiers</p>
+                      <div className="space-y-1.5">
+                        {revenueStats.price_breakdown.map((tier) => {
+                          const amount = tier.unit_amount_pence / 100
+                          const isLegacy = tier.unit_amount_pence < 699
+                          const label = isLegacy
+                            ? `Legacy (£${amount.toFixed(2)})`
+                            : tier.unit_amount_pence >= 999
+                              ? `Coach Pro (£${amount.toFixed(2)})`
+                              : `Player Premium (£${amount.toFixed(2)})`
+                          const color = isLegacy ? '#8892aa' : tier.unit_amount_pence >= 999 ? '#a78bfa' : '#2d5fc4'
+                          return (
+                            <div key={tier.price_id} className="flex items-center justify-between rounded-lg px-3 py-2"
+                              style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold" style={{ color }}>{label}</span>
+                                {isLegacy && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                                    style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa' }}>
+                                    Legacy
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-black tabular-nums"
+                                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color }}>
+                                  {tier.subscriber_count}
+                                </span>
+                                <span className="text-xs ml-1.5" style={{ color: '#8892aa' }}>
+                                  · £{(tier.mrr_pence / 100).toFixed(2)}/mo
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Legacy upgrade opportunity */}
+                  {platformStats && platformStats.legacy_count > 0 && (
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5"
+                      style={{ backgroundColor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
+                          Legacy upgrade opportunity
+                        </p>
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          {platformStats.legacy_count} users on old pricing
+                        </p>
+                      </div>
+                      <p className="text-sm font-black"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
+                        +£{(platformStats.legacy_upgrade_pence / 100).toFixed(2)}/mo
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Conversion rate */}
+                  {stats && stats.totalApproved > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          Premium conversion
+                          {revenueStats.non_converting_count > 0 && (
+                            <span style={{ color: '#3a4055' }}>
+                              {' '}· {revenueStats.non_converting_count} approved users not yet subscribed
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs font-bold" style={{ color: '#f59e0b' }}>
+                          {Math.round((revenueStats.active_subs / stats.totalApproved) * 100)}%
+                        </p>
+                      </div>
+                      <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+                        <div className="h-1.5 rounded-full"
+                          style={{
+                            width: `${Math.round((revenueStats.active_subs / stats.totalApproved) * 100)}%`,
+                            backgroundColor: '#f59e0b',
+                          }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {stats.cancellingCount > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Cancelling</p>
-                    <p className="text-2xl font-black leading-none"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#ef4444' }}>
-                      {stats.cancellingCount}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: '#8892aa' }}>at period end</p>
+
+                {/* MRR trend chart */}
+                {revenueStats.mrr_trend.length > 0 && (
+                  <ChartCard
+                    title="MRR Trend (6 months)"
+                    data={revenueStats.mrr_trend.map(d => ({ ...d, value: Math.round(d.value / 100) }))}
+                    color="#f59e0b"
+                    total={Math.round(revenueStats.mrr_pence / 100)}
+                    valuePrefix="£"
+                  />
+                )}
+
+                {/* Churn risk */}
+                {revenueStats.churn_risk.length > 0 && (
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                    <div className="px-4 py-2.5 flex items-center gap-2"
+                      style={{ backgroundColor: '#13172a', borderBottom: '1px solid #1e2235' }}>
+                      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ef4444' }}>
+                        Churn Risk
+                      </p>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
+                        style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                        {revenueStats.churn_risk.length} · 14+ days inactive
+                      </span>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                      {(showAllChurn ? revenueStats.churn_risk : revenueStats.churn_risk.slice(0, 5)).map((u, i) => (
+                        <div key={u.id} className="flex items-center gap-3 px-4 py-3"
+                          style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                                {u.full_name ?? '—'}
+                              </span>
+                              <RoleBadge role={u.role} />
+                            </div>
+                            {u.club && (
+                              <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0 space-y-0.5">
+                            <p className="text-xs" style={{ color: '#8892aa' }}>
+                              {u.last_seen
+                                ? `Last seen ${new Date(u.last_seen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                                : 'Never signed in'}
+                            </p>
+                            {u.period_end && (
+                              <p className="text-xs" style={{ color: '#3a4055' }}>
+                                renews {new Date(u.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {revenueStats.churn_risk.length > 5 && (
+                      <button
+                        onClick={() => setShowAllChurn(v => !v)}
+                        className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                        style={{
+                          backgroundColor: '#0d1020',
+                          borderTop: '1px solid #1e2235',
+                          color: '#8892aa',
+                        }}>
+                        {showAllChurn
+                          ? 'Show less'
+                          : `See ${revenueStats.churn_risk.length - 5} more`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
-              {/* Breakdown */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Premium</p>
-                  <p className="text-xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                    {stats.premiumPlayers}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(stats.premiumPlayers * 6.99).toFixed(2)}/mo</p>
-                </div>
-                <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Coach Pro</p>
-                  <p className="text-xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-                    {stats.premiumCoaches}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(stats.premiumCoaches * 9.99).toFixed(2)}/mo</p>
-                </div>
+            ) : (
+              <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>Could not load Stripe data.</p>
               </div>
-              {/* Conversion rate */}
-              {stats.totalApproved > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs" style={{ color: '#8892aa' }}>Premium conversion</p>
-                    <p className="text-xs font-bold" style={{ color: '#f59e0b' }}>
-                      {Math.round((stats.premiumCount / stats.totalApproved) * 100)}%
-                    </p>
-                  </div>
-                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
-                    <div className="h-1.5 rounded-full"
-                      style={{ width: `${Math.round((stats.premiumCount / stats.totalApproved) * 100)}%`, backgroundColor: '#f59e0b' }} />
-                  </div>
+            )}
+          </section>
+
+          {/* ── Month-by-Month Table ──────────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Month by Month</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+              {platformLoading ? (
+                <div className="flex items-center justify-center py-8" style={{ backgroundColor: '#13172a' }}>
+                  <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                    style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+                </div>
+              ) : platformStats && platformStats.monthly_table.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid #1e2235' }}>
+                        <th className="text-left px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#8892aa' }}>Month</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#2d5fc4' }}>Signups</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#f59e0b' }}>New Sub</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#ef4444' }}>Churned</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#a78bfa' }}>Messages</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {platformStats.monthly_table.map((row, i) => {
+                        const isCurrentMonth = i === platformStats.monthly_table.length - 1
+                        return (
+                          <tr key={row.label}
+                            style={{
+                              backgroundColor: isCurrentMonth ? '#0d1020' : '#13172a',
+                              borderBottom: i < platformStats.monthly_table.length - 1 ? '1px solid #1e2235' : 'none',
+                            }}>
+                            <td className="px-3 py-2.5 font-semibold"
+                              style={{ color: isCurrentMonth ? '#e8dece' : '#8892aa' }}>
+                              {row.label}
+                              {isCurrentMonth && (
+                                <span className="ml-1.5 text-xs" style={{ color: '#3a4055' }}>·now</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                              style={{ color: row.new_signups > 0 ? '#2d5fc4' : '#3a4055' }}>
+                              {row.new_signups || '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                              style={{ color: row.new_premium > 0 ? '#f59e0b' : '#3a4055' }}>
+                              {row.new_premium > 0 ? `+${row.new_premium}` : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                              style={{ color: row.churned > 0 ? '#ef4444' : '#3a4055' }}>
+                              {row.churned > 0 ? `-${row.churned}` : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums"
+                              style={{ color: row.messages > 0 ? '#a78bfa' : '#3a4055' }}>
+                              {row.messages || '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="px-4 py-6 text-center" style={{ backgroundColor: '#13172a' }}>
+                  <p className="text-xs" style={{ color: '#8892aa' }}>No monthly data yet.</p>
                 </div>
               )}
             </div>
@@ -600,7 +944,7 @@ export default function AnalyticsPage() {
           {/* Period stats */}
           <section>
             <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>
-              {period === 'all' ? 'All Time Activity' : `Last ${period.replace('d', ' Days')} Activity`}
+              Last 30 Days
             </p>
             <div className="grid grid-cols-2 gap-2">
               <StatCard label="New Signups" value={stats.newSignups} color="#2d5fc4" />
@@ -662,64 +1006,48 @@ export default function AnalyticsPage() {
                 <p className="text-sm" style={{ color: '#8892aa' }}>No messages yet.</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {msgLog.map(m => (
-                  <div key={m.id} className="rounded-xl p-3 space-y-2"
-                    style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <RoleBadge role={m.sender_role} />
-                          <span className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>
-                            {m.sender_name ?? '—'}
-                          </span>
-                          {m.sender_club && (
-                            <span className="text-xs truncate" style={{ color: '#8892aa' }}>· {m.sender_club}</span>
-                          )}
-                          <span className="text-xs" style={{ color: '#3a4055' }}>→</span>
-                          <span className="text-xs font-semibold truncate" style={{ color: '#8892aa' }}>
-                            {m.other_name ?? '—'}
-                          </span>
-                          {m.other_club && (
-                            <span className="text-xs truncate" style={{ color: '#3a4055' }}>· {m.other_club}</span>
-                          )}
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                  {(showAllMessages ? msgLog : msgLog.slice(0, 5)).map((m, i) => (
+                    <div key={m.id} className="px-4 py-3"
+                      style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <RoleBadge role={m.sender_role} />
+                            <span className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>
+                              {m.sender_name ?? '—'}
+                            </span>
+                            {m.sender_club && (
+                              <span className="text-xs truncate" style={{ color: '#8892aa' }}>· {m.sender_club}</span>
+                            )}
+                            <span className="text-xs" style={{ color: '#3a4055' }}>→</span>
+                            <span className="text-xs font-semibold truncate" style={{ color: '#8892aa' }}>
+                              {m.other_name ?? '—'}
+                            </span>
+                          </div>
+                          <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+                            {m.content.length > 100 ? m.content.slice(0, 100) + '…' : m.content}
+                          </p>
                         </div>
-                        <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
-                          {m.content.length > 120 ? m.content.slice(0, 120) + '…' : m.content}
+                        <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
+                          {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                         </p>
                       </div>
-                      <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
-                        {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' '}
-                        {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
                     </div>
-                  </div>
-                ))}
-
-                {/* Pagination */}
-                {msgTotal > MSG_PAGE_SIZE && (
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      {msgPage * MSG_PAGE_SIZE + 1}–{Math.min((msgPage + 1) * MSG_PAGE_SIZE, msgTotal)} of {msgTotal.toLocaleString()}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setMsgPage(p => Math.max(0, p - 1))}
-                        disabled={msgPage === 0}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
-                        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setMsgPage(p => p + 1)}
-                        disabled={(msgPage + 1) * MSG_PAGE_SIZE >= msgTotal}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30"
-                        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+                {msgLog.length > 5 && (
+                  <button
+                    onClick={() => setShowAllMessages(v => !v)}
+                    className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                    style={{
+                      backgroundColor: '#0d1020',
+                      borderTop: '1px solid #1e2235',
+                      color: '#8892aa',
+                    }}>
+                    {showAllMessages ? 'Show less' : `See ${msgLog.length - 5} more recent`}
+                  </button>
                 )}
               </div>
             )}
@@ -727,6 +1055,36 @@ export default function AnalyticsPage() {
 
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function InsightCard({ label, value, sub, trend, color = '#e8dece' }: {
+  label: string
+  value: string | number
+  sub?: string
+  trend?: { delta: number; label: string } | null
+  color?: string
+}) {
+  const up = trend && trend.delta > 0
+  const trendColor = up ? '#2d5fc4' : '#ef4444'
+  return (
+    <div className="rounded-xl p-4 flex flex-col gap-1"
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <span className="text-xs font-semibold uppercase tracking-wider leading-tight"
+        style={{ color: '#8892aa', fontSize: 10 }}>{label}</span>
+      <span className="text-3xl font-black leading-none"
+        style={{ fontFamily: "'Barlow Condensed', sans-serif", color }}>
+        {value}
+      </span>
+      <div className="flex items-center gap-1.5 flex-wrap min-h-[14px]">
+        {trend != null && trend.delta !== 0 && (
+          <span className="text-xs font-bold" style={{ color: trendColor }}>
+            {up ? '▲' : '▼'} {Math.abs(trend.delta)} {trend.label}
+          </span>
+        )}
+        {sub && <span className="text-xs" style={{ color: '#8892aa' }}>{sub}</span>}
+      </div>
     </div>
   )
 }

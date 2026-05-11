@@ -14,34 +14,35 @@ declare
 begin
   select jsonb_build_object(
 
-    -- Real MRR: sum of unit_amount across all active subscriptions
+    -- Real MRR: sum price * quantity across all active subscription items
     'mrr_pence', coalesce((
-      select sum((s.attrs->'items'->'data'->0->'price'->>'unit_amount')::int)
+      select sum((si.price->>'unit_amount')::bigint * coalesce(si.quantity, 1))
       from stripe.subscriptions s
-      where s.attrs->>'status' = 'active'
+      join stripe.subscription_items si on si.subscription = s.id
+      where s.status = 'active'
     ), 0),
 
-    -- Total active subscriptions (includes any that cancel at period end)
+    -- Total active subscriptions
     'active_subs', coalesce((
       select count(*)::int
       from stripe.subscriptions
-      where attrs->>'status' = 'active'
+      where status = 'active'
     ), 0),
 
-    -- Cancelling: active but flagged to cancel at period end
+    -- Cancelling: active but scheduled to cancel at period end
     'cancelling', coalesce((
       select count(*)::int
       from stripe.subscriptions
-      where attrs->>'status' = 'active'
-        and (attrs->>'cancel_at_period_end')::boolean = true
+      where status = 'active'
+        and cancel_at_period_end = true
     ), 0),
 
     -- Player premium count (joined to profiles by stripe_customer_id)
     'player_subs', coalesce((
       select count(distinct p.id)::int
       from stripe.subscriptions s
-      join profiles p on p.stripe_customer_id = s.attrs->>'customer'
-      where s.attrs->>'status' = 'active'
+      join profiles p on p.stripe_customer_id = s.customer
+      where s.status = 'active'
         and p.role in ('player', 'admin')
     ), 0),
 
@@ -49,41 +50,43 @@ begin
     'coach_subs', coalesce((
       select count(distinct p.id)::int
       from stripe.subscriptions s
-      join profiles p on p.stripe_customer_id = s.attrs->>'customer'
-      where s.attrs->>'status' = 'active'
+      join profiles p on p.stripe_customer_id = s.customer
+      where s.status = 'active'
         and p.role = 'coach'
     ), 0),
 
     -- Player MRR slice
     'player_mrr_pence', coalesce((
-      select sum((s.attrs->'items'->'data'->0->'price'->>'unit_amount')::int)
+      select sum((si.price->>'unit_amount')::bigint * coalesce(si.quantity, 1))
       from stripe.subscriptions s
-      join profiles p on p.stripe_customer_id = s.attrs->>'customer'
-      where s.attrs->>'status' = 'active'
+      join stripe.subscription_items si on si.subscription = s.id
+      join profiles p on p.stripe_customer_id = s.customer
+      where s.status = 'active'
         and p.role in ('player', 'admin')
     ), 0),
 
     -- Coach MRR slice
     'coach_mrr_pence', coalesce((
-      select sum((s.attrs->'items'->'data'->0->'price'->>'unit_amount')::int)
+      select sum((si.price->>'unit_amount')::bigint * coalesce(si.quantity, 1))
       from stripe.subscriptions s
-      join profiles p on p.stripe_customer_id = s.attrs->>'customer'
-      where s.attrs->>'status' = 'active'
+      join stripe.subscription_items si on si.subscription = s.id
+      join profiles p on p.stripe_customer_id = s.customer
+      where s.status = 'active'
         and p.role = 'coach'
     ), 0),
 
-    -- MRR trend: paid subscription invoices grouped by month, last 6 months
+    -- MRR trend: paid subscription invoices by month, last 6 months
     'mrr_trend', coalesce((
       select jsonb_agg(row_data order by month_start)
       from (
         select
-          to_char(to_timestamp((attrs->>'period_start')::bigint), 'Mon YY') as label,
-          date_trunc('month', to_timestamp((attrs->>'period_start')::bigint)) as month_start,
-          sum((attrs->>'amount_paid')::int) as value
+          to_char(to_timestamp(period_start), 'Mon YY') as label,
+          date_trunc('month', to_timestamp(period_start)) as month_start,
+          sum(amount_paid) as value
         from stripe.invoices
-        where attrs->>'status' = 'paid'
-          and attrs->>'subscription' is not null
-          and to_timestamp((attrs->>'period_start')::bigint) >= now() - interval '6 months'
+        where status = 'paid'
+          and subscription is not null
+          and to_timestamp(period_start) >= now() - interval '6 months'
         group by label, month_start
       ) row_data
     ), '[]'::jsonb),
@@ -98,12 +101,12 @@ begin
           p.role,
           p.club,
           au.last_sign_in_at as last_seen,
-          to_timestamp((s.attrs->>'current_period_end')::bigint) as period_end
+          to_timestamp(s.current_period_end) as period_end
         from stripe.subscriptions s
-        join profiles p on p.stripe_customer_id = s.attrs->>'customer'
+        join profiles p on p.stripe_customer_id = s.customer
         join auth.users au on au.id = p.id
-        where s.attrs->>'status' = 'active'
-          and (s.attrs->>'cancel_at_period_end')::boolean = false
+        where s.status = 'active'
+          and s.cancel_at_period_end = false
           and (au.last_sign_in_at is null or au.last_sign_in_at < now() - interval '14 days')
         order by au.last_sign_in_at asc nulls first
         limit 20
@@ -118,8 +121,8 @@ begin
         and p.role in ('player', 'coach', 'admin')
         and not exists (
           select 1 from stripe.subscriptions s
-          where s.attrs->>'customer' = p.stripe_customer_id
-            and s.attrs->>'status' = 'active'
+          where s.customer = p.stripe_customer_id
+            and s.status = 'active'
         )
     ), 0)
 

@@ -36,6 +36,30 @@ type RevenueStats = {
   non_converting_count: number
 }
 
+type MonthRow = {
+  label: string
+  new_signups: number
+  new_premium: number
+  churned: number
+  messages: number
+}
+
+type PlatformStats = {
+  mau: number
+  mau_prev: number
+  player_count: number
+  coach_count: number
+  reply_rate_pct: number | null
+  reply_total_convos: number
+  open_opportunities: number
+  funnel: { registered: number; approved: number; active_30d: number; premium: number }
+  monthly_table: MonthRow[]
+  new_mrr_pence: number
+  churned_mrr_pence: number
+  legacy_count: number
+  legacy_upgrade_pence: number
+}
+
 type Period = '7d' | '30d' | '90d' | 'all'
 
 type DayPoint = { label: string; value: number }
@@ -260,6 +284,8 @@ export default function AnalyticsPage() {
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
   const [revenueLoading, setRevenueLoading] = useState(true)
   const [showAllChurn, setShowAllChurn] = useState(false)
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null)
+  const [platformLoading, setPlatformLoading] = useState(true)
   const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
   const [msgLoading, setMsgLoading] = useState(true)
   const [msgPage, setMsgPage] = useState(0)
@@ -276,6 +302,13 @@ export default function AnalyticsPage() {
       .then(r => r.json())
       .then(d => { setRevenueStats(d); setRevenueLoading(false) })
       .catch(() => setRevenueLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/platform-stats')
+      .then(r => r.json())
+      .then(d => { setPlatformStats(d); setPlatformLoading(false) })
+      .catch(() => setPlatformLoading(false))
   }, [])
 
   useEffect(() => {
@@ -467,6 +500,95 @@ export default function AnalyticsPage() {
       ) : stats ? (
         <div className="px-4 pt-4 space-y-4">
 
+          {/* ── Insight Cards ─────────────────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Key Metrics</p>
+            <div className="grid grid-cols-2 gap-2">
+              <InsightCard
+                label="Monthly Active Users"
+                value={platformLoading ? '…' : (platformStats?.mau ?? 0)}
+                color="#2d5fc4"
+                trend={platformStats && platformStats.mau_prev > 0
+                  ? { delta: platformStats.mau - platformStats.mau_prev, label: 'vs prev 30d' }
+                  : null}
+              />
+              <InsightCard
+                label="Players per Coach"
+                value={platformLoading ? '…' : (
+                  platformStats && platformStats.coach_count > 0
+                    ? (platformStats.player_count / platformStats.coach_count).toFixed(1) + ':1'
+                    : '—'
+                )}
+                color="#a78bfa"
+                sub={platformStats ? `${platformStats.player_count}p · ${platformStats.coach_count}c` : undefined}
+              />
+              <InsightCard
+                label="Coach Reply Rate"
+                value={platformLoading ? '…' : (
+                  platformStats?.reply_rate_pct != null
+                    ? platformStats.reply_rate_pct + '%'
+                    : '—'
+                )}
+                color="#60a5fa"
+                sub={platformStats?.reply_total_convos
+                  ? `${platformStats.reply_total_convos} convos (90d)`
+                  : undefined}
+              />
+              <InsightCard
+                label="Live Opportunities"
+                value={platformLoading ? '…' : (platformStats?.open_opportunities ?? 0)}
+                color="#f59e0b"
+              />
+            </div>
+          </section>
+
+          {/* ── Engagement Funnel ─────────────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Engagement Funnel</p>
+            <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              {platformLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                    style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+                </div>
+              ) : platformStats ? (() => {
+                const base = platformStats.funnel.registered || 1
+                const steps = [
+                  { label: 'Registered',  value: platformStats.funnel.registered, color: '#2d5fc4' },
+                  { label: 'Approved',    value: platformStats.funnel.approved,   color: '#3a6fda' },
+                  { label: 'Active 30d',  value: platformStats.funnel.active_30d, color: '#60a5fa' },
+                  { label: 'Premium',     value: platformStats.funnel.premium,    color: '#f59e0b' },
+                ]
+                return steps.map((step, i) => {
+                  const pct = Math.round(step.value / base * 100)
+                  return (
+                    <div key={step.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs" style={{ color: '#8892aa' }}>{step.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black tabular-nums"
+                            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: step.color }}>
+                            {step.value.toLocaleString()}
+                          </span>
+                          {i > 0 && (
+                            <span className="text-xs tabular-nums w-8 text-right"
+                              style={{ color: '#3a4055' }}>{pct}%</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+                        <div className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: step.color }} />
+                      </div>
+                    </div>
+                  )
+                })
+              })() : (
+                <p className="text-xs text-center" style={{ color: '#8892aa' }}>No data</p>
+              )}
+            </div>
+          </section>
+
           {/* All-time platform totals */}
           <section>
             <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Platform Totals</p>
@@ -552,6 +674,17 @@ export default function AnalyticsPage() {
                       <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
                         £{(revenueStats.mrr_pence / 100 * 12).toFixed(0)} annualised
                       </p>
+                      {platformStats && (platformStats.new_mrr_pence > 0 || platformStats.churned_mrr_pence > 0) && (
+                        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                          {platformStats.new_mrr_pence > 0 && (
+                            <span style={{ color: '#2d5fc4' }}>+£{(platformStats.new_mrr_pence / 100).toFixed(2)} </span>
+                          )}
+                          {platformStats.churned_mrr_pence > 0 && (
+                            <span style={{ color: '#ef4444' }}>−£{(platformStats.churned_mrr_pence / 100).toFixed(2)} </span>
+                          )}
+                          <span>this month</span>
+                        </p>
+                      )}
                     </div>
                     {revenueStats.cancelling > 0 && (
                       <div className="text-right">
@@ -628,6 +761,25 @@ export default function AnalyticsPage() {
                           )
                         })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Legacy upgrade opportunity */}
+                  {platformStats && platformStats.legacy_count > 0 && (
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5"
+                      style={{ backgroundColor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
+                          Legacy upgrade opportunity
+                        </p>
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          {platformStats.legacy_count} users on old pricing
+                        </p>
+                      </div>
+                      <p className="text-sm font-black"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
+                        +£{(platformStats.legacy_upgrade_pence / 100).toFixed(2)}/mo
+                      </p>
                     </div>
                   )}
 
@@ -734,6 +886,78 @@ export default function AnalyticsPage() {
                 <p className="text-sm" style={{ color: '#8892aa' }}>Could not load Stripe data.</p>
               </div>
             )}
+          </section>
+
+          {/* ── Month-by-Month Table ──────────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Month by Month</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+              {platformLoading ? (
+                <div className="flex items-center justify-center py-8" style={{ backgroundColor: '#13172a' }}>
+                  <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                    style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+                </div>
+              ) : platformStats && platformStats.monthly_table.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid #1e2235' }}>
+                        <th className="text-left px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#8892aa' }}>Month</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#2d5fc4' }}>Signups</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#f59e0b' }}>New Sub</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#ef4444' }}>Churned</th>
+                        <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                          style={{ color: '#a78bfa' }}>Messages</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {platformStats.monthly_table.map((row, i) => {
+                        const isCurrentMonth = i === platformStats.monthly_table.length - 1
+                        return (
+                          <tr key={row.label}
+                            style={{
+                              backgroundColor: isCurrentMonth ? '#0d1020' : '#13172a',
+                              borderBottom: i < platformStats.monthly_table.length - 1 ? '1px solid #1e2235' : 'none',
+                            }}>
+                            <td className="px-3 py-2.5 font-semibold"
+                              style={{ color: isCurrentMonth ? '#e8dece' : '#8892aa' }}>
+                              {row.label}
+                              {isCurrentMonth && (
+                                <span className="ml-1.5 text-xs" style={{ color: '#3a4055' }}>·now</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                              style={{ color: row.new_signups > 0 ? '#2d5fc4' : '#3a4055' }}>
+                              {row.new_signups || '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                              style={{ color: row.new_premium > 0 ? '#f59e0b' : '#3a4055' }}>
+                              {row.new_premium > 0 ? `+${row.new_premium}` : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                              style={{ color: row.churned > 0 ? '#ef4444' : '#3a4055' }}>
+                              {row.churned > 0 ? `-${row.churned}` : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums"
+                              style={{ color: row.messages > 0 ? '#a78bfa' : '#3a4055' }}>
+                              {row.messages || '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="px-4 py-6 text-center" style={{ backgroundColor: '#13172a' }}>
+                  <p className="text-xs" style={{ color: '#8892aa' }}>No monthly data yet.</p>
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Migration tracker */}
@@ -916,6 +1140,36 @@ export default function AnalyticsPage() {
 
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function InsightCard({ label, value, sub, trend, color = '#e8dece' }: {
+  label: string
+  value: string | number
+  sub?: string
+  trend?: { delta: number; label: string } | null
+  color?: string
+}) {
+  const up = trend && trend.delta > 0
+  const trendColor = up ? '#2d5fc4' : '#ef4444'
+  return (
+    <div className="rounded-xl p-4 flex flex-col gap-1"
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <span className="text-xs font-semibold uppercase tracking-wider leading-tight"
+        style={{ color: '#8892aa', fontSize: 10 }}>{label}</span>
+      <span className="text-3xl font-black leading-none"
+        style={{ fontFamily: "'Barlow Condensed', sans-serif", color }}>
+        {value}
+      </span>
+      <div className="flex items-center gap-1.5 flex-wrap min-h-[14px]">
+        {trend != null && trend.delta !== 0 && (
+          <span className="text-xs font-bold" style={{ color: trendColor }}>
+            {up ? '▲' : '▼'} {Math.abs(trend.delta)} {trend.label}
+          </span>
+        )}
+        {sub && <span className="text-xs" style={{ color: '#8892aa' }}>{sub}</span>}
+      </div>
     </div>
   )
 }

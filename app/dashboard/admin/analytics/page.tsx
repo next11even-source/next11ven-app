@@ -7,6 +7,14 @@ import { createClient } from '@/lib/supabase-browser'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type PricePoint = {
+  price_id: string
+  unit_amount_pence: number
+  currency: string
+  subscriber_count: number
+  mrr_pence: number
+}
+
 type RevenueStats = {
   mrr_pence: number
   active_subs: number
@@ -15,6 +23,7 @@ type RevenueStats = {
   coach_subs: number
   player_mrr_pence: number
   coach_mrr_pence: number
+  price_breakdown: PricePoint[]
   mrr_trend: { label: string; value: number }[]
   churn_risk: {
     id: string
@@ -250,6 +259,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
   const [revenueLoading, setRevenueLoading] = useState(true)
+  const [showAllChurn, setShowAllChurn] = useState(false)
   const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
   const [msgLoading, setMsgLoading] = useState(true)
   const [msgPage, setMsgPage] = useState(0)
@@ -579,6 +589,48 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
 
+                  {/* Price tier breakdown — shows legacy vs current pricing split */}
+                  {revenueStats.price_breakdown.length > 0 && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: '#8892aa' }}>Pricing Tiers</p>
+                      <div className="space-y-1.5">
+                        {revenueStats.price_breakdown.map((tier) => {
+                          const amount = tier.unit_amount_pence / 100
+                          const isLegacy = tier.unit_amount_pence < 699
+                          const label = isLegacy
+                            ? `Legacy (£${amount.toFixed(2)})`
+                            : tier.unit_amount_pence >= 999
+                              ? `Coach Pro (£${amount.toFixed(2)})`
+                              : `Player Premium (£${amount.toFixed(2)})`
+                          const color = isLegacy ? '#8892aa' : tier.unit_amount_pence >= 999 ? '#a78bfa' : '#2d5fc4'
+                          return (
+                            <div key={tier.price_id} className="flex items-center justify-between rounded-lg px-3 py-2"
+                              style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold" style={{ color }}>{label}</span>
+                                {isLegacy && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                                    style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa' }}>
+                                    Legacy
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-black tabular-nums"
+                                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color }}>
+                                  {tier.subscriber_count}
+                                </span>
+                                <span className="text-xs ml-1.5" style={{ color: '#8892aa' }}>
+                                  · £{(tier.mrr_pence / 100).toFixed(2)}/mo
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Conversion rate */}
                   {stats && stats.totalApproved > 0 && (
                     <div>
@@ -627,11 +679,11 @@ export default function AnalyticsPage() {
                       </p>
                       <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
                         style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
-                        {revenueStats.churn_risk.length} subscribers · 14+ days inactive
+                        {revenueStats.churn_risk.length} · 14+ days inactive
                       </span>
                     </div>
                     <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-                      {revenueStats.churn_risk.map((u, i) => (
+                      {(showAllChurn ? revenueStats.churn_risk : revenueStats.churn_risk.slice(0, 5)).map((u, i) => (
                         <div key={u.id} className="flex items-center gap-3 px-4 py-3"
                           style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
                           <div className="flex-1 min-w-0">
@@ -660,6 +712,20 @@ export default function AnalyticsPage() {
                         </div>
                       ))}
                     </div>
+                    {revenueStats.churn_risk.length > 5 && (
+                      <button
+                        onClick={() => setShowAllChurn(v => !v)}
+                        className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                        style={{
+                          backgroundColor: '#0d1020',
+                          borderTop: '1px solid #1e2235',
+                          color: '#8892aa',
+                        }}>
+                        {showAllChurn
+                          ? 'Show less'
+                          : `See ${revenueStats.churn_risk.length - 5} more`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

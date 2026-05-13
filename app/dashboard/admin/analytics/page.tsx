@@ -356,15 +356,11 @@ export default function AnalyticsPage() {
       .gte('created_at', sinceIso).limit(1000)
     const viewsQ = supabase.from('player_views').select('viewed_at', { count: 'exact' })
       .gte('viewed_at', sinceIso).limit(1000)
-    const appsQ = supabase.from('applications').select('created_at', { count: 'exact' })
-      .gte('created_at', sinceIso)
-    const postsQ = supabase.from('posts').select('created_at', { count: 'exact' })
-      .eq('is_deleted', false).gte('created_at', sinceIso).limit(1000)
 
     const msgStatsUrl = `/api/admin/message-stats${sinceIso ? `?since=${encodeURIComponent(sinceIso)}` : ''}`
 
-    const [signupsRes, viewsRes, appsRes, postsRes, msgStatsRes] = await Promise.all([
-      signupsQ, viewsQ, appsQ, postsQ,
+    const [signupsRes, viewsRes, msgStatsRes] = await Promise.all([
+      signupsQ, viewsQ,
       fetch(msgStatsUrl).then(r => r.json()),
     ])
 
@@ -372,7 +368,6 @@ export default function AnalyticsPage() {
     const signupTs = (signupsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
     const msgTs: string[] = msgStatsRes.messageTimestamps ?? []
     const viewTs = (viewsRes.data ?? []).map((r: { viewed_at: string }) => r.viewed_at)
-    const postTs = (postsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
 
     setStats({
       totalUsers: totalUsers ?? 0,
@@ -391,12 +386,12 @@ export default function AnalyticsPage() {
       messagesSent: msgStatsRes.messagesSent ?? 0,
       newConversations: msgStatsRes.newConversations ?? 0,
       profileViews: viewsRes.count ?? 0,
-      applicationsSubmitted: appsRes.count ?? 0,
-      postsSent: postsRes.count ?? 0,
+      applicationsSubmitted: msgStatsRes.applicationsSubmitted ?? 0,
+      postsSent: 0,
       signupSeries: buildSeries(signupTs),
       messageSeries: buildSeries(msgTs),
       viewSeries: buildSeries(viewTs),
-      postSeries: buildSeries(postTs),
+      postSeries: [],
     })
     setLoading(false)
   }

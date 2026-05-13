@@ -32,20 +32,24 @@ export async function GET(req: NextRequest) {
   const since = req.nextUrl.searchParams.get('since')
 
   let msgsQ = admin.from('messages').select('created_at', { count: 'exact' }).limit(1000)
-  let convsQ = admin.from('conversations').select('created_at', { count: 'exact' })
+  // Use last_message_at — created_at is not reliably set on conversations rows
+  let convsQ = admin.from('conversations').select('id', { count: 'exact' }).limit(1)
+  let appsQ = admin.from('applications').select('id', { count: 'exact' }).limit(1)
 
   if (since) {
     msgsQ = msgsQ.gte('created_at', since)
-    convsQ = convsQ.gte('created_at', since)
+    convsQ = convsQ.gte('last_message_at', since)
+    appsQ = appsQ.gte('created_at', since)
   }
 
-  const [msgsRes, convsRes] = await Promise.all([msgsQ, convsQ])
+  const [msgsRes, convsRes, appsRes] = await Promise.all([msgsQ, convsQ, appsQ])
 
   const timestamps = (msgsRes.data ?? []).map((r: { created_at: string }) => r.created_at)
 
   return NextResponse.json({
     messagesSent: msgsRes.count ?? 0,
     newConversations: convsRes.count ?? 0,
+    applicationsSubmitted: appsRes.count ?? 0,
     messageTimestamps: timestamps,
   })
 }

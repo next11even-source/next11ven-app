@@ -83,6 +83,16 @@ type MessageEntry = {
   other_role: string | null
 }
 
+type RecentApplication = {
+  id: string
+  created_at: string
+  status: string
+  message: string | null
+  player: { id: string; full_name: string | null; club: string | null; position: string | null } | null
+  coach: { id: string; full_name: string | null; club: string | null } | null
+  opportunity: { id: string; title: string | null; club: string | null; position: string | null; level: string | null } | null
+}
+
 type Stats = {
   totalUsers: number
   totalPlayers: number
@@ -253,6 +263,9 @@ export default function AnalyticsPage() {
   const [showAllMessages, setShowAllMessages] = useState(false)
   const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([])
   const [loginsLoading, setLoginsLoading] = useState(true)
+  const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
+  const [appsLoading, setAppsLoading] = useState(true)
+  const [showAllApps, setShowAllApps] = useState(false)
 
   useEffect(() => {
     load()
@@ -281,6 +294,13 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     loadMsgLog()
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/recent-applications')
+      .then(r => r.json())
+      .then(d => { setRecentApps(d.applications ?? []); setAppsLoading(false) })
+      .catch(() => setAppsLoading(false))
   }, [])
 
   async function loadMsgLog() {
@@ -747,65 +767,6 @@ export default function AnalyticsPage() {
                   />
                 )}
 
-                {/* Churn risk */}
-                {revenueStats.churn_risk.length > 0 && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
-                    <div className="px-4 py-2.5 flex items-center gap-2"
-                      style={{ backgroundColor: '#13172a', borderBottom: '1px solid #1e2235' }}>
-                      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ef4444' }}>
-                        Churn Risk
-                      </p>
-                      <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
-                        style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
-                        {revenueStats.churn_risk.length} · 14+ days inactive
-                      </span>
-                    </div>
-                    <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-                      {(showAllChurn ? revenueStats.churn_risk : revenueStats.churn_risk.slice(0, 5)).map((u, i) => (
-                        <div key={u.id} className="flex items-center gap-3 px-4 py-3"
-                          style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
-                                {u.full_name ?? '—'}
-                              </span>
-                              <RoleBadge role={u.role} />
-                            </div>
-                            {u.club && (
-                              <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0 space-y-0.5">
-                            <p className="text-xs" style={{ color: '#8892aa' }}>
-                              {u.last_seen
-                                ? `Last seen ${new Date(u.last_seen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-                                : 'Never signed in'}
-                            </p>
-                            {u.period_end && (
-                              <p className="text-xs" style={{ color: '#3a4055' }}>
-                                renews {new Date(u.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {revenueStats.churn_risk.length > 5 && (
-                      <button
-                        onClick={() => setShowAllChurn(v => !v)}
-                        className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
-                        style={{
-                          backgroundColor: '#0d1020',
-                          borderTop: '1px solid #1e2235',
-                          color: '#8892aa',
-                        }}>
-                        {showAllChurn
-                          ? 'Show less'
-                          : `See ${revenueStats.churn_risk.length - 5} more`}
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             ) : (
               <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -1047,6 +1008,148 @@ export default function AnalyticsPage() {
               </div>
             )}
           </section>
+
+          {/* ── Recent Applications ───────────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Recent Applications</p>
+              {recentApps.length > 0 && (
+                <span className="text-xs" style={{ color: '#8892aa' }}>{recentApps.length} total</span>
+              )}
+            </div>
+
+            {appsLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <div className="w-6 h-6 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#f59e0b', borderTopColor: 'transparent' }} />
+              </div>
+            ) : recentApps.length === 0 ? (
+              <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>No applications yet.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                  {(showAllApps ? recentApps : recentApps.slice(0, 5)).map((a, i) => (
+                    <div key={a.id} className="px-4 py-3"
+                      style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <RoleBadge role="player" />
+                            <span className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>
+                              {a.player?.full_name ?? '—'}
+                            </span>
+                            {a.player?.club && (
+                              <span className="text-xs truncate" style={{ color: '#8892aa' }}>· {a.player.club}</span>
+                            )}
+                          </div>
+                          <p className="text-xs" style={{ color: '#8892aa' }}>
+                            Applied to{' '}
+                            <span style={{ color: '#e8dece' }}>{a.opportunity?.title ?? '—'}</span>
+                            {a.opportunity?.club && (
+                              <span> · {a.opportunity.club}</span>
+                            )}
+                          </p>
+                          {a.coach?.full_name && (
+                            <p className="text-xs" style={{ color: '#3a4055' }}>
+                              Coach: {a.coach.full_name}{a.coach.club ? ` · ${a.coach.club}` : ''}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right flex-shrink-0 space-y-1">
+                          <p className="text-xs tabular-nums" style={{ color: '#8892aa' }}>
+                            {new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </p>
+                          <span className="text-xs px-1.5 py-0.5 rounded font-bold inline-block" style={{
+                            backgroundColor: a.status === 'accepted' ? 'rgba(45,95,196,0.15)'
+                              : a.status === 'rejected' ? 'rgba(239,68,68,0.12)'
+                              : a.status === 'shortlisted' ? 'rgba(167,139,250,0.15)'
+                              : 'rgba(136,146,170,0.12)',
+                            color: a.status === 'accepted' ? '#2d5fc4'
+                              : a.status === 'rejected' ? '#ef4444'
+                              : a.status === 'shortlisted' ? '#a78bfa'
+                              : '#8892aa',
+                          }}>
+                            {a.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {recentApps.length > 5 && (
+                  <button
+                    onClick={() => setShowAllApps(v => !v)}
+                    className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                    style={{
+                      backgroundColor: '#0d1020',
+                      borderTop: '1px solid #1e2235',
+                      color: '#8892aa',
+                    }}>
+                    {showAllApps ? 'Show less' : `See ${recentApps.length - 5} more`}
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* ── Churn Risk ────────────────────────────────────────────────────── */}
+          {!revenueLoading && revenueStats && revenueStats.churn_risk.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs uppercase tracking-wider" style={{ color: '#ef4444' }}>Churn Risk</p>
+                <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
+                  style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                  {revenueStats.churn_risk.length} · 14+ days inactive
+                </span>
+              </div>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                  {(showAllChurn ? revenueStats.churn_risk : revenueStats.churn_risk.slice(0, 5)).map((u, i) => (
+                    <div key={u.id} className="flex items-center gap-3 px-4 py-3"
+                      style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                            {u.full_name ?? '—'}
+                          </span>
+                          <RoleBadge role={u.role} />
+                        </div>
+                        {u.club && (
+                          <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0 space-y-0.5">
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          {u.last_seen
+                            ? `Last seen ${new Date(u.last_seen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                            : 'Never signed in'}
+                        </p>
+                        {u.period_end && (
+                          <p className="text-xs" style={{ color: '#3a4055' }}>
+                            renews {new Date(u.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {revenueStats.churn_risk.length > 5 && (
+                  <button
+                    onClick={() => setShowAllChurn(v => !v)}
+                    className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                    style={{
+                      backgroundColor: '#0d1020',
+                      borderTop: '1px solid #1e2235',
+                      color: '#8892aa',
+                    }}>
+                    {showAllChurn ? 'Show less' : `See ${revenueStats.churn_risk.length - 5} more`}
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
 
         </div>
       ) : null}

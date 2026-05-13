@@ -78,7 +78,14 @@ export default function CoachPlayersPage() {
   }, [])
 
   const filtered = players.filter(p => {
-    if (search && !p.full_name?.toLowerCase().includes(search.toLowerCase())) return false
+    if (search) {
+      const q = search.toLowerCase()
+      const match =
+        p.full_name?.toLowerCase().includes(q) ||
+        p.club?.toLowerCase().includes(q) ||
+        p.city?.toLowerCase().includes(q)
+      if (!match) return false
+    }
     if (posFilter && p.position !== posFilter && p.secondary_position !== posFilter) return false
     if (levelFilter && !p.playing_level?.toLowerCase().includes(levelFilter.toLowerCase())) return false
     if (statusFilter && p.status !== statusFilter) return false

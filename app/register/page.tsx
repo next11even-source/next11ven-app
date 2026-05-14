@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import { toTitleCase } from '@/lib/utils'
 
 const PLAYING_LEVELS = LEVELS
 const COACHING_LEVELS = LEVELS
@@ -246,7 +247,7 @@ export default function RegisterPage() {
             {/* Section: Personal Details */}
             <Section title="Personal Details">
               <Field label="Full Name">
-                <Input required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Marcus Johnson" />
+                <Input required value={fullName} onChange={(e) => setFullName(toTitleCase(e.target.value))} placeholder="e.g. Marcus Johnson" />
               </Field>
               <Field label="Email">
                 <Input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />

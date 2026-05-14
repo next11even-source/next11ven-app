@@ -2,6 +2,11 @@
  * Shared utility functions used across the app.
  */
 
+/** Capitalises the first letter of every word. "jamal crawford" → "Jamal Crawford" */
+export function toTitleCase(str: string): string {
+  return str.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase())
+}
+
 export function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (diff < 60) return 'just now'

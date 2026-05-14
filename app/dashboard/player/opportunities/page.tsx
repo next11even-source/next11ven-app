@@ -21,7 +21,6 @@ type Opportunity = {
   urgent: boolean
   deadline: string | null
   created_at: string
-  coach: { full_name: string | null } | null
   application_count: number
 }
 
@@ -97,11 +96,11 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
     async function load() {
       const supabase = createClient()
       const [oppsRes, appsRes, countsRes] = await Promise.all([
-        supabase.from('opportunities').select('*, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('opportunities').select('id, title, club, location, position, level, description, urgent, deadline, opportunity_type, created_at, coach_id').eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('applications').select('opportunity_id').eq('player_id', playerId),
         fetch('/api/opportunities/counts').then(r => r.json()),
       ])
-      const opps = (oppsRes.data ?? []) as Opportunity[]
+      const opps = (oppsRes.data ?? []) as unknown as Opportunity[]
       const counts: Record<string, number> = countsRes.counts ?? {}
       const withCounts = opps.map(o => ({ ...o, application_count: counts[o.id] ?? 0 }))
       setOpportunities(withCounts)
@@ -156,15 +155,6 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
               <div>
                 <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{opp.title}</p>
                 <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-                  {isPremium && (
-                    <>
-                      <Link href={`/dashboard/coach/${opp.coach_id}`}
-                        style={{ color: '#2d5fc4', textDecoration: 'none' }}
-                        onClick={e => e.stopPropagation()}>
-                        {opp.coach?.full_name ?? 'Coach'}
-                      </Link>{' · '}
-                    </>
-                  )}
                   {opp.location && <span>{opp.location}</span>}
                   {opp.location && ' · '}
                   {timeAgo(opp.created_at)}

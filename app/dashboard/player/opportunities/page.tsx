@@ -96,16 +96,14 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const [oppsRes, appsRes] = await Promise.all([
+      const [oppsRes, appsRes, countsRes] = await Promise.all([
         supabase.from('opportunities').select('*, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('applications').select('opportunity_id').eq('player_id', playerId),
+        fetch('/api/opportunities/counts').then(r => r.json()),
       ])
       const opps = (oppsRes.data ?? []) as Opportunity[]
-      const supabase2 = createClient()
-      const withCounts = await Promise.all(opps.map(async o => {
-        const { count } = await supabase2.from('applications').select('*', { count: 'exact', head: true }).eq('opportunity_id', o.id)
-        return { ...o, application_count: count ?? 0 }
-      }))
+      const counts: Record<string, number> = countsRes.counts ?? {}
+      const withCounts = opps.map(o => ({ ...o, application_count: counts[o.id] ?? 0 }))
       setOpportunities(withCounts)
       setAppliedIds(new Set((appsRes.data ?? []).map((a: { opportunity_id: string }) => a.opportunity_id)))
       setLoading(false)

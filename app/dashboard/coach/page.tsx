@@ -42,6 +42,17 @@ type MyOpportunity = {
   applicationCount: number
 }
 
+type OtherOpportunity = {
+  id: string
+  title: string
+  club: string | null
+  position: string | null
+  level: string | null
+  location: string | null
+  created_at: string
+  coach: { full_name: string | null; avatar_url: string | null } | null
+}
+
 type ShortlistPlayer = {
   savedId: string
   player_id: string
@@ -309,6 +320,71 @@ function MyOpportunities({ opps }: { opps: MyOpportunity[] }) {
   )
 }
 
+// ─── Section 3b: Opportunities From Other Clubs ──────────────────────────────
+
+function OtherOpportunities({ opps }: { opps: OtherOpportunity[] }) {
+  if (opps.length === 0) return null
+
+  function timeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime()
+    const days = Math.floor(diff / 86400000)
+    if (days === 0) return 'Today'
+    if (days === 1) return 'Yesterday'
+    if (days < 7) return `${days}d ago`
+    return `${Math.floor(days / 7)}w ago`
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <div>
+          <h2 className="text-xl font-black uppercase"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            Active Clubs
+          </h2>
+          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Other clubs currently recruiting</p>
+        </div>
+        <Link href="/dashboard/player/market" className="text-xs font-semibold"
+          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          View all →
+        </Link>
+      </div>
+
+      <div className="space-y-2">
+        {opps.map(opp => {
+          const initials = opp.coach?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+          const meta = [opp.position, opp.level, opp.location].filter(Boolean).join(' · ')
+          return (
+            <div key={opp.id}
+              className="flex items-center gap-3 rounded-xl px-4 py-3.5"
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              {/* Coach avatar */}
+              <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: '#1a1f3a', border: '1px solid #1e2235' }}>
+                {opp.coach?.avatar_url
+                  ? <img src={opp.coach.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : <span className="text-xs font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>{initials}</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-xs truncate" style={{ color: '#8892aa' }}>{opp.club ?? opp.coach?.full_name ?? 'Club'}</p>
+                  <span className="text-xs flex-shrink-0" style={{ color: '#374151' }}>{timeAgo(opp.created_at)}</span>
+                </div>
+                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
+                {meta && <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{meta}</p>}
+              </div>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: 'rgba(45,95,196,0.12)', color: '#2d5fc4' }}>
+                OPEN
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 // ─── Section 4: Featured Players (Premium Carousel) ──────────────────────────
 
 function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
@@ -470,6 +546,7 @@ export default function CoachDashboard() {
   const [statsUnread, setStatsUnread] = useState(0)
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
+  const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
   const [premiumPlayers, setPremiumPlayers] = useState<PremiumPlayer[]>([])
   const [myShortlist, setMyShortlist] = useState<ShortlistPlayer[]>([])
 
@@ -491,6 +568,7 @@ export default function CoachDashboard() {
         feedRes,
         premiumRes,
         convsRes,
+        otherOppsRes,
       ] = await Promise.all([
         supabase.from('profiles')
           .select('full_name, premium, avatar_url, coaching_role, role')
@@ -535,6 +613,13 @@ export default function CoachDashboard() {
         supabase.from('conversations')
           .select('id')
           .eq('coach_id', user.id),
+
+        supabase.from('opportunities')
+          .select('id, title, club, position, level, location, created_at, coach:profiles!coach_id(full_name, avatar_url)')
+          .neq('coach_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(3),
       ])
 
       // Profile
@@ -563,6 +648,19 @@ export default function CoachDashboard() {
       // Premium players — random order each session
       const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5).slice(0, 10)
       setPremiumPlayers(shuffled)
+
+      // Other clubs' opportunities
+      const rawOtherOpps = (otherOppsRes.data ?? []) as any[]
+      setOtherOpportunities(rawOtherOpps.map(o => ({
+        id: o.id,
+        title: o.title,
+        club: o.club,
+        position: o.position,
+        level: o.level ?? null,
+        location: o.location ?? null,
+        created_at: o.created_at,
+        coach: Array.isArray(o.coach) ? (o.coach[0] ?? null) : (o.coach ?? null),
+      })))
 
       // ── Phase 2: queries that depend on phase 1 results ───────────────────
 
@@ -717,6 +815,9 @@ export default function CoachDashboard() {
 
             {/* Section 3 */}
             <MyOpportunities opps={myOpportunities} />
+
+            {/* Section 3b */}
+            <OtherOpportunities opps={otherOpportunities} />
 
             {/* Section 4 */}
             <PremiumCarousel players={premiumPlayers} />

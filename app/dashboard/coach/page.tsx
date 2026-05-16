@@ -524,7 +524,7 @@ export default function CoachDashboard() {
           .select('id, post_type, caption, image_url, author:profiles!author_id(full_name, avatar_url, role)')
           .eq('is_deleted', false)
           .order('created_at', { ascending: false })
-          .limit(3),
+          .limit(15),
 
         supabase.from('profiles')
           .select('id, full_name, position, avatar_url, status, location, city, premium')

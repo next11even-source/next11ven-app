@@ -88,15 +88,21 @@ export async function onUserApproved(
   fields.are_you_a = accountTypeLabel
 
   if (existing) {
-    // Update existing subscriber with latest fields and add to group
-    await mlFetch(`/subscribers/${existing.id}`, {
+    // Use PUT (not POST /groups/{id}/subscribers) so MailerLite treats this as a
+    // data update rather than a group-join event — existing subscribers won't
+    // trigger automation sequences. Only new subscribers (POST below) fire them.
+    const updateResult = await mlFetch(`/subscribers/${existing.id}`, {
       method: 'PUT',
       body: JSON.stringify({
         fields,
         groups: [groupId],
       }),
     })
-    console.log(`[MailerLite] Updated existing subscriber ${email} and added to group`)
+    if (updateResult?.status === 200 || updateResult?.status === 201) {
+      console.log(`[MailerLite] Updated existing subscriber ${email} and added to group ${groupId}`)
+    } else {
+      console.error(`[MailerLite] Failed to update existing subscriber ${email} (status ${updateResult?.status}):`, updateResult?.data)
+    }
     return
   }
 

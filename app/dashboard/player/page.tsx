@@ -576,19 +576,21 @@ export default function PlayerHome() {
             <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
               style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
               <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
-                🏆 <strong>End of Season Showcase Day</strong>
+                ⚽ <strong>End of Season Showcase Day</strong>
                 <br />
-                Get seen by coaches at your level.
+                <span style={{ color: '#8892aa' }}>Saturday 30th May — Avro FC, Oldham</span>
                 <br />
-                <span style={{ color: '#60a5fa' }}>Step 3–7 coaches registered.</span>
+                <span style={{ color: '#60a5fa' }}>15+ coaches from Step 3–7 confirmed.</span>
+                <br />
+                <span style={{ color: '#f59e0b' }}>Only 28 spots — book yours now.</span>
               </p>
               <a
-                href="https://forms.gle/e4goiHZxEutBFGup8"
+                href="https://buy.stripe.com/eVqdRaaMc9iu6jb3fp2Ry01"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
                 style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
-                Register Interest
+                Book Your Spot
               </a>
             </div>
 

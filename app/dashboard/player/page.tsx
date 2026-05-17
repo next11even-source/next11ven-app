@@ -580,7 +580,7 @@ export default function PlayerHome() {
                 <br />
                 <span style={{ color: '#8892aa' }}>Saturday 30th May — Avro FC, Oldham</span>
                 <br />
-                <span style={{ color: '#60a5fa' }}>15+ coaches from Step 3–7 confirmed.</span>
+                <span style={{ color: '#60a5fa' }}>10+ clubs from Step 3–7 confirmed.</span>
                 <br />
                 <span style={{ color: '#f59e0b' }}>Only 28 spots — book yours now.</span>
               </p>
@@ -590,7 +590,7 @@ export default function PlayerHome() {
                 rel="noopener noreferrer"
                 className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
                 style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
-                Book Your Spot
+                Secure Your Place
               </a>
             </div>
 

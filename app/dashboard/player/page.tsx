@@ -576,7 +576,7 @@ export default function PlayerHome() {
             <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
               style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
               <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
-                ⚽ <strong>End of Season Showcase Day</strong>
+                ⚽ <strong>End of Season Showcase Game</strong>
                 <br />
                 <span style={{ color: '#8892aa' }}>Saturday 30th May — Avro FC, Oldham</span>
                 <br />

@@ -54,50 +54,68 @@ export async function POST(req: NextRequest) {
   const email = authUser.email ?? null
   const metaName = (authUser.user_metadata?.full_name as string | undefined) ?? null
 
-  // Check if a profile already exists
-  const { data: existingProfile } = await admin
-    .from('profiles')
-    .select('id, full_name, role')
-    .eq('id', userId)
-    .single()
-
-  // Resolve full_name: admin input → existing profile → auth metadata → email prefix
+  // Resolve full_name: admin input → auth metadata → email prefix
   const resolvedName =
     (bodyName && bodyName.trim()) ||
-    existingProfile?.full_name ||
     metaName ||
     (email ? email.split('@')[0] : 'Unknown')
 
-  const profilePayload: Record<string, unknown> = {
-    id: userId,
-    email,
-    role,
-    full_name: resolvedName,
-    approved: false,
-    approval_status: 'pending',
-    status: 'just_exploring',
-  }
+  // Step 1: Write role + full_name into auth user_metadata.
+  // The db trigger on profiles reads from raw_user_meta_data, so this ensures
+  // the trigger picks up the correct role when it fires on the next write.
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...authUser.user_metadata,
+      role,
+      full_name: resolvedName,
+    },
+  })
 
+  // Step 2: Upsert the profile. If a BEFORE trigger fires and reads from
+  // auth metadata, it will now find role = 'coach'/'player'/'fan'.
   const { error: upsertError } = await admin
     .from('profiles')
-    .upsert(profilePayload, { onConflict: 'id' })
+    .upsert({
+      id: userId,
+      email,
+      role,
+      full_name: resolvedName,
+      approved: false,
+      approval_status: 'pending',
+      status: 'just_exploring',
+    }, { onConflict: 'id' })
 
   if (upsertError) {
     console.error('[Admin] rescue-profile upsert error:', upsertError)
     return NextResponse.json({ error: 'Failed to rescue profile: ' + upsertError.message }, { status: 500 })
   }
 
-  // A db trigger on profiles INSERT can reset certain columns (e.g. role) back to null.
-  // Force an explicit UPDATE after the upsert to guarantee the role sticks.
-  const { error: updateError } = await admin
+  // Step 3: Explicit UPDATE as belt-and-suspenders in case the trigger fires
+  // on INSERT but not UPDATE.
+  await admin
     .from('profiles')
-    .update({ role, approved: false, approval_status: 'pending', full_name: resolvedName })
+    .update({ role, full_name: resolvedName, approved: false, approval_status: 'pending' })
     .eq('id', userId)
 
-  if (updateError) {
-    console.error('[Admin] rescue-profile role update error:', updateError)
-    return NextResponse.json({ error: 'Profile created but role update failed: ' + updateError.message }, { status: 500 })
+  // Step 4: Verify what actually ended up in the database.
+  const { data: verified } = await admin
+    .from('profiles')
+    .select('id, role, full_name, email, approval_status, approved')
+    .eq('id', userId)
+    .single()
+
+  if (!verified) {
+    return NextResponse.json({ error: 'Profile write appeared to succeed but row not found on verify' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, userId, role, email, full_name: resolvedName })
+  // If the trigger is still overriding role, return an actionable error
+  // rather than silently succeeding with wrong data.
+  if (verified.role !== role) {
+    return NextResponse.json({
+      error: `A database trigger is overriding the role. DB has "${verified.role ?? 'null'}", expected "${role}". ` +
+        `Check Supabase Dashboard → Database → Triggers for a trigger on the profiles table and share it.`,
+    }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, profile: verified })
 }

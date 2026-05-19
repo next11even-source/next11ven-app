@@ -59,8 +59,10 @@ export default function AdminPage() {
   const [orphanedLoading, setOrphanedLoading] = useState(false)
   const [orphanedLoaded, setOrphanedLoaded] = useState(false)
   const [rescuingId, setRescuingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [rescueRoles, setRescueRoles] = useState<Record<string, string>>({})
   const [rescuedIds, setRescuedIds] = useState<Set<string>>(new Set())
+  const [rescueErrors, setRescueErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     load()
@@ -135,27 +137,56 @@ export default function AdminPage() {
     const role = rescueRoles[userId]
     if (!role) return
     setRescuingId(userId)
-    const res = await fetch('/api/admin/rescue-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, role }),
-    })
-    if (res.ok) {
-      setRescuedIds(prev => new Set([...prev, userId]))
-      // Reload main profile list so the rescued user now shows in pending
-      const profRes = await fetch('/api/admin/profiles')
-      if (profRes.ok) {
-        const json = await profRes.json()
-        const all = (json.profiles ?? []) as ApplicantProfile[]
-        setProfiles(all)
-        setCounts({
-          pending: all.filter(p => !p.approval_status || p.approval_status === 'pending').length,
-          approved: all.filter(p => p.approval_status === 'approved').length,
-          declined: all.filter(p => p.approval_status === 'declined').length,
-        })
+    setRescueErrors(prev => { const next = { ...prev }; delete next[userId]; return next })
+    try {
+      const res = await fetch('/api/admin/rescue-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setRescueErrors(prev => ({ ...prev, [userId]: json.error ?? `Error ${res.status}` }))
+      } else {
+        setRescuedIds(prev => new Set([...prev, userId]))
+        const profRes = await fetch('/api/admin/profiles')
+        if (profRes.ok) {
+          const profJson = await profRes.json()
+          const all = (profJson.profiles ?? []) as ApplicantProfile[]
+          setProfiles(all)
+          setCounts({
+            pending: all.filter(p => !p.approval_status || p.approval_status === 'pending').length,
+            approved: all.filter(p => p.approval_status === 'approved').length,
+            declined: all.filter(p => p.approval_status === 'declined').length,
+          })
+        }
       }
+    } catch (e) {
+      setRescueErrors(prev => ({ ...prev, [userId]: 'Network error — try again' }))
     }
     setRescuingId(null)
+  }
+
+  async function deleteOrphanedUser(userId: string) {
+    if (!confirm('Permanently delete this account? This cannot be undone.')) return
+    setDeletingId(userId)
+    setRescueErrors(prev => { const next = { ...prev }; delete next[userId]; return next })
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setRescueErrors(prev => ({ ...prev, [userId]: json.error ?? `Error ${res.status}` }))
+      } else {
+        setOrphaned(prev => prev.filter(u => u.id !== userId))
+      }
+    } catch {
+      setRescueErrors(prev => ({ ...prev, [userId]: 'Network error — try again' }))
+    }
+    setDeletingId(null)
   }
 
   const approvedNonAdmin = profiles.filter(p => p.approval_status === 'approved' || p.approved === true)
@@ -279,24 +310,38 @@ export default function AdminPage() {
                       )}
                     </div>
                     {!rescued && (
-                      <div className="flex gap-2">
-                        <select
-                          value={rescueRoles[u.id] ?? ''}
-                          onChange={e => setRescueRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
-                          className="flex-1 rounded-lg px-3 py-2 text-xs outline-none"
-                          style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                          <option value="">Assign role…</option>
-                          <option value="player">Player</option>
-                          <option value="coach">Coach</option>
-                          <option value="fan">Fan</option>
-                        </select>
-                        <button
-                          onClick={() => rescueProfile(u.id)}
-                          disabled={!rescueRoles[u.id] || rescuingId === u.id}
-                          className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
-                          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-                          {rescuingId === u.id ? 'Saving…' : 'Save & Pend'}
-                        </button>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <select
+                            value={rescueRoles[u.id] ?? ''}
+                            onChange={e => setRescueRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
+                            className="flex-1 rounded-lg px-3 py-2 text-xs outline-none"
+                            style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                            <option value="">Assign role…</option>
+                            <option value="player">Player</option>
+                            <option value="coach">Coach</option>
+                            <option value="fan">Fan</option>
+                          </select>
+                          <button
+                            onClick={() => rescueProfile(u.id)}
+                            disabled={!rescueRoles[u.id] || rescuingId === u.id || deletingId === u.id}
+                            className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+                            {rescuingId === u.id ? 'Saving…' : 'Save & Pend'}
+                          </button>
+                          <button
+                            onClick={() => deleteOrphanedUser(u.id)}
+                            disabled={rescuingId === u.id || deletingId === u.id}
+                            className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                            style={{ backgroundColor: '#1e2235', border: '1px solid #ef4444', color: '#ef4444' }}>
+                            {deletingId === u.id ? '…' : 'Delete'}
+                          </button>
+                        </div>
+                        {rescueErrors[u.id] && (
+                          <p className="text-xs px-1" style={{ color: '#ef4444' }}>
+                            {rescueErrors[u.id]}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

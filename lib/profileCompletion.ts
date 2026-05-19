@@ -40,3 +40,37 @@ export function calcCompletion(profile: CompletionProfile): { pct: number; missi
   const missing = results.filter(r => !r.isDone).map(r => r.label)
   return { pct, missing }
 }
+
+// ─── Coach completion ─────────────────────────────────────────────────────────
+
+export type CoachCompletionProfile = {
+  avatar_url?: string | null
+  full_name?: string | null
+  club?: string | null
+  city?: string | null
+  phone?: string | null
+  bio?: string | null
+  coaching_role?: string | null
+  coaching_level?: string | null
+  coaching_history?: string | null
+}
+
+export const COACH_COMPLETION_CHECKS: { label: string; done: (p: CoachCompletionProfile) => boolean }[] = [
+  { label: 'Profile photo',     done: p => !!p.avatar_url },
+  { label: 'Full name',         done: p => !!p.full_name },
+  { label: 'Coaching role',     done: p => !!p.coaching_role },
+  { label: 'Coaching level',    done: p => !!p.coaching_level },
+  { label: 'Club / Organisation', done: p => !!p.club },
+  { label: 'Location',          done: p => !!p.city },
+  { label: 'Phone number',      done: p => !!p.phone },
+  { label: 'Bio',               done: p => !!p.bio },
+  { label: 'Coaching history',  done: p => !!p.coaching_history },
+]
+
+export function calcCoachCompletion(profile: CoachCompletionProfile): { pct: number; missing: string[] } {
+  const results = COACH_COMPLETION_CHECKS.map(c => ({ label: c.label, isDone: c.done(profile) }))
+  const filled = results.filter(r => r.isDone).length
+  const pct = Math.round((filled / results.length) * 100)
+  const missing = results.filter(r => !r.isDone).map(r => r.label)
+  return { pct, missing }
+}

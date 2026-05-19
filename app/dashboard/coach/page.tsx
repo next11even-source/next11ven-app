@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from './_components/CoachSidebar'
+import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,45 @@ function Avatar({ name, url, size = 40 }: { name: string | null; url: string | n
       style={{ width: size, height: size, backgroundColor: '#1e2235', color: '#8892aa', fontSize: Math.max(size * 0.35, 10) }}>
       {getInitials(name)}
     </div>
+  )
+}
+
+// ─── Coach Profile Completion Bar ────────────────────────────────────────────
+
+function CoachProfileCompletionBar({ profile }: { profile: CoachCompletionProfile }) {
+  const { pct, missing } = calcCoachCompletion(profile)
+  if (pct === 100) return null
+
+  const barColor = pct < 40 ? '#f59e0b' : pct < 75 ? '#2d5fc4' : '#34d399'
+
+  return (
+    <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
+      <div className="rounded-2xl px-4 py-3"
+        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
+                Profile Completion
+              </p>
+              <span className="text-xs font-bold" style={{ color: barColor }}>{pct}%</span>
+            </div>
+            <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+              <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+            </div>
+            {missing.length > 0 && (
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                Missing: {missing.slice(0, 3).join(', ')}{missing.length > 3 ? ` +${missing.length - 3} more` : ''}
+              </p>
+            )}
+          </div>
+          <span className="text-xs font-semibold flex-shrink-0 px-3 py-1.5 rounded-full"
+            style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.3)' }}>
+            Complete →
+          </span>
+        </div>
+      </div>
+    </Link>
   )
 }
 
@@ -535,6 +575,7 @@ export default function CoachDashboard() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
+  const [coachCompletion, setCoachCompletion] = useState<CoachCompletionProfile | null>(null)
   const [fullName, setFullName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -568,7 +609,7 @@ export default function CoachDashboard() {
         otherOppsRes,
       ] = await Promise.all([
         supabase.from('profiles')
-          .select('full_name, premium, avatar_url, coaching_role, role')
+          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
           .eq('id', user.id).single(),
 
         supabase.from('applications')
@@ -626,6 +667,17 @@ export default function CoachDashboard() {
         full_name: profile?.full_name ?? null,
         avatar_url: profile?.avatar_url ?? null,
         coaching_role: profile?.coaching_role ?? null,
+      })
+      setCoachCompletion({
+        avatar_url: profile?.avatar_url ?? null,
+        full_name: profile?.full_name ?? null,
+        club: profile?.club ?? null,
+        city: profile?.city ?? null,
+        phone: profile?.phone ?? null,
+        bio: profile?.bio ?? null,
+        coaching_role: profile?.coaching_role ?? null,
+        coaching_level: profile?.coaching_level ?? null,
+        coaching_history: profile?.coaching_history ?? null,
       })
 
       // Stats
@@ -760,6 +812,9 @@ export default function CoachDashboard() {
             Scout and connect with non-league players.
           </p>
         </div>
+
+        {/* Profile Completion */}
+        {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
 
         {/* Showcase Day Banner */}
         <div className="rounded-2xl p-4 flex flex-col gap-3"

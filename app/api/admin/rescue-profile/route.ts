@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     full_name: resolvedName,
     approved: false,
     approval_status: 'pending',
+    status: 'just_exploring',
   }
 
   const { error: upsertError } = await admin

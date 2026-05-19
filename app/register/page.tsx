@@ -126,18 +126,16 @@ export default function RegisterPage() {
 
     // 2. Build profile payload
     const profilePayload: Record<string, unknown> = {
+      userId,
       full_name: fullName,
       email,
       phone: phone || null,
-      sms_opt_in: !!phone,
       date_of_birth: dob || null,
       role,
       city: city || null,
       location: location || null,
       referral: referral || null,
       gdpr_consent: gdpr,
-      approved: false,
-      approval_status: 'pending',
     }
 
     if (role === 'player') {
@@ -158,13 +156,16 @@ export default function RegisterPage() {
       profilePayload.status = 'just_exploring'
     }
 
-    // 3. Upsert profile (handles cases where trigger may not have fired)
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({ id: userId, ...profilePayload })
+    // 3. Save profile via server-side API (uses service role to bypass RLS)
+    const profileRes = await fetch('/api/register/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profilePayload),
+    })
 
-    if (profileError) {
-      setError('Account created but profile update failed: ' + profileError.message)
+    if (!profileRes.ok) {
+      const profileData = await profileRes.json().catch(() => ({}))
+      setError('Account created but profile save failed: ' + (profileData.error ?? 'Unknown error'))
       setLoading(false)
       return
     }

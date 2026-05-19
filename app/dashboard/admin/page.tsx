@@ -26,6 +26,16 @@ type ApplicantProfile = {
 
 type TabFilter = 'pending' | 'approved' | 'declined'
 
+type OrphanedUser = {
+  id: string
+  email: string | null
+  created_at: string
+  last_sign_in_at: string | null
+  full_name: string | null
+  has_profile: boolean
+  current_approval_status: string | null
+}
+
 function timeAgo(dateStr: string) {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
@@ -45,6 +55,13 @@ export default function AdminPage() {
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 20
 
+  const [orphaned, setOrphaned] = useState<OrphanedUser[]>([])
+  const [orphanedLoading, setOrphanedLoading] = useState(false)
+  const [orphanedLoaded, setOrphanedLoaded] = useState(false)
+  const [rescuingId, setRescuingId] = useState<string | null>(null)
+  const [rescueRoles, setRescueRoles] = useState<Record<string, string>>({})
+  const [rescuedIds, setRescuedIds] = useState<Set<string>>(new Set())
+
   useEffect(() => {
     load()
   }, [])
@@ -62,13 +79,11 @@ export default function AdminPage() {
 
     if (me?.role !== 'admin') { router.push('/dashboard/player'); return }
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approved, approval_status, created_at, gdpr_consent, phone, password_set_at')
-      .or('role.neq.admin,role.is.null')
-      .order('created_at', { ascending: false })
+    const res = await fetch('/api/admin/profiles')
+    if (!res.ok) { setLoading(false); return }
+    const json = await res.json()
 
-    const all = (data ?? []) as ApplicantProfile[]
+    const all = (json.profiles ?? []) as ApplicantProfile[]
     setProfiles(all)
     setCounts({
       pending: all.filter(p => !p.approval_status || p.approval_status === 'pending').length,
@@ -103,6 +118,44 @@ export default function AdminPage() {
       })
     }
     setProcessing(null)
+  }
+
+  async function loadOrphaned() {
+    setOrphanedLoading(true)
+    const res = await fetch('/api/admin/orphaned-users')
+    if (res.ok) {
+      const json = await res.json()
+      setOrphaned(json.orphaned ?? [])
+    }
+    setOrphanedLoading(false)
+    setOrphanedLoaded(true)
+  }
+
+  async function rescueProfile(userId: string) {
+    const role = rescueRoles[userId]
+    if (!role) return
+    setRescuingId(userId)
+    const res = await fetch('/api/admin/rescue-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, role }),
+    })
+    if (res.ok) {
+      setRescuedIds(prev => new Set([...prev, userId]))
+      // Reload main profile list so the rescued user now shows in pending
+      const profRes = await fetch('/api/admin/profiles')
+      if (profRes.ok) {
+        const json = await profRes.json()
+        const all = (json.profiles ?? []) as ApplicantProfile[]
+        setProfiles(all)
+        setCounts({
+          pending: all.filter(p => !p.approval_status || p.approval_status === 'pending').length,
+          approved: all.filter(p => p.approval_status === 'approved').length,
+          declined: all.filter(p => p.approval_status === 'declined').length,
+        })
+      }
+    }
+    setRescuingId(null)
   }
 
   const approvedNonAdmin = profiles.filter(p => p.approval_status === 'approved' || p.approved === true)
@@ -174,6 +227,89 @@ export default function AdminPage() {
             style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
             {reconciling ? 'Syncing…' : 'Run Sync'}
           </button>
+        </div>
+
+        {/* Account Rescue — find signups that never made it through */}
+        <div className="mb-4 rounded-xl overflow-hidden"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Account Rescue</p>
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                {orphanedLoaded
+                  ? orphaned.length === 0
+                    ? 'No incomplete signups found'
+                    : `${orphaned.filter(u => !rescuedIds.has(u.id)).length} account${orphaned.filter(u => !rescuedIds.has(u.id)).length !== 1 ? 's' : ''} need attention`
+                  : 'Find signups that never appeared in pending'}
+              </p>
+            </div>
+            <button
+              onClick={loadOrphaned}
+              disabled={orphanedLoading}
+              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+              style={{ backgroundColor: '#f59e0b', color: '#0a0a0a' }}>
+              {orphanedLoading ? 'Scanning…' : orphanedLoaded ? 'Refresh' : 'Scan'}
+            </button>
+          </div>
+
+          {orphanedLoaded && orphaned.length > 0 && (
+            <div className="border-t divide-y" style={{ borderColor: '#1e2235' }}>
+              {orphaned.map(u => {
+                const rescued = rescuedIds.has(u.id)
+                return (
+                  <div key={u.id} className="px-4 py-3"
+                    style={{ backgroundColor: rescued ? 'rgba(45,95,196,0.06)' : '#0d1020' }}>
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate" style={{ color: rescued ? '#2d5fc4' : '#e8dece' }}>
+                          {u.full_name ?? '(no name saved)'}
+                        </p>
+                        <p className="text-xs truncate" style={{ color: '#8892aa' }}>{u.email ?? '—'}</p>
+                        <p className="text-xs mt-0.5" style={{ color: '#3a4055' }}>
+                          Signed up {timeAgo(u.created_at)}
+                          {!u.has_profile && ' · no profile row'}
+                          {u.has_profile && ' · profile incomplete'}
+                        </p>
+                      </div>
+                      {rescued && (
+                        <span className="text-xs px-2 py-1 rounded-lg font-bold flex-shrink-0"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+                          Moved to Pending
+                        </span>
+                      )}
+                    </div>
+                    {!rescued && (
+                      <div className="flex gap-2">
+                        <select
+                          value={rescueRoles[u.id] ?? ''}
+                          onChange={e => setRescueRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
+                          className="flex-1 rounded-lg px-3 py-2 text-xs outline-none"
+                          style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                          <option value="">Assign role…</option>
+                          <option value="player">Player</option>
+                          <option value="coach">Coach</option>
+                          <option value="fan">Fan</option>
+                        </select>
+                        <button
+                          onClick={() => rescueProfile(u.id)}
+                          disabled={!rescueRoles[u.id] || rescuingId === u.id}
+                          className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+                          {rescuingId === u.id ? 'Saving…' : 'Save & Pend'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {orphanedLoaded && orphaned.length === 0 && (
+            <div className="border-t px-4 py-4 text-center" style={{ borderColor: '#1e2235' }}>
+              <p className="text-xs" style={{ color: '#8892aa' }}>All auth accounts have complete profiles.</p>
+            </div>
+          )}
         </div>
 
         {/* Migration tracker */}

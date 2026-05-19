@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (me?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { userId?: string; role?: string }
+  let body: { userId?: string; role?: string; full_name?: string }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { userId, role } = body
+  const { userId, role, full_name: bodyName } = body
   if (!userId) return NextResponse.json({ error: 'userId is required' }, { status: 400 })
 
   const allowedRoles = ['player', 'coach', 'fan']
@@ -61,17 +61,20 @@ export async function POST(req: NextRequest) {
     .eq('id', userId)
     .single()
 
+  // Resolve full_name: admin input → existing profile → auth metadata → email prefix
+  const resolvedName =
+    (bodyName && bodyName.trim()) ||
+    existingProfile?.full_name ||
+    metaName ||
+    (email ? email.split('@')[0] : 'Unknown')
+
   const profilePayload: Record<string, unknown> = {
     id: userId,
     email,
     role,
+    full_name: resolvedName,
     approved: false,
     approval_status: 'pending',
-  }
-
-  // Only set full_name if we have it and it's not already set on the profile
-  if (!existingProfile?.full_name && metaName) {
-    profilePayload.full_name = metaName
   }
 
   const { error: upsertError } = await admin

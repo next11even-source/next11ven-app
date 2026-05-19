@@ -61,6 +61,7 @@ export default function AdminPage() {
   const [rescuingId, setRescuingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [rescueRoles, setRescueRoles] = useState<Record<string, string>>({})
+  const [rescueNames, setRescueNames] = useState<Record<string, string>>({})
   const [rescuedIds, setRescuedIds] = useState<Set<string>>(new Set())
   const [rescueErrors, setRescueErrors] = useState<Record<string, string>>({})
 
@@ -127,7 +128,14 @@ export default function AdminPage() {
     const res = await fetch('/api/admin/orphaned-users')
     if (res.ok) {
       const json = await res.json()
-      setOrphaned(json.orphaned ?? [])
+      const users: OrphanedUser[] = json.orphaned ?? []
+      setOrphaned(users)
+      // Pre-fill name inputs with whatever we have from metadata
+      setRescueNames(prev => {
+        const next = { ...prev }
+        users.forEach(u => { if (u.full_name && !next[u.id]) next[u.id] = u.full_name })
+        return next
+      })
     }
     setOrphanedLoading(false)
     setOrphanedLoaded(true)
@@ -142,7 +150,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/rescue-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role }),
+        body: JSON.stringify({ userId, role, full_name: rescueNames[userId] ?? '' }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -311,6 +319,14 @@ export default function AdminPage() {
                     </div>
                     {!rescued && (
                       <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Full name (leave blank to use email prefix)"
+                          value={rescueNames[u.id] ?? ''}
+                          onChange={e => setRescueNames(prev => ({ ...prev, [u.id]: e.target.value }))}
+                          className="w-full rounded-lg px-3 py-2 text-xs outline-none"
+                          style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
+                        />
                         <div className="flex gap-2">
                           <select
                             value={rescueRoles[u.id] ?? ''}

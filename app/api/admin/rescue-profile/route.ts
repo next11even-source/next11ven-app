@@ -87,5 +87,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to rescue profile: ' + upsertError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, userId, role, email, full_name: profilePayload.full_name ?? existingProfile?.full_name ?? null })
+  // A db trigger on profiles INSERT can reset certain columns (e.g. role) back to null.
+  // Force an explicit UPDATE after the upsert to guarantee the role sticks.
+  const { error: updateError } = await admin
+    .from('profiles')
+    .update({ role, approved: false, approval_status: 'pending', full_name: resolvedName })
+    .eq('id', userId)
+
+  if (updateError) {
+    console.error('[Admin] rescue-profile role update error:', updateError)
+    return NextResponse.json({ error: 'Profile created but role update failed: ' + updateError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, userId, role, email, full_name: resolvedName })
 }

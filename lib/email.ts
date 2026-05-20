@@ -65,12 +65,10 @@ function baseTemplate(content: string) {
 export async function sendMessageNotificationEmail({
   to,
   toName,
-  senderLabel,
   isCoach,
 }: {
   to: string
   toName: string | null
-  senderLabel: string
   isCoach: boolean
 }) {
   const dashboardUrl = isCoach
@@ -80,13 +78,13 @@ export async function sendMessageNotificationEmail({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 6px;line-height:1.6;">
-      <strong style="color:#e8dece;">${senderLabel}</strong> has sent you a DM on NEXT11VEN.
+      You've received a new message on NEXT11VEN.
     </p>
-    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;">Open the app to see who it is and what they said.</p>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;">Open the app to see who it's from and what they said.</p>
     <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Message</a>
   `)
 
-  await send({ to, subject: `You have a new DM on NEXT11VEN`, html })
+  await send({ to, subject: `You've received a new message`, html })
 }
 
 // ─── Application decision (player) ───────────────────────────────────────────

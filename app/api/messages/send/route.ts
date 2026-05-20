@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   // Get sender profile
   const { data: sender } = await supabase
     .from('profiles')
-    .select('role, full_name, premium, coaching_role, position')
+    .select('role, full_name, premium')
     .eq('id', user.id)
     .single()
 
@@ -199,21 +199,45 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Email
+  // Email — max 3 per day
   if (recipientProfile.email) {
+    let emailAllowed = true
     try {
-      const senderLabel = senderIsCoach
-        ? `A ${sender.coaching_role ?? 'coach'}`
-        : (sender.position ? `A ${sender.position.toLowerCase()}` : 'A player')
+      const emailAdminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
 
-      await sendMessageNotificationEmail({
-        to: recipientProfile.email,
-        toName: recipientProfile.full_name,
-        senderLabel,
-        isCoach: recipientIsCoach,
-      })
-    } catch (err) {
-      console.error('[Email] message notification error:', err)
+      const { data: recipientConvs } = await emailAdminClient
+        .from('conversations')
+        .select('id')
+        .or(`coach_id.eq.${recipientId},player_id.eq.${recipientId}`)
+
+      const convIds = recipientConvs?.map((c: { id: string }) => c.id) ?? []
+
+      if (convIds.length > 0) {
+        const { count } = await emailAdminClient
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .in('conversation_id', convIds)
+          .neq('sender_id', recipientId)
+          .gte('created_at', todayStart.toISOString())
+
+        if ((count ?? 0) > 3) emailAllowed = false
+      }
+    } catch {
+      // fail open — if check errors, send the email
+    }
+
+    if (emailAllowed) {
+      try {
+        await sendMessageNotificationEmail({
+          to: recipientProfile.email,
+          toName: recipientProfile.full_name,
+          isCoach: recipientIsCoach,
+        })
+      } catch (err) {
+        console.error('[Email] message notification error:', err)
+      }
     }
   }
 

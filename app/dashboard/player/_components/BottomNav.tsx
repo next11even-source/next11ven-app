@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Briefcase, Home, LayoutList, MessageCircle } from 'lucide-react'
+import { Bell, Briefcase, Home, MessageCircle, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 
 type Toast = { id: number; text: string; href: string }
@@ -222,10 +222,10 @@ export default function BottomNav() {
       icon: <Home size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Feed',
-      href: '/dashboard/feed',
+      label: 'Coaches',
+      href: '/dashboard/player/coaches',
       exact: false,
-      icon: <LayoutList size={22} strokeWidth={1.8} />,
+      icon: <Users size={22} strokeWidth={1.8} />,
     },
     {
       label: 'Explore',
@@ -279,7 +279,7 @@ export default function BottomNav() {
         const showMessageBadge = tab.label === 'Messages' && unreadMessages > 0
         const showNotifBadge = tab.label === 'Alerts' && unreadNotifications > 0
         const showAdminBadge = tab.label === 'Admin' && pendingSignups > 0
-        const showFeedBadge = tab.label === 'Feed' && unseenFeed > 0
+        const showFeedBadge = false
         const showOppsBadge = tab.label === 'Explore' && unseenOpps > 0
 
         return (

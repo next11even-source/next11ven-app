@@ -26,6 +26,15 @@ type ApplicantProfile = {
 
 type TabFilter = 'pending' | 'approved' | 'declined'
 
+type ShowcaseCoach = {
+  id: string
+  full_name: string | null
+  club: string | null
+  city: string | null
+  coaching_role: string | null
+  showcase_confirmed_at: string | null
+}
+
 type OrphanedUser = {
   id: string
   email: string | null
@@ -58,6 +67,9 @@ export default function AdminPage() {
   const [orphaned, setOrphaned] = useState<OrphanedUser[]>([])
   const [orphanedLoading, setOrphanedLoading] = useState(false)
   const [orphanedLoaded, setOrphanedLoaded] = useState(false)
+  const [showcaseCoaches, setShowcaseCoaches] = useState<ShowcaseCoach[]>([])
+  const [showcaseLoading, setShowcaseLoading] = useState(false)
+  const [showcaseLoaded, setShowcaseLoaded] = useState(false)
   const [rescuingId, setRescuingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [rescueRoles, setRescueRoles] = useState<Record<string, string>>({})
@@ -173,6 +185,20 @@ export default function AdminPage() {
       setRescueErrors(prev => ({ ...prev, [userId]: 'Network error — try again' }))
     }
     setRescuingId(null)
+  }
+
+  async function loadShowcase() {
+    setShowcaseLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, club, city, coaching_role, showcase_confirmed_at')
+      .eq('role', 'coach')
+      .eq('showcase_confirmed', true)
+      .order('showcase_confirmed_at', { ascending: true })
+    setShowcaseCoaches((data ?? []) as ShowcaseCoach[])
+    setShowcaseLoading(false)
+    setShowcaseLoaded(true)
   }
 
   async function deleteOrphanedUser(userId: string) {
@@ -418,6 +444,55 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Showcase Day */}
+        <div className="mb-4 rounded-xl overflow-hidden"
+          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Showcase Day — Confirmed Coaches</p>
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                {showcaseLoaded
+                  ? `${showcaseCoaches.length} coach${showcaseCoaches.length !== 1 ? 'es' : ''} confirmed`
+                  : 'See who has confirmed attendance'}
+              </p>
+            </div>
+            <button
+              onClick={loadShowcase}
+              disabled={showcaseLoading}
+              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+              {showcaseLoading ? 'Loading…' : showcaseLoaded ? 'Refresh' : 'Load'}
+            </button>
+          </div>
+
+          {showcaseLoaded && showcaseCoaches.length > 0 && (
+            <div className="border-t divide-y" style={{ borderColor: '#1e2235' }}>
+              {showcaseCoaches.map((c, i) => (
+                <div key={c.id} className="px-4 py-3 flex items-center gap-3">
+                  <span className="text-xs font-bold w-5 flex-shrink-0" style={{ color: '#8892aa' }}>{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{c.full_name ?? '—'}</p>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      {[c.coaching_role, c.club, c.city].filter(Boolean).join(' · ') || '—'}
+                    </p>
+                  </div>
+                  {c.showcase_confirmed_at && (
+                    <p className="text-xs flex-shrink-0" style={{ color: '#60a5fa' }}>
+                      {timeAgo(c.showcase_confirmed_at)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showcaseLoaded && showcaseCoaches.length === 0 && (
+            <div className="border-t px-4 py-4 text-center" style={{ borderColor: '#1e2235' }}>
+              <p className="text-xs" style={{ color: '#8892aa' }}>No coaches confirmed yet.</p>
+            </div>
+          )}
         </div>
 
         {/* Stats row */}

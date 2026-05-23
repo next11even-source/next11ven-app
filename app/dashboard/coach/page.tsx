@@ -582,6 +582,8 @@ export default function CoachDashboard() {
   const [statsNewApps, setStatsNewApps] = useState(0)
   const [statsLookingForClub, setStatsLookingForClub] = useState(0)
   const [statsUnread, setStatsUnread] = useState(0)
+  const [showcaseConfirmed, setShowcaseConfirmed] = useState(false)
+  const [showcaseConfirming, setShowcaseConfirming] = useState(false)
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
   const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
@@ -609,7 +611,7 @@ export default function CoachDashboard() {
         otherOppsRes,
       ] = await Promise.all([
         supabase.from('profiles')
-          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
+          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role, showcase_confirmed')
           .eq('id', user.id).single(),
 
         supabase.from('applications')
@@ -663,6 +665,7 @@ export default function CoachDashboard() {
       // Profile
       const profile = profileRes.data
       setFullName(profile?.full_name ?? null)
+      setShowcaseConfirmed(profile?.showcase_confirmed ?? false)
       setCoachProfile({
         full_name: profile?.full_name ?? null,
         avatar_url: profile?.avatar_url ?? null,
@@ -818,18 +821,35 @@ export default function CoachDashboard() {
 
         {/* Showcase Day Banner */}
         <div className="rounded-2xl p-4 flex flex-col gap-3"
-          style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
+          style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: `1px solid ${showcaseConfirmed ? '#60a5fa' : '#2d5fc4'}` }}>
           <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
             🏆 <strong>End of Season Showcase Day</strong><br />
-            Register to attend and scout players at your level.<br />
-            <span style={{ color: '#60a5fa' }}>Step 3–7 players registered.</span>
+            {showcaseConfirmed
+              ? 'Your place is confirmed. We\'ll be in touch with details closer to the day.'
+              : 'Confirm your attendance to scout players at your level.'}
           </p>
-          <a href="https://forms.gle/T5w5jneVc2rFUa4y6"
-            target="_blank" rel="noopener noreferrer"
-            className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
-            style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
-            Register Interest
-          </a>
+          {showcaseConfirmed ? (
+            <div className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center"
+              style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)' }}>
+              Confirmed ✓
+            </div>
+          ) : (
+            <button
+              onClick={async () => {
+                setShowcaseConfirming(true)
+                try {
+                  const res = await fetch('/api/showcase/confirm', { method: 'POST' })
+                  if (res.ok) setShowcaseConfirmed(true)
+                } finally {
+                  setShowcaseConfirming(false)
+                }
+              }}
+              disabled={showcaseConfirming}
+              className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center disabled:opacity-50"
+              style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
+              {showcaseConfirming ? 'Confirming…' : "Confirm I'm Coming"}
+            </button>
+          )}
         </div>
 
         {/* Loading skeleton */}

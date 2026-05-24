@@ -578,27 +578,6 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
 
-                {/* Position breakdown */}
-                {Object.keys(showcaseStats.by_position).length > 0 && (
-                  <div>
-                    <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: '#8892aa' }}>By Position</p>
-                    <div className="space-y-1.5">
-                      {Object.entries(showcaseStats.by_position)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([pos, count]) => (
-                          <div key={pos} className="flex items-center justify-between rounded-lg px-3 py-2"
-                            style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                            <span className="text-xs font-semibold" style={{ color: '#e8dece' }}>{pos}</span>
-                            <span className="text-sm font-black tabular-nums"
-                              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                              {count}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* Purchaser list */}
                 {showcaseStats.purchasers.length > 0 && (
                   <div>
@@ -609,17 +588,9 @@ export default function AnalyticsPage() {
                           <div key={i} className="flex items-center gap-3 px-3 py-2.5"
                             style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>
-                                  {p.name ?? p.email ?? '—'}
-                                </span>
-                                {p.position && (
-                                  <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                                    style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
-                                    {p.position}
-                                  </span>
-                                )}
-                              </div>
+                              <span className="text-xs font-semibold truncate block" style={{ color: '#e8dece' }}>
+                                {p.name ?? p.email ?? '—'}
+                              </span>
                               {p.club && (
                                 <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{p.club}</p>
                               )}

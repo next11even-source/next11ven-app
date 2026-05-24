@@ -93,6 +93,24 @@ type RecentApplication = {
   opportunity: { id: string; title: string | null; club: string | null; position: string | null; level: string | null } | null
 }
 
+type ShowcasePurchaser = {
+  email: string | null
+  name: string | null
+  position: string | null
+  club: string | null
+  purchased_at: string
+  amount: number | null
+}
+
+type ShowcaseStats = {
+  total: number
+  spots_remaining: number
+  total_spots: number
+  by_position: Record<string, number>
+  purchasers: ShowcasePurchaser[]
+  error?: string
+}
+
 type Stats = {
   totalUsers: number
   totalPlayers: number
@@ -266,6 +284,9 @@ export default function AnalyticsPage() {
   const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
   const [appsLoading, setAppsLoading] = useState(true)
   const [showAllApps, setShowAllApps] = useState(false)
+  const [showcaseStats, setShowcaseStats] = useState<ShowcaseStats | null>(null)
+  const [showcaseLoading, setShowcaseLoading] = useState(true)
+  const [showAllShowcase, setShowAllShowcase] = useState(false)
 
   useEffect(() => {
     load()
@@ -301,6 +322,13 @@ export default function AnalyticsPage() {
       .then(r => r.json())
       .then(d => { setRecentApps(d.applications ?? []); setAppsLoading(false) })
       .catch(() => setAppsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/showcase-stats')
+      .then(r => r.json())
+      .then(d => { setShowcaseStats(d); setShowcaseLoading(false) })
+      .catch(() => setShowcaseLoading(false))
   }, [])
 
   async function loadMsgLog() {
@@ -486,6 +514,139 @@ export default function AnalyticsPage() {
                 color="#f59e0b"
               />
             </div>
+          </section>
+
+          {/* ── Showcase Day ─────────────────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Showcase Day — Player Tickets</p>
+              <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                style={{ backgroundColor: 'rgba(45,95,196,0.12)', color: '#2d5fc4' }}>
+                Live from Stripe
+              </span>
+            </div>
+
+            {showcaseLoading ? (
+              <div className="rounded-xl p-6 flex items-center justify-center"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+              </div>
+            ) : showcaseStats ? (
+              <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                {showcaseStats.error && (
+                  <p className="text-xs" style={{ color: '#ef4444' }}>{showcaseStats.error}</p>
+                )}
+
+                {/* Spots counter */}
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Spots Sold</p>
+                    <p className="text-4xl font-black leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                      {showcaseStats.total}
+                      <span className="text-xl ml-1" style={{ color: '#3a4055' }}>/ {showcaseStats.total_spots}</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Remaining</p>
+                    <p className="text-2xl font-black leading-none"
+                      style={{
+                        fontFamily: "'Barlow Condensed', sans-serif",
+                        color: showcaseStats.spots_remaining <= 5 ? '#ef4444'
+                          : showcaseStats.spots_remaining <= 10 ? '#f59e0b'
+                          : '#60a5fa',
+                      }}>
+                      {showcaseStats.spots_remaining}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Fill bar */}
+                <div>
+                  <div className="w-full rounded-full h-2" style={{ backgroundColor: '#1e2235' }}>
+                    <div className="h-2 rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, Math.round((showcaseStats.total / showcaseStats.total_spots) * 100))}%`,
+                        backgroundColor: showcaseStats.spots_remaining <= 5 ? '#ef4444'
+                          : showcaseStats.spots_remaining <= 10 ? '#f59e0b'
+                          : '#2d5fc4',
+                      }} />
+                  </div>
+                  <p className="text-xs mt-1 text-right" style={{ color: '#3a4055' }}>
+                    {Math.round((showcaseStats.total / showcaseStats.total_spots) * 100)}% full
+                  </p>
+                </div>
+
+                {/* Position breakdown */}
+                {Object.keys(showcaseStats.by_position).length > 0 && (
+                  <div>
+                    <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: '#8892aa' }}>By Position</p>
+                    <div className="space-y-1.5">
+                      {Object.entries(showcaseStats.by_position)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([pos, count]) => (
+                          <div key={pos} className="flex items-center justify-between rounded-lg px-3 py-2"
+                            style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                            <span className="text-xs font-semibold" style={{ color: '#e8dece' }}>{pos}</span>
+                            <span className="text-sm font-black tabular-nums"
+                              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                              {count}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Purchaser list */}
+                {showcaseStats.purchasers.length > 0 && (
+                  <div>
+                    <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: '#8892aa' }}>Purchasers</p>
+                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                      <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                        {(showAllShowcase ? showcaseStats.purchasers : showcaseStats.purchasers.slice(0, 5)).map((p, i) => (
+                          <div key={i} className="flex items-center gap-3 px-3 py-2.5"
+                            style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-semibold truncate" style={{ color: '#e8dece' }}>
+                                  {p.name ?? p.email ?? '—'}
+                                </span>
+                                {p.position && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                    style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
+                                    {p.position}
+                                  </span>
+                                )}
+                              </div>
+                              {p.club && (
+                                <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{p.club}</p>
+                              )}
+                            </div>
+                            <p className="text-xs flex-shrink-0 tabular-nums" style={{ color: '#3a4055' }}>
+                              {new Date(p.purchased_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {showcaseStats.purchasers.length > 5 && (
+                        <button
+                          onClick={() => setShowAllShowcase(v => !v)}
+                          className="w-full px-4 py-2.5 text-xs font-semibold text-center"
+                          style={{ backgroundColor: '#0d1020', borderTop: '1px solid #1e2235', color: '#8892aa' }}>
+                          {showAllShowcase ? 'Show less' : `See ${showcaseStats.purchasers.length - 5} more`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>Could not load showcase data.</p>
+              </div>
+            )}
           </section>
 
           {/* ── Engagement Funnel ─────────────────────────────────────────────── */}

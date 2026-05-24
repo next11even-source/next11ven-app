@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
     profilePayload.coaching_level = body.coaching_level ?? null
     profilePayload.club = body.club ?? null
     profilePayload.coaching_history = body.coaching_history ?? null
+    // coaches must have a valid status to satisfy profiles_status_check
+    profilePayload.status = 'just_exploring'
   } else if (role === 'fan') {
     profilePayload.status = 'just_exploring'
   }
@@ -81,6 +83,21 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Stamp role into auth user_metadata before the upsert so the DB trigger
+  // (which reads raw_user_meta_data) creates/updates the row with the correct role,
+  // not null or 'player'. This mirrors the fix learned in rescue-profile.
+  try {
+    await admin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        full_name: body.full_name,
+        role,
+      },
+    })
+  } catch (metaErr) {
+    // Non-fatal — continue with upsert regardless
+    console.warn('[Register] could not stamp role into auth metadata:', metaErr)
+  }
+
   const { error } = await admin
     .from('profiles')
     .upsert(profilePayload)
@@ -88,6 +105,18 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error('[Register] profile upsert error:', error)
     return NextResponse.json({ error: 'Profile update failed: ' + error.message }, { status: 500 })
+  }
+
+  // Belt-and-suspenders: the DB trigger on profiles INSERT can reset role to null
+  // or 'player'. Explicit UPDATE after the upsert guarantees the role sticks.
+  const { error: updateError } = await admin
+    .from('profiles')
+    .update({ role, status: profilePayload.status as string })
+    .eq('id', userId)
+
+  if (updateError) {
+    console.error('[Register] explicit role UPDATE failed:', updateError)
+    // Don't block registration — the upsert succeeded, this is just hardening
   }
 
   return NextResponse.json({ ok: true })

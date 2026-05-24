@@ -104,11 +104,12 @@ export default function RegisterPage() {
 
     const supabase = createClient()
 
-    // 1. Create auth user
+    // 1. Create auth user — include role in metadata so the DB trigger
+    // that reads raw_user_meta_data creates the profile row with the correct role.
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: { data: { full_name: fullName, role } },
     })
 
     if (signUpError) {

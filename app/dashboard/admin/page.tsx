@@ -76,6 +76,7 @@ export default function AdminPage() {
   const [rescueNames, setRescueNames] = useState<Record<string, string>>({})
   const [rescuedIds, setRescuedIds] = useState<Set<string>>(new Set())
   const [rescueErrors, setRescueErrors] = useState<Record<string, string>>({})
+  const [lookupQuery, setLookupQuery] = useState('')
 
   useEffect(() => {
     load()
@@ -230,6 +231,17 @@ export default function AdminPage() {
   const migrationPct = approvedNonAdmin.length > 0
     ? Math.round((claimed.length / approvedNonAdmin.length) * 100)
     : 0
+
+  const lookupResults = lookupQuery.trim().length >= 2
+    ? profiles.filter(p => {
+        const q = lookupQuery.toLowerCase()
+        return (
+          p.full_name?.toLowerCase().includes(q) ||
+          p.email?.toLowerCase().includes(q) ||
+          p.phone?.toLowerCase().includes(q)
+        )
+      }).slice(0, 10)
+    : []
 
   const displayed = profiles.filter(p => {
     const status = p.approval_status ?? 'pending'
@@ -491,6 +503,71 @@ export default function AdminPage() {
           {showcaseLoaded && showcaseCoaches.length === 0 && (
             <div className="border-t px-4 py-4 text-center" style={{ borderColor: '#1e2235' }}>
               <p className="text-xs" style={{ color: '#8892aa' }}>No coaches confirmed yet.</p>
+            </div>
+          )}
+        </div>
+
+        {/* User Lookup */}
+        <div className="mb-4 rounded-xl overflow-hidden"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <div className="px-4 py-3">
+            <p className="text-sm font-bold mb-2" style={{ color: '#e8dece' }}>User Lookup</p>
+            <input
+              type="text"
+              placeholder="Search by name, email or phone…"
+              value={lookupQuery}
+              onChange={e => setLookupQuery(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
+            />
+            {lookupQuery.trim().length > 0 && lookupQuery.trim().length < 2 && (
+              <p className="text-xs mt-1.5" style={{ color: '#8892aa' }}>Type at least 2 characters…</p>
+            )}
+          </div>
+
+          {lookupResults.length > 0 && (
+            <div className="border-t divide-y" style={{ borderColor: '#1e2235' }}>
+              {lookupResults.map(p => (
+                <div key={p.id} className="px-4 py-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{p.full_name ?? '(no name)'}</p>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full font-bold uppercase"
+                      style={{
+                        backgroundColor: p.role === 'coach' ? 'rgba(168,139,250,0.15)' : 'rgba(45,95,196,0.15)',
+                        color: p.role === 'coach' ? '#a78bfa' : '#2d5fc4',
+                      }}>
+                      {p.role ?? '?'}
+                    </span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: p.approval_status === 'approved' ? 'rgba(45,95,196,0.1)' : p.approval_status === 'declined' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                        color: p.approval_status === 'approved' ? '#60a5fa' : p.approval_status === 'declined' ? '#ef4444' : '#f59e0b',
+                      }}>
+                      {p.approval_status ?? 'pending'}
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs w-10 flex-shrink-0" style={{ color: '#8892aa' }}>Email</p>
+                      <p className="text-xs font-medium" style={{ color: p.email ? '#e8dece' : '#3a4055' }}>
+                        {p.email ?? '—'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs w-10 flex-shrink-0" style={{ color: '#8892aa' }}>Phone</p>
+                      <p className="text-xs font-medium" style={{ color: p.phone ? '#e8dece' : '#3a4055' }}>
+                        {p.phone ?? '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {lookupQuery.trim().length >= 2 && lookupResults.length === 0 && (
+            <div className="border-t px-4 py-4 text-center" style={{ borderColor: '#1e2235' }}>
+              <p className="text-xs" style={{ color: '#8892aa' }}>No users found for "{lookupQuery}"</p>
             </div>
           )}
         </div>

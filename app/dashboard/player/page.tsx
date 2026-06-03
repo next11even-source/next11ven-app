@@ -107,7 +107,7 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
   return (
     <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
-      <div className="mx-4 rounded-2xl px-4 py-3"
+      <div className="mx-4 rounded-2xl px-4 py-2.5"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
           <div className="flex-1 space-y-1.5">
@@ -117,13 +117,13 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
               </p>
               <span className="text-xs font-bold" style={{ color: barColor }}>{pct}%</span>
             </div>
-            <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
-              <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+            <div className="w-full rounded-full h-1" style={{ backgroundColor: '#1e2235' }}>
+              <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
             </div>
           </div>
-          <span className="text-xs font-semibold flex-shrink-0 px-3 py-1.5 rounded-full"
+          <span className="text-xs font-semibold flex-shrink-0 px-3 py-1 rounded-full"
             style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.3)' }}>
-            Add missing info →
+            Complete →
           </span>
         </div>
       </div>
@@ -145,7 +145,7 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
     },
   ]
   return (
-    <div className="mx-4 grid grid-cols-2 gap-2">
+    <div className="mx-4 grid grid-cols-2 gap-3">
       {stats.map((s) => (
         <Link key={s.label} href={s.href}
           className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"

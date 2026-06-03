@@ -110,7 +110,7 @@ function CoachProfileCompletionBar({ profile }: { profile: CoachCompletionProfil
 
   return (
     <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
-      <div className="rounded-2xl px-4 py-3"
+      <div className="rounded-2xl px-4 py-2.5"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
           <div className="flex-1 space-y-1.5">
@@ -120,16 +120,11 @@ function CoachProfileCompletionBar({ profile }: { profile: CoachCompletionProfil
               </p>
               <span className="text-xs font-bold" style={{ color: barColor }}>{pct}%</span>
             </div>
-            <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
-              <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+            <div className="w-full rounded-full h-1" style={{ backgroundColor: '#1e2235' }}>
+              <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
             </div>
-            {missing.length > 0 && (
-              <p className="text-xs" style={{ color: '#8892aa' }}>
-                Missing: {missing.slice(0, 3).join(', ')}{missing.length > 3 ? ` +${missing.length - 3} more` : ''}
-              </p>
-            )}
           </div>
-          <span className="text-xs font-semibold flex-shrink-0 px-3 py-1.5 rounded-full"
+          <span className="text-xs font-semibold flex-shrink-0 px-3 py-1 rounded-full"
             style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.3)' }}>
             Complete →
           </span>
@@ -176,7 +171,7 @@ function CoachQuickStats({ newApps, lookingForClub, unread }: {
     },
   ]
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-3 gap-3">
       {stats.map(s => (
         <Link key={s.label} href={s.href}
           className="flex flex-col items-center justify-center rounded-2xl py-3 px-2"

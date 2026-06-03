@@ -582,8 +582,6 @@ export default function CoachDashboard() {
   const [statsNewApps, setStatsNewApps] = useState(0)
   const [statsLookingForClub, setStatsLookingForClub] = useState(0)
   const [statsUnread, setStatsUnread] = useState(0)
-  const [showcaseConfirmed, setShowcaseConfirmed] = useState(false)
-  const [showcaseConfirming, setShowcaseConfirming] = useState(false)
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
   const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
@@ -611,7 +609,7 @@ export default function CoachDashboard() {
         otherOppsRes,
       ] = await Promise.all([
         supabase.from('profiles')
-          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role, showcase_confirmed')
+          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
           .eq('id', user.id).single(),
 
         supabase.from('applications')
@@ -665,7 +663,6 @@ export default function CoachDashboard() {
       // Profile
       const profile = profileRes.data
       setFullName(profile?.full_name ?? null)
-      setShowcaseConfirmed(profile?.showcase_confirmed ?? false)
       setCoachProfile({
         full_name: profile?.full_name ?? null,
         avatar_url: profile?.avatar_url ?? null,
@@ -819,38 +816,43 @@ export default function CoachDashboard() {
         {/* Profile Completion */}
         {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
 
-        {/* Showcase Day Banner */}
-        <div className="rounded-2xl p-4 flex flex-col gap-3"
-          style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: `1px solid ${showcaseConfirmed ? '#60a5fa' : '#2d5fc4'}` }}>
-          <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
-            🏆 <strong>End of Season Showcase Day</strong><br />
-            {showcaseConfirmed
-              ? 'Your place is confirmed. We\'ll be in touch with details closer to the day.'
-              : 'Confirm your attendance to scout players at your level.'}
-          </p>
-          {showcaseConfirmed ? (
-            <div className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center"
-              style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)' }}>
-              Confirmed ✓
+        {/* Showcase Card */}
+        <Link href="/dashboard/showcase" style={{ textDecoration: 'none' }}>
+          <div className="rounded-2xl p-4 flex flex-col gap-3"
+            style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-black uppercase leading-tight mb-1"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                  Showcase Game 1 — Sold Out
+                </p>
+                <p className="text-xs" style={{ color: '#8892aa' }}>
+                  28 players · Steps 3–7
+                </p>
+              </div>
+              <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.35)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                  <path d="M4 22h16" />
+                  <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                  <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+                </svg>
+              </div>
             </div>
-          ) : (
-            <button
-              onClick={async () => {
-                setShowcaseConfirming(true)
-                try {
-                  const res = await fetch('/api/showcase/confirm', { method: 'POST' })
-                  if (res.ok) setShowcaseConfirmed(true)
-                } finally {
-                  setShowcaseConfirming(false)
-                }
-              }}
-              disabled={showcaseConfirming}
-              className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center disabled:opacity-50"
-              style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
-              {showcaseConfirming ? 'Confirming…' : "Confirm I'm Coming"}
-            </button>
-          )}
-        </div>
+            <div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
+                style={{ backgroundColor: '#2d5fc4', color: '#e8dece' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                View Full Game
+              </span>
+            </div>
+          </div>
+        </Link>
 
         {/* Loading skeleton */}
         {loading ? (

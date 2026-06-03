@@ -572,27 +572,43 @@ export default function PlayerHome() {
         <section className="px-4">
           <div className={`grid gap-3 items-stretch ${profile?.role === 'fan' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
 
-            {/* Announcement Banner */}
-            <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
-              style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid #2d5fc4' }}>
-              <p className="text-sm leading-relaxed" style={{ color: '#e8dece' }}>
-                ⚽ <strong>End of Season Showcase Game</strong>
-                <br />
-                <span style={{ color: '#8892aa' }}>Saturday 30th May — Avro FC, Oldham</span>
-                <br />
-                <span style={{ color: '#60a5fa' }}>10+ clubs from Step 3–7 confirmed.</span>
-                <br />
-                <span style={{ color: '#f59e0b' }}>Only 28 spots — book yours now.</span>
-              </p>
-              <a
-                href="https://buy.stripe.com/eVqdRaaMc9iu6jb3fp2Ry01"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl py-2 text-xs font-bold uppercase tracking-wider text-center block"
-                style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
-                Secure Your Place
-              </a>
-            </div>
+            {/* Showcase Card */}
+            <Link href="/dashboard/showcase" style={{ textDecoration: 'none' }}>
+              <div className="rounded-2xl p-4 flex flex-col justify-between gap-3 h-full"
+                style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-black uppercase leading-tight mb-1"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                      Showcase Game 1 — Sold Out
+                    </p>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      28 players · Steps 3–7
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.35)' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                      <path d="M4 22h16" />
+                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: '#2d5fc4', color: '#e8dece' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    View Full Game
+                  </span>
+                </div>
+              </div>
+            </Link>
 
             {/* Availability — hidden for fans */}
             {profile?.role !== 'fan' && (

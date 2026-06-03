@@ -378,7 +378,7 @@ function OtherOpportunities({ opps }: { opps: OtherOpportunity[] }) {
           </h2>
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Other clubs currently recruiting</p>
         </div>
-        <Link href="/dashboard/player/market" className="text-xs font-semibold"
+        <Link href="/dashboard/coach/market" className="text-xs font-semibold"
           style={{ color: '#2d5fc4', textDecoration: 'none' }}>
           View all →
         </Link>

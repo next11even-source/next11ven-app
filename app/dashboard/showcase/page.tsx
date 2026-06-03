@@ -287,16 +287,29 @@ export default function ShowcasePage() {
           Highlights
         </p>
         {hasVideo ? (
-          <div className="rounded-2xl overflow-hidden w-full md:max-w-2xl md:mx-auto" style={{ aspectRatio: '16/9' }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${showcaseConfig.youtubeVideoId}`}
-              title="Showcase Game 1 Highlights"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-              style={{ border: 0 }}
-            />
-          </div>
+          <>
+            <div className="rounded-2xl overflow-hidden w-full md:max-w-2xl md:mx-auto" style={{ aspectRatio: '16/9' }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${showcaseConfig.youtubeVideoId}`}
+                title="Showcase Game 1 Highlights"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+                style={{ border: 0 }}
+              />
+            </div>
+            <p className="text-xs mt-2.5 text-center" style={{ color: '#8892aa' }}>
+              Enjoyed the highlights? 👍 Like the video and subscribe to our{' '}
+              <a
+                href="https://www.youtube.com/@next11ven"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#2d5fc4', textDecoration: 'underline' }}>
+                YouTube channel
+              </a>{' '}
+              to stay up to date.
+            </p>
+          </>
         ) : (
           <div className="rounded-2xl overflow-hidden relative"
             style={{ backgroundColor: '#0d1020', border: '1px solid #1e2235', minHeight: 200 }}>

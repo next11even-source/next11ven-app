@@ -163,6 +163,7 @@ export default function CoachesPage() {
   const [filterLevel, setFilterLevel] = useState('')
   const [filterRole, setFilterRole] = useState('')
   const [filterLocation, setFilterLocation] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isPremium, setIsPremium] = useState(false)
   const [quota, setQuota] = useState<Quota | null>(null)
@@ -267,80 +268,98 @@ export default function CoachesPage() {
             style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             Coaches
           </h1>
-          {activeFilterCount > 0 ? (
-            <button onClick={clearAll} className="text-xs font-bold" style={{ color: '#2d5fc4' }}>
-              Clear
-            </button>
-          ) : (
-            <div style={{ width: 28 }} />
-          )}
+          <div style={{ width: 28 }} />
         </div>
 
-        {/* Search */}
-        <div className="relative mb-3">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24"
-            fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name, club..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}
-          />
-        </div>
-
-        {/* Level filter */}
-        <div className="mb-2">
-          <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Level</p>
-          <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-            {LEVEL_CHIPS.map(chip => (
-              <Chip
-                key={chip}
-                label={chip}
-                active={chip === 'All' ? filterLevel === '' : filterLevel === chip}
-                onClick={() => setFilterLevel(chip === 'All' ? '' : chip)}
-              />
-            ))}
+        {/* Search + Filter button row */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24"
+              fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by name, club..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}
+            />
           </div>
+          <button
+            onClick={() => setFiltersOpen(o => !o)}
+            className="relative flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold flex-shrink-0"
+            style={{
+              backgroundColor: filtersOpen || activeFilterCount > 0 ? '#2d5fc4' : '#13172a',
+              border: `1px solid ${filtersOpen || activeFilterCount > 0 ? '#2d5fc4' : '#1e2235'}`,
+              color: filtersOpen || activeFilterCount > 0 ? '#fff' : '#8892aa',
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-black"
+                style={{ backgroundColor: '#fff', color: '#2d5fc4' }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Role filter */}
-        <div className="mb-2">
-          <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Role</p>
-          <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-            {ROLE_CHIPS.map(chip => (
-              <Chip
-                key={chip}
-                label={chip}
-                active={chip === 'All' ? filterRole === '' : filterRole === chip}
-                onClick={() => setFilterRole(chip === 'All' ? '' : chip)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Location filter — only shown when there are cities in the data */}
-        {locations.length > 0 && (
-          <div>
-            <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Location</p>
-            <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-              <Chip
-                label="All"
-                active={filterLocation === ''}
-                onClick={() => setFilterLocation('')}
-              />
-              {locations.map(loc => (
-                <Chip
-                  key={loc}
-                  label={loc}
-                  active={filterLocation === loc}
-                  onClick={() => setFilterLocation(loc)}
-                />
-              ))}
+        {/* Expandable filter panel */}
+        {filtersOpen && (
+          <div className="mt-3 pt-3" style={{ borderTop: '1px solid #1e2235' }}>
+            {/* Level filter */}
+            <div className="mb-2.5">
+              <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Level</p>
+              <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
+                {LEVEL_CHIPS.map(chip => (
+                  <Chip
+                    key={chip}
+                    label={chip}
+                    active={chip === 'All' ? filterLevel === '' : filterLevel === chip}
+                    onClick={() => setFilterLevel(chip === 'All' ? '' : chip)}
+                  />
+                ))}
+              </div>
             </div>
+
+            {/* Role filter */}
+            <div className="mb-2.5">
+              <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Role</p>
+              <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
+                {ROLE_CHIPS.map(chip => (
+                  <Chip
+                    key={chip}
+                    label={chip}
+                    active={chip === 'All' ? filterRole === '' : filterRole === chip}
+                    onClick={() => setFilterRole(chip === 'All' ? '' : chip)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Location filter */}
+            {locations.length > 0 && (
+              <div className="mb-1">
+                <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Location</p>
+                <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
+                  <Chip label="All" active={filterLocation === ''} onClick={() => setFilterLocation('')} />
+                  {locations.map(loc => (
+                    <Chip key={loc} label={loc} active={filterLocation === loc} onClick={() => setFilterLocation(loc)} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeFilterCount > 0 && (
+              <button onClick={clearAll} className="mt-2 text-xs font-bold" style={{ color: '#2d5fc4' }}>
+                Clear all filters
+              </button>
+            )}
           </div>
         )}
       </div>

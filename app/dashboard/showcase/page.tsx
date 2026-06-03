@@ -502,9 +502,6 @@ export default function ShowcasePage() {
       {/* ─── Image carousel ───────────────────────────────────────────────── */}
       {hasImages && (
         <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-3 px-4" style={{ color: '#8892aa' }}>
-            On the day
-          </p>
           <div
             className="flex gap-3 overflow-x-auto px-4 pb-3"
             style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>

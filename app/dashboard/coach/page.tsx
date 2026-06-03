@@ -109,7 +109,7 @@ function CoachProfileCompletionBar({ profile }: { profile: CoachCompletionProfil
   const barColor = pct < 40 ? '#f59e0b' : pct < 75 ? '#2d5fc4' : '#34d399'
 
   return (
-    <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
+    <Link href="/dashboard/profile" className="block" style={{ textDecoration: 'none' }}>
       <div className="rounded-2xl px-4 py-2.5"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
@@ -808,11 +808,11 @@ export default function CoachDashboard() {
           </p>
         </div>
 
-        {/* Profile Completion */}
-        {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
+        {/* Profile Completion + Showcase */}
+        <div className="space-y-4">
+          {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
 
-        {/* Showcase Card */}
-        <Link href="/dashboard/showcase" style={{ textDecoration: 'none' }}>
+          <Link href="/dashboard/showcase" className="block" style={{ textDecoration: 'none' }}>
           <div className="rounded-2xl p-4 flex flex-col gap-3"
             style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
             <div className="flex items-start justify-between gap-3">
@@ -848,6 +848,7 @@ export default function CoachDashboard() {
             </div>
           </div>
         </Link>
+        </div>
 
         {/* Loading skeleton */}
         {loading ? (

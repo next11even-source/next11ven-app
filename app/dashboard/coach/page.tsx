@@ -829,19 +829,10 @@ export default function CoachDashboard() {
           </div>
         ) : (
           <>
-            {/* Section 2 */}
             <FeedPreview posts={feedPosts} />
-
-            {/* Section 3 */}
-            <MyOpportunities opps={myOpportunities} />
-
-            {/* Section 3b */}
-            <OtherOpportunities opps={otherOpportunities} />
-
-            {/* Section 4 */}
             <PremiumCarousel players={premiumPlayers} />
-
-            {/* Section 5 */}
+            <MyOpportunities opps={myOpportunities} />
+            <OtherOpportunities opps={otherOpportunities} />
             <MyShortlist players={myShortlist} />
           </>
         )}

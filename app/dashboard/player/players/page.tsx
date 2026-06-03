@@ -197,6 +197,90 @@ function FilterPanel({
   )
 }
 
+// ─── Free Agent Ticker ───────────────────────────────────────────────────────
+
+function FreeAgentTicker({ players }: { players: Player[] }) {
+  const eligible = players.filter(p => p.status === 'free_agent' && p.avatar_url)
+  if (eligible.length === 0) return null
+
+  // Duplicate enough times for a seamless loop
+  const copies = eligible.length < 6 ? 4 : eligible.length < 12 ? 3 : 2
+  const items = Array.from({ length: copies }, () => eligible).flat()
+  const duration = Math.max(18, eligible.length * 3.2)
+
+  return (
+    <section style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid #1e2235', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes n11-ticker {
+          from { transform: translateX(0); }
+          to { transform: translateX(-${100 / copies}%); }
+        }
+        .n11-ticker-track {
+          animation: n11-ticker ${duration}s linear infinite;
+          display: flex;
+          width: max-content;
+          will-change: transform;
+        }
+        .n11-ticker-track:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      {/* Label row */}
+      <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span
+          className="animate-pulse"
+          style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#60a5fa', flexShrink: 0, boxShadow: '0 0 8px #60a5fa88' }}
+        />
+        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 13, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          Free Agents
+        </span>
+        <span style={{ fontSize: 10, color: '#8892aa' }}>· Available now</span>
+      </div>
+
+      {/* Scrolling cards */}
+      <div style={{ overflow: 'hidden', paddingBottom: 14 }}>
+        <div className="n11-ticker-track">
+          {items.map((p, i) => (
+            <div
+              key={`${p.id}-${i}`}
+              style={{
+                flexShrink: 0,
+                width: 96,
+                margin: '0 5px',
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: '1px solid #1e2235',
+                backgroundColor: '#13172a',
+              }}
+            >
+              <div style={{ height: 88, position: 'relative', backgroundColor: '#1a1f3a' }}>
+                <img
+                  src={p.avatar_url!}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 55%)' }} />
+              </div>
+              <div style={{ padding: '5px 7px 7px' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {p.full_name ?? 'Player'}
+                </p>
+                <p style={{ fontSize: 9, color: '#60a5fa', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {p.position ?? '—'}
+                </p>
+                <p style={{ fontSize: 9, color: '#8892aa', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {[p.city, p.playing_level].filter(Boolean).join(' · ') || '—'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Hot Right Now Carousel ───────────────────────────────────────────────────
 
 type HotPlayer = Player & { viewCount: number }
@@ -516,6 +600,9 @@ export default function PlayersPage() {
         )}
 
       </div>
+
+      {/* Free Agent Ticker */}
+      {!loading && <FreeAgentTicker players={players} />}
 
       {/* Hot Right Now */}
       {!loading && <HotRightNow players={hotPlayers} />}

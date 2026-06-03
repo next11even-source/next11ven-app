@@ -210,6 +210,12 @@ export default function CoachPublicProfile() {
       } else if (data.error === 'COOLDOWN_ACTIVE') {
         setToast('You\'ve already reached out to this coach. Check back later.')
         setTimeout(() => setToast(''), 4000)
+      } else if (data.error === 'QUOTA_NOT_FOUND' || data.error === 'Failed to create message quota') {
+        setToast('Could not load your message quota. Please refresh and try again.')
+        setTimeout(() => setToast(''), 5000)
+      } else if (data.error === 'NOT_PREMIUM') {
+        setToast('Premium required to message coaches.')
+        setTimeout(() => setToast(''), 4000)
       } else {
         setToast('Something went wrong. Please try again.')
         setTimeout(() => setToast(''), 3000)

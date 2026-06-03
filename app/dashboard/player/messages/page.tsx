@@ -54,6 +54,7 @@ function ChatView({
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [sendError, setSendError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const c = conversation.coach
 
@@ -88,6 +89,7 @@ function ChatView({
     e.preventDefault()
     if (!input.trim() || sending) return
     setSending(true)
+    setSendError('')
     const text = input.trim()
     setInput('')
     try {
@@ -99,9 +101,15 @@ function ChatView({
       const data = await res.json()
       if (data.message) {
         setMessages(prev => [...prev, data.message as Message])
+      } else {
+        setInput(text)
+        setSendError('Failed to send. Please try again.')
+        setTimeout(() => setSendError(''), 4000)
       }
     } catch {
-      // silently fail
+      setInput(text)
+      setSendError('Failed to send. Please try again.')
+      setTimeout(() => setSendError(''), 4000)
     }
     setSending(false)
   }
@@ -193,8 +201,12 @@ function ChatView({
       {/* Input — hidden when player can't read */}
       {canRead && (
         <form onSubmit={sendMessage}
-          className="flex items-end gap-2 px-4 py-3 flex-shrink-0"
+          className="flex-shrink-0"
           style={{ borderTop: '1px solid #1e2235', backgroundColor: 'rgba(10,10,10,0.97)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+          {sendError && (
+            <p className="px-4 pt-2 text-xs" style={{ color: '#f87171' }}>{sendError}</p>
+          )}
+          <div className="flex items-end gap-2 px-4 py-3">
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -211,6 +223,7 @@ function ChatView({
               <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           </button>
+          </div>
         </form>
       )}
     </div>

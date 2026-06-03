@@ -75,13 +75,18 @@ export async function POST(req: NextRequest) {
     const periodStart = sub?.current_period_start ?? now
     const periodEnd = sub?.current_period_end ?? new Date(Date.now() + 30 * 86400000).toISOString()
 
-    await admin.from('player_message_quota').upsert({
+    const { error: upsertErr } = await admin.from('player_message_quota').upsert({
       player_id: user.id,
       period_start: periodStart,
       period_end: periodEnd,
       messages_used: 0,
       messages_limit: 3,
     }, { onConflict: 'player_id,period_start', ignoreDuplicates: true })
+
+    if (upsertErr) {
+      console.error('[Initiate] quota upsert error:', upsertErr)
+      return NextResponse.json({ error: 'Failed to create message quota' }, { status: 500 })
+    }
   }
 
   const { data: result, error: rpcError } = await admin.rpc('initiate_coach_conversation', {

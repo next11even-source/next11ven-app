@@ -574,9 +574,6 @@ export default function CoachDashboard() {
   const [fullName, setFullName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const [statsNewApps, setStatsNewApps] = useState(0)
-  const [statsLookingForClub, setStatsLookingForClub] = useState(0)
-  const [statsUnread, setStatsUnread] = useState(0)
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
   const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
@@ -589,34 +586,18 @@ export default function CoachDashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-
       // ── Phase 1: all independent queries in parallel ──────────────────────
       const [
         profileRes,
-        appsRes,
-        lookingRes,
         myOppsRes,
         savedRes,
         feedRes,
         premiumRes,
-        convsRes,
         otherOppsRes,
       ] = await Promise.all([
         supabase.from('profiles')
           .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
           .eq('id', user.id).single(),
-
-        supabase.from('applications')
-          .select('id', { count: 'exact', head: true })
-          .eq('coach_id', user.id)
-          .gte('created_at', weekAgo),
-
-        supabase.from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .in('role', ['player', 'admin'])
-          .eq('approved', true)
-          .in('status', ['free_agent', 'loan_dual_reg', 'just_exploring']),
 
         supabase.from('opportunities')
           .select('id, title, club, position, is_active')
@@ -642,10 +623,6 @@ export default function CoachDashboard() {
           .in('role', ['player', 'admin'])
           .eq('approved', true)
           .eq('premium', true),
-
-        supabase.from('conversations')
-          .select('id')
-          .eq('coach_id', user.id),
 
         supabase.from('opportunities')
           .select('id, title, club, position, level, location, created_at')
@@ -675,10 +652,6 @@ export default function CoachDashboard() {
         coaching_history: profile?.coaching_history ?? null,
       })
 
-      // Stats
-      setStatsNewApps(appsRes.count ?? 0)
-      setStatsLookingForClub(lookingRes.count ?? 0)
-
       // Feed posts — normalize author join (Supabase returns as array)
       const rawPosts = (feedRes.data ?? []) as any[]
       setFeedPosts(rawPosts.map(p => ({
@@ -706,17 +679,6 @@ export default function CoachDashboard() {
       })))
 
       // ── Phase 2: queries that depend on phase 1 results ───────────────────
-
-      // Unread messages
-      const convIds = (convsRes.data ?? []).map((c: { id: string }) => c.id)
-      if (convIds.length) {
-        const { count } = await supabase.from('messages')
-          .select('id', { count: 'exact', head: true })
-          .in('conversation_id', convIds)
-          .neq('sender_id', user.id)
-          .is('read_at', null)
-        setStatsUnread(count ?? 0)
-      }
 
       // Application counts per opportunity
       const myOppsData = (myOppsRes.data ?? []) as Array<{ id: string; title: string; club: string | null; position: string | null; is_active: boolean }>
@@ -784,7 +746,7 @@ export default function CoachDashboard() {
       <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
 
       {/* Header */}
-      <header className="px-4 pt-6 pb-4 flex items-center justify-between">
+      <header className="px-4 pt-3 pb-2 flex items-center justify-between">
         <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5" style={{ width: 22 }}>
           <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 22 }} />
           <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 16 }} />
@@ -794,7 +756,7 @@ export default function CoachDashboard() {
         <div style={{ width: 22 }} />
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-6 space-y-10"
+      <main className="max-w-5xl mx-auto px-6 py-4 space-y-6"
         style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 24px)' }}>
 
         {/* Welcome */}
@@ -853,11 +815,6 @@ export default function CoachDashboard() {
         {/* Loading skeleton */}
         {loading ? (
           <div className="space-y-8">
-            <div className="grid grid-cols-3 gap-2">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="animate-pulse rounded-2xl" style={{ height: 80, backgroundColor: '#1e2235' }} />
-              ))}
-            </div>
             <div className="space-y-2">
               <div className="animate-pulse rounded-lg" style={{ height: 20, width: '40%', backgroundColor: '#1e2235' }} />
               <div className="flex gap-3">
@@ -872,13 +829,6 @@ export default function CoachDashboard() {
           </div>
         ) : (
           <>
-            {/* Section 1 */}
-            <CoachQuickStats
-              newApps={statsNewApps}
-              lookingForClub={statsLookingForClub}
-              unread={statsUnread}
-            />
-
             {/* Section 2 */}
             <FeedPreview posts={feedPosts} />
 

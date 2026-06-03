@@ -341,8 +341,8 @@ export default function ShowcasePage() {
           )}
         </div>
 
-        {/* Side-by-side team grid */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Stacked team layout — full width so names don't truncate */}
+        <div className="flex flex-col gap-3">
           {showcaseConfig.teams.map((team, teamIndex) => (
             <div key={team.name} className="rounded-2xl overflow-hidden"
               style={{ backgroundColor: '#13172a', border: `1px solid ${team.accentColor}30` }}>
@@ -366,21 +366,21 @@ export default function ShowcasePage() {
                   const isLinking = linkingSlot?.team === teamIndex + 1 && linkingSlot?.number === entry.number
 
                   const rowContent = (
-                    <div className="flex items-center gap-1.5 px-2.5 py-2">
+                    <div className="flex items-center gap-2 px-3 py-2">
                       {/* Squad number */}
-                      <span className="text-sm font-black w-5 flex-shrink-0 text-right leading-none"
+                      <span className="text-sm font-black w-6 flex-shrink-0 text-right leading-none"
                         style={{ fontFamily: "'Barlow Condensed', sans-serif", color: team.accentColor }}>
                         {entry.number}
                       </span>
 
                       {/* Position badge */}
-                      <span className="text-xs font-bold w-8 flex-shrink-0 text-center rounded leading-tight py-0.5"
-                        style={{ backgroundColor: `${team.accentColor}18`, color: team.accentColor, fontSize: '9px' }}>
+                      <span className="font-bold w-9 flex-shrink-0 text-center rounded leading-tight py-0.5"
+                        style={{ backgroundColor: `${team.accentColor}18`, color: team.accentColor, fontSize: '10px' }}>
                         {entry.position ?? '—'}
                       </span>
 
                       {/* Name */}
-                      <span className="flex-1 text-xs font-semibold truncate"
+                      <span className="flex-1 text-sm font-semibold min-w-0 truncate"
                         style={{ color: entry.name ? (profile ? '#e8dece' : '#606880') : '#3a4055' }}>
                         {entry.name ?? '—'}
                       </span>

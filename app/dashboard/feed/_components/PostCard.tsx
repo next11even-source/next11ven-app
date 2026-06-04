@@ -175,6 +175,11 @@ export default function PostCard({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
+  const [caption, setCaption] = useState(post.caption)
+  const [editMode, setEditMode] = useState(false)
+  const [editDraft, setEditDraft] = useState(post.caption ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(false)
 
   async function toggleLike() {
     const supabase = createClient()
@@ -259,6 +264,27 @@ export default function PostCard({
     onDelete?.(post.id)
   }
 
+  async function saveEdit() {
+    if (saving) return
+    setSaving(true)
+    setSaveError(false)
+    const res = await fetch(`/api/posts/${post.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caption: editDraft }),
+    })
+    if (!res.ok) {
+      setSaveError(true)
+      setSaving(false)
+      setTimeout(() => setSaveError(false), 3000)
+      return
+    }
+    const data = await res.json()
+    setCaption(data.caption)
+    setEditMode(false)
+    setSaving(false)
+  }
+
   const roleStyle = ROLE_STYLE[post.author.role ?? 'player'] ?? ROLE_STYLE.player
   const isCoachViewer = viewerRole === 'coach'
   const isOwnPost = post.author_id === viewerId
@@ -303,11 +329,55 @@ export default function PostCard({
         </div>
 
         {/* Caption */}
-        {post.caption && (
+        {editMode ? (
+          <div className="px-4 pt-3 pb-3">
+            <textarea
+              value={editDraft}
+              onChange={e => setEditDraft(e.target.value.slice(0, 1000))}
+              rows={4}
+              autoFocus
+              className="w-full rounded-xl px-3 py-2.5 text-sm resize-none mb-2"
+              style={{
+                backgroundColor: '#0a0a0a',
+                border: '1px solid #2d5fc4',
+                color: '#e8dece',
+                fontFamily: "'Inter', sans-serif",
+                outline: 'none',
+                lineHeight: 1.6,
+              }}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={saveEdit}
+                disabled={saving}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                style={{
+                  backgroundColor: saving ? '#1e2235' : '#2d5fc4',
+                  color: saving ? '#4b5563' : '#fff',
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                onClick={() => { setEditMode(false); setEditDraft(caption ?? '') }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ backgroundColor: '#1e2235', color: '#8892aa', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.04em', textTransform: 'uppercase' }}
+              >
+                Cancel
+              </button>
+              {saveError && (
+                <span className="text-xs" style={{ color: '#ef4444', fontFamily: "'Inter', sans-serif" }}>Failed — try again</span>
+              )}
+            </div>
+          </div>
+        ) : caption ? (
           <p className="px-4 pt-3 pb-3 text-sm leading-relaxed" style={{ color: '#e8dece', fontFamily: "'Inter', sans-serif" }}>
-            {post.caption}
+            {caption}
           </p>
-        )}
+        ) : null}
 
         {/* Image */}
         {post.image_url && (
@@ -361,8 +431,48 @@ export default function PostCard({
             </button>
           )}
 
-          {/* Own post or admin: delete */}
-          {(isOwnPost || isAdmin) && (
+          {/* Admin controls: edit + delete grouped on right */}
+          {isAdmin && (
+            <div className="flex items-center gap-3 ml-auto">
+              {!editMode && (
+                <button
+                  onClick={() => { setEditDraft(caption ?? ''); setEditMode(true) }}
+                  className="flex items-center gap-1 transition-opacity active:opacity-60"
+                  title="Edit caption"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 transition-opacity active:opacity-60"
+              >
+                {deleteError ? (
+                  <span className="text-xs font-semibold" style={{ color: '#ef4444', fontFamily: "'Inter', sans-serif" }}>
+                    Failed — try again
+                  </span>
+                ) : confirmDelete ? (
+                  <span className="text-xs font-semibold" style={{ color: '#ef4444', fontFamily: "'Inter', sans-serif" }}>
+                    Tap again to delete
+                  </span>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Own post (non-admin): delete only */}
+          {isOwnPost && !isAdmin && (
             <button
               onClick={handleDelete}
               disabled={deleting}
@@ -377,7 +487,7 @@ export default function PostCard({
                   Tap again to delete
                 </span>
               ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={deleting ? '#4b5563' : '#4b5563'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                   <path d="M10 11v6M14 11v6" />

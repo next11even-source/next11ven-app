@@ -174,14 +174,14 @@ export async function POST(req: NextRequest) {
   let usedDrip = false
 
   if (isDripEligible) {
-    // Guard: only trigger one drip sequence per player per 24 hours
-    const { count: recentDrip } = await adminClient
+    // Guard: only one active drip sequence per player at a time
+    const { count: pendingDrip } = await adminClient
       .from('drip_jobs')
       .select('id', { count: 'exact', head: true })
       .eq('recipient_id', recipientId)
-      .gte('created_at', new Date(Date.now() - 86_400_000).toISOString())
+      .eq('sent', false)
 
-    if (recentDrip === 0) {
+    if (pendingDrip === 0) {
       usedDrip = true
 
       // Schedule Day 3 (email) and Day 7 (SMS + email) jobs

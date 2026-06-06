@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Bookmark, Briefcase, Check, Eye, Heart, LayoutList, MessageCircle } from 'lucide-react'
+import { Bell, Bookmark, Briefcase, Check, ChevronRight, Eye, Heart, LayoutList, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
@@ -150,74 +150,40 @@ function NotifRow({ notif, onRead }: { notif: Notification; onRead: (id: string)
   )
 }
 
-// ─── Profile Views section ────────────────────────────────────────────────────
+// ─── Profile Views summary button ────────────────────────────────────────────
 
-function ProfileViewsSection({ viewers }: { viewers: ProfileViewer[] }) {
-  const weekCount = viewers.length
+function ProfileViewsButton({ viewers, isPremium }: { viewers: ProfileViewer[]; isPremium: boolean }) {
+  const total = viewers.length
+
+  let subtitle = 'No views yet'
+  if (total > 0 && isPremium) {
+    subtitle = `${total} player${total > 1 ? 's' : ''} viewed your profile`
+  } else if (total > 0) {
+    subtitle = `${total} player${total > 1 ? 's' : ''} viewed your profile`
+  }
 
   return (
-    <section className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Eye size={16} style={{ color: '#f59e0b', flexShrink: 0 }} />
-        <h2 className="text-base font-black uppercase"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', letterSpacing: '0.04em' }}>
-          Profile Views This Week
-        </h2>
-        {weekCount > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-            style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
-            {weekCount}
-          </span>
-        )}
+    <Link
+      href="/dashboard/coach/notifications/profile-views"
+      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl w-full"
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
+    >
+      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
+        <Eye size={18} />
       </div>
-
-      {weekCount === 0 ? (
-        <div className="rounded-2xl p-6 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-sm" style={{ color: '#8892aa' }}>
-            No profile views yet this week. Keep your opportunities updated to attract players.
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
-          {viewers.map((v, i) => (
-            <div key={v.viewer_id}
-              className="flex items-center gap-3 px-4 py-3.5"
-              style={{
-                backgroundColor: '#13172a',
-                borderBottom: i < viewers.length - 1 ? '1px solid #1e2235' : undefined,
-              }}>
-              <Avatar url={v.avatar_url} name={v.full_name} size={42} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
-                  {v.full_name ?? 'Unknown'}
-                </p>
-                <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                  {[v.position, v.club].filter(Boolean).join(' · ') || '—'}
-                </p>
-                {v.status && (
-                  <p className="text-xs font-semibold mt-0.5" style={{ color: STATUS_COLORS[v.status] ?? '#8892aa', fontSize: 10 }}>
-                    {STATUS_LABELS[v.status] ?? v.status}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <span className="text-xs" style={{ color: '#4b5563' }}>{timeAgo(v.last_viewed)}</span>
-                {v.count > 1 && (
-                  <span className="text-xs font-bold" style={{ color: '#2d5fc4' }}>{v.count}×</span>
-                )}
-                <Link
-                  href={`/dashboard/player/players/${v.viewer_id}`}
-                  className="text-xs font-semibold px-2.5 py-1 rounded-lg"
-                  style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-                  View
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>Profile Views</p>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{subtitle}</p>
+      </div>
+      {total > 0 && (
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
+          {total}
+        </span>
       )}
-    </section>
+      <ChevronRight size={16} style={{ color: '#4b5563', flexShrink: 0 }} />
+    </Link>
   )
 }
 
@@ -248,6 +214,7 @@ export default function CoachNotificationsPage() {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [viewers, setViewers] = useState<ProfileViewer[]>([])
+  const [isPremium, setIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -260,7 +227,7 @@ export default function CoachNotificationsPage() {
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
       const [profileRes, notifRes, viewsRes] = await Promise.all([
-        supabase.from('profiles').select('full_name, avatar_url, coaching_role').eq('id', user.id).single(),
+        supabase.from('profiles').select('full_name, avatar_url, coaching_role, premium').eq('id', user.id).single(),
         supabase
           .from('notifications')
           .select('id, type, entity_id, message, is_read, created_at, actor:profiles!actor_id(full_name, avatar_url)')
@@ -277,6 +244,7 @@ export default function CoachNotificationsPage() {
       ])
 
       setCoachProfile(profileRes.data ?? null)
+      setIsPremium(profileRes.data?.premium ?? false)
 
       const raw = (notifRes.data as any[]) ?? []
       setNotifications(raw.map(n => ({
@@ -375,8 +343,9 @@ export default function CoachNotificationsPage() {
         </div>
 
         {loading ? <Skeleton /> : (
-          <div className="px-4 py-4 space-y-8">
-            {/* Notifications */}
+          <div className="px-4 py-4 space-y-4">
+            <ProfileViewsButton viewers={viewers} isPremium={isPremium} />
+
             {groups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-8 text-center">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
@@ -409,9 +378,6 @@ export default function CoachNotificationsPage() {
                 ))}
               </div>
             )}
-
-            {/* Profile views */}
-            <ProfileViewsSection viewers={viewers} />
           </div>
         )}
       </div>

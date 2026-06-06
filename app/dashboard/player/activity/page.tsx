@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Briefcase, Check, Eye, Heart, MessageCircle, Star } from 'lucide-react'
+import { Bell, Briefcase, Check, ChevronRight, Eye, Heart, MessageCircle, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '../_components/SidebarContext'
@@ -205,97 +205,45 @@ function NotificationsSection({
   )
 }
 
-// ─── Profile Views section (preserved) ───────────────────────────────────────
+// ─── Profile Views summary button ────────────────────────────────────────────
 
-function ProfileViewsSection({ views, isPremium }: { views: ViewerGroup[]; isPremium: boolean }) {
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+function ProfileViewsButton({ views, isPremium }: { views: ViewerGroup[]; isPremium: boolean }) {
+  const coachCount = views.filter(v => v.role === 'coach').length
+  const total = views.length
 
-  const coachViewers = views.filter(v => v.role === 'coach')
+  let subtitle = 'No views yet'
+  if (total > 0 && isPremium) {
+    subtitle = coachCount > 0
+      ? `${coachCount} coach${coachCount > 1 ? 'es' : ''} · ${total} total`
+      : `${total} viewer${total > 1 ? 's' : ''}`
+  } else if (total > 0) {
+    subtitle = coachCount > 0
+      ? `${coachCount} coach${coachCount > 1 ? 'es' : ''} viewed your profile`
+      : `${total} person${total > 1 ? 's' : ''} viewed your profile`
+  }
 
   return (
-    <div className="space-y-3">
-      <h2 className="px-4 text-base font-black uppercase"
-        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-        Profile Views
-      </h2>
-
-      {views.length === 0 ? (
-        <div className="mx-0 rounded-2xl p-8 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-sm" style={{ color: '#8892aa' }}>No profile views yet — keep your profile updated to get noticed.</p>
-          <Link href="/dashboard/player/profile"
-            className="inline-block mt-4 px-5 py-2.5 rounded-xl text-sm font-bold"
-            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-            Complete My Profile
-          </Link>
-        </div>
-      ) : isPremium ? (
-        <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
-          {views.map((v, i) => {
-            const isCoach = v.role === 'coach'
-            const initials = v.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-            return (
-              <div key={v.viewer_id} className="flex items-center gap-3 px-4 py-3.5"
-                style={{ backgroundColor: '#13172a', borderBottom: i < views.length - 1 ? '1px solid #1e2235' : undefined, minHeight: 44 }}>
-                <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
-                    {v.avatar_url
-                      ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="text-xs font-bold" style={{ color: isCoach ? '#a78bfa' : '#2d5fc4' }}>{initials}</span>}
-                  </div>
-                  {isCoach && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#a78bfa', fontSize: 7, color: '#fff', fontWeight: 'bold' }}>C</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{v.full_name ?? 'Unknown'}</p>
-                  <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                    {isCoach ? 'Coach' : 'Player'}{v.club ? ` · ${v.club}` : ''}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs" style={{ color: '#8892aa' }}>{timeAgo(v.last_viewed)}</p>
-                  {v.count > 1 && <p className="text-xs font-bold mt-0.5" style={{ color: '#2d5fc4' }}>{v.count}x</p>}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="relative">
-          <div className="rounded-2xl overflow-hidden pointer-events-none select-none"
-            style={{ border: '1px solid #1e2235', filter: 'blur(4px)', opacity: 0.4 }}>
-            {[...Array(Math.min(views.length, 4))].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3.5"
-                style={{ backgroundColor: '#13172a', borderBottom: i < 3 ? '1px solid #1e2235' : undefined }}>
-                <div className="w-10 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: '#1e2235' }} />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 rounded" style={{ backgroundColor: '#1e2235', width: '60%' }} />
-                  <div className="h-2.5 rounded" style={{ backgroundColor: '#1e2235', width: '40%' }} />
-                </div>
-                <div className="h-2.5 w-10 rounded" style={{ backgroundColor: '#1e2235' }} />
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl"
-            style={{ backgroundColor: 'rgba(10,10,10,0.7)', backdropFilter: 'blur(2px)' }}>
-            <p className="text-sm font-bold text-center px-6" style={{ color: '#e8dece' }}>
-              {coachViewers.length > 0
-                ? `${coachViewers.length} coach${coachViewers.length > 1 ? 'es' : ''} viewed your profile`
-                : `${views.length} person${views.length > 1 ? 's' : ''} viewed your profile`}
-            </p>
-            <p className="text-xs text-center px-8" style={{ color: '#8892aa' }}>
-              Upgrade to see exactly who's viewing you
-            </p>
-            <Link href="/dashboard/player/premium"
-              className="px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-              Go Premium · £6.99/mo
-            </Link>
-          </div>
-        </div>
+    <Link
+      href="/dashboard/player/activity/profile-views"
+      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl w-full"
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}
+    >
+      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: '#a78bfa20', color: '#a78bfa' }}>
+        <Eye size={18} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>Profile Views</p>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{subtitle}</p>
+      </div>
+      {total > 0 && (
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: '#a78bfa20', color: '#a78bfa' }}>
+          {total}
+        </span>
       )}
-    </div>
+      <ChevronRight size={16} style={{ color: '#4b5563', flexShrink: 0 }} />
+    </Link>
   )
 }
 
@@ -423,13 +371,13 @@ export default function NotificationsPage() {
       </div>
 
       {loading ? <Skeleton /> : (
-        <div className="px-4 py-4 space-y-8">
+        <div className="px-4 py-4 space-y-4">
+          <ProfileViewsButton views={viewers} isPremium={isPremium} />
           <NotificationsSection
             notifications={notifications}
             onMarkAll={markAllRead}
             onRead={markRead}
           />
-          <ProfileViewsSection views={viewers} isPremium={isPremium} />
         </div>
       )}
     </div>

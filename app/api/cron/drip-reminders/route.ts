@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
               body: new URLSearchParams({
                 From: process.env.TWILIO_FROM_NUMBER,
                 To: profile.phone,
-                Body: `NEXT11VEN: Final reminder — a coach is still waiting for your reply. Upgrade now: ${appUrl}/dashboard/player/premium`,
+                Body: `NEXT11VEN: A coach messaged you and won't wait forever. The longer this sits, the more likely they've moved on. Upgrade now: ${appUrl}/dashboard/player/premium`,
               }),
             }
           )

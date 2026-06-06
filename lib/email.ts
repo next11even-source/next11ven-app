@@ -226,14 +226,14 @@ export async function sendDripDay7Email({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      A coach reached out to you a week ago and their message is still unread.
+      A coach messaged you on NEXT11VEN and their message is still sitting unread.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
-      Coaches move on. If you don't act now, this opportunity will pass. Upgrade for £6.99/month — don't let it slip away.
+      Coaches don't wait forever. The longer this sits unread, the more likely they've moved on to someone else. Upgrade for £6.99/month and get your reply in.
     </p>
-    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade Before It's Too Late</a>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade &amp; Read Your Message</a>
   `)
-  await send({ to, subject: 'Last chance — your coach message expires soon', html })
+  await send({ to, subject: "Don't let this coach move on without you", html })
 }
 
 // ─── Application received (coach) ─────────────────────────────────────────────

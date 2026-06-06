@@ -167,6 +167,75 @@ export async function sendExtraMessagesPurchaseEmail({
   await send({ to, subject: `Your ${credits} Extra Messages are ready`, html })
 }
 
+// ─── Drip: Day 0 — coach messaged free player (upgrade to read) ─────────────
+
+export async function sendDripDay0Email({
+  to,
+  toName,
+}: {
+  to: string
+  toName: string | null
+}) {
+  const upgradeUrl = `${SITE}/dashboard/player/premium`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      A coach has sent you a message on NEXT11VEN. You need a premium account to read it and reply.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
+      Coaches are actively recruiting. Upgrade for £6.99/month and start the conversation before they move on.
+    </p>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade &amp; Read Your Message</a>
+  `)
+  await send({ to, subject: 'A coach messaged you on NEXT11VEN', html })
+}
+
+// ─── Drip: Day 3 — unread message reminder ──────────────────────────────────
+
+export async function sendDripDay3Email({
+  to,
+  toName,
+}: {
+  to: string
+  toName: string | null
+}) {
+  const upgradeUrl = `${SITE}/dashboard/player/premium`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      You still have an unread message from a coach sitting in your NEXT11VEN inbox.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
+      Coaches are actively looking and won't wait indefinitely. Upgrade to premium to read the message and reply before it's too late.
+    </p>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Read Your Message Now</a>
+  `)
+  await send({ to, subject: 'You still have an unread message waiting', html })
+}
+
+// ─── Drip: Day 7 — final reminder ────────────────────────────────────────────
+
+export async function sendDripDay7Email({
+  to,
+  toName,
+}: {
+  to: string
+  toName: string | null
+}) {
+  const upgradeUrl = `${SITE}/dashboard/player/premium`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      A coach reached out to you a week ago and their message is still unread.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
+      Coaches move on. If you don't act now, this opportunity will pass. Upgrade for £6.99/month — don't let it slip away.
+    </p>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade Before It's Too Late</a>
+  `)
+  await send({ to, subject: 'Last chance — your coach message expires soon', html })
+}
+
 // ─── Application received (coach) ─────────────────────────────────────────────
 
 export async function sendApplicationReceivedEmail({

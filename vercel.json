@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/drip-reminders",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-views-digest",
+      "schedule": "0 8 * * 0"
     }
   ]
 }

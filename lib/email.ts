@@ -236,6 +236,81 @@ export async function sendDripDay7Email({
   await send({ to, subject: "Don't let this coach move on without you", html })
 }
 
+// ─── Weekly views digest: free player ────────────────────────────────────────
+
+export async function sendWeeklyViewsDigestFreeEmail({
+  to,
+  toName,
+  coachCount,
+}: {
+  to: string
+  toName: string | null
+  coachCount: number
+}) {
+  const upgradeUrl = `${SITE}/dashboard/player/premium`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 16px;">Hi ${toName ?? 'there'},</p>
+    <div style="text-align:center;padding:20px 0 24px;">
+      <p style="font-size:60px;font-weight:900;color:#e8dece;margin:0;line-height:1;font-family:Arial,sans-serif;">${coachCount}</p>
+      <p style="font-size:15px;font-weight:700;color:#8892aa;margin:8px 0 0;letter-spacing:0.04em;text-transform:uppercase;">coach${coachCount === 1 ? '' : 'es'} viewed your profile in the last 7 days</p>
+    </div>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Coaches on NEXT11VEN are actively looking for players at your level.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Upgrade to Premium to see exactly who&rsquo;s been looking at you &mdash; and get in front of them first.
+    </p>
+    <div style="text-align:center;margin:0 0 20px;">
+      <a href="${upgradeUrl}" style="display:inline-block;padding:14px 32px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;">See Who Viewed You</a>
+    </div>
+    <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;">Already thinking about it? Premium is &pound;6.99/month. Cancel anytime.</p>
+  `)
+  await send({ to, subject: `${coachCount} coach${coachCount === 1 ? '' : 'es'} viewed your profile this week`, html })
+}
+
+// ─── Weekly views digest: premium player ─────────────────────────────────────
+
+export async function sendWeeklyViewsDigestPremiumEmail({
+  to,
+  toName,
+  coachCount,
+  coaches,
+}: {
+  to: string
+  toName: string | null
+  coachCount: number
+  coaches: Array<{ full_name: string | null; club: string | null }>
+}) {
+  const activityUrl = `${SITE}/dashboard/player/activity/profile-views`
+  const coachListHtml = coaches.map(c => {
+    const label = c.full_name
+      ? (c.club ? `${c.full_name} &mdash; ${c.club}` : c.full_name)
+      : 'Unknown coach'
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #1e2235;">
+        <div style="width:8px;height:8px;border-radius:50%;background:#a78bfa;flex-shrink:0;"></div>
+        <span style="color:#e8dece;font-size:14px;">${label}</span>
+      </div>`
+  }).join('')
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 16px;">Hi ${toName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      <strong style="color:#e8dece;">${coachCount} coach${coachCount === 1 ? '' : 'es'}</strong> viewed your profile in the last 7 days. Here&rsquo;s who&rsquo;s been looking:
+    </p>
+    <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:4px 20px 4px;margin:0 0 24px;">
+      ${coachListHtml}
+    </div>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Keep your profile sharp and stay active to keep attracting attention.
+    </p>
+    <div style="text-align:center;">
+      <a href="${activityUrl}" style="display:inline-block;padding:14px 32px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;">View Your Activity</a>
+    </div>
+  `)
+  await send({ to, subject: `${coachCount} coach${coachCount === 1 ? '' : 'es'} checked out your profile this week`, html })
+}
+
 // ─── Application received (coach) ─────────────────────────────────────────────
 
 export async function sendApplicationReceivedEmail({

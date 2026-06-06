@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import { onUserUpgradedToPremium } from '@/lib/mailerlite'
 import { sendExtraMessagesPurchaseEmail } from '@/lib/email'
+import { reportError } from '@/lib/alert'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error('[Stripe webhook] handler error:', err)
+    reportError('/api/stripe/webhook', err, `event: ${event.type}`)
     return NextResponse.json({ error: 'Internal handler error' }, { status: 500 })
   }
 

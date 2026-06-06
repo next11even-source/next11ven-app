@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { onUserApproved } from '@/lib/mailerlite'
+import { reportError } from '@/lib/alert'
 
 function serviceSupabase() {
   return createClient(
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error('[Admin] review update error:', error)
+    reportError('/api/admin/review', error, `user_id: ${user_id}, action: ${action}`)
     return NextResponse.json({ error: 'Failed to update approval status' }, { status: 500 })
   }
 
@@ -115,7 +117,10 @@ export async function POST(req: NextRequest) {
           Body: smsBody,
         }),
       }
-    ).catch(err => console.error('[Twilio] approval SMS error:', err))
+    ).catch(err => {
+      console.error('[Twilio] approval SMS error:', err)
+      reportError('/api/admin/review', err, `twilio approval SMS failed for user_id: ${user_id}`)
+    })
   }
 
   return NextResponse.json({ ok: true, action, user_id })

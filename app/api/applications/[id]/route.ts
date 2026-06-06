@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sendApplicationDecisionEmail } from '@/lib/email'
+import { reportError } from '@/lib/alert'
 
 const VALID_STATUSES = ['accepted', 'rejected', 'shortlisted', 'viewed', 'pending']
 
@@ -57,7 +58,10 @@ export async function PATCH(
     .update({ status })
     .eq('id', id)
 
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+  if (updateErr) {
+    reportError('/api/applications/[id]', updateErr, `application_id: ${id}, status: ${status}`)
+    return NextResponse.json({ error: updateErr.message }, { status: 500 })
+  }
 
   // Email player on accepted/rejected decisions
   if (status === 'accepted' || status === 'rejected') {

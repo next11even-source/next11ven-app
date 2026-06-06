@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, PRICE_IDS, PremiumRole } from '@/lib/stripe'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { reportError } from '@/lib/alert'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabase()
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
   const priceId = PRICE_IDS[role]
 
   if (!priceId || priceId === 'price_REPLACE_ME') {
+    reportError('/api/stripe/checkout', 'Price ID not configured', `role: ${role}`)
     return NextResponse.json({ error: 'Stripe price ID not configured' }, { status: 500 })
   }
 
@@ -48,25 +50,30 @@ export async function POST(req: NextRequest) {
 
   const premiumPath = role === 'coach' ? '/dashboard/coach/premium' : '/dashboard/player/premium'
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    payment_method_types: ['card'],
-    mode: 'subscription',
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}${premiumPath}`,
-    metadata: {
-      supabase_user_id: user.id,
-      role,
-    },
-    subscription_data: {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${premiumPath}`,
       metadata: {
         supabase_user_id: user.id,
         role,
       },
-    },
-    allow_promotion_codes: true,
-  })
+      subscription_data: {
+        metadata: {
+          supabase_user_id: user.id,
+          role,
+        },
+      },
+      allow_promotion_codes: true,
+    })
 
-  return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: session.url })
+  } catch (err) {
+    reportError('/api/stripe/checkout', err, `user_id: ${user.id}, role: ${role}`)
+    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 })
+  }
 }

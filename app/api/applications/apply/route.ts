@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendApplicationReceivedEmail } from '@/lib/email'
+import { reportError } from '@/lib/alert'
 
 function serviceSupabase() {
   return createClient(
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!sender.premium) {
+    reportError('/api/applications/apply', 'Non-premium player hit paywall', `player_id: ${user.id}`)
     return NextResponse.json({ error: 'Player Premium required to apply' }, { status: 403 })
   }
 
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Already applied' }, { status: 409 })
     }
     console.error('[Apply] insert error:', appErr)
+    reportError('/api/applications/apply', appErr, `opportunity_id: ${opportunity_id}`)
     return NextResponse.json({ error: 'Failed to submit application' }, { status: 500 })
   }
 

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendMessageNotificationEmail } from '@/lib/email'
+import { reportError } from '@/lib/alert'
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
 
   // Players can only reply — they cannot start new conversations with coaches
   if (senderIsPlayer && !existingConv) {
+    reportError('/api/messages/send', 'Player attempted to initiate conversation', `player_id: ${user.id}, coach_id: ${recipientId}`)
     return NextResponse.json({ error: 'Players cannot initiate conversations with coaches' }, { status: 403 })
   }
 
@@ -123,6 +125,7 @@ export async function POST(req: NextRequest) {
       .single()
     if (convErr) {
       console.error('[Messages] conversation create error:', convErr)
+      reportError('/api/messages/send', convErr, 'conversation create failed')
       return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
     }
     conversationId = newConv.id
@@ -137,6 +140,7 @@ export async function POST(req: NextRequest) {
 
   if (msgErr) {
     console.error('[Messages] insert error:', msgErr)
+    reportError('/api/messages/send', msgErr, 'message insert failed')
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
   }
 
@@ -194,8 +198,8 @@ export async function POST(req: NextRequest) {
       // Record timestamp — use service role to bypass RLS
       const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
       await adminClient.from('profiles').update({ last_sms_at: new Date().toISOString() }).eq('id', recipientId)
-    } catch {
-      // non-blocking
+    } catch (err) {
+      reportError('/api/messages/send', err, `twilio SMS failed for recipient: ${recipientId}`)
     }
   }
 

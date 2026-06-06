@@ -15,6 +15,10 @@ type ProfileEmbed = {
   last_sms_at: string | null
 }
 
+type MessageEmbed = {
+  read_at: string | null
+}
+
 type DripJob = {
   id: string
   recipient_id: string
@@ -22,6 +26,7 @@ type DripJob = {
   sequence_step: number
   send_at: string
   profiles: ProfileEmbed | ProfileEmbed[] | null
+  messages: MessageEmbed | MessageEmbed[] | null
 }
 
 function resolveProfile(raw: ProfileEmbed | ProfileEmbed[] | null): ProfileEmbed | null {
@@ -42,7 +47,7 @@ export async function GET(req: NextRequest) {
 
   const { data: jobs, error } = await supabase
     .from('drip_jobs')
-    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at)')
+    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at), messages(read_at)')
     .eq('sent', false)
     .lte('send_at', new Date().toISOString())
     .limit(100)
@@ -72,6 +77,16 @@ export async function GET(req: NextRequest) {
 
     // Stop sequence if player has already upgraded
     if (profile.premium === true) {
+      await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+      skipped++
+      continue
+    }
+
+    // Stop sequence if the triggering message has already been read
+    // (player was previously premium, read it, then lapsed — don't prompt them to upgrade for a message they've seen)
+    const msgEmbed = job.messages
+    const msg = Array.isArray(msgEmbed) ? (msgEmbed[0] ?? null) : msgEmbed
+    if (msg?.read_at) {
       await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
       skipped++
       continue

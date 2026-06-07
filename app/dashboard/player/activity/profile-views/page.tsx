@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Eye, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Eye, MessageCircle, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 
@@ -179,11 +179,11 @@ export default function ProfileViewsPage() {
                     </div>
                     {isCoach && (
                       <Link
-                        href="/dashboard/player/messages"
+                        href={`/dashboard/coach/${v.viewer_id}`}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
                         style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        <MessageCircle size={12} />
-                        Message
+                        <User size={12} />
+                        View Profile
                       </Link>
                     )}
                   </div>

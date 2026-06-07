@@ -18,6 +18,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [monthlyLeft, setMonthlyLeft] = useState<number | null>(null)
   const [purchasedCredits, setPurchasedCredits] = useState(0)
+  const [emailOptOut, setEmailOptOut] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -25,12 +26,13 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
       if (!user) return
       supabase
         .from('profiles')
-        .select('premium, role')
+        .select('premium, role, email_marketing_opt_out')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
           setIsPremium(data?.premium ?? false)
           setIsAdmin(data?.role === 'admin')
+          setEmailOptOut(data?.email_marketing_opt_out ?? false)
           if (data?.premium) {
             fetch('/api/messages/quota')
               .then(r => r.json())
@@ -43,6 +45,15 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
         })
     })
   }, [])
+
+  async function toggleEmailOptOut() {
+    const next = !emailOptOut
+    setEmailOptOut(next)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('profiles').update({ email_marketing_opt_out: next }).eq('id', user.id)
+  }
 
   async function handleSignOut() {
     onClose()
@@ -213,15 +224,45 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
             <p className="text-sm font-semibold">Showcase</p>
           </Link>
 
-          <Link href="/dashboard/player/profile#notifications" onClick={onClose}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-            style={{ textDecoration: 'none', color: '#8892aa' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
-            <p className="text-sm font-semibold">Notification Preferences</p>
-          </Link>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>Marketing emails</p>
+              <p className="text-xs" style={{ color: emailOptOut ? '#4b5563' : '#8892aa' }}>
+                {emailOptOut ? 'Unsubscribed' : 'Weekly digest & coach activity'}
+              </p>
+            </div>
+            <button
+              onClick={toggleEmailOptOut}
+              aria-label="Toggle marketing emails"
+              style={{
+                position: 'relative',
+                width: 40,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: emailOptOut ? '#1e2235' : '#2d5fc4',
+                border: 'none',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'background-color 0.2s',
+                padding: 0,
+              }}
+            >
+              <span style={{
+                position: 'absolute',
+                top: 3,
+                left: emailOptOut ? 3 : 19,
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                backgroundColor: '#e8dece',
+                transition: 'left 0.2s',
+              }} />
+            </button>
+          </div>
 
           {isAdmin && (
             <>

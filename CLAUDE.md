@@ -31,12 +31,16 @@ premium: boolean — flipped by Stripe webhook
 Status values: free_agent | signed | loan_dual_reg | just_exploring
 
 Key columns:
-id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at
+id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at
+
 Active tables
 profiles, conversations, messages, player_views, shortlist_alerts,
 coach_saved_players, subscriptions, opportunities, applications, bookmarks,
 highlights, notifications, partner_discounts, status_change_log, likes,
-premium_clicks, profile_views
+premium_clicks, profile_views,
+posts, post_likes, post_comments, post_interests,
+player_message_quota, drip_jobs
+
 Orphaned — never use
 player_profiles, coach_profiles
 
@@ -55,23 +59,38 @@ Integrations
 Stripe ✅ LIVE
 
 Player Premium: £6.99/mo — Coach Pro: £9.99/mo
+Extra Messages: one-time credit pack (5 credits) via /api/stripe/checkout/message-pack
 Checkout: /api/stripe/checkout — Webhook: /api/stripe/webhook — Portal: /api/stripe/portal
-Webhook flips premium on profiles + writes to subscriptions table
-Premium synced on first dashboard login
+Webhook handles: customer.subscription.created, customer.subscription.updated,
+  invoice.payment_succeeded, checkout.session.completed (message_pack type),
+  customer.subscription.deleted, invoice.payment_failed
+Webhook flips premium on profiles + writes to subscriptions table + upserts player_message_quota
+Premium synced on first dashboard login via /api/stripe/sync
 Admin reconcile tool at /dashboard/admin for out-of-sync states
 
-Twilio ✅ LIVE (always enabled — no feature flag)
+Twilio ✅ LIVE
 
-SMS on admin approval + new messages
-Rate limit: 1 SMS per recipient per day (non-blocking)
-⚠️ sms_opt_in column exists on profiles but is not checked before sending — known gap
+SMS on admin approval + new messages + drip Day 7
+Feature flagged: TWILIO_ENABLED in .env (set to 'false' to disable, any other value enables)
+Rate limit: 1 SMS per recipient per day via last_sms_at on profiles (non-blocking)
+sms_opt_in IS enforced — checked in admin/review, messages/send, and drip-reminders before every send
 Env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
 
 Resend ✅ LIVE
 
-Transactional emails: message notifications, application received, application decisions
-From: NEXT11VEN hello@next11ven.com
+Transactional + marketing emails via lib/email.ts (server-side only)
+From: RESEND_FROM_EMAIL env var (defaults to NEXT11VEN <hello@next11ven.com>)
 Feature flagged: RESEND_ENABLED in .env
+Functions in lib/email.ts:
+  sendMessageNotificationEmail — new message received
+  sendApplicationDecisionEmail — coach accept/reject
+  sendApplicationReceivedEmail — coach notified of new application
+  sendExtraMessagesPurchaseEmail — message pack purchase confirmation
+  sendDripDay0Email — coach messaged free player (upgrade to read)
+  sendDripDay3Email — unread message reminder at 3 days
+  sendDripDay7Email — final reminder at 7 days
+  sendWeeklyViewsDigestFreeEmail — weekly view count with upgrade CTA
+  sendWeeklyViewsDigestPremiumEmail — weekly view count with named coach list
 Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
 
 MailerLite ✅ LIVE
@@ -82,6 +101,7 @@ Approved Coaches group: 181864480498517498
 Skips existing subscribers — no duplicate sequences
 Tags: player_premium, coach_pro on upgrade
 Feature flagged: MAILERLITE_ENABLED in .env
+email_marketing_opt_out on profiles — drip sequence skips opted-out players; transactional emails are never suppressed
 
 Meta Pixel ✅ LIVE
 
@@ -90,28 +110,124 @@ Page view tracking injected globally
 
 Vercel Analytics ✅ LIVE
 
-APIs (9 endpoints)
+Live Automations
+- Drip sequence: /api/cron/drip-reminders — daily 09:00 UTC
+  Targets free players with unread coach messages.
+  Step 1 (Day 0): triggered inline in /api/messages/send when a coach messages a free player.
+    Sends Day0 email immediately + inserts step 2 and step 3 rows into drip_jobs.
+  Step 2 (Day 3): processed by cron — email only (sendDripDay3Email)
+  Step 3 (Day 7): processed by cron — SMS best-effort (sms_opt_in checked) + email (sendDripDay7Email)
+  Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
+- Weekly digest: /api/cron/weekly-views-digest — Sunday 10:00 UTC
+  Sends coach view count to all players. Free = upgrade CTA. Premium = named coach list.
+- Unsubscribe: /api/unsubscribe — sets email_marketing_opt_out = true on profiles
+  Note: transactional emails (failed payment, application decisions) must NEVER be suppressed by this flag
 
-POST /api/messages/send — bidirectional, SMS + email notifications
-POST /api/applications/apply — premium-gated, fires coach email
+APIs
+
+Messages
+POST /api/messages/send — bidirectional, SMS + email notifications, drip trigger
+POST /api/messages/initiate — atomic quota check + conversation creation (calls initiate_coach_conversation RPC)
+GET  /api/messages/quota — returns player's current period message quota
+
+Applications
+POST  /api/applications/apply — premium-gated, fires coach email
 PATCH /api/applications/[id] — coach accept/reject/shortlist/view with player email
-POST /api/stripe/checkout — creates Stripe checkout session
+
+Stripe
+POST /api/stripe/checkout — creates subscription checkout session
+POST /api/stripe/checkout/message-pack — creates one-time message credit checkout
 POST /api/stripe/portal — opens billing portal
 POST /api/stripe/sync — syncs premium state on login
-POST /api/stripe/webhook — handles Stripe events
+POST /api/stripe/webhook — handles Stripe events (subscription lifecycle + message pack)
+
+Admin
 POST /api/admin/review — approve/decline with MailerLite + Twilio
 POST /api/admin/stripe-reconcile — fixes out-of-sync premium states
+POST /api/admin/delete-user — hard delete a user account
+POST /api/admin/rescue-profile — repair orphaned/broken profile
+GET  /api/admin/profiles — list all profiles (admin panel)
+GET  /api/admin/messages — list recent messages (admin view)
+GET  /api/admin/message-stats — message volume stats
+GET  /api/admin/platform-stats — calls platform_stats DB function
+GET  /api/admin/revenue-stats — calls revenue_stats DB function
+GET  /api/admin/recent-applications — recent application activity
+GET  /api/admin/recent-logins — recent login activity
+GET  /api/admin/orphaned-users — auth users without profiles
+GET  /api/admin/showcase-stats — showcase event stats
+GET/POST /api/admin/showcase-payers — showcase payment tracking
+
+Opportunities
+GET /api/opportunities/counts — per-opportunity application counts
+
+Showcase
+POST    /api/showcase/confirm — mark player as showcase-confirmed
+GET/POST /api/showcase/link — manage showcase registration links
+POST    /api/showcase/remove — remove player from showcase
+
+Community Feed
+PATCH/DELETE /api/posts/[id] — edit or delete a post
+
+Registration
+POST /api/register/complete — complete signup (sets profile fields, sms_opt_in)
+
+Unsubscribe
+POST /api/unsubscribe — sets email_marketing_opt_out on profile
+
+Cron
+GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
+GET /api/cron/weekly-views-digest — sends weekly profile view digest to all players
 
 
 Route Map
 Auth & Public
-RouteStatus/Sign-in page ✅/registerMulti-step signup, role picker (Player / Coach) ✅/pendingAwaiting approval screen ✅/claimMagic link claim (migration) ✅ do not delete/set-passwordSet password post-claim ✅ do not delete
+Route                         Status
+/                             Sign-in page ✅
+/register                     Multi-step signup, role picker (Player / Coach) ✅
+/pending                      Awaiting approval screen ✅
+/claim                        Magic link claim (migration) ✅ do not delete
+/set-password                 Set password post-claim ✅ do not delete
+/auth/confirm                 Auth callback for magic link confirm ✅
+/privacy                      Privacy Policy page — exists but "coming soon" placeholder copy ⚠️
+/terms                        Terms of Service page — exists but "coming soon" placeholder copy ⚠️
+/premium/success              Stripe checkout success landing ✅
+
 Player
-RouteStatus/dashboard/playerDashboard — completion score, streak, opportunities, activity ✅/dashboard/player/profileFull profile edit, avatar, season stats ✅/dashboard/player/playersBrowse all approved players, filter by position/level/status/club ✅/dashboard/player/players/[id]Player profile, view tracking, shortlist button (Coach Pro gated) ✅/dashboard/player/marketOpportunities, Applications, Activity tabs (premium gated) ✅/dashboard/player/premiumUpgrade page ✅
+Route                                   Status
+/dashboard/player                       Dashboard — completion score, streak, opportunities, activity ✅
+/dashboard/player/profile               Full profile edit, avatar, season stats ✅
+/dashboard/player/players               Browse all approved players, filter by position/level/status/club ✅
+/dashboard/player/players/[id]          Player profile, view tracking, shortlist button (Coach Pro gated) ✅
+/dashboard/player/market                Opportunities, Applications, Activity tabs (premium gated) ✅
+/dashboard/player/premium               Upgrade page ✅
+/dashboard/player/messages              Player message inbox ✅
+/dashboard/player/opportunities         Player opportunities browse ✅
+/dashboard/player/coaches               Browse coaches ✅
+/dashboard/player/activity              Profile activity overview ✅
+/dashboard/player/activity/profile-views  Who viewed my profile (detail) ✅
+/dashboard/player/extra-messages        Extra message credits balance + purchase ✅
+
 Coach
-RouteStatus/dashboard/coachDashboard, active opportunities, quick actions ✅/dashboard/coach/[id]Coach profile — visible to any logged-in user ✅/dashboard/coach/messagesBidirectional inbox ✅/dashboard/coach/shortlistsSaved players (frontend built, no CRUD API yet) ⚠️/dashboard/coach/opportunitiesPost and manage roles ✅/dashboard/coach/market4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
+Route                                        Status
+/dashboard/coach                             Dashboard, active opportunities, quick actions ✅
+/dashboard/coach/[id]                        Coach profile — visible to any logged-in user ✅
+/dashboard/coach/messages                    Bidirectional inbox ✅
+/dashboard/coach/shortlists                  Saved players (frontend built, no CRUD API yet) ⚠️
+/dashboard/coach/opportunities               Post and manage roles ✅
+/dashboard/coach/market                      4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
+/dashboard/coach/players                     Browse players (coach view) ✅
+/dashboard/coach/coaches                     Browse other coaches ✅
+/dashboard/coach/premium                     Coach upgrade page ✅
+/dashboard/coach/notifications               Notifications centre ✅
+/dashboard/coach/notifications/profile-views  Coach profile views detail ✅
+
 Shared & Admin
-RouteStatus/dashboard/profileRole-aware profile edit (player + coach) ✅/dashboard/adminApprove/decline pending registrations ✅/dashboard/admin/analyticsShell exists, real data queries incomplete ⚠️
+Route                         Status
+/dashboard/profile            Role-aware profile edit (player + coach) ✅
+/dashboard/feed               Community feed (posts, likes, comments) ✅
+/dashboard/showcase           Showcase Day registration page ✅
+/dashboard/admin              Approve/decline pending registrations ✅
+/dashboard/admin/analytics    Full analytics dashboard (revenue, platform, messages) ✅
 
 Profile Completion Score
 13-field score — used on player homepage and profile page. Must stay in sync:
@@ -129,14 +245,12 @@ BottomNav — persistent on player routes via player/layout.tsx
 Known Gaps (prioritised)
 Confirmed issues. Fix in this order:
 
-Privacy Policy & Terms — placeholder copy only. Legal risk with paying customers. Fix immediately.
-SMS opt-in not enforced — sms_opt_in column exists but is never checked before sending.
-No error pages — no error.tsx or not-found.tsx. Users hit raw errors or white screens.
+Privacy Policy & Terms — pages exist at /privacy and /terms but display "coming soon" placeholder summaries. Legal risk with paying customers. Replace with real copy immediately.
+No error pages — no error.tsx or not-found.tsx anywhere in app/. Users hit raw Next.js errors or white screens.
 No rate limiting — checkout, messaging, apply routes all unprotected.
-Shortlist CRUD API — frontend is built (307 lines), no API behind it.
+Shortlist CRUD API — frontend is built, no API behind it.
 No input validation (Zod) — API routes trust all incoming payloads.
 No pagination on player browse — will degrade at scale.
-Admin analytics — page shell exists, real data queries incomplete.
 Avatar upload — avatar_url field and UI exist; verify Supabase Storage + upload API are wired end-to-end.
 
 
@@ -164,7 +278,6 @@ Immediate (fix + activate)
 Ship launch video + paid ad to drive existing users onto the new app
 Re-engagement email/SMS to the ~90% who haven't signed in yet
 Privacy Policy + Terms (legal requirement, paying customers exist)
-SMS opt-in enforcement
 Error pages
 
 Growth & Monetisation
@@ -181,7 +294,6 @@ Fan onboarding: MailerLite automation not yet built (same pattern as player/coac
 Highlight reel improvements
 Push notifications (web push or in-app)
 Pagination on player browse
-Complete admin analytics
 
 
 Code Style

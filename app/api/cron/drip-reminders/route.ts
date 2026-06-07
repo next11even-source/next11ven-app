@@ -13,6 +13,7 @@ type ProfileEmbed = {
   sms_opt_in: boolean | null
   premium: boolean
   last_sms_at: string | null
+  email_marketing_opt_out: boolean | null
 }
 
 type MessageEmbed = {
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   const { data: jobs, error } = await supabase
     .from('drip_jobs')
-    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at), messages(read_at)')
+    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at, email_marketing_opt_out), messages(read_at)')
     .eq('sent', false)
     .lte('send_at', new Date().toISOString())
     .limit(100)
@@ -82,6 +83,13 @@ export async function GET(req: NextRequest) {
       continue
     }
 
+    // Stop sequence if player has opted out of marketing emails
+    if (profile.email_marketing_opt_out === true) {
+      await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+      skipped++
+      continue
+    }
+
     // Stop sequence if the triggering message has already been read
     // (player was previously premium, read it, then lapsed — don't prompt them to upgrade for a message they've seen)
     const msgEmbed = job.messages
@@ -96,7 +104,7 @@ export async function GET(req: NextRequest) {
       // Day 3 — email only
       try {
         if (profile.email) {
-          await sendDripDay3Email({ to: profile.email, toName: profile.full_name })
+          await sendDripDay3Email({ to: profile.email, toName: profile.full_name, playerId: job.recipient_id })
         }
         await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
         processed++
@@ -148,7 +156,7 @@ export async function GET(req: NextRequest) {
 
       try {
         if (profile.email) {
-          await sendDripDay7Email({ to: profile.email, toName: profile.full_name })
+          await sendDripDay7Email({ to: profile.email, toName: profile.full_name, playerId: job.recipient_id })
         }
         await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
         processed++

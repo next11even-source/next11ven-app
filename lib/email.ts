@@ -38,7 +38,7 @@ async function send({ to, subject, html }: { to: string; subject: string; html: 
   }
 }
 
-function baseTemplate(content: string) {
+function baseTemplate(content: string, unsubscribeUrl?: string) {
   return `
     <!DOCTYPE html>
     <html>
@@ -53,11 +53,16 @@ function baseTemplate(content: string) {
         <div style="padding:16px 28px 20px;border-top:1px solid #1e2235;text-align:center;">
           <p style="margin:0 0 6px;font-size:11px;color:#8892aa;">You're receiving this because you have an account on NEXT11VEN. <a href="${SITE}" style="color:#2d5fc4;">next11ven.com</a></p>
           <p style="margin:0;font-size:11px;color:#8892aa;">To manage your notification preferences, visit your <a href="${SITE}/dashboard/profile" style="color:#2d5fc4;">account settings</a> in the app.</p>
+          ${unsubscribeUrl ? `<p style="margin:6px 0 0;font-size:11px;"><a href="${unsubscribeUrl}" style="color:#4b5563;">Unsubscribe from marketing emails</a></p>` : ''}
         </div>
       </div>
     </body>
     </html>
   `
+}
+
+function makeUnsubscribeUrl(playerId: string): string {
+  return `${SITE}/api/unsubscribe?id=${playerId}`
 }
 
 // ─── Message notification ─────────────────────────────────────────────────────
@@ -172,9 +177,11 @@ export async function sendExtraMessagesPurchaseEmail({
 export async function sendDripDay0Email({
   to,
   toName,
+  playerId,
 }: {
   to: string
   toName: string | null
+  playerId: string
 }) {
   const upgradeUrl = `${SITE}/dashboard/player/premium`
   const html = baseTemplate(`
@@ -186,7 +193,7 @@ export async function sendDripDay0Email({
       Coaches are actively recruiting. Upgrade for £6.99/month and start the conversation before they move on.
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade &amp; Read Your Message</a>
-  `)
+  `, makeUnsubscribeUrl(playerId))
   await send({ to, subject: 'A coach messaged you on NEXT11VEN', html })
 }
 
@@ -195,9 +202,11 @@ export async function sendDripDay0Email({
 export async function sendDripDay3Email({
   to,
   toName,
+  playerId,
 }: {
   to: string
   toName: string | null
+  playerId: string
 }) {
   const upgradeUrl = `${SITE}/dashboard/player/premium`
   const html = baseTemplate(`
@@ -209,7 +218,7 @@ export async function sendDripDay3Email({
       Coaches are actively looking and won't wait indefinitely. Upgrade to premium to read the message and reply before it's too late.
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Read Your Message Now</a>
-  `)
+  `, makeUnsubscribeUrl(playerId))
   await send({ to, subject: 'You still have an unread message waiting', html })
 }
 
@@ -218,9 +227,11 @@ export async function sendDripDay3Email({
 export async function sendDripDay7Email({
   to,
   toName,
+  playerId,
 }: {
   to: string
   toName: string | null
+  playerId: string
 }) {
   const upgradeUrl = `${SITE}/dashboard/player/premium`
   const html = baseTemplate(`
@@ -232,7 +243,7 @@ export async function sendDripDay7Email({
       Coaches don't wait forever. The longer this sits unread, the more likely they've moved on to someone else. Upgrade for £6.99/month and get your reply in.
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade &amp; Read Your Message</a>
-  `)
+  `, makeUnsubscribeUrl(playerId))
   await send({ to, subject: "Don't let this coach move on without you", html })
 }
 
@@ -242,10 +253,12 @@ export async function sendWeeklyViewsDigestFreeEmail({
   to,
   toName,
   coachCount,
+  playerId,
 }: {
   to: string
   toName: string | null
   coachCount: number
+  playerId: string
 }) {
   const upgradeUrl = `${SITE}/dashboard/player/premium`
   const html = baseTemplate(`
@@ -264,7 +277,7 @@ export async function sendWeeklyViewsDigestFreeEmail({
       <a href="${upgradeUrl}" style="display:inline-block;padding:14px 32px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;">See Who Viewed You</a>
     </div>
     <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;">Already thinking about it? Premium is &pound;6.99/month. Cancel anytime.</p>
-  `)
+  `, makeUnsubscribeUrl(playerId))
   await send({ to, subject: `${coachCount} coach${coachCount === 1 ? '' : 'es'} viewed your profile this week`, html })
 }
 
@@ -275,11 +288,13 @@ export async function sendWeeklyViewsDigestPremiumEmail({
   toName,
   coachCount,
   coaches,
+  playerId,
 }: {
   to: string
   toName: string | null
   coachCount: number
   coaches: Array<{ full_name: string | null; club: string | null }>
+  playerId: string
 }) {
   const activityUrl = `${SITE}/dashboard/player/activity/profile-views`
   const coachListHtml = coaches.map(c => {
@@ -307,7 +322,7 @@ export async function sendWeeklyViewsDigestPremiumEmail({
     <div style="text-align:center;">
       <a href="${activityUrl}" style="display:inline-block;padding:14px 32px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;">View Your Activity</a>
     </div>
-  `)
+  `, makeUnsubscribeUrl(playerId))
   await send({ to, subject: `${coachCount} coach${coachCount === 1 ? '' : 'es'} checked out your profile this week`, html })
 }
 

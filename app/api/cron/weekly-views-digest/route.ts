@@ -24,6 +24,7 @@ type PlayerProfile = {
   full_name: string | null
   premium: boolean
   role: string | null
+  email_marketing_opt_out: boolean | null
 }
 
 function resolveViewer(raw: ViewerEmbed | ViewerEmbed[] | null): ViewerEmbed | null {
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
   // Guard: only fetch players/admins — never coaches.
   const { data: players, error: playersError } = await supabase
     .from('profiles')
-    .select('id, email, full_name, premium, role')
+    .select('id, email, full_name, premium, role, email_marketing_opt_out')
     .in('id', playerIds)
     .in('role', ['player', 'admin'])
 
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest) {
   let failed = 0
 
   for (const player of players as PlayerProfile[]) {
-    if (!player.email) {
+    if (!player.email || player.email_marketing_opt_out) {
       skipped++
       continue
     }
@@ -131,12 +132,14 @@ export async function GET(req: NextRequest) {
           toName: player.full_name,
           coachCount,
           coaches,
+          playerId: player.id,
         })
       } else {
         await sendWeeklyViewsDigestFreeEmail({
           to: player.email,
           toName: player.full_name,
           coachCount,
+          playerId: player.id,
         })
       }
       sent++

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   // Fetch recipient to verify and get role
   const { data: recipientProfile } = await supabase
     .from('profiles')
-    .select('id, approved, role, full_name, email, phone, sms_opt_in, coaching_role, position, last_sms_at, premium')
+    .select('id, approved, role, full_name, email, phone, sms_opt_in, coaching_role, position, last_sms_at, premium, email_marketing_opt_out')
     .eq('id', recipientId)
     .single()
 
@@ -227,9 +227,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Day 0 — email (upgrade-specific)
-      if (recipientProfile.email) {
+      if (recipientProfile.email && !recipientProfile.email_marketing_opt_out) {
         try {
-          await sendDripDay0Email({ to: recipientProfile.email, toName: recipientProfile.full_name })
+          await sendDripDay0Email({ to: recipientProfile.email, toName: recipientProfile.full_name, playerId: recipientId })
         } catch (err) {
           reportError('/api/messages/send', err, `drip day0 email failed for recipient: ${recipientId}`)
         }

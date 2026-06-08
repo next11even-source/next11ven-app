@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alert'
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
 
     if (upsertErr) {
       console.error('[Initiate] quota upsert error:', upsertErr)
+      reportError('/api/messages/initiate', upsertErr, `player=${user.id} coach=${coachId}`)
       return NextResponse.json({ error: 'Failed to create message quota' }, { status: 500 })
     }
   }
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'COOLDOWN_ACTIVE', cooldownUntil }, { status: 403 })
     }
     console.error('[Initiate] rpc error:', rpcError)
+    reportError('/api/messages/initiate', rpcError, `player=${user.id} coach=${coachId}`)
     return NextResponse.json({ error: 'Failed to initiate conversation' }, { status: 500 })
   }
 

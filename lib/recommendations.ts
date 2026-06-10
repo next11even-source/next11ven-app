@@ -7,6 +7,8 @@
  *   position taste    0–25  weighted by the coach's cumulative search history
  *   profile complete  0–15  reuses the 12-check completion score
  *   recently active   0–15  last_active within 30 days weighted highest
+ *   availability      0–10  free agents weighted highest, loan/dual reg next;
+ *                           signed players are unboosted but still eligible
  *   location match    0–10  player city matches coach city or searched locations
  *
  * Pools:
@@ -205,6 +207,11 @@ export async function getRecommendedPlayers(
       if (age <= THIRTY_DAYS_MS) score += 15
       else if (age <= NINETY_DAYS_MS) score += 5
     }
+
+    // Availability (0–10): readily available players rank higher, but a
+    // strong signed player can still outrank a weak free agent.
+    if (raw.status === 'free_agent') score += 10
+    else if (raw.status === 'loan_dual_reg') score += 6
 
     // Location proximity (0–10): coach's own city, or cities they search for.
     const playerCity = norm(raw.city)

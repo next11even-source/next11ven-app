@@ -264,6 +264,15 @@ export default function PlayerPublicProfile() {
             })
         }
 
+        // Deep link from recommendation emails: auto-open the message composer
+        if (
+          viewerRes.data?.role === 'coach' &&
+          user.id !== id &&
+          new URLSearchParams(window.location.search).get('compose') === '1'
+        ) {
+          setShowDMInput(true)
+        }
+
         // Load coach shortlist state (non-blocking, errors are silent)
         if (viewerRes.data?.role === 'coach' && user.id !== id) {
           const [savedRes, foldersRes] = await Promise.all([

@@ -454,7 +454,7 @@ function recommendationCard(p: RecommendationEmailPlayer): string {
   const name = p.full_name ?? 'Player'
   const firstNm = name.split(' ')[0]
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  const profileUrl = `${SITE}/dashboard/player/players/${p.id}`
+  const profileUrl = `${SITE}/dashboard/player/players/${p.id}?compose=1`
   const statusLabel = p.status ? REC_STATUS_LABELS[p.status] : null
   const isFreeAgent = p.status === 'free_agent'
   const meta = [p.position, p.playing_level, p.city].filter(Boolean).join(' · ')

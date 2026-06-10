@@ -50,6 +50,13 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/pending', request.url))
       }
 
+      // Honor a post-login destination (e.g. email deep links) — internal paths only.
+      // Role isolation below still applies when the destination is loaded.
+      const next = request.nextUrl.searchParams.get('next')
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        return NextResponse.redirect(new URL(next, request.url))
+      }
+
       const dest = profile.role === 'coach' ? '/dashboard/coach' : '/dashboard/player'
       return NextResponse.redirect(new URL(dest, request.url))
     }
@@ -57,9 +64,14 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Unauthenticated users can't access anything else
+  // Unauthenticated users can't access anything else — remember where they
+  // were headed so sign-in can return them there (email deep links).
   if (!user) {
-    return NextResponse.redirect(new URL('/', request.url))
+    const signIn = new URL('/', request.url)
+    if (pathname.startsWith('/dashboard')) {
+      signIn.searchParams.set('next', pathname + request.nextUrl.search)
+    }
+    return NextResponse.redirect(signIn)
   }
 
   // Onboarding routes: must be authenticated, but skip approval/role redirect

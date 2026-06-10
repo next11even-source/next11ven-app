@@ -326,6 +326,85 @@ export async function sendWeeklyViewsDigestPremiumEmail({
   await send({ to, subject: `${coachCount} coach${coachCount === 1 ? '' : 'es'} checked out your profile this week`, html })
 }
 
+// ─── Billing: payment failed (transactional — never suppress) ────────────────
+
+function firstName(name: string | null): string {
+  if (!name) return 'there'
+  return name.split(' ')[0]
+}
+
+export async function sendPaymentFailedEmail({
+  to,
+  toName,
+}: {
+  to: string
+  toName: string | null
+}) {
+  const updateUrl = `${SITE}/dashboard/premium`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      We couldn't process your payment for NEXT11VEN Premium.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Your premium access has been paused. Update your payment details to restore it instantly.
+    </p>
+    <a href="${updateUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Update Payment Details</a>
+    <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">If you think this is a mistake, reply to this email and we'll sort it.</p>
+  `)
+  await send({ to, subject: 'Your NEXT11VEN payment failed', html })
+}
+
+export async function sendPaymentFailedFollowUpEmail({
+  to,
+  toName,
+}: {
+  to: string
+  toName: string | null
+}) {
+  const updateUrl = `${SITE}/dashboard/premium`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Your NEXT11VEN Premium payment still hasn't gone through and your access remains paused.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Update your card details to get back in.
+    </p>
+    <a href="${updateUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Update Payment Details</a>
+    <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">If you think this is a mistake, reply to this email and we'll sort it.</p>
+  `)
+  await send({ to, subject: 'Still having trouble with your payment?', html })
+}
+
+// ─── Billing: subscription cancelled win-back (transactional — never suppress) ─
+
+export async function sendSubscriptionCancelledWinBackEmail({
+  to,
+  toName,
+  opportunityCount,
+}: {
+  to: string
+  toName: string | null
+  opportunityCount?: number
+}) {
+  const rejoinUrl = `${SITE}/dashboard/premium`
+  const opportunityLine =
+    typeof opportunityCount === 'number'
+      ? `<p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">Since you left, <strong style="color:#e8dece;">${opportunityCount} new ${opportunityCount === 1 ? 'opportunity has' : 'opportunities have'} been posted</strong> by coaches actively looking for players.</p>`
+      : ''
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Your NEXT11VEN Premium membership has ended.
+    </p>
+    ${opportunityLine}
+    <a href="${rejoinUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Rejoin Premium</a>
+    <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">Questions? Just reply to this email.</p>
+  `)
+  await send({ to, subject: "We'd love to have you back", html })
+}
+
 // ─── Application received (coach) ─────────────────────────────────────────────
 
 export async function sendApplicationReceivedEmail({

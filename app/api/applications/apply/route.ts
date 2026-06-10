@@ -47,6 +47,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Player Premium required to apply' }, { status: 403 })
   }
 
+  // Rate limit: 10 applications per hour per player
+  const since1h = new Date(Date.now() - 3_600_000).toISOString()
+  const { count: recentApps } = await serviceSupabase()
+    .from('applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('player_id', user.id)
+    .gte('created_at', since1h)
+  if ((recentApps ?? 0) >= 10) {
+    return NextResponse.json({ error: 'Too many applications. Please try again later.' }, { status: 429 })
+  }
+
   let body: { opportunity_id?: string; message?: string }
   try {
     body = await req.json()

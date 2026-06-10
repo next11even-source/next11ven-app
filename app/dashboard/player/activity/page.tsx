@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Briefcase, Check, ChevronRight, Eye, Heart, MessageCircle, Star } from 'lucide-react'
+import { Bell, Bookmark, Briefcase, Check, ChevronRight, Eye, Heart, MessageCircle, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '../_components/SidebarContext'
@@ -39,13 +39,17 @@ type ViewerGroup = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getRoute(type: string): string {
-  switch (type) {
+function getRoute(notif: Notification, isPremium: boolean): string {
+  switch (notif.type) {
     case 'post_like':
     case 'post_comment':
     case 'post_interest': return '/dashboard/feed'
-    case 'new_opportunity':  return '/dashboard/player/opportunities'
-    default:                 return '/dashboard/player/activity'
+    case 'new_opportunity': return '/dashboard/player/opportunities'
+    case 'shortlisted':
+      return isPremium && notif.entity_id
+        ? `/dashboard/coach/${notif.entity_id}`
+        : '/dashboard/player/premium'
+    default: return '/dashboard/player/activity'
   }
 }
 
@@ -68,11 +72,12 @@ function getInitials(name: string | null) {
 
 function TypeIcon({ type }: { type: string }) {
   const cfg: Record<string, { icon: React.ReactNode; bg: string; color: string }> = {
-    post_like:      { icon: <Heart size={14} fill="currentColor" />, bg: '#ef444420', color: '#ef4444' },
-    post_comment:   { icon: <MessageCircle size={14} />,             bg: '#2d5fc420', color: '#4d8ae8' },
-    post_interest:  { icon: <Star size={14} fill="currentColor" />,  bg: '#f59e0b20', color: '#f59e0b' },
-    profile_view:   { icon: <Eye size={14} />,                       bg: '#a78bfa20', color: '#a78bfa' },
-    new_opportunity:{ icon: <Briefcase size={14} />,                 bg: '#f59e0b20', color: '#f59e0b' },
+    post_like:      { icon: <Heart size={14} fill="currentColor" />,    bg: '#ef444420', color: '#ef4444' },
+    post_comment:   { icon: <MessageCircle size={14} />,                bg: '#2d5fc420', color: '#4d8ae8' },
+    post_interest:  { icon: <Star size={14} fill="currentColor" />,     bg: '#f59e0b20', color: '#f59e0b' },
+    profile_view:   { icon: <Eye size={14} />,                          bg: '#a78bfa20', color: '#a78bfa' },
+    new_opportunity:{ icon: <Briefcase size={14} />,                    bg: '#f59e0b20', color: '#f59e0b' },
+    shortlisted:    { icon: <Bookmark size={14} fill="currentColor" />, bg: '#a78bfa20', color: '#a78bfa' },
   }
   const c = cfg[type] ?? { icon: <Bell size={14} />, bg: '#1e2235', color: '#8892aa' }
   return (
@@ -99,15 +104,16 @@ function Avatar({ url, name }: { url: string | null; name: string | null }) {
 
 // ─── Notification Row ─────────────────────────────────────────────────────────
 
-function NotifRow({ notif, onRead }: { notif: Notification; onRead: (id: string) => void }) {
+function NotifRow({ notif, isPremium, onRead }: { notif: Notification; isPremium: boolean; onRead: (id: string) => void }) {
   const router = useRouter()
 
   function handleTap() {
     onRead(notif.id)
-    router.push(getRoute(notif.type))
+    router.push(getRoute(notif, isPremium))
   }
 
-  const hideActor = notif.type === 'post_interest' || notif.type === 'new_opportunity'
+  const hideActor = notif.type === 'post_interest' || notif.type === 'new_opportunity' ||
+    (notif.type === 'shortlisted' && !isPremium)
 
   return (
     <button
@@ -142,10 +148,12 @@ function NotifRow({ notif, onRead }: { notif: Notification; onRead: (id: string)
 
 function NotificationsSection({
   notifications,
+  isPremium,
   onMarkAll,
   onRead,
 }: {
   notifications: Notification[]
+  isPremium: boolean
   onMarkAll: () => void
   onRead: (id: string) => void
 }) {
@@ -195,7 +203,7 @@ function NotificationsSection({
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
             {group.items.map((n, i) => (
               <div key={n.id} style={{ borderBottom: i < group.items.length - 1 ? '1px solid #1e2235' : undefined }}>
-                <NotifRow notif={n} onRead={onRead} />
+                <NotifRow notif={n} isPremium={isPremium} onRead={onRead} />
               </div>
             ))}
           </div>
@@ -375,6 +383,7 @@ export default function NotificationsPage() {
           <ProfileViewsButton views={viewers} isPremium={isPremium} />
           <NotificationsSection
             notifications={notifications}
+            isPremium={isPremium}
             onMarkAll={markAllRead}
             onRead={markRead}
           />

@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { sendDripDay3Email, sendDripDay7Email } from '@/lib/email'
+import {
+  sendDripDay3Email,
+  sendDripDay7Email,
+  sendPaymentFailedFollowUpEmail,
+  sendSubscriptionCancelledWinBackEmail,
+} from '@/lib/email'
 import { reportError } from '@/lib/alert'
 
 export const runtime = 'nodejs'
@@ -23,7 +28,7 @@ type MessageEmbed = {
 type DripJob = {
   id: string
   recipient_id: string
-  message_id: string
+  message_id: string | null
   sequence_step: number
   send_at: string
   profiles: ProfileEmbed | ProfileEmbed[] | null
@@ -75,6 +80,61 @@ export async function GET(req: NextRequest) {
       skipped++
       continue
     }
+
+    // ── Transactional billing steps — bypass marketing opt-out ─────────────────
+    // step 99: payment failed 48h follow-up
+    // step 98: subscription cancelled win-back (3 days)
+    if (job.sequence_step === 99 || job.sequence_step === 98) {
+      // Skip only if they've re-subscribed since the job was queued
+      if (profile.premium === true) {
+        await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+        skipped++
+        continue
+      }
+
+      if (job.sequence_step === 99) {
+        try {
+          if (profile.email) {
+            await sendPaymentFailedFollowUpEmail({ to: profile.email, toName: profile.full_name })
+          }
+          await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+          processed++
+        } catch (err) {
+          console.error(`[Drip cron] job ${job.id} step 99 failed:`, err)
+          reportError('/api/cron/drip-reminders', err, `drip job ${job.id} step 99 failed`)
+          failed++
+        }
+      } else {
+        // step 98 — win-back
+        try {
+          let opportunityCount: number | undefined
+          const { count, error: oppError } = await supabase
+            .from('opportunities')
+            .select('id', { count: 'exact', head: true })
+            .gte('created_at', new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString())
+          if (!oppError && count !== null) {
+            opportunityCount = count
+          }
+
+          if (profile.email) {
+            await sendSubscriptionCancelledWinBackEmail({
+              to: profile.email,
+              toName: profile.full_name,
+              opportunityCount,
+            })
+          }
+          await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+          processed++
+        } catch (err) {
+          console.error(`[Drip cron] job ${job.id} step 98 failed:`, err)
+          reportError('/api/cron/drip-reminders', err, `drip job ${job.id} step 98 failed`)
+          failed++
+        }
+      }
+      continue
+    }
+
+    // ── Marketing drip steps 2 and 3 ────────────────────────────────────────────
 
     // Stop sequence if player has already upgraded
     if (profile.premium === true) {

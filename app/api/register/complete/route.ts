@@ -119,5 +119,25 @@ export async function POST(req: NextRequest) {
     // Don't block registration — the upsert succeeded, this is just hardening
   }
 
+  // Fire-and-forget — never block or fail registration
+  if (process.env.MAKE_SIGNUP_WEBHOOK_URL) {
+    const club = (body.club as string | undefined) || null
+    const city = (body.city as string | undefined) || null
+    const parts = [role, club, city].filter(Boolean).join(' · ')
+    fetch(process.env.MAKE_SIGNUP_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'signup',
+        name: body.full_name ?? 'Unknown',
+        email: body.email ?? null,
+        role: role ?? null,
+        club,
+        city,
+        summary: parts,
+      }),
+    }).catch(() => {})
+  }
+
   return NextResponse.json({ ok: true })
 }

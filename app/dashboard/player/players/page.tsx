@@ -372,7 +372,9 @@ export default function PlayersPage() {
         supabase.from('profiles')
           .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at, premium')
           .in('role', ['player', 'admin'])
-          .eq('approved', true),
+          .eq('approved', true)
+          .order('created_at', { ascending: false })
+          .limit(500),
         supabase.from('player_views')
           .select('player_id, viewer_id')
           .gte('viewed_at', weekAgo)

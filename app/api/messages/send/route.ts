@@ -2,8 +2,15 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { sendMessageNotificationEmail, sendDripDay0Email } from '@/lib/email'
 import { reportError } from '@/lib/alert'
+
+const SendMessageSchema = z.object({
+  player_id: z.string().uuid().optional(),
+  coach_id:  z.string().uuid().optional(),
+  content:   z.string().min(1, 'Message content is required').max(2000, 'Message must be 2000 characters or fewer').trim(),
+})
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -24,20 +31,18 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  let body: { player_id?: string; coach_id?: string; content?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { player_id, coach_id, content } = body
-  if (!content?.trim()) {
-    return NextResponse.json({ error: 'Message content is required' }, { status: 400 })
+  const parsed = SendMessageSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 })
   }
-  if (content.trim().length > 2000) {
-    return NextResponse.json({ error: 'Message must be 2000 characters or fewer' }, { status: 400 })
-  }
+  const { player_id, coach_id, content } = parsed.data
 
   // Get sender profile
   const { data: sender } = await supabase
@@ -47,6 +52,18 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!sender) return NextResponse.json({ error: 'Sender profile not found' }, { status: 403 })
+
+  // Rate limit: 10 messages per minute per user
+  const rlClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const since60s = new Date(Date.now() - 60_000).toISOString()
+  const { count: recentMsgs } = await rlClient
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('sender_id', user.id)
+    .gte('created_at', since60s)
+  if ((recentMsgs ?? 0) >= 10) {
+    return NextResponse.json({ error: 'Too many messages. Please wait a moment.' }, { status: 429 })
+  }
 
   const senderIsCoach = sender.role === 'coach'
   const senderIsPlayer = sender.role === 'player' || sender.role === 'admin'

@@ -119,11 +119,10 @@ function PostOpportunityForm({ coachId, onPosted, onCancel }: {
     setSaving(true)
     setError(null)
 
-    const supabase = createClient()
-    const { data, error: err } = await supabase
-      .from('opportunities')
-      .insert({
-        coach_id: coachId,
+    const res = await fetch('/api/opportunities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         title: title.trim(),
         club: club || null,
         location: location || null,
@@ -133,11 +132,10 @@ function PostOpportunityForm({ coachId, onPosted, onCancel }: {
         urgent,
         deadline: deadline || null,
         opportunity_type: opportunityType,
-      })
-      .select()
-      .single()
-
-    if (err) { setError(err.message); setSaving(false); return }
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error ?? 'Failed to post opportunity'); setSaving(false); return }
     onPosted(data as Opportunity)
   }
 

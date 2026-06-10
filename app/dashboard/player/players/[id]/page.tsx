@@ -291,15 +291,19 @@ export default function PlayerPublicProfile() {
     if (!viewer) return
     setSaving(true)
     setShowFolderModal(false)
-    const supabase = createClient()
-    await supabase.from('coach_saved_players').upsert(
-      { coach_id: viewer.id, player_id: id, folder_name: folderName },
-      { onConflict: 'coach_id,player_id' }
-    )
-    setSavedFolder(folderName)
-    if (!folders.includes(folderName)) setFolders(f => [...f, folderName])
+    const res = await fetch('/api/coach/shortlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: id, folder_name: folderName }),
+    })
+    if (res.ok || res.status === 409) {
+      setSavedFolder(folderName)
+      if (!folders.includes(folderName)) setFolders(f => [...f, folderName])
+      setSaveToast(`Saved to "${folderName}"`)
+    } else {
+      setSaveToast('Failed to save — please try again')
+    }
     setSaving(false)
-    setSaveToast(`Saved to "${folderName}"`)
     setTimeout(() => setSaveToast(''), 2500)
   }
 
@@ -333,8 +337,7 @@ export default function PlayerPublicProfile() {
   async function handleRemove() {
     if (!viewer) return
     setSaving(true)
-    const supabase = createClient()
-    await supabase.from('coach_saved_players').delete().eq('coach_id', viewer.id).eq('player_id', id)
+    await fetch(`/api/coach/shortlist/${id}`, { method: 'DELETE' })
     setSavedFolder(null)
     setSaving(false)
     setSaveToast('Removed from shortlist')

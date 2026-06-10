@@ -3,7 +3,10 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import { onUserUpgradedToPremium } from '@/lib/mailerlite'
-import { sendExtraMessagesPurchaseEmail } from '@/lib/email'
+import {
+  sendExtraMessagesPurchaseEmail,
+  sendPaymentFailedEmail,
+} from '@/lib/email'
 import { reportError } from '@/lib/alert'
 
 export const dynamic = 'force-dynamic'
@@ -89,6 +92,7 @@ export async function POST(req: NextRequest) {
             await revokeAccess(supabase, sub)
           }
         }
+        await handlePaymentFailedNotifications(supabase, invoice)
         break
       }
 
@@ -199,7 +203,101 @@ async function handleSubscriptionDeleted(
   supabase: ReturnType<typeof serviceSupabase>,
   sub: Stripe.Subscription
 ) {
-  await revokeAccess(supabase, sub)
+  const userId = await resolveUserId(supabase, sub)
+  if (!userId) return
+
+  await supabase.from('profiles').update({ premium: false }).eq('id', userId)
+  await supabase.from('subscriptions').update({
+    status: sub.status,
+    cancel_at_period_end: sub.cancel_at_period_end,
+    updated_at: new Date().toISOString(),
+  }).eq('stripe_subscription_id', sub.id)
+
+  // Queue win-back email in 3 days (step 98, processed by drip cron)
+  await supabase.from('drip_jobs').insert({
+    recipient_id: userId,
+    message_id: null,
+    sequence_step: 98,
+    send_at: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
+    sent: false,
+  })
+}
+
+async function handlePaymentFailedNotifications(
+  supabase: ReturnType<typeof serviceSupabase>,
+  invoice: Stripe.Invoice
+) {
+  const customerId = invoice.customer
+    ? (typeof invoice.customer === 'string' ? invoice.customer : invoice.customer.id)
+    : null
+  if (!customerId) return
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, phone, sms_opt_in, last_sms_at')
+    .eq('stripe_customer_id', customerId)
+    .single()
+
+  if (!profile) return
+
+  // Email — transactional, never suppressed
+  if (profile.email) {
+    sendPaymentFailedEmail({ to: profile.email, toName: profile.full_name }).catch(err =>
+      console.error('[Stripe webhook] payment_failed email error:', err)
+    )
+  }
+
+  // SMS — check opt-in and 24h rate limit
+  const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
+  const lastSms = profile.last_sms_at ? new Date(profile.last_sms_at) : null
+  const smsAllowed = !lastSms || Date.now() - lastSms.getTime() > 86_400_000
+
+  if (
+    smsAllowed &&
+    process.env.TWILIO_ENABLED !== 'false' &&
+    profile.phone &&
+    profile.sms_opt_in === true &&
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_FROM_NUMBER
+  ) {
+    try {
+      await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization:
+              'Basic ' +
+              Buffer.from(
+                `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+              ).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            From: process.env.TWILIO_FROM_NUMBER,
+            To: profile.phone,
+            Body: `Your NEXT11VEN premium payment failed. Update your card to restore access: ${appUrl}/dashboard/premium`,
+          }),
+        }
+      )
+      await supabase
+        .from('profiles')
+        .update({ last_sms_at: new Date().toISOString() })
+        .eq('id', profile.id)
+    } catch (err) {
+      console.error('[Stripe webhook] payment_failed SMS error:', err)
+    }
+  }
+
+  // Queue 48h follow-up (step 99, processed by drip cron)
+  await supabase.from('drip_jobs').insert({
+    recipient_id: profile.id,
+    message_id: null,
+    sequence_step: 99,
+    send_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+    sent: false,
+  })
 }
 
 async function handleMessagePackPurchase(

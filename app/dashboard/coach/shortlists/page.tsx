@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 
+// supabase browser client — used only for folder rename (bulk own-data update)
+function getSupabase() { return createClient() }
+
 type PlayerProfile = {
   id: string
   full_name: string | null
@@ -61,38 +64,24 @@ export default function ShortlistsPage() {
 
     if (!profile?.premium) { setLoading(false); return }
 
-    // Two queries to avoid join cardinality ambiguity
-    const { data: rows } = await supabase
-      .from('coach_saved_players')
-      .select('id, player_id, folder_name, created_at')
-      .eq('coach_id', user.id)
-      .order('folder_name')
-      .order('created_at', { ascending: false })
-
-    if (!rows || rows.length === 0) { setLoading(false); return }
-
-    const playerIds = rows.map((r: SavedRow) => r.player_id)
-    const { data: players } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, position, club, city, status, playing_level')
-      .in('id', playerIds)
-
-    const playerMap = Object.fromEntries((players ?? []).map((p: PlayerProfile) => [p.id, p]))
-    setSaved(rows.map((r: SavedRow) => ({ ...r, player: playerMap[r.player_id] ?? null })))
+    const res = await fetch('/api/coach/shortlist')
+    if (res.ok) {
+      const { saved: rows } = await res.json()
+      setSaved(rows ?? [])
+    }
     setLoading(false)
   }
 
-  async function removePlayer(savedId: string) {
-    setRemoving(savedId)
-    const supabase = createClient()
-    await supabase.from('coach_saved_players').delete().eq('id', savedId)
-    setSaved(prev => prev.filter(s => s.id !== savedId))
+  async function removePlayer(playerId: string) {
+    setRemoving(playerId)
+    await fetch(`/api/coach/shortlist/${playerId}`, { method: 'DELETE' })
+    setSaved(prev => prev.filter(s => s.player_id !== playerId))
     setRemoving(null)
   }
 
   async function renameFolder(from: string, to: string) {
     if (!to.trim() || to.trim() === from) { setRenaming(null); return }
-    const supabase = createClient()
+    const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase.from('coach_saved_players')
@@ -279,9 +268,9 @@ export default function ShortlistsPage() {
                             )}
                           </div>
                         </Link>
-                        <button onClick={() => removePlayer(s.id)} disabled={removing === s.id}
+                        <button onClick={() => removePlayer(s.player_id)} disabled={removing === s.player_id}
                           className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full"
-                          style={{ color: removing === s.id ? '#1e2235' : '#8892aa' }}>
+                          style={{ color: removing === s.player_id ? '#1e2235' : '#8892aa' }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                           </svg>

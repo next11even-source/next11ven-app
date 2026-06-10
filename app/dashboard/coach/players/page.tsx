@@ -246,7 +246,7 @@ function RecommendedForYou() {
               <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
                 className="flex-shrink-0 rounded-2xl overflow-hidden block"
                 style={{ width: 140, scrollSnapAlign: 'start', border: '1px solid #2d5fc440', textDecoration: 'none' }}>
-                <div className="relative" style={{ height: 140, backgroundColor: '#1a1f3a' }}>
+                <div className="relative" style={{ height: 112, backgroundColor: '#1a1f3a' }}>
                   {p.avatar_url
                     ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
                     : (

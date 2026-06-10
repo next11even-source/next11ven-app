@@ -184,6 +184,103 @@ function FilterPanel({
   )
 }
 
+// ─── Recommended for You ──────────────────────────────────────────────────────
+
+type RecPlayer = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  playing_level: string | null
+  status: Player['status']
+  city: string | null
+}
+
+function RecommendedForYou() {
+  const [players, setPlayers] = useState<RecPlayer[]>([])
+  const [hasHistory, setHasHistory] = useState(true)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/coach/recommendations')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!data) return
+        setPlayers(data.players ?? [])
+        setHasHistory(data.hasSearchHistory ?? false)
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true))
+  }, [])
+
+  if (!loaded) return null
+  if (players.length === 0 && hasHistory) return null
+
+  return (
+    <section className="pt-4 pb-1">
+      <div className="px-4 mb-3">
+        <div className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#2d5fc4">
+            <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z" />
+          </svg>
+          <h2 className="text-base font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            Recommended for You
+          </h2>
+        </div>
+        <p className="text-xs mt-1" style={{ color: '#8892aa' }}>Based on your recent activity</p>
+      </div>
+
+      {players.length === 0 ? (
+        <div className="mx-4 rounded-2xl px-4 py-5 text-center"
+          style={{ backgroundColor: '#13172a', border: '1px dashed #1e2235' }}>
+          <p className="text-sm" style={{ color: '#8892aa' }}>
+            Search for players to personalise your recommendations
+          </p>
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+          {players.map(p => {
+            const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+            const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+            return (
+              <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+                className="flex-shrink-0 rounded-2xl overflow-hidden block"
+                style={{ width: 140, scrollSnapAlign: 'start', border: '1px solid #2d5fc440', textDecoration: 'none' }}>
+                <div className="relative" style={{ height: 140, backgroundColor: '#1a1f3a' }}>
+                  {p.avatar_url
+                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                    : (
+                      <div className="w-full h-full flex items-center justify-center"
+                        style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                        <span className="font-black text-4xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                          {initials}
+                        </span>
+                      </div>
+                    )}
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 55%)' }} />
+                </div>
+                <div className="p-2.5" style={{ backgroundColor: '#13172a' }}>
+                  <p className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 10 }}>
+                    {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 10 }}>{p.city ?? ''}</p>
+                  {statusCfg && (
+                    <span className="inline-block text-xs px-1.5 py-0.5 rounded-full font-medium mt-1"
+                      style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color, fontSize: 9 }}>
+                      {statusCfg.label}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ─── Hot Right Now Carousel ───────────────────────────────────────────────────
 
 type HotPlayer = Player & { viewCount: number }
@@ -363,6 +460,39 @@ export default function CoachPlayersPage() {
     setPage(0)
   }, [search, quickTab, appliedFilters, players])
 
+  // Capture coach search activity → coach_search_history (feeds recommendations).
+  // Debounced 500ms; RLS limits inserts to coach accounts on their own rows.
+  useEffect(() => {
+    const f = appliedFilters
+    const hasSignal = !!(search || f.position || f.location || f.status || f.level || f.hasHighlights)
+    if (!hasSignal) return
+
+    const timer = setTimeout(() => {
+      const supabase = createClient()
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return
+        supabase
+          .from('coach_search_history')
+          .insert({
+            coach_id: user.id,
+            filters_used: {
+              search: search || null,
+              position: f.position || null,
+              location: f.location || null,
+              status: f.status || null,
+              level: f.level || null,
+              has_highlights: f.hasHighlights || null,
+            },
+          })
+          .then(({ error }) => {
+            if (error) console.debug('[search-history]', error.message)
+          })
+      })
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search, appliedFilters])
+
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
@@ -509,6 +639,9 @@ export default function CoachPlayersPage() {
             </div>
           )}
         </div>
+
+        {/* Recommended for You */}
+        {!loading && <RecommendedForYou />}
 
         {/* Hot Right Now */}
         {!loading && <HotRightNow players={hotPlayers} />}

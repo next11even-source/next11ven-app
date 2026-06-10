@@ -430,3 +430,83 @@ export async function sendApplicationReceivedEmail({
 
   await send({ to, subject: `New application: ${opportunityTitle}`, html })
 }
+
+// ─── Weekly coach recommendations digest ──────────────────────────────────────
+
+export type RecommendationEmailPlayer = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  playing_level: string | null
+  status: string | null
+  city: string | null
+}
+
+const REC_STATUS_LABELS: Record<string, string> = {
+  free_agent: 'Free Agent',
+  signed: 'Signed to a club',
+  loan_dual_reg: 'Open to Loan / Dual Reg',
+  just_exploring: 'Just Exploring',
+}
+
+function recommendationCard(p: RecommendationEmailPlayer): string {
+  const name = p.full_name ?? 'Player'
+  const firstNm = name.split(' ')[0]
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const profileUrl = `${SITE}/dashboard/player/players/${p.id}`
+  const statusLabel = p.status ? REC_STATUS_LABELS[p.status] : null
+  const isFreeAgent = p.status === 'free_agent'
+  const meta = [p.position, p.playing_level, p.city].filter(Boolean).join(' · ')
+
+  const avatar = p.avatar_url
+    ? `<img src="${p.avatar_url}" alt="" width="56" height="56" style="width:56px;height:56px;border-radius:12px;object-fit:cover;display:block;" />`
+    : `<div style="width:56px;height:56px;border-radius:12px;background:#1a1f3a;color:#2d5fc4;font-weight:800;font-size:20px;text-align:center;line-height:56px;">${initials}</div>`
+
+  return `
+    <div style="background:#0a0a0a;border:1px solid #1e2235;border-radius:14px;padding:16px;margin:0 0 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <td width="56" style="vertical-align:top;">${avatar}</td>
+          <td style="vertical-align:top;padding-left:14px;">
+            <p style="margin:0 0 2px;color:#e8dece;font-weight:700;font-size:15px;">${name}</p>
+            <p style="margin:0 0 6px;color:#8892aa;font-size:12px;">${meta || '—'}</p>
+            ${statusLabel ? `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${isFreeAgent ? 'rgba(96,165,250,0.15)' : 'rgba(136,146,170,0.15)'};color:${isFreeAgent ? '#60a5fa' : '#8892aa'};">${statusLabel}</span>` : ''}
+          </td>
+        </tr>
+      </table>
+      <a href="${profileUrl}" style="display:block;margin-top:14px;padding:11px 0;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:13px;text-align:center;">View &amp; Message ${firstNm}</a>
+    </div>
+  `
+}
+
+export async function sendCoachRecommendationsEmail({
+  to,
+  coachName,
+  players,
+}: {
+  to: string
+  coachName: string | null
+  players: RecommendationEmailPlayer[]
+}) {
+  const count = players.length
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      Based on the players you've been looking at, here ${count === 1 ? 'is one player' : `are ${count} players`} we think ${count === 1 ? 'is' : 'are'} worth a closer look this week.
+    </p>
+    ${players.map(recommendationCard).join('')}
+    <p style="color:#8892aa;margin:16px 0 0;font-size:12px;line-height:1.6;">
+      These picks come from your search activity on NEXT11VEN — the more you browse, the sharper they get.
+    </p>
+  `)
+
+  await send({
+    to,
+    subject:
+      count === 1
+        ? `A player we think you'd want to know about`
+        : `${count} players we think you'd want to know about`,
+    html,
+  })
+}

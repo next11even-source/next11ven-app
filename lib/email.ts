@@ -484,20 +484,31 @@ export async function sendCoachRecommendationsEmail({
   to,
   coachName,
   players,
+  personalised,
 }: {
   to: string
   coachName: string | null
   players: RecommendationEmailPlayer[]
+  // true when the picks are driven by the coach's search history;
+  // false for cold coaches — the copy must stay honest about which it is.
+  personalised: boolean
 }) {
   const count = players.length
+  const intro = personalised
+    ? `Based on the players you've been looking at, here ${count === 1 ? 'is one player' : `are ${count} players`} we think ${count === 1 ? 'is' : 'are'} worth a closer look this week.`
+    : `Here ${count === 1 ? 'is a player' : 'are some players'} we think suit your level and area.`
+  const footnote = personalised
+    ? `These picks come from your search activity on NEXT11VEN — the more you browse, the sharper they get.`
+    : `These picks get sharper the more you search and browse players on NEXT11VEN.`
+
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
     <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
-      Based on the players you've been looking at, here ${count === 1 ? 'is one player' : `are ${count} players`} we think ${count === 1 ? 'is' : 'are'} worth a closer look this week.
+      ${intro}
     </p>
     ${players.map(recommendationCard).join('')}
     <p style="color:#8892aa;margin:16px 0 0;font-size:12px;line-height:1.6;">
-      These picks come from your search activity on NEXT11VEN — the more you browse, the sharper they get.
+      ${footnote}
     </p>
   `)
 

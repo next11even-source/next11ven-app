@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
   for (const coach of coaches) {
     try {
-      const { players } = await getRecommendedPlayers(
+      const { players, hasSearchHistory } = await getRecommendedPlayers(
         supabase,
         coach.id,
         'email',
@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
         to: coach.email!,
         coachName: coach.full_name,
         players,
+        personalised: hasSearchHistory,
       })
 
       await logRecommendations(supabase, coach.id, players.map(p => p.id), 'email')

@@ -240,6 +240,21 @@ async function handlePaymentFailedNotifications(
 
   if (!profile) return
 
+  // One dunning episode per retry cycle: Stripe fires payment_failed on every
+  // retry (~4 over 2 weeks). If a step-99 follow-up was queued for this user
+  // in the last 14 days, this is the same failure — send nothing further.
+  // (Access revocation is handled separately and is unaffected.)
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()
+  const { data: existingJob } = await supabase
+    .from('drip_jobs')
+    .select('id')
+    .eq('recipient_id', profile.id)
+    .eq('sequence_step', 99)
+    .gte('send_at', fourteenDaysAgo)
+    .limit(1)
+    .maybeSingle()
+  if (existingJob) return
+
   // Email — transactional, never suppressed
   if (profile.email) {
     sendPaymentFailedEmail({ to: profile.email, toName: profile.full_name }).catch(err =>

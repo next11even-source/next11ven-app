@@ -9,10 +9,9 @@ export const maxDuration = 60
 
 const EMAIL_RECOMMENDATION_COUNT = 3
 
-// Weekly coach recommendations digest — Tuesday 09:00 UTC (vercel.json).
-// Platform utility email: surfaces relevant players to each active coach.
-// Sent regardless of email_marketing_opt_out (not a marketing email), same
-// policy as other account-utility sends.
+// Weekly coach recommendations digest — Tuesday 08:00 UTC (vercel.json).
+// Respects email_marketing_opt_out, and every send carries a
+// "stop these weekly player tips" link (same unsubscribe endpoint).
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -26,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data: coaches, error: coachesError } = await supabase
     .from('profiles')
-    .select('id, email, full_name')
+    .select('id, email, full_name, email_marketing_opt_out')
     .eq('role', 'coach')
     .eq('approved', true)
     .not('email', 'is', null)
@@ -46,6 +45,10 @@ export async function GET(req: NextRequest) {
   let failed = 0
 
   for (const coach of coaches) {
+    if (coach.email_marketing_opt_out) {
+      skipped++
+      continue
+    }
     try {
       const { players, hasSearchHistory } = await getRecommendedPlayers(
         supabase,
@@ -61,6 +64,7 @@ export async function GET(req: NextRequest) {
 
       await sendCoachRecommendationsEmail({
         to: coach.email!,
+        coachId: coach.id,
         coachName: coach.full_name,
         players,
         personalised: hasSearchHistory,

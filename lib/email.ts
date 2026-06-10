@@ -482,11 +482,13 @@ function recommendationCard(p: RecommendationEmailPlayer): string {
 
 export async function sendCoachRecommendationsEmail({
   to,
+  coachId,
   coachName,
   players,
   personalised,
 }: {
   to: string
+  coachId: string
   coachName: string | null
   players: RecommendationEmailPlayer[]
   // true when the picks are driven by the coach's search history;
@@ -509,6 +511,9 @@ export async function sendCoachRecommendationsEmail({
     ${players.map(recommendationCard).join('')}
     <p style="color:#8892aa;margin:16px 0 0;font-size:12px;line-height:1.6;">
       ${footnote}
+    </p>
+    <p style="margin:10px 0 0;font-size:11px;">
+      <a href="${makeUnsubscribeUrl(coachId)}" style="color:#4b5563;">Stop these weekly player tips</a>
     </p>
   `)
 

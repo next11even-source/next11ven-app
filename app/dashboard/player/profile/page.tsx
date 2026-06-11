@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
-import { toTitleCase } from '@/lib/utils'
+import { toTitleCase, normalizePhone } from '@/lib/utils'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
@@ -480,7 +480,7 @@ export default function PlayerProfilePage() {
           action={
             <EditButton editing={editingPersonal} saving={saving}
               onEdit={() => setEditingPersonal(e => !e)}
-              onSave={() => save({ full_name: fullName || null, phone: phone || null, date_of_birth: dob || null, city: city || null, location: location || null }, 'personal')} />
+              onSave={() => save({ full_name: fullName || null, phone: normalizePhone(phone), date_of_birth: dob || null, city: city || null, location: location || null }, 'personal')} />
           }>
           {editingPersonal ? (
             <div className="space-y-3">

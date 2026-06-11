@@ -11,6 +11,7 @@ import Sidebar from '@/app/dashboard/player/_components/Sidebar'
 import BottomNav from '@/app/dashboard/player/_components/BottomNav'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import { normalizePhone } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -540,7 +541,7 @@ function CoachContactEditor({ profile, onSave, onCancel }: {
       <SaveCancel saving={saving} onCancel={onCancel}
         onSave={async () => {
           setSaving(true)
-          await onSave({ phone: phone || null })
+          await onSave({ phone: normalizePhone(phone) })
           setSaving(false)
         }} />
     </div>

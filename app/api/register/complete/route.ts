@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizePhone } from '@/lib/utils'
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
     id: userId,
     full_name: body.full_name ?? null,
     email: body.email ?? null,
-    phone: body.phone ?? null,
+    phone: normalizePhone(body.phone as string | null) ?? null,
     sms_opt_in: !!body.phone,
     date_of_birth: body.date_of_birth ?? null,
     role: role ?? null,

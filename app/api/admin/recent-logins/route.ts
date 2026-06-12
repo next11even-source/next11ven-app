@@ -37,11 +37,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch recent logins' }, { status: 500 })
   }
 
-  // Sort by last_sign_in_at desc, take top 10
+  // Sort by last_sign_in_at desc, take top 15
   const recent = [...users]
     .filter(u => u.last_sign_in_at)
     .sort((a, b) => new Date(b.last_sign_in_at!).getTime() - new Date(a.last_sign_in_at!).getTime())
-    .slice(0, 10)
+    .slice(0, 15)
 
   if (recent.length === 0) return NextResponse.json({ logins: [] })
 

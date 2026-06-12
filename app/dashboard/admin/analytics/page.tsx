@@ -25,6 +25,29 @@ type RevenueStats = {
   price_breakdown: PricePoint[]
   mrr_trend: { label: string; value: number }[]
   non_converting_count: number
+  free_sub_count: number
+}
+
+type WaitlistPlayer = {
+  id: string
+  full_name: string | null
+  position: string | null
+  club: string | null
+  showcase_waitlist_joined_at: string | null
+}
+
+type WaitlistCoach = {
+  id: string
+  full_name: string | null
+  coaching_role: string | null
+  club: string | null
+  showcase_coach_waitlist_joined_at: string | null
+}
+
+type ShowcaseWaitlist = {
+  players: WaitlistPlayer[]
+  coaches: WaitlistCoach[]
+  total: number
 }
 
 type MonthRow = {
@@ -217,6 +240,10 @@ export default function AnalyticsPage() {
   const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
   const [appsLoading, setAppsLoading] = useState(true)
   const [showAllApps, setShowAllApps] = useState(false)
+  const [showAllLogins, setShowAllLogins] = useState(false)
+  const [showcaseWaitlist, setShowcaseWaitlist] = useState<ShowcaseWaitlist | null>(null)
+  const [showcaseLoading, setShowcaseLoading] = useState(true)
+  const [showShowcaseList, setShowShowcaseList] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -248,6 +275,13 @@ export default function AnalyticsPage() {
       .then(r => r.json())
       .then(d => { setRecentApps(d.applications ?? []); setAppsLoading(false) })
       .catch(() => setAppsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/showcase-waitlist')
+      .then(r => r.json())
+      .then(d => { setShowcaseWaitlist(d); setShowcaseLoading(false) })
+      .catch(() => setShowcaseLoading(false))
   }, [])
 
   async function loadMsgLog() {
@@ -379,40 +413,112 @@ export default function AnalyticsPage() {
       ) : stats ? (
         <div className="px-4 pt-4 space-y-4">
 
-          {/* ── Pending Approvals Banner ──────────────────────────────────────── */}
-          {!platformLoading && platformStats && platformStats.pending_approvals > 0 && (
-            <a href="/dashboard/admin"
-              className="flex items-center justify-between rounded-xl px-4 py-3 transition-opacity hover:opacity-80"
-              style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}>
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, color: '#f59e0b' }}>
-                  {platformStats.pending_approvals}
-                </span>
-                <span className="text-sm font-semibold" style={{ color: '#f59e0b' }}>
-                  {platformStats.pending_approvals === 1 ? 'user' : 'users'} waiting for approval
-                </span>
-              </div>
-              <span className="text-xs font-bold" style={{ color: '#f59e0b' }}>Review →</span>
-            </a>
-          )}
-
           {/* ── Key Metrics ───────────────────────────────────────────────────── */}
           <section>
             <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Key Metrics</p>
-            <div className="grid grid-cols-2 gap-2">
-              <InsightCard
-                label="Monthly Active Users"
-                value={platformLoading ? '…' : (platformStats?.mau ?? 0)}
-                color="#2d5fc4"
-                trend={platformStats && platformStats.mau_prev > 0
-                  ? { delta: platformStats.mau - platformStats.mau_prev, label: 'vs prev 30d' }
-                  : null}
-              />
-              <InsightCard
-                label="Live Opportunities"
-                value={platformLoading ? '…' : (platformStats?.open_opportunities ?? 0)}
-                color="#f59e0b"
-              />
+            <InsightCard
+              label="Monthly Active Users"
+              value={platformLoading ? '…' : (platformStats?.mau ?? 0)}
+              color="#2d5fc4"
+              trend={platformStats && platformStats.mau_prev > 0
+                ? { delta: platformStats.mau - platformStats.mau_prev, label: 'vs prev 30d' }
+                : null}
+            />
+          </section>
+
+          {/* ── Showcase Game 2 Waitlist ──────────────────────────────────────── */}
+          <section>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: '#8892aa' }}>Showcase Game 2 — Waitlist</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+              {showcaseLoading ? (
+                <div className="flex items-center justify-center py-6" style={{ backgroundColor: '#13172a' }}>
+                  <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                    style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+                </div>
+              ) : showcaseWaitlist ? (
+                <>
+                  <button
+                    onClick={() => setShowShowcaseList(v => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 transition-opacity hover:opacity-80"
+                    style={{ backgroundColor: '#13172a' }}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                        {showcaseWaitlist.total}
+                      </span>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>
+                          {showcaseWaitlist.total === 1 ? 'person registered interest' : 'people registered interest'}
+                        </p>
+                        <p className="text-xs" style={{ color: '#8892aa' }}>
+                          {showcaseWaitlist.players.length} {showcaseWaitlist.players.length === 1 ? 'player' : 'players'} · {showcaseWaitlist.coaches.length} {showcaseWaitlist.coaches.length === 1 ? 'coach' : 'coaches'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold" style={{ color: '#8892aa' }}>
+                      {showShowcaseList ? 'Hide ↑' : 'View all ↓'}
+                    </span>
+                  </button>
+
+                  {showShowcaseList && showcaseWaitlist.total > 0 && (
+                    <div className="divide-y" style={{ borderColor: '#1e2235', borderTop: '1px solid #1e2235' }}>
+                      {showcaseWaitlist.players.map((p, i) => (
+                        <div key={p.id} className="flex items-center justify-between px-4 py-3"
+                          style={{ backgroundColor: i % 2 === 0 ? '#0d1020' : '#13172a' }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <RoleBadge role="player" />
+                              <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                                {p.full_name ?? '—'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              {p.position && <span className="text-xs" style={{ color: '#2d5fc4' }}>{p.position}</span>}
+                              {p.club && <span className="text-xs" style={{ color: '#8892aa' }}>· {p.club}</span>}
+                            </div>
+                          </div>
+                          {p.showcase_waitlist_joined_at && (
+                            <p className="text-xs tabular-nums flex-shrink-0 ml-3" style={{ color: '#8892aa' }}>
+                              {new Date(p.showcase_waitlist_joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      {showcaseWaitlist.coaches.map((c, i) => (
+                        <div key={c.id} className="flex items-center justify-between px-4 py-3"
+                          style={{ backgroundColor: (showcaseWaitlist.players.length + i) % 2 === 0 ? '#0d1020' : '#13172a' }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <RoleBadge role="coach" />
+                              <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                                {c.full_name ?? '—'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              {c.coaching_role && <span className="text-xs" style={{ color: '#a78bfa' }}>{c.coaching_role}</span>}
+                              {c.club && <span className="text-xs" style={{ color: '#8892aa' }}>· {c.club}</span>}
+                            </div>
+                          </div>
+                          {c.showcase_coach_waitlist_joined_at && (
+                            <p className="text-xs tabular-nums flex-shrink-0 ml-3" style={{ color: '#8892aa' }}>
+                              {new Date(c.showcase_coach_waitlist_joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {showShowcaseList && showcaseWaitlist.total === 0 && (
+                    <div className="px-4 py-4 text-center" style={{ backgroundColor: '#0d1020', borderTop: '1px solid #1e2235' }}>
+                      <p className="text-xs" style={{ color: '#8892aa' }}>No one on the waitlist yet.</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="px-4 py-6 text-center" style={{ backgroundColor: '#13172a' }}>
+                  <p className="text-xs" style={{ color: '#8892aa' }}>Could not load waitlist data.</p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -441,32 +547,42 @@ export default function AnalyticsPage() {
                   <p className="text-sm" style={{ color: '#8892aa' }}>No sign-in data yet.</p>
                 </div>
               ) : (
-                <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-                  {recentLogins.map((u, i) => (
-                    <div key={u.id} className="flex items-center gap-3 px-4 py-3"
-                      style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
-                            {u.full_name ?? u.email ?? '—'}
-                          </span>
-                          <RoleBadge role={u.role} />
+                <>
+                  <div className="divide-y" style={{ borderColor: '#1e2235' }}>
+                    {(showAllLogins ? recentLogins.slice(0, 15) : recentLogins.slice(0, 5)).map((u, i) => (
+                      <div key={u.id} className="flex items-center gap-3 px-4 py-3"
+                        style={{ backgroundColor: i === 0 ? '#0d1020' : '#13172a' }}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>
+                              {u.full_name ?? u.email ?? '—'}
+                            </span>
+                            <RoleBadge role={u.role} />
+                          </div>
+                          {u.club && (
+                            <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
+                          )}
                         </div>
-                        {u.club && (
-                          <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{u.club}</p>
-                        )}
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs tabular-nums" style={{ color: '#8892aa' }}>
+                            {new Date(u.last_sign_in_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-xs tabular-nums" style={{ color: '#3a4055' }}>
+                            {new Date(u.last_sign_in_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs tabular-nums" style={{ color: '#8892aa' }}>
-                          {new Date(u.last_sign_in_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        </p>
-                        <p className="text-xs tabular-nums" style={{ color: '#3a4055' }}>
-                          {new Date(u.last_sign_in_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  {recentLogins.length > 5 && (
+                    <button
+                      onClick={() => setShowAllLogins(v => !v)}
+                      className="w-full px-4 py-2.5 text-xs font-semibold text-center transition-colors"
+                      style={{ backgroundColor: '#0d1020', borderTop: '1px solid #1e2235', color: '#8892aa' }}>
+                      {showAllLogins ? 'Show less' : `See ${Math.min(recentLogins.length, 15) - 5} more`}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </section>
@@ -500,6 +616,13 @@ export default function AnalyticsPage() {
                       <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
                         £{(revenueStats.mrr_pence / 100 * 12).toFixed(0)} annualised
                       </p>
+                      {revenueStats.free_sub_count > 0 && (
+                        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                          <span style={{ color: '#3a4055' }}>
+                            {revenueStats.free_sub_count} complimentary {revenueStats.free_sub_count === 1 ? 'plan' : 'plans'} excluded
+                          </span>
+                        </p>
+                      )}
                       {platformStats && (platformStats.new_mrr_pence > 0 || platformStats.churned_mrr_pence > 0) && (
                         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
                           {platformStats.new_mrr_pence > 0 && (

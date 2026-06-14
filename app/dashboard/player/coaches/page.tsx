@@ -26,15 +26,23 @@ type Quota = {
   purchasedCredits: number
 }
 
+type Filters = {
+  level: string
+  role: string
+  location: string
+}
+
+const EMPTY_FILTERS: Filters = { level: '', role: '', location: '' }
+
 // ─── Filter config ────────────────────────────────────────────────────────────
 
-const LEVEL_CHIPS = [
-  'All', 'Step 1', 'Step 2', 'Step 3', 'Step 4',
+const COACH_LEVELS = [
+  'Step 1', 'Step 2', 'Step 3', 'Step 4',
   'Step 5', 'Step 6', 'Step 7', 'County', 'Youth', 'Grassroots',
 ]
 
-const ROLE_CHIPS = [
-  'All', 'Manager', 'Assistant', 'First Team', 'Goalkeeper',
+const COACH_ROLES = [
+  'Manager', 'Assistant', 'First Team', 'Goalkeeper',
   'Scout', 'Physio', 'Academy', 'Analyst',
 ]
 
@@ -47,20 +55,113 @@ function matchesRole(coachRole: string | null, filter: string): boolean {
   return r.includes(f)
 }
 
-// ─── Chip component ───────────────────────────────────────────────────────────
+// ─── Filter panel (bottom sheet) ──────────────────────────────────────────────
 
-function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+const selectStyle = {
+  backgroundColor: '#0a0a0a',
+  border: '1px solid #1e2235',
+  color: '#e8dece',
+}
+
+function FilterSelect({ value, onChange, placeholder, children }: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  children: React.ReactNode
+}) {
   return (
-    <button
-      onClick={onClick}
-      className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors"
-      style={{
-        backgroundColor: active ? '#2d5fc4' : '#13172a',
-        color: active ? '#fff' : '#8892aa',
-        border: `1px solid ${active ? '#2d5fc4' : '#1e2235'}`,
-      }}>
-      {label}
-    </button>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full rounded-xl px-4 py-2.5 text-sm outline-none appearance-none"
+      style={selectStyle}
+      onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+      onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
+    >
+      <option value="">{placeholder}</option>
+      {children}
+    </select>
+  )
+}
+
+function FilterPanel({
+  draft,
+  onChange,
+  onApply,
+  onClear,
+  onClose,
+}: {
+  draft: Filters
+  onChange: (f: Filters) => void
+  onApply: () => void
+  onClear: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end" onClick={onClose}>
+      <div
+        className="w-full rounded-t-3xl flex flex-col"
+        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', maxHeight: '85vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: '#1e2235' }} />
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
+          <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Filter</h2>
+          <button onClick={onClose} style={{ color: '#8892aa' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>Level</p>
+            <FilterSelect value={draft.level} onChange={v => onChange({ ...draft, level: v })} placeholder="Any level">
+              {COACH_LEVELS.map(l => <option key={l} value={l} style={{ backgroundColor: '#0a0a0a', color: '#e8dece' }}>{l}</option>)}
+            </FilterSelect>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>Role</p>
+            <FilterSelect value={draft.role} onChange={v => onChange({ ...draft, role: v })} placeholder="Any role">
+              {COACH_ROLES.map(r => <option key={r} value={r} style={{ backgroundColor: '#0a0a0a', color: '#e8dece' }}>{r}</option>)}
+            </FilterSelect>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>Location</p>
+            <input
+              value={draft.location}
+              onChange={e => onChange({ ...draft, location: e.target.value })}
+              placeholder="e.g. Manchester, London…"
+              className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+              style={selectStyle}
+              onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+              onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
+            />
+          </div>
+
+        </div>
+
+        <div className="flex gap-3 px-5 pt-4" style={{ borderTop: '1px solid #1e2235', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          <button onClick={onClear}
+            className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
+            style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+            Clear all
+          </button>
+          <button onClick={onApply}
+            className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -158,11 +259,9 @@ export default function CoachesPage() {
   const { openSidebar } = useSidebar()
   const [coaches, setCoaches] = useState<Coach[]>([])
   const [filtered, setFiltered] = useState<Coach[]>([])
-  const [locations, setLocations] = useState<string[]>([])
   const [search, setSearch] = useState('')
-  const [filterLevel, setFilterLevel] = useState('')
-  const [filterRole, setFilterRole] = useState('')
-  const [filterLocation, setFilterLocation] = useState('')
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isPremium, setIsPremium] = useState(false)
@@ -204,12 +303,6 @@ export default function CoachesPage() {
       }
       setCoaches(list)
       setFiltered(list)
-
-      const locs = Array.from(
-        new Set(list.map(c => c.city).filter(Boolean) as string[])
-      ).sort()
-      setLocations(locs)
-
       setLoading(false)
     })
   }, [])
@@ -224,40 +317,59 @@ export default function CoachesPage() {
           .some(f => f?.toLowerCase().includes(q))
       )
     }
-    if (filterLevel) {
+    if (filters.level) {
       result = result.filter(c =>
-        c.coaching_level?.toLowerCase().includes(filterLevel.toLowerCase())
+        c.coaching_level?.toLowerCase().includes(filters.level.toLowerCase())
       )
     }
-    if (filterRole) {
-      result = result.filter(c => matchesRole(c.coaching_role, filterRole))
+    if (filters.role) {
+      result = result.filter(c => matchesRole(c.coaching_role, filters.role))
     }
-    if (filterLocation) {
+    if (filters.location) {
       result = result.filter(c =>
-        c.city?.toLowerCase() === filterLocation.toLowerCase()
+        c.city?.toLowerCase().includes(filters.location.toLowerCase().trim())
       )
     }
 
     setFiltered(result)
-  }, [search, filterLevel, filterRole, filterLocation, coaches])
+  }, [search, filters, coaches])
 
-  const activeFilterCount = [filterLevel, filterRole, filterLocation].filter(Boolean).length
+  const activeFilterCount = [filters.level, filters.role, filters.location].filter(Boolean).length
+
+  function openFilters() {
+    setDraft(filters)
+    setFiltersOpen(true)
+  }
+
+  function applyFilters() {
+    setFilters(draft)
+    setFiltersOpen(false)
+  }
 
   function clearAll() {
     setSearch('')
-    setFilterLevel('')
-    setFilterRole('')
-    setFilterLocation('')
+    setFilters(EMPTY_FILTERS)
+    setDraft(EMPTY_FILTERS)
+    setFiltersOpen(false)
   }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
 
+      {filtersOpen && (
+        <FilterPanel
+          draft={draft}
+          onChange={setDraft}
+          onApply={applyFilters}
+          onClear={clearAll}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
+
       {/* Sticky header */}
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
 
-        {/* Title row */}
         <div className="flex items-center justify-between mb-3">
           <button onClick={openSidebar} className="flex flex-col gap-1.5" style={{ width: 20 }}>
             <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
@@ -271,7 +383,6 @@ export default function CoachesPage() {
           <div style={{ width: 28 }} />
         </div>
 
-        {/* Search + Filter button row */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24"
@@ -288,12 +399,12 @@ export default function CoachesPage() {
             />
           </div>
           <button
-            onClick={() => setFiltersOpen(o => !o)}
+            onClick={openFilters}
             className="relative flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold flex-shrink-0"
             style={{
-              backgroundColor: filtersOpen || activeFilterCount > 0 ? '#2d5fc4' : '#13172a',
-              border: `1px solid ${filtersOpen || activeFilterCount > 0 ? '#2d5fc4' : '#1e2235'}`,
-              color: filtersOpen || activeFilterCount > 0 ? '#fff' : '#8892aa',
+              backgroundColor: activeFilterCount > 0 ? '#2d5fc4' : '#13172a',
+              border: `1px solid ${activeFilterCount > 0 ? '#2d5fc4' : '#1e2235'}`,
+              color: activeFilterCount > 0 ? '#fff' : '#8892aa',
             }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -308,60 +419,6 @@ export default function CoachesPage() {
             )}
           </button>
         </div>
-
-        {/* Expandable filter panel */}
-        {filtersOpen && (
-          <div className="mt-3 pt-3" style={{ borderTop: '1px solid #1e2235' }}>
-            {/* Level filter */}
-            <div className="mb-2.5">
-              <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Level</p>
-              <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-                {LEVEL_CHIPS.map(chip => (
-                  <Chip
-                    key={chip}
-                    label={chip}
-                    active={chip === 'All' ? filterLevel === '' : filterLevel === chip}
-                    onClick={() => setFilterLevel(chip === 'All' ? '' : chip)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Role filter */}
-            <div className="mb-2.5">
-              <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Role</p>
-              <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-                {ROLE_CHIPS.map(chip => (
-                  <Chip
-                    key={chip}
-                    label={chip}
-                    active={chip === 'All' ? filterRole === '' : filterRole === chip}
-                    onClick={() => setFilterRole(chip === 'All' ? '' : chip)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Location filter */}
-            {locations.length > 0 && (
-              <div className="mb-1">
-                <p className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: '#8892aa' }}>Location</p>
-                <div className="flex gap-1.5 pb-0.5" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-                  <Chip label="All" active={filterLocation === ''} onClick={() => setFilterLocation('')} />
-                  {locations.map(loc => (
-                    <Chip key={loc} label={loc} active={filterLocation === loc} onClick={() => setFilterLocation(loc)} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeFilterCount > 0 && (
-              <button onClick={clearAll} className="mt-2 text-xs font-bold" style={{ color: '#2d5fc4' }}>
-                Clear all filters
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Conversations left banner */}

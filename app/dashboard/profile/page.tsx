@@ -663,7 +663,10 @@ export default function ProfilePage() {
     if (!profile) return
     const supabase = createClient()
     const { streak, lastWeek } = calcStreak(profile.streak_weeks, profile.streak_last_week)
-    const payload = { ...updates, streak_weeks: streak, streak_last_week: lastWeek, last_active: new Date().toISOString() }
+    const normalized = Object.fromEntries(
+      Object.entries(updates).map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v])
+    )
+    const payload = { ...normalized, streak_weeks: streak, streak_last_week: lastWeek, last_active: new Date().toISOString() }
     await supabase.from('profiles').update(payload).eq('id', profile.id)
     setProfile(p => p ? { ...p, ...payload } : p)
   }

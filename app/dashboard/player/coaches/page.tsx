@@ -401,8 +401,8 @@ export default function CoachesPage() {
         <div className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
           {filtered.map((coach, i) => {
             const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-            const meta = [coach.coaching_role, coach.club].filter(Boolean).join(' · ')
-            const sub = [coach.coaching_level, coach.city].filter(Boolean).join(' · ')
+            const meta = [coach.coaching_role, coach.coaching_level].filter(Boolean).join(' · ')
+            const sub = [coach.city, coach.club].filter(Boolean).join(' · ')
 
             return (
               <Link key={coach.id}

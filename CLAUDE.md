@@ -202,7 +202,7 @@ Route                                   Status
 /dashboard/player/premium               Upgrade page ✅
 /dashboard/player/messages              Player message inbox ✅
 /dashboard/player/opportunities         Redirect → /dashboard/opportunities ↩️
-/dashboard/player/coaches               Browse coaches ✅
+/dashboard/player/coaches               Redirect → /dashboard/coaches ↩️
 /dashboard/player/activity              Profile activity overview ✅
 /dashboard/player/activity/profile-views  Who viewed my profile (detail) ✅
 /dashboard/player/extra-messages        Extra message credits balance + purchase ✅
@@ -216,19 +216,28 @@ Route                                        Status
 /dashboard/coach/opportunities               Redirect → /dashboard/opportunities ↩️
 /dashboard/coach/market                      4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
 /dashboard/coach/players                     Browse players (coach view) ✅
-/dashboard/coach/coaches                     Browse other coaches ✅
+/dashboard/coach/coaches                     Redirect → /dashboard/coaches ↩️
 /dashboard/coach/premium                     Coach upgrade page ✅
 /dashboard/coach/notifications               Notifications centre ✅
 /dashboard/coach/notifications/profile-views  Coach profile views detail ✅
 
 Shared & Admin
 Route                         Status
+/dashboard/coaches            Unified coaches browse — role-aware via PlayerShell ✅
 /dashboard/opportunities      Unified opportunities — role-aware via PlayerShell ✅
 /dashboard/profile            Role-aware profile edit (player + coach) ✅
 /dashboard/feed               Community feed (posts, likes, comments) ✅
 /dashboard/showcase           Showcase Day registration page ✅
 /dashboard/admin              Approve/decline pending registrations ✅
 /dashboard/admin/analytics    Full analytics dashboard (revenue, platform, messages) ✅
+
+Coaches (unified route)
+One page at /dashboard/coaches serves both roles (layout wraps PlayerShell, same pattern
+as /feed and /opportunities). Old routes redirect here.
+- Both roles: recently active marquee, NewBadge on list items, search + filters, count
+- Players only: conversations banner — shows upgrade CTA (free) or remaining quota (premium)
+- Coaches: banner suppressed. No CoachBottomNav tab highlights this route (unchanged behaviour).
+- Messaging still initiates from /dashboard/coach/[id] — premium-gated, quota-checked there.
 
 Opportunities (unified route)
 One page at /dashboard/opportunities serves both roles (layout wraps PlayerShell, same

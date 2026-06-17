@@ -198,7 +198,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
             <p className="text-sm font-semibold">Players</p>
           </Link>
 
-          <Link href="/dashboard/player/coaches" onClick={onClose}
+          <Link href="/dashboard/coaches" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ textDecoration: 'none', color: '#8892aa' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

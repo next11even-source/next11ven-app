@@ -223,7 +223,7 @@ export default function BottomNav() {
     },
     {
       label: 'Coaches',
-      href: '/dashboard/player/coaches',
+      href: '/dashboard/coaches',
       exact: false,
       icon: <Users size={22} strokeWidth={1.8} />,
     },

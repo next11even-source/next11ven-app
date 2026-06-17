@@ -258,30 +258,39 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
     const el = scrollRef.current
     if (!el) return
 
+    // JS accumulator avoids mobile integer-rounding of scrollLeft
+    let pos = 0
+
     function startInteract() {
       if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
       interactingRef.current = true
     }
-    function endInteract() {
+    function scheduleResume() {
       if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
-      // Reset the 2s window whenever a scroll event fires (catches momentum scroll)
       resumeTimerRef.current = setTimeout(() => { interactingRef.current = false }, 2000)
+    }
+    function onScroll() {
+      // Only reset the resume timer for user-initiated scroll, not our own auto-scroll
+      if (interactingRef.current) scheduleResume()
     }
 
     el.addEventListener('touchstart', startInteract, { passive: true })
-    el.addEventListener('touchend', endInteract, { passive: true })
-    el.addEventListener('touchcancel', endInteract, { passive: true })
-    el.addEventListener('scroll', endInteract, { passive: true })
+    el.addEventListener('touchend', scheduleResume, { passive: true })
+    el.addEventListener('touchcancel', scheduleResume, { passive: true })
+    el.addEventListener('scroll', onScroll, { passive: true })
     el.addEventListener('mouseenter', startInteract)
-    el.addEventListener('mouseleave', endInteract)
+    el.addEventListener('mouseleave', scheduleResume)
     el.addEventListener('pointerdown', startInteract)
-    el.addEventListener('pointerup', endInteract)
+    el.addEventListener('pointerup', scheduleResume)
 
     function tick() {
-      if (!interactingRef.current && el) {
-        el.scrollLeft += 0.5
+      if (interactingRef.current) {
+        pos = el.scrollLeft  // stay in sync while user scrolls
+      } else {
         const half = el.scrollWidth / 2
-        if (el.scrollLeft >= half) el.scrollLeft -= half
+        pos += 0.5
+        if (half > 0 && pos >= half) pos -= half
+        el.scrollLeft = pos
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -291,13 +300,13 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
       el.removeEventListener('touchstart', startInteract)
-      el.removeEventListener('touchend', endInteract)
-      el.removeEventListener('touchcancel', endInteract)
-      el.removeEventListener('scroll', endInteract)
+      el.removeEventListener('touchend', scheduleResume)
+      el.removeEventListener('touchcancel', scheduleResume)
+      el.removeEventListener('scroll', onScroll)
       el.removeEventListener('mouseenter', startInteract)
-      el.removeEventListener('mouseleave', endInteract)
+      el.removeEventListener('mouseleave', scheduleResume)
       el.removeEventListener('pointerdown', startInteract)
-      el.removeEventListener('pointerup', endInteract)
+      el.removeEventListener('pointerup', scheduleResume)
     }
   }, [animate])
 

@@ -412,8 +412,8 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
         {players.map(p => (
           <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
             className="flex-shrink-0 rounded-2xl overflow-hidden block"
-            style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
-            <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
+            style={{ width: 145, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
+            <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
               {p.avatar_url ? (
                 <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
               ) : (
@@ -937,7 +937,7 @@ export default function CoachDashboard() {
               <div className="animate-pulse rounded-lg" style={{ height: 20, width: '40%', backgroundColor: '#1e2235' }} />
               <div className="flex gap-3">
                 {[0, 1, 2].map(i => (
-                  <div key={i} className="flex-shrink-0 animate-pulse rounded-2xl" style={{ width: 170, height: 200, backgroundColor: '#1e2235' }} />
+                  <div key={i} className="flex-shrink-0 animate-pulse rounded-2xl" style={{ width: 145, height: 175, backgroundColor: '#1e2235' }} />
                 ))}
               </div>
             </div>

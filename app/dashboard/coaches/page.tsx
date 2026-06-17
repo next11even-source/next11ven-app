@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
@@ -224,10 +224,72 @@ function RecentlyActiveBanner({ coaches }: { coaches: Coach[] }) {
     .filter(c => c.last_active && new Date(c.last_active).getTime() >= cutoff)
     .sort((a, b) => new Date(b.last_active!).getTime() - new Date(a.last_active!).getTime())
 
-  if (active.length === 0) return null
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const interactingRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loop = [...active, ...active]
   const animate = active.length >= 3
+  const loop = animate ? [...active, ...active] : active
+
+  useEffect(() => {
+    if (!animate) return
+    const el = scrollRef.current
+    if (!el) return
+
+    let pos = 0
+
+    function startInteract() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      interactingRef.current = true
+    }
+    function scheduleResume() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      resumeTimerRef.current = setTimeout(() => { interactingRef.current = false }, 2000)
+    }
+    function onScroll() {
+      if (interactingRef.current) scheduleResume()
+    }
+
+    el.addEventListener('touchstart', startInteract, { passive: true })
+    el.addEventListener('touchend', scheduleResume, { passive: true })
+    el.addEventListener('touchcancel', scheduleResume, { passive: true })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    el.addEventListener('mouseenter', startInteract)
+    el.addEventListener('mouseleave', scheduleResume)
+    el.addEventListener('pointerdown', startInteract)
+    el.addEventListener('pointerup', scheduleResume)
+
+    function tick() {
+      if (el) {
+        if (interactingRef.current) {
+          pos = el.scrollLeft
+        } else {
+          const half = el.scrollWidth / 2
+          pos += 0.5
+          if (half > 0 && pos >= half) pos -= half
+          el.scrollLeft = pos
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      el.removeEventListener('touchstart', startInteract)
+      el.removeEventListener('touchend', scheduleResume)
+      el.removeEventListener('touchcancel', scheduleResume)
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('mouseenter', startInteract)
+      el.removeEventListener('mouseleave', scheduleResume)
+      el.removeEventListener('pointerdown', startInteract)
+      el.removeEventListener('pointerup', scheduleResume)
+    }
+  }, [animate])
+
+  if (active.length === 0) return null
 
   return (
     <div className="mt-3">
@@ -244,10 +306,8 @@ function RecentlyActiveBanner({ coaches }: { coaches: Coach[] }) {
       </div>
 
       {animate ? (
-        <div className="relative overflow-hidden pl-4">
-          <div className="flex" style={{ width: 'max-content', animation: 'n11-marquee 40s linear infinite' }}>
-            {loop.map((coach, i) => <RecentlyActiveCard key={`${coach.id}-${i}`} coach={coach} />)}
-          </div>
+        <div ref={scrollRef} className="flex overflow-x-auto pl-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {loop.map((coach, i) => <RecentlyActiveCard key={`${coach.id}-${i}`} coach={coach} />)}
         </div>
       ) : (
         <div className="flex overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -256,10 +316,6 @@ function RecentlyActiveBanner({ coaches }: { coaches: Coach[] }) {
       )}
 
       <style jsx>{`
-        @keyframes n11-marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
         @keyframes n11-ping {
           75%, 100% { transform: scale(2); opacity: 0; }
         }

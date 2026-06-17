@@ -35,6 +35,7 @@ type Application = {
     location: string | null
     position: string | null
     level: string | null
+    is_active: boolean
   } | null
 }
 
@@ -82,7 +83,12 @@ function SkeletonRow() {
 
 // ─── Opportunities Tab ────────────────────────────────────────────────────────
 
-function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: PlayerProfile | null }) {
+function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
+  playerId: string
+  profile: PlayerProfile | null
+  focusOppId: string | null
+  onFocused: () => void
+}) {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
   const [applying, setApplying] = useState<string | null>(null)
@@ -92,6 +98,7 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
   const [levelFilter, setLevelFilter] = useState('')
   const [positionFilter, setPositionFilter] = useState('')
   const [urgentOnly, setUrgentOnly] = useState(false)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
 
   const isPremium = profile?.premium ?? false
   const playerCity = profile?.city ?? null
@@ -147,6 +154,30 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
   const selectStyle = { backgroundColor: '#0d1020', border: '1px solid #1e2235', color: '#e8dece' }
 
   function clearFilters() { setSearch(''); setLevelFilter(''); setPositionFilter(''); setUrgentOnly(false) }
+
+  // Deep-link from "My Applications": clear filters so the target isn't hidden,
+  // then scroll to and briefly highlight the role they applied to.
+  useEffect(() => {
+    if (!focusOppId || loading) return
+    const id = focusOppId
+    setSearch(''); setLevelFilter(''); setPositionFilter(''); setUrgentOnly(false)
+    const t = setTimeout(() => {
+      const el = document.getElementById('opp-' + id)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setHighlightId(id)
+      }
+      onFocused()
+    }, 60)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusOppId, loading])
+
+  useEffect(() => {
+    if (!highlightId) return
+    const t = setTimeout(() => setHighlightId(null), 2500)
+    return () => clearTimeout(t)
+  }, [highlightId])
 
   if (loading) return (
     <div className="space-y-4 px-4 py-4">
@@ -232,9 +263,15 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
             const meta = [isPremium ? opp.club : null, opp.location, opp.position].filter(Boolean).join(' · ')
 
             return (
-              <div key={opp.id}
+              <div key={opp.id} id={'opp-' + opp.id}
                 className="relative rounded-2xl overflow-hidden transition-all"
-                style={{ backgroundColor: '#13172a', border: `1px solid ${applied ? '#2d5fc4' : '#1e2235'}` }}
+                style={{
+                  backgroundColor: '#13172a',
+                  border: `1px solid ${applied ? '#2d5fc4' : '#1e2235'}`,
+                  outline: highlightId === opp.id ? '2px solid #2d5fc4' : 'none',
+                  outlineOffset: 2,
+                  scrollMarginTop: 120,
+                }}
                 onMouseEnter={e => {
                   if (applied) return
                   e.currentTarget.style.borderColor = 'rgba(45,95,196,0.5)'
@@ -334,14 +371,18 @@ function OpportunitiesTab({ playerId, profile }: { playerId: string; profile: Pl
 
 // ─── My Applications Tab ──────────────────────────────────────────────────────
 
-function ApplicationsTab({ playerId }: { playerId: string }) {
+function ApplicationsTab({ playerId, onView, onBrowse }: {
+  playerId: string
+  onView: (oppId: string) => void
+  onBrowse: () => void
+}) {
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.from('applications')
-      .select('id, status, created_at, opportunity:opportunity_id(id, title, club, location, position, level)')
+      .select('id, status, created_at, opportunity:opportunity_id(id, title, club, location, position, level, is_active)')
       .eq('player_id', playerId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -357,37 +398,63 @@ function ApplicationsTab({ playerId }: { playerId: string }) {
   )
 
   return (
-    <div className="space-y-3 px-4 py-4">
+    <div className="px-4 py-4">
       {applications.length === 0 ? (
         <div className="rounded-2xl p-10 text-center space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <p className="text-sm" style={{ color: '#8892aa' }}>You haven't applied for any roles yet.</p>
-          <button onClick={() => window.dispatchEvent(new CustomEvent('opportunities:tab', { detail: 'opportunities' }))}
+          <button onClick={onBrowse}
             className="inline-block px-5 py-2.5 rounded-xl text-sm font-bold"
             style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
             Browse Opportunities
           </button>
         </div>
-      ) : applications.map(app => {
-        const cfg = APP_STATUS[app.status] ?? APP_STATUS.pending
-        return (
-          <div key={app.id} className="rounded-2xl p-4 space-y-2"
-            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{app.opportunity?.title ?? 'Opportunity'}</p>
-                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-                  {[app.opportunity?.club, app.opportunity?.location, app.opportunity?.position].filter(Boolean).join(' · ') || '—'}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{timeAgo(app.created_at)}</p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {applications.map(app => {
+            const cfg = APP_STATUS[app.status] ?? APP_STATUS.pending
+            const opp = app.opportunity
+            const meta = [opp?.club, opp?.location, opp?.position].filter(Boolean).join(' · ')
+            return (
+              <div key={app.id} className="rounded-2xl overflow-hidden"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="p-4 lg:p-5">
+                  <div className="flex gap-3.5">
+                    <LevelBadge level={opp?.level ?? null} size={44} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold uppercase truncate"
+                          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 19, lineHeight: 1.1 }}>
+                          {opp?.title ?? 'Opportunity'}
+                        </h3>
+                        <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
+                          style={{ color: cfg.color, backgroundColor: cfg.bg }}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || '—'}</p>
+                      <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>Applied {timeAgo(app.created_at)}</p>
+
+                      {opp && opp.is_active ? (
+                        <button onClick={() => onView(opp.id)}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#2d5fc4' }}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.25)')}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.12)')}>
+                          View opportunity →
+                        </button>
+                      ) : (
+                        <p className="text-xs mt-3" style={{ color: '#5b6478' }}>
+                          {opp ? 'This role is now closed.' : 'This role is no longer listed.'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
-                style={{ color: cfg.color, backgroundColor: cfg.bg }}>
-                {cfg.label}
-              </span>
-            </div>
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -398,6 +465,7 @@ export default function PlayerOpportunities({ playerId }: { playerId: string }) 
   const { openSidebar } = useSidebar()
   const [profile, setProfile] = useState<PlayerProfile | null>(null)
   const [activeTab, setActiveTab] = useState<'opportunities' | 'applications'>('opportunities')
+  const [focusOppId, setFocusOppId] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -405,11 +473,11 @@ export default function PlayerOpportunities({ playerId }: { playerId: string }) 
       .then(({ data }) => setProfile(data as PlayerProfile))
   }, [playerId])
 
-  useEffect(() => {
-    const handler = (e: Event) => setActiveTab((e as CustomEvent).detail)
-    window.addEventListener('opportunities:tab', handler)
-    return () => window.removeEventListener('opportunities:tab', handler)
-  }, [])
+  // Jump from a "My Applications" card to the exact role in "Open Roles"
+  function viewOpportunity(oppId: string) {
+    setFocusOppId(oppId)
+    setActiveTab('opportunities')
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -449,8 +517,8 @@ export default function PlayerOpportunities({ playerId }: { playerId: string }) 
       </div>
 
       {activeTab === 'opportunities'
-        ? <OpportunitiesTab playerId={playerId} profile={profile} />
-        : <ApplicationsTab playerId={playerId} />}
+        ? <OpportunitiesTab playerId={playerId} profile={profile} focusOppId={focusOppId} onFocused={() => setFocusOppId(null)} />
+        : <ApplicationsTab playerId={playerId} onView={viewOpportunity} onBrowse={() => setActiveTab('opportunities')} />}
     </div>
   )
 }

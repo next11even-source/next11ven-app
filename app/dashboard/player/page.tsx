@@ -223,7 +223,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
           style={{ backgroundColor: '#1a1f3a' }}>
           {user.avatar_url
-            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-center" />
             : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
         </div>
         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"

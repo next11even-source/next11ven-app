@@ -293,7 +293,7 @@ export default function CoachPublicProfile() {
         <div className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center mb-4"
           style={{ border: '3px solid #2d5fc4', backgroundColor: '#1a1f3a' }}>
           {coach.avatar_url ? (
-            <img src={coach.avatar_url} alt={coach.full_name ?? ''} className="w-full h-full object-cover object-top" />
+            <img src={coach.avatar_url} alt={coach.full_name ?? ''} className="w-full h-full object-cover object-center" />
           ) : (
             <span className="font-black text-4xl"
               style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>

@@ -201,7 +201,7 @@ function RecentlyActiveCard({ coach }: { coach: Coach }) {
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
           style={{ backgroundColor: '#1a1f3a' }}>
           {coach.avatar_url
-            ? <img src={coach.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+            ? <img src={coach.avatar_url} alt="" className="w-full h-full object-cover object-center" />
             : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
         </div>
         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
@@ -592,7 +592,7 @@ export default function CoachesPage() {
                 <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: '#1a1f3a' }}>
                   {coach.avatar_url
-                    ? <img src={coach.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                    ? <img src={coach.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                     : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
                 </div>
                 <div className="flex-1 min-w-0">

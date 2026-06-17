@@ -252,7 +252,7 @@ export default function ShortlistsPage() {
                           <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
                             style={{ backgroundColor: '#1a1f3a' }}>
                             {p?.avatar_url
-                              ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                              ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                               : <span className="text-lg font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>{initials}</span>}
                           </div>
                           <div className="flex-1 min-w-0">

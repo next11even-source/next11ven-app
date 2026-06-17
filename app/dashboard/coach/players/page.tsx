@@ -314,7 +314,7 @@ function RecommendedForYou() {
                 <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: '#1a1f3a' }}>
                   {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                     : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
                 </div>
                 <div className="min-w-0">
@@ -345,7 +345,7 @@ function RecommendedForYou() {
                 <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: '#1a1f3a' }}>
                   {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
                     : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
                 </div>
                 <div className="min-w-0">
@@ -666,7 +666,7 @@ export default function CoachPlayersPage() {
                   <div className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
                     style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${statusCfg ? statusCfg.color + '40' : '#1e2235'}` }}>
                     {p.avatar_url ? (
-                      <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-top" />
+                      <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
                     ) : (
                       <span className="font-black text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
                         {initials}

@@ -437,7 +437,7 @@ export default function PlayerPublicProfile() {
               backgroundColor: '#1a1f3a',
             }}>
             {player.avatar_url ? (
-              <img src={player.avatar_url} alt={player.full_name ?? ''} className="w-full h-full object-cover object-top" />
+              <img src={player.avatar_url} alt={player.full_name ?? ''} className="w-full h-full object-cover object-center" />
             ) : (
               <span className="font-black text-4xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
                 {initials}

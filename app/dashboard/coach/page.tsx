@@ -583,44 +583,20 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
 }
 
 function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const pausedRef = useRef(false)
-  const rafRef = useRef<number | null>(null)
-  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [paused, setPaused] = useState(false)
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const animate = users.length >= 3
   const loop = animate ? [...users, ...users] : users
 
-  useEffect(() => {
-    if (!animate) return
-    const el = scrollRef.current
-    if (!el) return
-
-    const speed = 0.5
-
-    function tick() {
-      if (!pausedRef.current && el) {
-        el.scrollLeft += speed
-        const half = el.scrollWidth / 2
-        if (el.scrollLeft >= half) {
-          el.scrollLeft -= half
-        }
-      }
-      rafRef.current = requestAnimationFrame(tick)
-    }
-
-    rafRef.current = requestAnimationFrame(tick)
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [animate, users])
-
   function pause() {
-    pausedRef.current = true
-    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    if (resumeTimer.current) clearTimeout(resumeTimer.current)
+    setPaused(true)
   }
 
-  function resume() {
-    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
-    resumeTimerRef.current = setTimeout(() => { pausedRef.current = false }, 2000)
+  function scheduleResume() {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current)
+    resumeTimer.current = setTimeout(() => setPaused(false), 2000)
   }
 
   if (users.length === 0) return null
@@ -638,21 +614,29 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
         </h2>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex overflow-x-auto pl-6 pb-1"
-        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-        onMouseEnter={pause}
-        onMouseLeave={resume}
-        onTouchStart={pause}
-        onTouchEnd={resume}
-        onPointerDown={pause}
-        onPointerUp={resume}
-      >
-        {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
-      </div>
+      {animate ? (
+        <div className="overflow-hidden pl-6"
+          onMouseEnter={pause} onMouseLeave={scheduleResume}
+          onTouchStart={pause} onTouchEnd={scheduleResume}>
+          <div className="flex" style={{
+            width: 'max-content',
+            animation: 'n11-marquee 90s linear infinite',
+            animationPlayState: paused ? 'paused' : 'running',
+          }}>
+            {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
+          </div>
+        </div>
+      ) : (
+        <div className="flex overflow-x-auto px-6 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {users.map(u => <ActiveUserCard key={u.id} user={u} />)}
+        </div>
+      )}
 
       <style jsx>{`
+        @keyframes n11-marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
         @keyframes n11-ping {
           75%, 100% { transform: scale(2); opacity: 0; }
         }

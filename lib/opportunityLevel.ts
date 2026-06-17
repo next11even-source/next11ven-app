@@ -23,6 +23,10 @@ const LEVEL_MAP: Record<string, LevelConfig> = {
   'Step 6':                      { line1: 'STEP',  line2: '6',      color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
   'Step 7':                      { line1: 'STEP',  line2: '7',      color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
   'Step 7 and below':            { line1: 'STEP',  line2: '7+',     color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
+  'U18s/Academy':                { line1: 'U18s',  line2: 'ACAD',   color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  'Wales 1':                     { line1: 'WALES', line2: '1',      color: '#f43f5e', bg: 'rgba(244,63,94,0.12)' },
+  'Wales 2':                     { line1: 'WALES', line2: '2',      color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },
+  'Other':                       { line1: 'OTHER', line2: '',        color: '#8892aa', bg: 'rgba(136,146,170,0.1)' },
 }
 
 const FALLBACK: LevelConfig = {

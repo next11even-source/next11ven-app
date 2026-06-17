@@ -39,7 +39,7 @@ const EMPTY_FILTERS: Filters = { level: '', role: '', location: '' }
 
 const COACH_LEVELS = [
   'Step 1', 'Step 2', 'Step 3', 'Step 4',
-  'Step 5', 'Step 6', 'Step 7', 'County', 'Youth', 'Grassroots',
+  'Step 5', 'Step 6', 'Step 7', 'U18s/Academy', 'Wales 1', 'Wales 2', 'Other',
 ]
 
 const COACH_ROLES = [

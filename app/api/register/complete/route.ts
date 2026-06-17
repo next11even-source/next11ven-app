@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No authenticated user' }, { status: 401 })
   }
 
+  const VALID_LEVELS = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6', 'Step 7', 'U18s/Academy', 'Wales 1', 'Wales 2', 'Other']
+
   // Only allow writing safe profile fields — never let the client set role to admin
   const allowedRoles = ['player', 'coach', 'fan']
   const role = body.role as string | undefined
@@ -59,7 +61,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (role === 'player') {
-    profilePayload.playing_level = body.playing_level ?? null
+    const pl = body.playing_level as string | undefined
+    if (pl && !VALID_LEVELS.includes(pl)) {
+      return NextResponse.json({ error: 'Invalid playing level' }, { status: 400 })
+    }
+    profilePayload.playing_level = pl ?? null
     profilePayload.club = body.club ?? null
     profilePayload.position = body.position ?? null
     profilePayload.secondary_position = body.secondary_position ?? null
@@ -69,7 +75,11 @@ export async function POST(req: NextRequest) {
     profilePayload.height = body.height ?? null
   } else if (role === 'coach') {
     profilePayload.coaching_role = body.coaching_role ?? null
-    profilePayload.coaching_level = body.coaching_level ?? null
+    const cl = body.coaching_level as string | undefined
+    if (cl && !VALID_LEVELS.includes(cl)) {
+      return NextResponse.json({ error: 'Invalid coaching level' }, { status: 400 })
+    }
+    profilePayload.coaching_level = cl ?? null
     profilePayload.club = body.club ?? null
     profilePayload.coaching_history = body.coaching_history ?? null
     // coaches must have a valid status to satisfy profiles_status_check

@@ -948,8 +948,8 @@ export default function CoachDashboard() {
         ) : (
           <>
             <FeedPreview posts={feedPosts} />
-            <PremiumCarousel players={premiumPlayers} />
             <RecentOpportunities opps={recentOpportunities} />
+            <PremiumCarousel players={premiumPlayers} />
             <MyShortlist players={myShortlist} />
           </>
         )}

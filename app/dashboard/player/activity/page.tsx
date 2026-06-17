@@ -44,7 +44,7 @@ function getRoute(notif: Notification, isPremium: boolean): string {
     case 'post_like':
     case 'post_comment':
     case 'post_interest': return '/dashboard/feed'
-    case 'new_opportunity': return '/dashboard/player/opportunities'
+    case 'new_opportunity': return '/dashboard/opportunities'
     case 'shortlisted':
       return isPremium && notif.entity_id
         ? `/dashboard/coach/${notif.entity_id}`

@@ -369,7 +369,7 @@ function OpportunitiesTab({ coachId }: { coachId: string }) {
         <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
           {opps.length} role{opps.length !== 1 ? 's' : ''} posted
         </p>
-        <Link href="/dashboard/coach/opportunities"
+        <Link href="/dashboard/opportunities"
           className="text-xs px-3 py-1.5 rounded-lg font-semibold"
           style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
           + Post Role
@@ -379,7 +379,7 @@ function OpportunitiesTab({ coachId }: { coachId: string }) {
       {loading ? <LoadingSpinner /> : opps.length === 0 ? (
         <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <p className="text-sm" style={{ color: '#8892aa' }}>No opportunities posted yet.</p>
-          <Link href="/dashboard/coach/opportunities"
+          <Link href="/dashboard/opportunities"
             className="inline-block mt-3 text-xs px-4 py-2 rounded-full font-semibold"
             style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
             Post your first role
@@ -391,7 +391,7 @@ function OpportunitiesTab({ coachId }: { coachId: string }) {
             const lvl = getLevelConfig(opp.level)
             const dl = opp.deadline ? daysLeft(opp.deadline) : null
             return (
-              <Link key={opp.id} href="/dashboard/coach/opportunities"
+              <Link key={opp.id} href="/dashboard/opportunities"
                 className="flex items-center gap-3 rounded-2xl px-4 py-3.5"
                 style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}>
                 {/* Level badge */}

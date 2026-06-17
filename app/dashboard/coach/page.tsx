@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from './_components/CoachSidebar'
 import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
+import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,8 @@ type MyOpportunity = {
   title: string
   club: string | null
   position: string | null
+  level: string | null
+  location: string | null
   is_active: boolean
   applicationCount: number
 }
@@ -145,7 +148,7 @@ function CoachQuickStats({ newApps, lookingForClub, unread }: {
     {
       label: 'New Applications',
       value: newApps,
-      href: '/dashboard/coach/opportunities',
+      href: '/dashboard/opportunities',
       sub: 'this week',
       color: '#f59e0b',
       bg: 'rgba(245,158,11,0.07)',
@@ -291,7 +294,7 @@ function MyOpportunities({ opps }: { opps: MyOpportunity[] }) {
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Your Opportunities 🔥
         </h2>
-        <Link href="/dashboard/coach/opportunities" className="text-xs font-semibold"
+        <Link href="/dashboard/opportunities" className="text-xs font-semibold"
           style={{ color: '#2d5fc4', textDecoration: 'none' }}>
           Manage →
         </Link>
@@ -303,7 +306,7 @@ function MyOpportunities({ opps }: { opps: MyOpportunity[] }) {
           <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
             You're not currently recruiting. Post a role to start receiving applications.
           </p>
-          <Link href="/dashboard/coach/opportunities"
+          <Link href="/dashboard/opportunities"
             className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
             style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}>
             Post a Role
@@ -311,43 +314,44 @@ function MyOpportunities({ opps }: { opps: MyOpportunity[] }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {opps.map(opp => (
-            <Link key={opp.id} href="/dashboard/coach/opportunities"
-              className="flex items-center gap-3 rounded-xl px-4 py-3.5"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                    {opp.club ?? 'Your Club'}
-                  </p>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                    style={{
-                      backgroundColor: opp.is_active ? 'rgba(245,158,11,0.12)' : 'rgba(136,146,170,0.1)',
-                      color: opp.is_active ? '#f59e0b' : '#8892aa',
-                    }}>
-                    {opp.is_active ? 'OPEN' : 'CLOSED'}
-                  </span>
-                </div>
-                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  {opp.position && (
-                    <p className="text-xs" style={{ color: '#8892aa' }}>{opp.position}</p>
-                  )}
-                  {opp.position && <span style={{ color: '#374151' }}>·</span>}
-                  <p className="text-xs" style={{ color: '#4b5563' }}>
+          {opps.map(opp => {
+            const meta = [opp.position, opp.location].filter(Boolean).join(' · ')
+            return (
+              <Link key={opp.id} href="/dashboard/opportunities"
+                className="flex items-center gap-3 rounded-xl px-4 py-3.5"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
+                <LevelBadge level={opp.level} size={44} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ClubCrest club={opp.club} />
+                    <h3 className="font-bold uppercase truncate"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
+                      {opp.title}
+                    </h3>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: opp.is_active ? 'rgba(245,158,11,0.12)' : 'rgba(136,146,170,0.1)',
+                        color: opp.is_active ? '#f59e0b' : '#8892aa',
+                      }}>
+                      {opp.is_active ? 'OPEN' : 'CLOSED'}
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || '—'}</p>
+                  <p className="text-xs mt-0.5 font-semibold"
+                    style={{ color: opp.applicationCount > 0 ? '#2d5fc4' : '#4b5563' }}>
                     {opp.applicationCount === 0
                       ? 'No applications yet'
-                      : `${opp.applicationCount} application${opp.applicationCount === 1 ? '' : 's'}`}
+                      : `👥 ${opp.applicationCount} application${opp.applicationCount === 1 ? '' : 's'}`}
                   </p>
                 </div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </Link>
-          ))}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </Link>
+            )
+          })}
         </div>
       )}
     </section>
@@ -374,11 +378,11 @@ function OtherOpportunities({ opps }: { opps: OtherOpportunity[] }) {
         <div>
           <h2 className="text-xl font-black uppercase"
             style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Active Clubs
+            Recruiting Now
           </h2>
-          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Other clubs currently recruiting</p>
+          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Roles other clubs are looking to fill</p>
         </div>
-        <Link href="/dashboard/coach/market" className="text-xs font-semibold"
+        <Link href="/dashboard/opportunities" className="text-xs font-semibold"
           style={{ color: '#2d5fc4', textDecoration: 'none' }}>
           View all →
         </Link>
@@ -386,30 +390,28 @@ function OtherOpportunities({ opps }: { opps: OtherOpportunity[] }) {
 
       <div className="space-y-2">
         {opps.map(opp => {
-          const sub = [opp.level, opp.location].filter(Boolean).join(' · ')
+          const meta = [opp.position, opp.location].filter(Boolean).join(' · ')
           return (
-            <div key={opp.id}
+            <Link key={opp.id} href="/dashboard/opportunities"
               className="flex items-center gap-3 rounded-xl px-4 py-3.5"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              {/* Generic club icon */}
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.25)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
+              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
+              <LevelBadge level={opp.level} size={44} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{opp.club ?? 'Unknown Club'}</p>
-                  <span className="text-xs flex-shrink-0" style={{ color: '#374151' }}>{timeAgo(opp.created_at)}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ClubCrest club={null} />
+                    <h3 className="font-bold uppercase truncate"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
+                      {opp.title}
+                    </h3>
+                  </div>
+                  <span className="text-xs flex-shrink-0" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</span>
                 </div>
-                <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                  Looking for: <span style={{ color: '#e8dece' }}>{opp.position ?? opp.title}</span>
-                </p>
-                {sub && <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>{sub}</p>}
+                <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
               </div>
-            </div>
+            </Link>
           )
         })}
       </div>
@@ -600,7 +602,7 @@ export default function CoachDashboard() {
           .eq('id', user.id).single(),
 
         supabase.from('opportunities')
-          .select('id, title, club, position, is_active')
+          .select('id, title, club, position, level, location, is_active')
           .eq('coach_id', user.id)
           .order('is_active', { ascending: false })
           .order('created_at', { ascending: false })
@@ -681,7 +683,7 @@ export default function CoachDashboard() {
       // ── Phase 2: queries that depend on phase 1 results ───────────────────
 
       // Application counts per opportunity
-      const myOppsData = (myOppsRes.data ?? []) as Array<{ id: string; title: string; club: string | null; position: string | null; is_active: boolean }>
+      const myOppsData = (myOppsRes.data ?? []) as Array<{ id: string; title: string; club: string | null; position: string | null; level: string | null; location: string | null; is_active: boolean }>
       if (myOppsData.length) {
         const oppIds = myOppsData.map(o => o.id)
         const { data: appData } = await supabase
@@ -697,6 +699,8 @@ export default function CoachDashboard() {
           title: o.title,
           club: o.club,
           position: o.position,
+          level: o.level,
+          location: o.location,
           is_active: o.is_active,
           applicationCount: countMap[o.id] ?? 0,
         })))

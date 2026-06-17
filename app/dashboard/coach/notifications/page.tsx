@@ -58,7 +58,7 @@ function getRoute(type: string): string {
     case 'post_like':
     case 'post_comment':
     case 'shortlist_post':               return '/dashboard/feed'
-    case 'new_opportunity_application':  return '/dashboard/coach/opportunities'
+    case 'new_opportunity_application':  return '/dashboard/opportunities'
     case 'shortlist_availability':       return '/dashboard/coach/shortlists'
     default:                             return '/dashboard/coach'
   }

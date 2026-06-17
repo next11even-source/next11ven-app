@@ -15,10 +15,13 @@ const LEVEL_MAP: Record<string, LevelConfig> = {
   'League Two':                  { line1: 'LEAGUE', line2: 'TWO',   color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
   'National League':             { line1: 'STEP',  line2: '1',      color: '#e2c07a', bg: 'rgba(226,192,122,0.12)' },
   'National League North/South': { line1: 'STEP',  line2: '2',      color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+  'Step 1':                      { line1: 'STEP',  line2: '1',      color: '#e2c07a', bg: 'rgba(226,192,122,0.12)' },
+  'Step 2':                      { line1: 'STEP',  line2: '2',      color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
   'Step 3':                      { line1: 'STEP',  line2: '3',      color: '#2d5fc4', bg: 'rgba(45,95,196,0.15)' },
   'Step 4':                      { line1: 'STEP',  line2: '4',      color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
   'Step 5':                      { line1: 'STEP',  line2: '5',      color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
   'Step 6':                      { line1: 'STEP',  line2: '6',      color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
+  'Step 7':                      { line1: 'STEP',  line2: '7',      color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
   'Step 7 and below':            { line1: 'STEP',  line2: '7+',     color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
 }
 

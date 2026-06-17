@@ -31,31 +31,17 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  // Verify caller is a player (or admin)
+  // Verify caller is a player, admin, or coach
   const { data: sender } = await supabase
     .from('profiles')
     .select('role, full_name, premium')
     .eq('id', user.id)
     .single()
 
-  if (!sender || !['player', 'admin'].includes(sender.role)) {
-    return NextResponse.json({ error: 'Only players can apply to opportunities' }, { status: 403 })
-  }
-
-  if (!sender.premium) {
-    reportError('/api/applications/apply', 'Non-premium player hit paywall', `player_id: ${user.id}`)
-    return NextResponse.json({ error: 'Player Premium required to apply' }, { status: 403 })
-  }
-
-  // Rate limit: 10 applications per hour per player
-  const since1h = new Date(Date.now() - 3_600_000).toISOString()
-  const { count: recentApps } = await serviceSupabase()
-    .from('applications')
-    .select('id', { count: 'exact', head: true })
-    .eq('player_id', user.id)
-    .gte('created_at', since1h)
-  if ((recentApps ?? 0) >= 10) {
-    return NextResponse.json({ error: 'Too many applications. Please try again later.' }, { status: 429 })
+  const isCoach = sender?.role === 'coach'
+  const isPlayerLike = sender?.role === 'player' || sender?.role === 'admin'
+  if (!sender || (!isCoach && !isPlayerLike)) {
+    return NextResponse.json({ error: 'Only players and coaches can apply to opportunities' }, { status: 403 })
   }
 
   let body: { opportunity_id?: string; message?: string }
@@ -77,12 +63,42 @@ export async function POST(req: NextRequest) {
   const service = serviceSupabase()
   const { data: opp } = await service
     .from('opportunities')
-    .select('id, title, coach_id, is_active')
+    .select('id, title, coach_id, is_active, opportunity_type')
     .eq('id', opportunity_id)
     .single()
 
   if (!opp || !opp.is_active) {
     return NextResponse.json({ error: 'Opportunity not found or closed' }, { status: 404 })
+  }
+
+  // Coaches may only apply to coaching-staff roles, and never their own
+  if (isCoach) {
+    if (opp.opportunity_type !== 'coach') {
+      return NextResponse.json({ error: 'Coaches can only apply to coaching-staff roles' }, { status: 403 })
+    }
+    if (opp.coach_id === user.id) {
+      return NextResponse.json({ error: 'You cannot apply to your own opportunity' }, { status: 400 })
+    }
+  }
+
+  // Applying is a premium feature for both roles
+  if (!sender.premium) {
+    reportError('/api/applications/apply', 'Non-premium applicant hit paywall', `applicant_id: ${user.id}, role: ${sender.role}`)
+    return NextResponse.json(
+      { error: isCoach ? 'Coach Pro required to apply' : 'Player Premium required to apply' },
+      { status: 403 }
+    )
+  }
+
+  // Rate limit: 10 applications per hour per applicant
+  const since1h = new Date(Date.now() - 3_600_000).toISOString()
+  const { count: recentApps } = await service
+    .from('applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('player_id', user.id)
+    .gte('created_at', since1h)
+  if ((recentApps ?? 0) >= 10) {
+    return NextResponse.json({ error: 'Too many applications. Please try again later.' }, { status: 429 })
   }
 
   // Check for duplicate application

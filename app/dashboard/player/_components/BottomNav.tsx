@@ -200,7 +200,7 @@ export default function BottomNav() {
       localStorage.setItem('n11v_feed_last_seen', new Date().toISOString())
       setUnseenFeed(0)
     }
-    if (pathname.startsWith('/dashboard/player/opportunities') || pathname.startsWith('/dashboard/player/market')) {
+    if (pathname.startsWith('/dashboard/opportunities') || pathname.startsWith('/dashboard/player/market')) {
       localStorage.setItem('n11v_opps_last_seen', new Date().toISOString())
       setUnseenOpps(0)
     }
@@ -229,7 +229,7 @@ export default function BottomNav() {
     },
     {
       label: 'Explore',
-      href: '/dashboard/player/opportunities',
+      href: '/dashboard/opportunities',
       exact: false,
       icon: <Briefcase size={22} strokeWidth={1.8} />,
     },

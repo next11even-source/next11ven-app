@@ -16,7 +16,7 @@ function MarketRedirect() {
       router.replace('/dashboard/player/messages')
     } else {
       // opportunities, applications, or no tab
-      router.replace('/dashboard/player/opportunities')
+      router.replace('/dashboard/opportunities')
     }
   }, [])
 

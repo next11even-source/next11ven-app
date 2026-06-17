@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
-import { getLevelConfig } from '@/lib/opportunityLevel'
-import { timeAgo } from '@/lib/utils'
+import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,7 +139,7 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
       color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
     },
     {
-      label: 'Opportunities', value: openOpps, href: '/dashboard/player/opportunities', sub: 'open',
+      label: 'Opportunities', value: openOpps, href: '/dashboard/opportunities', sub: 'open',
       color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
     },
   ]
@@ -266,25 +265,25 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
           </div>
         ) : (
           opportunities.map((opp, i) => {
-            const lvl = getLevelConfig(opp.level)
+            const meta = [opp.location, opp.position].filter(Boolean).join(' · ')
             return (
-              <Link key={opp.id} href="/dashboard/player/opportunities"
-                className="flex items-center gap-3 px-4 py-3.5 transition-colors"
+              <Link key={opp.id} href="/dashboard/opportunities"
+                className="relative flex items-center gap-3 px-4 py-3.5 transition-colors"
                 style={{ backgroundColor: '#13172a', borderBottom: i < opportunities.length - 1 ? '1px solid #1e2235' : undefined, display: 'flex', textDecoration: 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#161b30')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#13172a')}>
-                {/* Level badge */}
-                <div className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl px-2"
-                  style={{ minWidth: 44, height: 44, backgroundColor: lvl.bg, border: `1px solid ${lvl.color}40` }}>
-                  <span className="font-black leading-none" style={{ color: lvl.color, fontSize: 9, letterSpacing: '0.05em' }}>{lvl.line1}</span>
-                  {lvl.line2 && <span className="font-black leading-none mt-0.5" style={{ color: lvl.color, fontSize: lvl.line2.length <= 2 ? 16 : 10 }}>{lvl.line2}</span>}
-                </div>
+                {opp.urgent && <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: '#ef4444' }} />}
+                <LevelBadge level={opp.level} size={44} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>
-                    {opp.location ?? 'Location TBC'}{opp.urgent ? ' · 🔴 URGENT' : ''}
-                  </p>
-                  <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{opp.title}</p>
-                  <p className="text-xs" style={{ color: '#8892aa' }}>{opp.position ?? 'All Positions'}</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ClubCrest club={null} />
+                    <h3 className="font-bold uppercase truncate"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
+                      {opp.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
+                  {opp.urgent && <p className="text-xs mt-0.5 font-semibold" style={{ color: '#f87171' }}>🔴 Urgent</p>}
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
               </Link>
@@ -292,7 +291,7 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
           })
         )}
       </div>
-      <Link href="/dashboard/player/opportunities"
+      <Link href="/dashboard/opportunities"
         className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold uppercase tracking-wider transition-colors"
         style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}
         onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d4c8b8')}

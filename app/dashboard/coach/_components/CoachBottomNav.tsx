@@ -133,7 +133,7 @@ export default function CoachBottomNav() {
 
           // Route toast to the most relevant page based on notification type
           let href = '/dashboard/coach'
-          if (n.type === 'new_opportunity_application') href = '/dashboard/coach/opportunities'
+          if (n.type === 'new_opportunity_application') href = '/dashboard/opportunities'
           else if (n.type === 'shortlist_post') href = '/dashboard/feed'
           else if (n.type === 'shortlist_availability') href = '/dashboard/coach/shortlists'
 

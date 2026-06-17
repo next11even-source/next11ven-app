@@ -156,7 +156,7 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
             <p className="text-sm font-semibold">Shortlists</p>
           </Link>
 
-          <Link href="/dashboard/coach/opportunities" onClick={onClose}
+          <Link href="/dashboard/opportunities" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ textDecoration: 'none', color: '#e8dece' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

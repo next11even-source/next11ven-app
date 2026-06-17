@@ -620,13 +620,15 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
     el.addEventListener('pointerup', scheduleResume)
 
     function tick() {
-      if (interactingRef.current) {
-        pos = el.scrollLeft
-      } else {
-        const half = el.scrollWidth / 2
-        pos += 0.5
-        if (half > 0 && pos >= half) pos -= half
-        el.scrollLeft = pos
+      if (el) {
+        if (interactingRef.current) {
+          pos = el.scrollLeft
+        } else {
+          const half = el.scrollWidth / 2
+          pos += 0.5
+          if (half > 0 && pos >= half) pos -= half
+          el.scrollLeft = pos
+        }
       }
       rafRef.current = requestAnimationFrame(tick)
     }

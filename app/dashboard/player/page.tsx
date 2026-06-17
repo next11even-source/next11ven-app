@@ -362,8 +362,8 @@ function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
         {players.map((p) => (
           <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
             className="flex-shrink-0 rounded-2xl overflow-hidden block"
-            style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
-            <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
+            style={{ width: 145, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
+            <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
               {p.avatar_url ? (
                 <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
               ) : (

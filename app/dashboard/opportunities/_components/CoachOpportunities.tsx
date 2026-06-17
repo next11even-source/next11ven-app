@@ -478,6 +478,17 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
     if (viewingApplicants) applicantsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [viewingApplicants])
 
+  // Deep-link from the homepage "Post an Opportunity" button (?new=1) opens the form
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('new') === '1') {
+      setActiveTab('mine')
+      setShowForm(true)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
+
   useEffect(() => {
     async function load() {
       const supabase = createClient()
@@ -746,7 +757,8 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
               const isCoachingRole = opp.opportunity_type === 'coach'
               const isViewing = viewingApplicants?.id === opp.id
               const justPosted = Date.now() - new Date(opp.created_at).getTime() < 48 * 3600000
-              const meta = [opp.club, opp.location, opp.position].filter(Boolean).join(' · ')
+              const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+              const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
               const applied = appliedIds.has(opp.id)
               const isApplying = applying === opp.id
               // Coaches can apply to other clubs' coaching-staff roles
@@ -756,8 +768,8 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                 <div key={opp.id}
                   className="relative rounded-2xl overflow-hidden transition-all"
                   style={{
-                    backgroundColor: '#13172a',
-                    border: `1px solid ${isViewing ? '#2d5fc4' : '#1e2235'}`,
+                    backgroundColor: opp.isOwn ? 'rgba(45,95,196,0.06)' : '#13172a',
+                    border: `1px solid ${isViewing ? '#2d5fc4' : opp.isOwn ? 'rgba(45,95,196,0.5)' : '#1e2235'}`,
                     opacity: opp.is_active ? 1 : 0.65,
                   }}
                   onMouseEnter={e => {
@@ -768,13 +780,13 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                   }}
                   onMouseLeave={e => {
                     if (isViewing) return
-                    e.currentTarget.style.borderColor = '#1e2235'
+                    e.currentTarget.style.borderColor = opp.isOwn ? 'rgba(45,95,196,0.5)' : '#1e2235'
                     e.currentTarget.style.transform = 'translateY(0)'
                     e.currentTarget.style.boxShadow = 'none'
                   }}>
-                  {/* Urgent edge-stripe */}
-                  {opp.urgent && (
-                    <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: '#ef4444' }} />
+                  {/* Edge-stripe — urgent (red) takes priority, else own roles (blue) */}
+                  {(opp.urgent || opp.isOwn) && (
+                    <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: opp.urgent ? '#ef4444' : '#2d5fc4' }} />
                   )}
 
                   <div className="p-4 lg:p-5">
@@ -807,7 +819,7 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                         {/* Status chips + action */}
                         <div className="flex items-center justify-between gap-2 flex-wrap mt-3">
                           <div className="flex flex-wrap gap-1.5">
-                            {opp.isOwn && <Chip color="#2d5fc4" bg="rgba(45,95,196,0.15)">Your role</Chip>}
+                            {opp.isOwn && <Chip color="#4d8ae8" bg="rgba(45,95,196,0.2)">★ Your role</Chip>}
                             {isCoachingRole && <Chip color="#a78bfa" bg="rgba(167,139,250,0.1)">Coaching Staff</Chip>}
                             {!opp.is_active && <Chip color="#8892aa" bg="rgba(136,146,170,0.1)">Closed</Chip>}
                             {opp.urgent && <Chip color="#f87171" bg="rgba(239,68,68,0.12)">🔴 Urgent</Chip>}

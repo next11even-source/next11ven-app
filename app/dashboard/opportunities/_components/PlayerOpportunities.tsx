@@ -260,7 +260,8 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
             const deadlineDays = opp.deadline ? daysLeft(opp.deadline) : null
             const lowApplicants = opp.application_count < 5
             const justPosted = isRecent(opp.created_at)
-            const meta = [isPremium ? opp.club : null, opp.location, opp.position].filter(Boolean).join(' · ')
+            const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+            const meta = [isPremium ? opp.club : null, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
 
             return (
               <div key={opp.id} id={'opp-' + opp.id}
@@ -413,7 +414,8 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
           {applications.map(app => {
             const cfg = APP_STATUS[app.status] ?? APP_STATUS.pending
             const opp = app.opportunity
-            const meta = [opp?.club, opp?.location, opp?.position].filter(Boolean).join(' · ')
+            const showPos = opp?.position && !opp.title?.toLowerCase().includes(opp.position.toLowerCase())
+            const meta = [opp?.club, opp?.location, showPos ? opp?.position : null].filter(Boolean).join(' · ')
             return (
               <div key={app.id} className="rounded-2xl overflow-hidden"
                 style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
@@ -52,7 +52,7 @@ type ActiveUser = {
   created_at: string | null
 }
 
-type MyOpportunity = {
+type RecentOpportunity = {
   id: string
   title: string
   club: string | null
@@ -60,17 +60,9 @@ type MyOpportunity = {
   level: string | null
   location: string | null
   is_active: boolean
-  applicationCount: number
-}
-
-type OtherOpportunity = {
-  id: string
-  title: string
-  club: string | null
-  position: string | null
-  level: string | null
-  location: string | null
   created_at: string
+  isMine: boolean
+  applicationCount: number
 }
 
 type ShortlistPlayer = {
@@ -129,10 +121,10 @@ function CoachProfileCompletionBar({ profile }: { profile: CoachCompletionProfil
   const barColor = pct < 40 ? '#f59e0b' : pct < 75 ? '#2d5fc4' : '#34d399'
 
   return (
-    <Link href="/dashboard/profile" className="block" style={{ textDecoration: 'none' }}>
-      <div className="rounded-2xl px-4 py-2.5"
+    <Link href="/dashboard/profile" className="block h-full" style={{ textDecoration: 'none' }}>
+      <div className="rounded-2xl px-4 py-2.5 h-full"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 h-full">
           <div className="flex-1 space-y-1.5">
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
@@ -301,85 +293,9 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
   )
 }
 
-// ─── Section 3: Your Opportunities ───────────────────────────────────────────
+// ─── Section 3: Opportunities (last 5 roles posted) ──────────────────────────
 
-function MyOpportunities({ opps }: { opps: MyOpportunity[] }) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-xl font-black uppercase"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          Your Opportunities 🔥
-        </h2>
-        <Link href="/dashboard/opportunities" className="text-xs font-semibold"
-          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
-          Manage →
-        </Link>
-      </div>
-
-      {opps.length === 0 ? (
-        <div className="rounded-xl px-5 py-8 flex flex-col items-center text-center gap-4"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
-            You're not currently recruiting. Post a role to start receiving applications.
-          </p>
-          <Link href="/dashboard/opportunities"
-            className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
-            style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}>
-            Post a Role
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {opps.map(opp => {
-            const meta = [opp.position, opp.location].filter(Boolean).join(' · ')
-            return (
-              <Link key={opp.id} href="/dashboard/opportunities"
-                className="flex items-center gap-3 rounded-xl px-4 py-3.5"
-                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-                <LevelBadge level={opp.level} size={44} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ClubCrest club={opp.club} />
-                    <h3 className="font-bold uppercase truncate"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
-                      {opp.title}
-                    </h3>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: opp.is_active ? 'rgba(245,158,11,0.12)' : 'rgba(136,146,170,0.1)',
-                        color: opp.is_active ? '#f59e0b' : '#8892aa',
-                      }}>
-                      {opp.is_active ? 'OPEN' : 'CLOSED'}
-                    </span>
-                  </div>
-                  <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || '—'}</p>
-                  <p className="text-xs mt-0.5 font-semibold"
-                    style={{ color: opp.applicationCount > 0 ? '#2d5fc4' : '#4b5563' }}>
-                    {opp.applicationCount === 0
-                      ? 'No applications yet'
-                      : `👥 ${opp.applicationCount} application${opp.applicationCount === 1 ? '' : 's'}`}
-                  </p>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </Link>
-            )
-          })}
-        </div>
-      )}
-    </section>
-  )
-}
-
-// ─── Section 3b: Opportunities From Other Clubs ──────────────────────────────
-
-function OtherOpportunities({ opps }: { opps: OtherOpportunity[] }) {
-  if (opps.length === 0) return null
-
+function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
   function timeAgo(iso: string) {
     const diff = Date.now() - new Date(iso).getTime()
     const days = Math.floor(diff / 86400000)
@@ -395,43 +311,85 @@ function OtherOpportunities({ opps }: { opps: OtherOpportunity[] }) {
         <div>
           <h2 className="text-xl font-black uppercase"
             style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Recruiting Now
+            Opportunities
           </h2>
-          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Roles other clubs are looking to fill</p>
+          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Latest roles posted across the platform</p>
         </div>
-        <Link href="/dashboard/opportunities" className="text-xs font-semibold"
-          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
-          View all →
-        </Link>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Link href="/dashboard/opportunities?new=1"
+            className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#3a6fda')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d5fc4')}>
+            + Add Opportunity
+          </Link>
+          <Link href="/dashboard/opportunities" className="text-xs font-semibold"
+            style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+            View all →
+          </Link>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        {opps.map(opp => {
-          const meta = [opp.position, opp.location].filter(Boolean).join(' · ')
-          return (
-            <Link key={opp.id} href="/dashboard/opportunities"
-              className="flex items-center gap-3 rounded-xl px-4 py-3.5"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', display: 'flex' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-              <LevelBadge level={opp.level} size={44} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
+      {opps.length === 0 ? (
+        <div className="rounded-xl px-5 py-6 text-center"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <p className="text-sm" style={{ color: '#8892aa' }}>
+            No opportunities posted yet. Be the first to post a role.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {opps.map(opp => {
+            const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+            const meta = [showPos ? opp.position : null, opp.location].filter(Boolean).join(' · ')
+            return (
+              <Link key={opp.id} href="/dashboard/opportunities"
+                className="relative flex items-center gap-3 rounded-xl px-4 py-3.5 overflow-hidden"
+                style={{
+                  backgroundColor: opp.isMine ? 'rgba(45,95,196,0.06)' : '#13172a',
+                  border: `1px solid ${opp.isMine ? 'rgba(45,95,196,0.55)' : '#1e2235'}`,
+                  textDecoration: 'none', display: 'flex',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = opp.isMine ? 'rgba(45,95,196,0.55)' : '#1e2235')}>
+                {opp.isMine && (
+                  <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: '#2d5fc4' }} />
+                )}
+                <LevelBadge level={opp.level} size={44} />
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 min-w-0">
-                    <ClubCrest club={null} />
+                    <ClubCrest club={opp.club} />
                     <h3 className="font-bold uppercase truncate"
                       style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
                       {opp.title}
                     </h3>
+                    {opp.isMine && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: 'rgba(45,95,196,0.18)', color: '#4d8ae8' }}>
+                        YOUR ROLE
+                      </span>
+                    )}
                   </div>
-                  <span className="text-xs flex-shrink-0" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</span>
+                  <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
+                  {opp.isMine ? (
+                    <p className="text-xs mt-0.5 font-semibold"
+                      style={{ color: opp.applicationCount > 0 ? '#2d5fc4' : '#4b5563' }}>
+                      {opp.applicationCount === 0
+                        ? 'No applications yet'
+                        : `👥 ${opp.applicationCount} application${opp.applicationCount === 1 ? '' : 's'}`}
+                    </p>
+                  ) : (
+                    <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</p>
+                  )}
                 </div>
-                <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }
@@ -625,10 +583,47 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
 }
 
 function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
-  if (users.length === 0) return null
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pausedRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loop = [...users, ...users]
   const animate = users.length >= 3
+  const loop = animate ? [...users, ...users] : users
+
+  useEffect(() => {
+    if (!animate) return
+    const el = scrollRef.current
+    if (!el) return
+
+    const speed = 0.5
+
+    function tick() {
+      if (!pausedRef.current && el) {
+        el.scrollLeft += speed
+        const half = el.scrollWidth / 2
+        if (el.scrollLeft >= half) {
+          el.scrollLeft -= half
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [animate, users])
+
+  function pause() {
+    pausedRef.current = true
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+  }
+
+  function resume() {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    resumeTimerRef.current = setTimeout(() => { pausedRef.current = false }, 2000)
+  }
+
+  if (users.length === 0) return null
 
   return (
     <section className="space-y-2 -mx-6">
@@ -643,23 +638,21 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
         </h2>
       </div>
 
-      {animate ? (
-        <div className="relative overflow-hidden pl-6">
-          <div className="flex" style={{ width: 'max-content', animation: 'n11-marquee 90s linear infinite' }}>
-            {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
-          </div>
-        </div>
-      ) : (
-        <div className="flex overflow-x-auto px-6 pb-1" style={{ scrollbarWidth: 'none' }}>
-          {users.map(u => <ActiveUserCard key={u.id} user={u} />)}
-        </div>
-      )}
+      <div
+        ref={scrollRef}
+        className="flex overflow-x-auto pl-6 pb-1"
+        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+        onMouseEnter={pause}
+        onMouseLeave={resume}
+        onTouchStart={pause}
+        onTouchEnd={resume}
+        onPointerDown={pause}
+        onPointerUp={resume}
+      >
+        {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
+      </div>
 
       <style jsx>{`
-        @keyframes n11-marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
         @keyframes n11-ping {
           75%, 100% { transform: scale(2); opacity: 0; }
         }
@@ -680,8 +673,7 @@ export default function CoachDashboard() {
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
-  const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
-  const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
+  const [recentOpportunities, setRecentOpportunities] = useState<RecentOpportunity[]>([])
   const [premiumPlayers, setPremiumPlayers] = useState<PremiumPlayer[]>([])
   const [myShortlist, setMyShortlist] = useState<ShortlistPlayer[]>([])
 
@@ -696,23 +688,22 @@ export default function CoachDashboard() {
 
       const [
         profileRes,
-        myOppsRes,
+        recentOppsRes,
         savedRes,
         feedRes,
         premiumRes,
-        otherOppsRes,
         activeRes,
       ] = await Promise.all([
         supabase.from('profiles')
           .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
           .eq('id', user.id).single(),
 
+        // Last 5 roles posted across the platform (own + other clubs)
         supabase.from('opportunities')
-          .select('id, title, club, position, level, location, is_active')
-          .eq('coach_id', user.id)
-          .order('is_active', { ascending: false })
+          .select('id, coach_id, title, club, position, level, location, is_active, created_at')
+          .eq('is_active', true)
           .order('created_at', { ascending: false })
-          .limit(10),
+          .limit(5),
 
         supabase.from('coach_saved_players')
           .select('id, player_id, folder_name, created_at')
@@ -731,13 +722,6 @@ export default function CoachDashboard() {
           .in('role', ['player', 'admin'])
           .eq('approved', true)
           .eq('premium', true),
-
-        supabase.from('opportunities')
-          .select('id, title, club, position, level, location, created_at')
-          .neq('coach_id', user.id)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(3),
 
         // Recently active players + coaches
         supabase.from('profiles')
@@ -787,45 +771,33 @@ export default function CoachDashboard() {
       // Recently active players + coaches (exclude self)
       setActiveUsers(((activeRes.data as ActiveUser[]) ?? []).filter(u => u.id !== user.id))
 
-      // Other clubs' opportunities
-      const rawOtherOpps = (otherOppsRes.data ?? []) as any[]
-      setOtherOpportunities(rawOtherOpps.map(o => ({
+      // ── Phase 2: queries that depend on phase 1 results ───────────────────
+
+      // Last 5 roles posted — flag the coach's own roles + count their applications
+      const recentRows = (recentOppsRes.data ?? []) as Array<{ id: string; coach_id: string; title: string; club: string | null; position: string | null; level: string | null; location: string | null; is_active: boolean; created_at: string }>
+      const myOppIds = recentRows.filter(o => o.coach_id === user.id).map(o => o.id)
+      const countMap: Record<string, number> = {}
+      if (myOppIds.length) {
+        const { data: appData } = await supabase
+          .from('applications')
+          .select('opportunity_id')
+          .in('opportunity_id', myOppIds)
+        for (const a of appData ?? []) {
+          countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
+        }
+      }
+      setRecentOpportunities(recentRows.map(o => ({
         id: o.id,
         title: o.title,
         club: o.club,
         position: o.position,
         level: o.level ?? null,
         location: o.location ?? null,
+        is_active: o.is_active,
         created_at: o.created_at,
+        isMine: o.coach_id === user.id,
+        applicationCount: countMap[o.id] ?? 0,
       })))
-
-      // ── Phase 2: queries that depend on phase 1 results ───────────────────
-
-      // Application counts per opportunity
-      const myOppsData = (myOppsRes.data ?? []) as Array<{ id: string; title: string; club: string | null; position: string | null; level: string | null; location: string | null; is_active: boolean }>
-      if (myOppsData.length) {
-        const oppIds = myOppsData.map(o => o.id)
-        const { data: appData } = await supabase
-          .from('applications')
-          .select('opportunity_id')
-          .in('opportunity_id', oppIds)
-        const countMap: Record<string, number> = {}
-        for (const a of appData ?? []) {
-          countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
-        }
-        setMyOpportunities(myOppsData.map(o => ({
-          id: o.id,
-          title: o.title,
-          club: o.club,
-          position: o.position,
-          level: o.level,
-          location: o.location,
-          is_active: o.is_active,
-          applicationCount: countMap[o.id] ?? 0,
-        })))
-      } else {
-        setMyOpportunities([])
-      }
 
       // Shortlist player profiles
       const savedRows = (savedRes.data ?? []) as Array<{ id: string; player_id: string; folder_name: string; created_at: string }>
@@ -879,65 +851,63 @@ export default function CoachDashboard() {
         <div style={{ width: 22 }} />
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-4 space-y-6"
+      <main className="px-6 py-4 space-y-6"
         style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 24px)' }}>
 
         {/* Welcome */}
-        <div>
-          <h1 className="text-3xl font-extrabold uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Welcome{fullName ? `, ${fullName.split(' ')[0]}` : ' Back'}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: '#8892aa' }}>
-            Scout and connect with non-league players.
+        <div className="text-center">
+          <p className="text-base" style={{ color: '#8892aa' }}>
+            Welcome back,{' '}
+            <span className="font-semibold" style={{ color: '#e8dece' }}>{fullName ? fullName.split(' ')[0] : 'Coach'}</span>
           </p>
         </div>
-
-        {/* Profile Completion */}
-        {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
 
         {/* Recently Active — players + coaches */}
         {!loading && <RecentlyActiveSection users={activeUsers} />}
 
-        {/* Showcase */}
-        <div className="space-y-4">
-          <Link href="/dashboard/showcase" className="block" style={{ textDecoration: 'none' }}>
-          <div className="rounded-2xl p-4 flex flex-col gap-3"
-            style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-black uppercase leading-tight mb-1"
-                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                  Showcase Game 1 — Sold Out
-                </p>
-                <p className="text-xs" style={{ color: '#8892aa' }}>
-                  28 players · Steps 3–7
-                </p>
+        {/* Showcase + Profile Completion — side by side */}
+        {!loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+            <Link href="/dashboard/showcase" className="block h-full" style={{ textDecoration: 'none' }}>
+              <div className="rounded-2xl p-4 flex flex-col gap-3 h-full"
+                style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-black uppercase leading-tight mb-1"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                      Showcase Game 1 — Sold Out
+                    </p>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      28 players · Steps 3–7
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.35)' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                      <path d="M4 22h16" />
+                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mt-auto">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: '#2d5fc4', color: '#e8dece' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    View Full Game
+                  </span>
+                </div>
               </div>
-              <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.35)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                  <path d="M4 22h16" />
-                  <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-                  <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
-                </svg>
-              </div>
-            </div>
-            <div>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: '#2d5fc4', color: '#e8dece' }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-                View Full Game
-              </span>
-            </div>
+            </Link>
+
+            {coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
           </div>
-        </Link>
-        </div>
+        )}
 
         {/* Loading skeleton */}
         {loading ? (
@@ -958,8 +928,7 @@ export default function CoachDashboard() {
           <>
             <FeedPreview posts={feedPosts} />
             <PremiumCarousel players={premiumPlayers} />
-            <MyOpportunities opps={myOpportunities} />
-            <OtherOpportunities opps={otherOpportunities} />
+            <RecentOpportunities opps={recentOpportunities} />
             <MyShortlist players={myShortlist} />
           </>
         )}

@@ -583,21 +583,60 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
 }
 
 function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
-  const [paused, setPaused] = useState(false)
-  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const interactingRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const animate = users.length >= 3
   const loop = animate ? [...users, ...users] : users
 
-  function pause() {
-    if (resumeTimer.current) clearTimeout(resumeTimer.current)
-    setPaused(true)
-  }
+  useEffect(() => {
+    if (!animate) return
+    const el = scrollRef.current
+    if (!el) return
 
-  function scheduleResume() {
-    if (resumeTimer.current) clearTimeout(resumeTimer.current)
-    resumeTimer.current = setTimeout(() => setPaused(false), 2000)
-  }
+    function startInteract() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      interactingRef.current = true
+    }
+    function endInteract() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      resumeTimerRef.current = setTimeout(() => { interactingRef.current = false }, 2000)
+    }
+
+    el.addEventListener('touchstart', startInteract, { passive: true })
+    el.addEventListener('touchend', endInteract, { passive: true })
+    el.addEventListener('touchcancel', endInteract, { passive: true })
+    el.addEventListener('scroll', endInteract, { passive: true })
+    el.addEventListener('mouseenter', startInteract)
+    el.addEventListener('mouseleave', endInteract)
+    el.addEventListener('pointerdown', startInteract)
+    el.addEventListener('pointerup', endInteract)
+
+    function tick() {
+      if (!interactingRef.current) {
+        el.scrollLeft += 0.5
+        const half = el.scrollWidth / 2
+        if (el.scrollLeft >= half) el.scrollLeft -= half
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      el.removeEventListener('touchstart', startInteract)
+      el.removeEventListener('touchend', endInteract)
+      el.removeEventListener('touchcancel', endInteract)
+      el.removeEventListener('scroll', endInteract)
+      el.removeEventListener('mouseenter', startInteract)
+      el.removeEventListener('mouseleave', endInteract)
+      el.removeEventListener('pointerdown', startInteract)
+      el.removeEventListener('pointerup', endInteract)
+    }
+  }, [animate])
 
   if (users.length === 0) return null
 
@@ -615,16 +654,8 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
       </div>
 
       {animate ? (
-        <div className="overflow-hidden pl-6"
-          onMouseEnter={pause} onMouseLeave={scheduleResume}
-          onTouchStart={pause} onTouchEnd={scheduleResume}>
-          <div className="flex" style={{
-            width: 'max-content',
-            animation: 'n11-marquee 90s linear infinite',
-            animationPlayState: paused ? 'paused' : 'running',
-          }}>
-            {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
-          </div>
+        <div ref={scrollRef} className="flex overflow-x-auto pl-6 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
         </div>
       ) : (
         <div className="flex overflow-x-auto px-6 pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -633,10 +664,6 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
       )}
 
       <style jsx>{`
-        @keyframes n11-marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
         @keyframes n11-ping {
           75%, 100% { transform: scale(2); opacity: 0; }
         }

@@ -278,7 +278,7 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
     el.addEventListener('pointerup', endInteract)
 
     function tick() {
-      if (!interactingRef.current) {
+      if (!interactingRef.current && el) {
         el.scrollLeft += 0.5
         const half = el.scrollWidth / 2
         if (el.scrollLeft >= half) el.scrollLeft -= half

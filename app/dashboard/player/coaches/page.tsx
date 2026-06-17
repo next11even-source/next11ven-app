@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '../_components/SidebarContext'
+import NewBadge from '@/app/components/NewBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,8 @@ type Coach = {
   club: string | null
   city: string | null
   bio: string | null
+  last_active: string | null
+  created_at: string | null
 }
 
 type Quota = {
@@ -182,6 +185,101 @@ function CoachSkeleton() {
   )
 }
 
+// ─── Recently active banner ───────────────────────────────────────────────────
+
+function RecentlyActiveCard({ coach }: { coach: Coach }) {
+  const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+  const detail = [coach.coaching_role, coach.coaching_level].filter(Boolean).join(' · ')
+
+  return (
+    <Link
+      href={`/dashboard/coach/${coach.id}`}
+      className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
+      style={{
+        backgroundColor: '#13172a',
+        border: '1px solid #1e2235',
+        textDecoration: 'none',
+        width: 220,
+      }}
+    >
+      <div className="relative flex-shrink-0">
+        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
+          style={{ backgroundColor: '#1a1f3a' }}>
+          {coach.avatar_url
+            ? <img src={coach.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+            : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
+        </div>
+        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
+          style={{ backgroundColor: '#3a6fda', border: '2px solid #13172a' }} />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+            {coach.full_name ?? 'Coach'}
+          </p>
+          <NewBadge createdAt={coach.created_at} size="sm" />
+        </div>
+        {detail && (
+          <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{detail}</p>
+        )}
+      </div>
+    </Link>
+  )
+}
+
+function RecentlyActiveBanner({ coaches }: { coaches: Coach[] }) {
+  // Coaches active in the last 14 days, most recent first
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000
+  const active = coaches
+    .filter(c => c.last_active && new Date(c.last_active).getTime() >= cutoff)
+    .sort((a, b) => new Date(b.last_active!).getTime() - new Date(a.last_active!).getTime())
+
+  if (active.length === 0) return null
+
+  // Duplicate the list so the marquee loops seamlessly
+  const loop = [...active, ...active]
+  // Pause the loop if there are too few cards to fill the width
+  const animate = active.length >= 3
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-1.5 px-4 mb-2">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full opacity-75"
+            style={{ backgroundColor: '#2d5fc4', animation: 'n11-ping 1.6s cubic-bezier(0,0,0.2,1) infinite' }} />
+          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#3a6fda' }} />
+        </span>
+        <span className="text-[11px] font-black uppercase tracking-wider"
+          style={{ color: '#8892aa', fontFamily: "'Barlow Condensed', sans-serif" }}>
+          Recently active
+        </span>
+      </div>
+
+      {animate ? (
+        <div className="relative overflow-hidden pl-4">
+          <div className="flex" style={{ width: 'max-content', animation: 'n11-marquee 40s linear infinite' }}>
+            {loop.map((coach, i) => <RecentlyActiveCard key={`${coach.id}-${i}`} coach={coach} />)}
+          </div>
+        </div>
+      ) : (
+        <div className="flex overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {active.map(coach => <RecentlyActiveCard key={coach.id} coach={coach} />)}
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes n11-marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes n11-ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ─── Conversations banner ─────────────────────────────────────────────────────
 
 function ConversationsBanner({ isPremium, quota }: { isPremium: boolean; quota: Quota | null }) {
@@ -275,7 +373,7 @@ export default function CoachesPage() {
       const [coachRes, profileRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, bio')
+          .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, bio, last_active, created_at')
           .eq('role', 'coach')
           .eq('approved', true),
         supabase.from('profiles').select('premium').eq('id', user.id).single(),
@@ -421,17 +519,14 @@ export default function CoachesPage() {
         </div>
       </div>
 
+      {/* Recently active marquee */}
+      {!loading && (
+        <RecentlyActiveBanner coaches={coaches} />
+      )}
+
       {/* Conversations left banner */}
       {!loading && (
         <ConversationsBanner isPremium={isPremium} quota={quota} />
-      )}
-
-      {/* Count */}
-      {!loading && (
-        <p className="px-4 pt-3 pb-1 text-xs" style={{ color: '#8892aa' }}>
-          {filtered.length} coach{filtered.length !== 1 ? 'es' : ''}
-          {activeFilterCount > 0 && ' matching filters'}
-        </p>
       )}
 
       {/* List */}
@@ -478,7 +573,10 @@ export default function CoachesPage() {
                     : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
+                    <NewBadge createdAt={coach.created_at} size="sm" />
+                  </div>
                   {meta && <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{meta}</p>}
                   {sub && <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{sub}</p>}
                 </div>

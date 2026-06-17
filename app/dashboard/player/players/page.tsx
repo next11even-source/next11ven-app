@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '../_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import NewBadge from '@/app/components/NewBadge'
 
 type Player = {
   id: string
@@ -319,6 +320,9 @@ function HotRightNow({ players }: { players: HotPlayer[] }) {
                     </div>
                   )}
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 55%)' }} />
+                <div className="absolute top-2 left-2">
+                  <NewBadge createdAt={p.created_at} size="sm" />
+                </div>
                 {/* View count badge */}
                 <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
                   style={{ backgroundColor: 'rgba(239,68,68,0.85)' }}>
@@ -652,6 +656,7 @@ export default function PlayersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                    <NewBadge createdAt={p.created_at} size="sm" />
                     {hasHighlights && (
                       <span className="text-xs flex-shrink-0" title="Has highlights">🎬</span>
                     )}

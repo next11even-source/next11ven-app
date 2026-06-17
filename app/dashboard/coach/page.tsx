@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from './_components/CoachSidebar'
 import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
+import NewBadge from '@/app/components/NewBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,22 @@ type FeedPost = {
     avatar_url: string | null
     role: string | null
   } | null
+}
+
+type ActiveUser = {
+  id: string
+  role: string | null
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  playing_level: string | null
+  coaching_role: string | null
+  coaching_level: string | null
+  club: string | null
+  city: string | null
+  status: Status | null
+  last_active: string | null
+  created_at: string | null
 }
 
 type MyOpportunity = {
@@ -566,6 +583,91 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
   )
 }
 
+// ─── Recently Active ──────────────────────────────────────────────────────────
+
+function ActiveUserCard({ user }: { user: ActiveUser }) {
+  const isCoach = user.role === 'coach'
+  const initials = getInitials(user.full_name)
+  // Homepage only needs account type + step level (not exact role)
+  const accountType = isCoach ? 'Coach' : 'Player'
+  const level = isCoach ? user.coaching_level : user.playing_level
+  const href = isCoach ? `/dashboard/coach/${user.id}` : `/dashboard/player/players/${user.id}`
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 230 }}
+    >
+      <div className="relative flex-shrink-0">
+        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
+          style={{ backgroundColor: '#1a1f3a' }}>
+          {user.avatar_url
+            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
+        </div>
+        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
+          style={{ backgroundColor: '#3a6fda', border: '2px solid #13172a' }} />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+            {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
+          </p>
+          <NewBadge createdAt={user.created_at} size="sm" />
+        </div>
+        <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
+          {accountType}{level ? ` · ${level}` : ''}
+        </p>
+      </div>
+    </Link>
+  )
+}
+
+function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
+  if (users.length === 0) return null
+
+  const loop = [...users, ...users]
+  const animate = users.length >= 3
+
+  return (
+    <section className="space-y-2 -mx-6">
+      <div className="flex items-center gap-1.5 px-6">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full opacity-75"
+            style={{ backgroundColor: '#2d5fc4', animation: 'n11-ping 1.6s cubic-bezier(0,0,0.2,1) infinite' }} />
+          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#3a6fda' }} />
+        </span>
+        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Recently Active
+        </h2>
+      </div>
+
+      {animate ? (
+        <div className="relative overflow-hidden pl-6">
+          <div className="flex" style={{ width: 'max-content', animation: 'n11-marquee 90s linear infinite' }}>
+            {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
+          </div>
+        </div>
+      ) : (
+        <div className="flex overflow-x-auto px-6 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {users.map(u => <ActiveUserCard key={u.id} user={u} />)}
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes n11-marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes n11-ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
+        }
+      `}</style>
+    </section>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CoachDashboard() {
@@ -577,6 +679,7 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true)
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
   const [myOpportunities, setMyOpportunities] = useState<MyOpportunity[]>([])
   const [otherOpportunities, setOtherOpportunities] = useState<OtherOpportunity[]>([])
   const [premiumPlayers, setPremiumPlayers] = useState<PremiumPlayer[]>([])
@@ -589,6 +692,8 @@ export default function CoachDashboard() {
       if (!user) { router.push('/'); return }
 
       // ── Phase 1: all independent queries in parallel ──────────────────────
+      const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
+
       const [
         profileRes,
         myOppsRes,
@@ -596,6 +701,7 @@ export default function CoachDashboard() {
         feedRes,
         premiumRes,
         otherOppsRes,
+        activeRes,
       ] = await Promise.all([
         supabase.from('profiles')
           .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
@@ -632,6 +738,16 @@ export default function CoachDashboard() {
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .limit(3),
+
+        // Recently active players + coaches
+        supabase.from('profiles')
+          .select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, last_active, created_at')
+          .in('role', ['player', 'admin', 'coach'])
+          .eq('approved', true)
+          .not('last_active', 'is', null)
+          .gte('last_active', twoWeeksAgo)
+          .order('last_active', { ascending: false })
+          .limit(20),
       ])
 
       // Profile
@@ -667,6 +783,9 @@ export default function CoachDashboard() {
       // Premium players — random order each session
       const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5).slice(0, 10)
       setPremiumPlayers(shuffled)
+
+      // Recently active players + coaches (exclude self)
+      setActiveUsers(((activeRes.data as ActiveUser[]) ?? []).filter(u => u.id !== user.id))
 
       // Other clubs' opportunities
       const rawOtherOpps = (otherOppsRes.data ?? []) as any[]
@@ -774,10 +893,14 @@ export default function CoachDashboard() {
           </p>
         </div>
 
-        {/* Profile Completion + Showcase */}
-        <div className="space-y-4">
-          {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
+        {/* Profile Completion */}
+        {!loading && coachCompletion && <CoachProfileCompletionBar profile={coachCompletion} />}
 
+        {/* Recently Active — players + coaches */}
+        {!loading && <RecentlyActiveSection users={activeUsers} />}
+
+        {/* Showcase */}
+        <div className="space-y-4">
           <Link href="/dashboard/showcase" className="block" style={{ textDecoration: 'none' }}>
           <div className="rounded-2xl p-4 flex flex-col gap-3"
             style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>

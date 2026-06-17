@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
+import NewBadge from '@/app/components/NewBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,23 @@ type FeaturedPlayer = {
   club: string | null
   city: string | null
   status: Status | null
+  created_at: string | null
+}
+
+type ActiveUser = {
+  id: string
+  role: string | null
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  playing_level: string | null
+  coaching_role: string | null
+  coaching_level: string | null
+  club: string | null
+  city: string | null
+  status: Status | null
+  last_active: string | null
+  created_at: string | null
 }
 
 type Opportunity = {
@@ -69,17 +87,6 @@ type FeedPost = {
     position: string | null
     location: string | null
   } | null
-}
-
-type NewJoiner = {
-  id: string
-  role: string | null
-  full_name: string | null
-  avatar_url: string | null
-  position: string | null
-  club: string | null
-  status: Status | null
-  coaching_role: string | null
 }
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -196,6 +203,91 @@ function PlayerHomeSkeleton() {
   )
 }
 
+// ─── Recently Active ──────────────────────────────────────────────────────────
+
+function ActiveUserCard({ user }: { user: ActiveUser }) {
+  const isCoach = user.role === 'coach'
+  const initials = user.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+  // Homepage only needs account type + step level (not exact role)
+  const accountType = isCoach ? 'Coach' : 'Player'
+  const level = isCoach ? user.coaching_level : user.playing_level
+  const href = isCoach ? `/dashboard/coach/${user.id}` : `/dashboard/player/players/${user.id}`
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 230 }}
+    >
+      <div className="relative flex-shrink-0">
+        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
+          style={{ backgroundColor: '#1a1f3a' }}>
+          {user.avatar_url
+            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
+        </div>
+        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
+          style={{ backgroundColor: '#3a6fda', border: '2px solid #13172a' }} />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+            {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
+          </p>
+          <NewBadge createdAt={user.created_at} size="sm" />
+        </div>
+        <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
+          {accountType}{level ? ` · ${level}` : ''}
+        </p>
+      </div>
+    </Link>
+  )
+}
+
+function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
+  if (users.length === 0) return null
+
+  const loop = [...users, ...users]
+  const animate = users.length >= 3
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center gap-1.5 px-4">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full opacity-75"
+            style={{ backgroundColor: '#2d5fc4', animation: 'n11-ping 1.6s cubic-bezier(0,0,0.2,1) infinite' }} />
+          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#3a6fda' }} />
+        </span>
+        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          Recently Active
+        </h2>
+      </div>
+
+      {animate ? (
+        <div className="relative overflow-hidden pl-4">
+          <div className="flex" style={{ width: 'max-content', animation: 'n11-marquee 90s linear infinite' }}>
+            {loop.map((u, i) => <ActiveUserCard key={`${u.id}-${i}`} user={u} />)}
+          </div>
+        </div>
+      ) : (
+        <div className="flex overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {users.map(u => <ActiveUserCard key={u.id} user={u} />)}
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes n11-marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes n11-ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
+        }
+      `}</style>
+    </section>
+  )
+}
+
 // ─── Featured Players Carousel ────────────────────────────────────────────────
 
 function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
@@ -225,6 +317,9 @@ function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
                 </div>
               )}
               <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+              <div className="absolute top-2 left-2">
+                <NewBadge createdAt={p.created_at} size="sm" />
+              </div>
               <div className="absolute top-2 right-2">
                 <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
               </div>
@@ -298,72 +393,6 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
         onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#e8dece')}>
         All Opportunities →
       </Link>
-    </section>
-  )
-}
-
-// ─── New Joiners ──────────────────────────────────────────────────────────────
-
-function NewJoinersSection({ players }: { players: NewJoiner[] }) {
-  if (players.length === 0) return null
-  return (
-    <section className="space-y-3">
-      <div className="px-4 flex items-center gap-2">
-        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          New to the Platform
-        </h2>
-        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-          style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>
-          {players.length}
-        </span>
-      </div>
-      <div className="flex gap-3 overflow-x-auto px-4 pb-2"
-        style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {players.map((p) => {
-          const isCoach = p.role === 'coach'
-          const subtitle = isCoach ? (p.coaching_role ?? p.club ?? '—') : (p.club ?? '—')
-          const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2) ?? '??'
-          return (
-            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-              className="flex-shrink-0 rounded-2xl overflow-hidden block"
-              style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
-              <div className="relative" style={{ height: 170, backgroundColor: '#1a1f3a' }}>
-                {p.avatar_url ? (
-                  <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"
-                    style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                    <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                      {initials}
-                    </span>
-                  </div>
-                )}
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
-                <div className="absolute top-2 left-2">
-                  <span className="text-xs font-bold px-1.5 py-0.5 rounded"
-                    style={{
-                      backgroundColor: isCoach ? 'rgba(167,139,250,0.85)' : 'rgba(45,95,196,0.85)',
-                      color: '#fff', fontSize: 10,
-                    }}>
-                    {isCoach ? 'COACH' : 'PLAYER'}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
-                  {p.full_name ?? (isCoach ? 'Coach' : 'Player')}
-                </p>
-                <p className="text-xs truncate" style={{ color: '#8892aa' }}>{subtitle}</p>
-                {!isCoach && p.status && (
-                  <p className="text-xs font-semibold" style={{ color: STATUS_COLORS[p.status], fontSize: 10 }}>
-                    {STATUS_LABELS[p.status]}
-                  </p>
-                )}
-              </div>
-            </Link>
-          )
-        })}
-      </div>
     </section>
   )
 }
@@ -465,8 +494,8 @@ export default function PlayerHome() {
   const { openSidebar } = useSidebar()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [featuredPlayers, setFeaturedPlayers] = useState<FeaturedPlayer[]>([])
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
-  const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([])
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
@@ -480,12 +509,14 @@ export default function PlayerHome() {
       if (!user) { router.push('/'); return }
 
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+      const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
 
-      const [profileRes, featuredRes, oppsRes, joinersRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
+      const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
-        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', ''),
+        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', ''),
+        // Recently active players + coaches
+        supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
-        supabase.from('profiles').select('id, role, full_name, avatar_url, position, club, status, coaching_role').eq('approved', true).not('avatar_url', 'is', null).neq('avatar_url', '').order('updated_at', { ascending: false }).limit(30),
         // Profile views this week
         supabase.from('player_views').select('id', { count: 'exact', head: true }).eq('player_id', user.id).gte('viewed_at', weekAgo),
         // Unread messages
@@ -499,8 +530,8 @@ export default function PlayerHome() {
       const profileData = profileRes.data as Profile
       setProfile(profileData)
       setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5).slice(0, 10))
+      setActiveUsers(((activeRes.data as ActiveUser[]) ?? []).filter(u => u.id !== user.id))
       setOpportunities((oppsRes.data as unknown as Opportunity[]) ?? [])
-      setNewJoiners((joinersRes.data as NewJoiner[]) ?? [])
       const rawFeed = (feedRes.data as any[]) ?? []
       setFeedPosts(rawFeed.map(p => ({
         ...p,
@@ -557,6 +588,11 @@ export default function PlayerHome() {
 
       {/* Profile Completion — not shown for fans */}
       {profile && profile.role !== 'fan' && <div className="pb-4"><ProfileCompletionBar profile={profile} /></div>}
+
+      {/* Recently Active — players + coaches */}
+      <div className="pb-4">
+        <RecentlyActiveSection users={activeUsers} />
+      </div>
 
       {/* Quick Stats */}
       {profile?.role !== 'fan' && (
@@ -644,14 +680,11 @@ export default function PlayerHome() {
         {/* Feed Preview */}
         <FeedPreviewSection posts={feedPosts} />
 
-        {/* Featured Players */}
-        <FeaturedCarousel players={featuredPlayers} />
-
         {/* Opportunities */}
         <OpportunitiesPreview opportunities={opportunities} />
 
-        {/* New Joiners */}
-        <NewJoinersSection players={newJoiners} />
+        {/* Featured Players */}
+        <FeaturedCarousel players={featuredPlayers} />
 
       </div>
     </div>

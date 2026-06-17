@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import NewBadge from '@/app/components/NewBadge'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ type PublicProfile = {
   premium: boolean
   streak_weeks: number
   last_active: string | null
+  created_at: string | null
 }
 
 type ViewerProfile = {
@@ -226,7 +228,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
         ])
 
@@ -450,9 +452,12 @@ export default function PlayerPublicProfile() {
         </div>
 
         {/* Name */}
-        <h1 className="text-3xl font-black uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          {player.full_name ?? 'Player'}
-        </h1>
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <h1 className="text-3xl font-black uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            {player.full_name ?? 'Player'}
+          </h1>
+          <NewBadge createdAt={player.created_at} />
+        </div>
 
         {/* Position · Club */}
         <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>

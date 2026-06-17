@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { getRecommendedPlayers, logRecommendations } from '@/lib/recommendations'
 
-const IN_APP_RECOMMENDATION_COUNT = 8
+const IN_APP_RECOMMENDATION_COUNT = 10
 
 function serviceSupabase() {
   return createClient(

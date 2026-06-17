@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
@@ -201,6 +201,11 @@ function RecommendedForYou() {
   const [hasHistory, setHasHistory] = useState(true)
   const [loaded, setLoaded] = useState(false)
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const interactingRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     fetch('/api/coach/recommendations')
       .then(r => (r.ok ? r.json() : null))
@@ -213,12 +218,72 @@ function RecommendedForYou() {
       .finally(() => setLoaded(true))
   }, [])
 
+  const animate = players.length >= 3
+  const loop = animate ? [...players, ...players] : players
+
+  useEffect(() => {
+    if (!animate || !loaded) return
+    const el = scrollRef.current
+    if (!el) return
+
+    let pos = 0
+
+    function startInteract() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      interactingRef.current = true
+    }
+    function scheduleResume() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      resumeTimerRef.current = setTimeout(() => { interactingRef.current = false }, 2000)
+    }
+    function onScroll() {
+      if (interactingRef.current) scheduleResume()
+    }
+
+    el.addEventListener('touchstart', startInteract, { passive: true })
+    el.addEventListener('touchend', scheduleResume, { passive: true })
+    el.addEventListener('touchcancel', scheduleResume, { passive: true })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    el.addEventListener('mouseenter', startInteract)
+    el.addEventListener('mouseleave', scheduleResume)
+    el.addEventListener('pointerdown', startInteract)
+    el.addEventListener('pointerup', scheduleResume)
+
+    function tick() {
+      if (el) {
+        if (interactingRef.current) {
+          pos = el.scrollLeft
+        } else {
+          const half = el.scrollWidth / 2
+          pos += 0.5
+          if (half > 0 && pos >= half) pos -= half
+          el.scrollLeft = pos
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      el.removeEventListener('touchstart', startInteract)
+      el.removeEventListener('touchend', scheduleResume)
+      el.removeEventListener('touchcancel', scheduleResume)
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('mouseenter', startInteract)
+      el.removeEventListener('mouseleave', scheduleResume)
+      el.removeEventListener('pointerdown', startInteract)
+      el.removeEventListener('pointerup', scheduleResume)
+    }
+  }, [animate, loaded])
+
   if (!loaded) return null
   if (players.length === 0 && hasHistory) return null
 
   return (
     <section className="pt-4 pb-1">
-      <div className="px-4 mb-3">
+      <div className="px-4 mb-2">
         <div className="flex items-center gap-2">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="#2d5fc4">
             <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z" />
@@ -227,7 +292,7 @@ function RecommendedForYou() {
             Recommended for You
           </h2>
         </div>
-        <p className="text-xs mt-1" style={{ color: '#8892aa' }}>Based on your recent activity</p>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Based on your recent activity</p>
       </div>
 
       {players.length === 0 ? (
@@ -237,34 +302,57 @@ function RecommendedForYou() {
             Search for players to personalise your recommendations
           </p>
         </div>
+      ) : animate ? (
+        <div ref={scrollRef} className="flex overflow-x-auto pl-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {loop.map((p, i) => {
+            const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+            const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+            return (
+              <Link key={`${p.id}-${i}`} href={`/dashboard/player/players/${p.id}`}
+                className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 220 }}>
+                <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: '#1a1f3a' }}>
+                  {p.avatar_url
+                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
+                    : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
+                    {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                  {statusCfg && (
+                    <span className="inline-block text-xs px-1.5 py-0.5 rounded-full font-medium mt-1"
+                      style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color, fontSize: 9 }}>
+                      {statusCfg.label}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+        <div className="flex overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
           {players.map(p => {
             const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
             return (
               <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-                className="flex-shrink-0 rounded-2xl overflow-hidden block"
-                style={{ width: 140, scrollSnapAlign: 'start', border: '1px solid #2d5fc440', textDecoration: 'none' }}>
-                <div className="relative" style={{ height: 112, backgroundColor: '#1a1f3a' }}>
+                className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 220 }}>
+                <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: '#1a1f3a' }}>
                   {p.avatar_url
                     ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-top" />
-                    : (
-                      <div className="w-full h-full flex items-center justify-center"
-                        style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                        <span className="font-black text-4xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                          {initials}
-                        </span>
-                      </div>
-                    )}
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 55%)' }} />
+                    : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
                 </div>
-                <div className="p-2.5" style={{ backgroundColor: '#13172a' }}>
-                  <p className="text-xs font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 10 }}>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
                     {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
                   </p>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 10 }}>{p.city ?? ''}</p>
                   {statusCfg && (
                     <span className="inline-block text-xs px-1.5 py-0.5 rounded-full font-medium mt-1"
                       style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color, fontSize: 9 }}>

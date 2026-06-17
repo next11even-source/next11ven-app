@@ -131,7 +131,7 @@ POST /api/messages/initiate — atomic quota check + conversation creation (call
 GET  /api/messages/quota — returns player's current period message quota
 
 Applications
-POST  /api/applications/apply — premium-gated, fires coach email
+POST  /api/applications/apply — premium-gated, fires coach email; players apply to any role, coaches apply to coaching-staff roles only (opportunity_type='coach', not their own)
 PATCH /api/applications/[id] — coach accept/reject/shortlist/view with player email
 
 Stripe
@@ -198,10 +198,10 @@ Route                                   Status
 /dashboard/player/profile               Full profile edit, avatar, season stats ✅
 /dashboard/player/players               Browse all approved players, filter by position/level/status/club ✅
 /dashboard/player/players/[id]          Player profile, view tracking, shortlist button (Coach Pro gated) ✅
-/dashboard/player/market                Opportunities, Applications, Activity tabs (premium gated) ✅
+/dashboard/player/market                Redirect shim → /dashboard/opportunities (activity/messages tabs route to their own pages) ↩️
 /dashboard/player/premium               Upgrade page ✅
 /dashboard/player/messages              Player message inbox ✅
-/dashboard/player/opportunities         Player opportunities browse ✅
+/dashboard/player/opportunities         Redirect → /dashboard/opportunities ↩️
 /dashboard/player/coaches               Browse coaches ✅
 /dashboard/player/activity              Profile activity overview ✅
 /dashboard/player/activity/profile-views  Who viewed my profile (detail) ✅
@@ -213,7 +213,7 @@ Route                                        Status
 /dashboard/coach/[id]                        Coach profile — visible to any logged-in user ✅
 /dashboard/coach/messages                    Bidirectional inbox ✅
 /dashboard/coach/shortlists                  Saved players (frontend built, no CRUD API yet) ⚠️
-/dashboard/coach/opportunities               Post and manage roles ✅
+/dashboard/coach/opportunities               Redirect → /dashboard/opportunities ↩️
 /dashboard/coach/market                      4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
 /dashboard/coach/players                     Browse players (coach view) ✅
 /dashboard/coach/coaches                     Browse other coaches ✅
@@ -223,11 +223,24 @@ Route                                        Status
 
 Shared & Admin
 Route                         Status
+/dashboard/opportunities      Unified opportunities — role-aware via PlayerShell ✅
 /dashboard/profile            Role-aware profile edit (player + coach) ✅
 /dashboard/feed               Community feed (posts, likes, comments) ✅
 /dashboard/showcase           Showcase Day registration page ✅
 /dashboard/admin              Approve/decline pending registrations ✅
 /dashboard/admin/analytics    Full analytics dashboard (revenue, platform, messages) ✅
+
+Opportunities (unified route)
+One page at /dashboard/opportunities serves both roles (layout wraps PlayerShell, same
+pattern as /feed — renders the correct sidebar + bottom nav per role). Old routes
+(/dashboard/player/opportunities, /dashboard/coach/opportunities) now redirect here.
+- Players: Open Roles (browse + apply, premium club-gate) + My Applications tabs.
+  My Applications cards have a "View opportunity" deep-link that scrolls/highlights the role.
+- Coaches: All Roles (global table) + Your Roles tabs, with "Add Opportunity" and inline
+  applicant management (view/accept/reject/close/delete) on their own roles. Coaches can
+  apply to OTHER clubs' coaching-staff roles (opportunity_type='coach', Coach Pro gated).
+- Card UI lives in app/components/OpportunityBadges.tsx (LevelBadge + ClubCrest), reused by
+  the homepage opportunity previews too. Level colours/labels come from lib/opportunityLevel.ts.
 
 Profile Completion Score
 13-field score — used on player homepage and profile page. Must stay in sync:

@@ -835,9 +835,9 @@ export default function PlayerHome() {
             {profile?.role !== 'fan' && (
               <div className="rounded-2xl p-4"
                 style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-                <div className="flex gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {/* Left — status dropdown */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
                       {!profile?.status && (
@@ -863,8 +863,8 @@ export default function PlayerHome() {
                   </div>
 
                   {/* Right — Actively Looking toggle */}
-                  <div className="flex flex-col items-center justify-center gap-2 flex-shrink-0"
-                    style={{ borderLeft: '1px solid #1e2235', paddingLeft: 16, minWidth: 90 }}>
+                  <div className="flex flex-col items-center justify-center gap-2"
+                    style={{ borderLeft: '1px solid #1e2235', paddingLeft: 16 }}>
                     <div className="flex items-center gap-1.5">
                       <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: profile?.actively_looking ? '#22c55e' : '#3a4055', boxShadow: profile?.actively_looking ? '0 0 10px rgba(34,197,94,0.6)' : 'none' }}
                         className={profile?.actively_looking ? 'animate-pulse' : ''} />

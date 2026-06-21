@@ -25,6 +25,7 @@ type Profile = {
   city: string | null
   location: string | null
   premium: boolean
+  actively_looking: boolean
   stripe_customer_id: string | null
   streak_weeks: number
   streak_last_week: string | null
@@ -263,23 +264,127 @@ function EditableCard({ title, children, editContent }: {
 // ─── Player-specific sections ─────────────────────────────────────────────────
 
 function PlayerDetailsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+  const [savingLooking, setSavingLooking] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [nearbyCount, setNearbyCount] = useState<number | null>(null)
+  const [localLooking, setLocalLooking] = useState(profile.actively_looking)
+
+  async function handleToggle() {
+    if (!profile.premium) {
+      fetch('/api/player/actively-looking').then(r => r.json()).then(d => {
+        setNearbyCount(d.nearbyCoachCount ?? null)
+      }).catch(() => {})
+      setShowPaywall(true)
+      return
+    }
+    setSavingLooking(true)
+    const next = !localLooking
+    const res = await fetch('/api/player/actively-looking', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actively_looking: next }),
+    })
+    if (res.ok) setLocalLooking(next)
+    setSavingLooking(false)
+  }
+
   return (
-    <EditableCard title="Details" editContent={(cancel) => (
-      <PlayerDetailsEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
-    )}>
-      <div className="space-y-2">
-        {[
-          { label: 'Position', value: profile.position },
-          { label: 'Club', value: profile.club },
-          { label: 'Availability', value: profile.status ? STATUS_LABELS[profile.status] : null, color: profile.status ? STATUS_COLORS[profile.status] : undefined },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{label}</span>
-            <span className="text-sm font-medium" style={{ color: color ?? (value ? '#e8dece' : '#3a4055') }}>{value ?? 'Not set'}</span>
+    <>
+      <EditableCard title="Details" editContent={(cancel) => (
+        <PlayerDetailsEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
+      )}>
+        <div className="space-y-2">
+          {[
+            { label: 'Position', value: profile.position },
+            { label: 'Club', value: profile.club },
+            { label: 'Availability', value: profile.status ? STATUS_LABELS[profile.status] : null, color: profile.status ? STATUS_COLORS[profile.status] : undefined },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{label}</span>
+              <span className="text-sm font-medium" style={{ color: color ?? (value ? '#e8dece' : '#3a4055') }}>{value ?? 'Not set'}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Actively Looking toggle */}
+        <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid #1e2235' }}>
+          <div className="flex items-center gap-2">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: localLooking ? '#22c55e' : '#3a4055', boxShadow: localLooking ? '0 0 10px rgba(34,197,94,0.6)' : 'none' }}
+              className={localLooking ? 'animate-pulse' : ''} />
+            <span className="text-sm font-semibold" style={{ color: localLooking ? '#e8dece' : '#8892aa' }}>
+              Actively Looking
+            </span>
+            {!profile.premium && (
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>Pro</span>
+            )}
           </div>
-        ))}
-      </div>
-    </EditableCard>
+          <button
+            onClick={handleToggle}
+            disabled={savingLooking}
+            className="relative rounded-full transition-colors"
+            style={{ width: 44, height: 24, backgroundColor: localLooking ? '#22c55e' : '#1e2235' }}>
+            <span className="absolute top-1 rounded-full transition-all" style={{ width: 16, height: 16, backgroundColor: '#fff', left: localLooking ? 24 : 4 }} />
+          </button>
+        </div>
+        {localLooking && (
+          <p className="text-xs mt-1.5" style={{ color: '#8892aa' }}>You&apos;re visible in the Actively Looking carousel and searches.</p>
+        )}
+      </EditableCard>
+
+      {/* Actively Looking Paywall */}
+      {showPaywall && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-md mx-4 rounded-t-2xl sm:rounded-2xl p-6 space-y-5"
+            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(45,95,196,0.15)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="3" />
+                  <line x1="12" y1="2" x2="12" y2="5" />
+                  <line x1="12" y1="19" x2="12" y2="22" />
+                  <line x1="2" y1="12" x2="5" y2="12" />
+                  <line x1="19" y1="12" x2="22" y2="12" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', letterSpacing: '0.04em' }}>
+                This is how coaches find you
+              </h2>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
+              Switch on Actively Looking and you&apos;ll appear in the Actively Looking carousel and free-agent searches — the players coaches see first.
+            </p>
+            <p className="text-sm font-medium" style={{ color: '#e8dece' }}>
+              {nearbyCount
+                ? `${nearbyCount} coach${nearbyCount > 1 ? 'es' : ''} recruiting your position near you this week.`
+                : 'Coaches check the Actively Looking carousel every day.'}
+            </p>
+            <div className="space-y-2">
+              {['Appear in the Actively Looking carousel & searches', 'See who\'s viewed and shortlisted you', 'Message coaches directly'].map(b => (
+                <div key={b} className="flex items-center gap-2.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="text-sm" style={{ color: '#e8dece' }}>{b}</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-3 pt-1">
+              <Link href="/dashboard/player/premium"
+                className="block w-full text-center py-3 rounded-xl text-sm font-bold"
+                style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+                Go Premium &middot; £6.99/mo
+              </Link>
+              <button onClick={() => setShowPaywall(false)}
+                className="w-full text-center py-2 text-sm"
+                style={{ color: '#8892aa' }}>
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

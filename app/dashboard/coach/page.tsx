@@ -19,6 +19,7 @@ type PremiumPlayer = {
   position: string | null
   avatar_url: string | null
   status: Status | null
+  actively_looking: boolean
   location: string | null
   city: string | null
   premium: boolean
@@ -48,6 +49,8 @@ type ActiveUser = {
   club: string | null
   city: string | null
   status: Status | null
+  premium: boolean
+  actively_looking: boolean
   last_active: string | null
   created_at: string | null
 }
@@ -74,6 +77,8 @@ type ShortlistPlayer = {
   city: string | null
   location: string | null
   status: Status | null
+  premium: boolean
+  actively_looking: boolean
   updated_at: string | null
 }
 
@@ -405,46 +410,64 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Featured Players
         </h2>
-        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Premium players appear first to clubs</p>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Pro players · actively looking players highlighted in green</p>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-4"
         style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
-        {players.map(p => (
-          <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-            className="flex-shrink-0 rounded-2xl overflow-hidden block"
-            style={{ width: 145, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
-            <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
-              {p.avatar_url ? (
-                <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                  <span className="font-black text-5xl"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                    {getInitials(p.full_name)}
-                  </span>
-                </div>
-              )}
-              <div className="absolute inset-0"
-                style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
-              <div className="absolute top-2 right-2">
-                <span className="text-xs font-bold px-1.5 py-0.5 rounded"
-                  style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
+        {players.map(p => {
+          const isLooking = p.actively_looking
+          return (
+            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+              className="flex-shrink-0 rounded-2xl overflow-hidden block"
+              style={{
+                width: 145,
+                scrollSnapAlign: 'start',
+                border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
+                textDecoration: 'none',
+                boxShadow: isLooking ? '0 0 20px rgba(34,197,94,0.1)' : 'none',
+              }}>
+              <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
+                {p.avatar_url ? (
+                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+                    <span className="font-black text-5xl"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+                      {getInitials(p.full_name)}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0"
+                  style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+                {isLooking && (
+                  <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full animate-pulse"
+                    style={{ backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }} />
+                )}
               </div>
-            </div>
-            <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-              <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-              <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
-              </p>
-              {p.status && (
-                <p className="text-xs font-semibold" style={{ color: STATUS_CONFIG[p.status]?.color, fontSize: 10 }}>
-                  {STATUS_CONFIG[p.status]?.label}
+              <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+                <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
+                  <span className="truncate">{p.full_name ?? 'Player'}</span>
+                  <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>
                 </p>
-              )}
-            </div>
-          </Link>
-        ))}
+                <p className="text-xs truncate" style={{ color: '#8892aa' }}>
+                  {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
+                </p>
+                {isLooking ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold"
+                    style={{ color: '#22c55e', fontSize: 10 }}>
+                    <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+                    Actively Looking
+                  </span>
+                ) : p.status && (
+                  <p className="text-xs font-semibold" style={{ color: STATUS_CONFIG[p.status]?.color ?? '#8892aa', fontSize: 10 }}>
+                    {STATUS_CONFIG[p.status]?.label}
+                  </p>
+                )}
+              </div>
+            </Link>
+          )
+        })}
       </div>
     </section>
   )
@@ -522,14 +545,19 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                   )}
                 </div>
                 <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                  <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
+                    <span className="truncate">{p.full_name ?? 'Player'}</span>
+                    {p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                  </p>
                   <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                     {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
                   </p>
-                  {statusCfg && (
-                    <p className="text-xs font-semibold" style={{ color: statusCfg.color, fontSize: 10 }}>
-                      {statusCfg.label}
-                    </p>
+                  {p.actively_looking && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold"
+                      style={{ color: '#22c55e', fontSize: 10 }}>
+                      <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+                      Actively Looking
+                    </span>
                   )}
                 </div>
               </Link>
@@ -572,6 +600,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
           </p>
+          {!isCoach && user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
@@ -739,14 +768,14 @@ export default function CoachDashboard() {
           .limit(15),
 
         supabase.from('profiles')
-          .select('id, full_name, position, avatar_url, status, location, city, premium')
+          .select('id, full_name, position, avatar_url, status, actively_looking, location, city, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
           .eq('premium', true),
 
         // Recently active players + coaches
         supabase.from('profiles')
-          .select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, last_active, created_at')
+          .select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at')
           .in('role', ['player', 'admin', 'coach'])
           .eq('approved', true)
           .not('last_active', 'is', null)
@@ -785,8 +814,8 @@ export default function CoachDashboard() {
         author: Array.isArray(p.author) ? (p.author[0] ?? null) : (p.author ?? null),
       })))
 
-      // Premium players — random order each session
-      const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5).slice(0, 10)
+      // Premium players — random order, actively looking cards visually distinct
+      const shuffled = ((premiumRes.data ?? []) as PremiumPlayer[]).sort(() => Math.random() - 0.5).slice(0, 12)
       setPremiumPlayers(shuffled)
 
       // Recently active players + coaches (exclude self)
@@ -826,7 +855,7 @@ export default function CoachDashboard() {
         const playerIds = savedRows.map(r => r.player_id)
         const { data: playerData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, position, city, location, status, updated_at')
+          .select('id, full_name, avatar_url, position, city, location, status, premium, actively_looking, updated_at')
           .in('id', playerIds)
         const playerMap = Object.fromEntries((playerData ?? []).map((p: any) => [p.id, p]))
         setMyShortlist(savedRows.map(r => {
@@ -840,6 +869,8 @@ export default function CoachDashboard() {
             city: p.city ?? null,
             location: p.location ?? null,
             status: p.status ?? null,
+            premium: p.premium ?? false,
+            actively_looking: p.actively_looking ?? false,
             updated_at: p.updated_at ?? null,
           }
         }))

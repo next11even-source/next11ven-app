@@ -149,6 +149,8 @@ async function handleSubscriptionChange(
     .eq('id', userId)
     .single()
 
+  const isFirstActivation = isActive && !existingProfile?.premium
+
   await supabase
     .from('profiles')
     .update({
@@ -158,7 +160,7 @@ async function handleSubscriptionChange(
     .eq('id', userId)
 
   // Fire MailerLite tag only when premium flips to true (not on renewals)
-  if (isActive && !existingProfile?.premium && existingProfile?.email) {
+  if (isFirstActivation && existingProfile?.email) {
     const profileRole = role ?? existingProfile.role ?? null
     onUserUpgradedToPremium(existingProfile.email, profileRole).catch(err =>
       console.error('[MailerLite] onUserUpgradedToPremium error:', err)

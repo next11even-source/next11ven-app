@@ -30,6 +30,7 @@ type PublicProfile = {
   highlight_urls: string[]
   bio: string | null
   premium: boolean
+  actively_looking: boolean
   streak_weeks: number
   last_active: string | null
   created_at: string | null
@@ -228,7 +229,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
         ])
 
@@ -433,7 +434,7 @@ export default function PlayerPublicProfile() {
         <div className="relative mb-4">
           <div className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center"
             style={{
-              border: `3px solid ${statusCfg ? statusCfg.color : '#1e2235'}`,
+              border: `3px solid ${player.actively_looking ? '#22c55e' : '#1e2235'}`,
               backgroundColor: '#1a1f3a',
             }}>
             {player.avatar_url ? (
@@ -444,10 +445,9 @@ export default function PlayerPublicProfile() {
               </span>
             )}
           </div>
-          {/* Status dot */}
-          {statusCfg && (
-            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2"
-              style={{ backgroundColor: statusCfg.color, borderColor: '#0a0a0a' }} />
+          {player.actively_looking && (
+            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 animate-pulse"
+              style={{ backgroundColor: '#22c55e', borderColor: '#0a0a0a', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
           )}
         </div>
 
@@ -456,6 +456,7 @@ export default function PlayerPublicProfile() {
           <h1 className="text-3xl font-black uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             {player.full_name ?? 'Player'}
           </h1>
+          {player.premium && <span style={{ color: '#f59e0b', fontSize: 20 }}>★</span>}
           <NewBadge createdAt={player.created_at} />
         </div>
 
@@ -464,11 +465,12 @@ export default function PlayerPublicProfile() {
           {[player.position, player.club].filter(Boolean).join(' · ') || 'Player'}
         </p>
 
-        {/* Status badge */}
-        {statusCfg && (
-          <span className="inline-block mt-3 text-xs px-3 py-1 rounded-full font-medium"
-            style={{ color: statusCfg.color, backgroundColor: statusCfg.bg }}>
-            {statusCfg.label}
+        {/* Actively Looking badge */}
+        {player.actively_looking && (
+          <span className="inline-flex items-center gap-1.5 mt-3 text-xs px-3 py-1 rounded-full font-semibold"
+            style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
+            <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
+            Actively Looking
           </span>
         )}
 

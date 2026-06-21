@@ -13,7 +13,7 @@ Background: #0a0a0a — Surface: #13172a — Border: #1e2235
 Primary blue: #2d5fc4 → #3a6fda hover
 Cream text: #e8dece — Muted text: #8892aa
 Headings: Barlow Condensed (bold, uppercase) — Body: Inter
-No green anywhere — ever
+Green (#22c55e) limited to availability signals (Actively Looking dot/chip/toggle) and positive confirmations only — never for general UI
 Mobile-first. Dark theme throughout. No over-engineering.
 
 
@@ -28,10 +28,12 @@ Fan accounts = browse-only. No posting, no messaging.
 admin role also counts as a player — use .in('role', ['player', 'admin']) for player queries
 approved: boolean — approval_status: text (pending | approved | declined)
 premium: boolean — flipped by Stripe webhook
+actively_looking: boolean — premium-only toggle for player visibility; NOT auto-enabled on upgrade (player must opt in); server-enforced (API rejects true for non-premium)
 Status values: free_agent | signed | loan_dual_reg | just_exploring
+⚠️ status is a profile display field only. The "Free Agents" filter and Actively Looking carousel use actively_looking, NOT status = 'free_agent'
 
 Key columns:
-id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at
+id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, actively_looking, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at
 
 Active tables
 profiles, conversations, messages, player_views, shortlist_alerts,
@@ -129,6 +131,10 @@ Messages
 POST /api/messages/send — bidirectional, SMS + email notifications, drip trigger
 POST /api/messages/initiate — atomic quota check + conversation creation (calls initiate_coach_conversation RPC)
 GET  /api/messages/quota — returns player's current period message quota
+
+Player
+GET   /api/player/actively-looking — returns { actively_looking, nearbyCoachCount } for paywall
+PATCH /api/player/actively-looking — toggle actively_looking; server rejects true for non-premium (403 NOT_PREMIUM); player/admin only
 
 Applications
 POST  /api/applications/apply — premium-gated, fires coach email; players apply to any role, coaches apply to coaching-staff roles only (opportunity_type='coach', not their own)
@@ -324,7 +330,7 @@ Dark theme throughout, mobile-first
 No over-engineering — solo build, keep it shippable
 Server components where possible, client only where needed
 Never put API keys or Twilio/Stripe/MailerLite/Resend calls client-side
-No green in UI ever
+Green limited to availability signals and positive confirmations
 
 Tone
 Direct, no fluff. Flag issues immediately. Don't pad responses.

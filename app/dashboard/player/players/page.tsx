@@ -17,18 +17,19 @@ type Player = {
   city: string | null
   playing_level: string | null
   status: 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring' | null
+  actively_looking: boolean
   highlight_urls: string[] | null
   created_at: string
   premium: boolean
 }
 
-type QuickTab = 'all' | 'free_agents' | 'loan' | 'new'
+type QuickTab = 'all' | 'actively_looking' | 'loan' | 'new'
 
 const QUICK_TABS: { key: QuickTab; label: string; color: string }[] = [
-  { key: 'all',        label: 'All Players',  color: '#2d5fc4' },
-  { key: 'free_agents',label: 'Free Agents',  color: '#60a5fa' },
-  { key: 'loan',       label: 'Loan / Dual',  color: '#a78bfa' },
-  { key: 'new',        label: 'New Players',  color: '#f59e0b' },
+  { key: 'all',              label: 'All Players',      color: '#2d5fc4' },
+  { key: 'actively_looking', label: 'Actively Looking', color: '#22c55e' },
+  { key: 'loan',             label: 'Loan / Dual',      color: '#a78bfa' },
+  { key: 'new',              label: 'New Players',      color: '#f59e0b' },
 ]
 
 type Filters = {
@@ -198,31 +199,30 @@ function FilterPanel({
   )
 }
 
-// ─── Free Agent Ticker ───────────────────────────────────────────────────────
+// ─── Actively Looking Carousel ───────────────────────────────────────────────
 
-function FreeAgentTicker({ players }: { players: Player[] }) {
-  const eligible = players.filter(p => p.status === 'free_agent' && p.avatar_url)
+function ActivelyLookingCarousel({ players }: { players: Player[] }) {
+  const eligible = players.filter(p => p.actively_looking && p.avatar_url)
   if (eligible.length === 0) return null
 
-  // Duplicate enough times for a seamless loop
   const copies = eligible.length < 6 ? 4 : eligible.length < 12 ? 3 : 2
   const items = Array.from({ length: copies }, () => eligible).flat()
   const duration = Math.max(18, eligible.length * 3.2)
 
   return (
-    <section style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid #1e2235', overflow: 'hidden' }}>
+    <section style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid rgba(34,197,94,0.3)', overflow: 'hidden' }}>
       <style>{`
-        @keyframes n11-ticker {
+        @keyframes n11-looking {
           from { transform: translateX(0); }
           to { transform: translateX(-${100 / copies}%); }
         }
-        .n11-ticker-track {
-          animation: n11-ticker ${duration}s linear infinite;
+        .n11-looking-track {
+          animation: n11-looking ${duration}s linear infinite;
           display: flex;
           width: max-content;
           will-change: transform;
         }
-        .n11-ticker-track:hover {
+        .n11-looking-track:hover {
           animation-play-state: paused;
         }
       `}</style>
@@ -231,50 +231,56 @@ function FreeAgentTicker({ players }: { players: Player[] }) {
       <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
         <span
           className="animate-pulse"
-          style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#60a5fa', flexShrink: 0, boxShadow: '0 0 8px #60a5fa88' }}
+          style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0, boxShadow: '0 0 12px rgba(34,197,94,0.7)' }}
         />
-        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 13, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-          Free Agents
+        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 13, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          Actively Looking
         </span>
-        <span style={{ fontSize: 10, color: '#8892aa' }}>· Available now</span>
+        <span style={{ fontSize: 10, color: '#8892aa' }}>· Premium players</span>
       </div>
 
       {/* Scrolling cards */}
       <div style={{ overflow: 'hidden', paddingBottom: 14 }}>
-        <div className="n11-ticker-track">
+        <div className="n11-looking-track">
           {items.map((p, i) => (
-            <div
+            <Link
+              href={`/dashboard/player/players/${p.id}`}
               key={`${p.id}-${i}`}
               style={{
                 flexShrink: 0,
-                width: 96,
+                width: 104,
                 margin: '0 5px',
                 borderRadius: 14,
                 overflow: 'hidden',
-                border: '1px solid #1e2235',
+                border: '1px solid rgba(34,197,94,0.35)',
                 backgroundColor: '#13172a',
+                textDecoration: 'none',
+                boxShadow: '0 0 16px rgba(34,197,94,0.08)',
               }}
             >
-              <div style={{ height: 88, position: 'relative', backgroundColor: '#1a1f3a' }}>
+              <div style={{ height: 96, position: 'relative', backgroundColor: '#1a1f3a' }}>
                 <img
                   src={p.avatar_url!}
                   alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
                 />
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 55%)' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 50%)' }} />
+                <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }}
+                  className="animate-pulse" />
               </div>
               <div style={{ padding: '5px 7px 7px' }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {p.full_name ?? 'Player'}
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name ?? 'Player'}</span>
+                  {p.premium && <span style={{ color: '#f59e0b', flexShrink: 0, fontSize: 9 }}>★</span>}
                 </p>
-                <p style={{ fontSize: 9, color: '#60a5fa', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <p style={{ fontSize: 9, color: '#22c55e', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {p.position ?? '—'}
                 </p>
                 <p style={{ fontSize: 9, color: '#8892aa', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {[p.city, p.playing_level].filter(Boolean).join(' · ') || '—'}
                 </p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -302,7 +308,7 @@ export default function PlayersPage() {
 
     supabase.auth.getUser().then(async () => {
       const playersRes = await supabase.from('profiles')
-        .select('id, full_name, avatar_url, position, club, city, playing_level, status, highlight_urls, created_at, premium')
+        .select('id, full_name, avatar_url, position, club, city, playing_level, status, actively_looking, highlight_urls, created_at, premium')
         .in('role', ['player', 'admin'])
         .eq('approved', true)
         .order('created_at', { ascending: false })
@@ -330,7 +336,7 @@ export default function PlayersPage() {
     let result = players
 
     // Quick tab
-    if (quickTab === 'free_agents') result = result.filter(p => p.status === 'free_agent')
+    if (quickTab === 'actively_looking') result = result.filter(p => p.actively_looking)
     if (quickTab === 'loan') result = result.filter(p => p.status === 'loan_dual_reg')
     if (quickTab === 'new') {
       const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
@@ -505,8 +511,8 @@ export default function PlayersPage() {
 
       </div>
 
-      {/* Free Agent Ticker */}
-      {!loading && <FreeAgentTicker players={players} />}
+      {/* Actively Looking Carousel */}
+      {!loading && <ActivelyLookingCarousel players={players} />}
 
       {loading ? (
         <div className="space-y-2 px-4">
@@ -537,7 +543,7 @@ export default function PlayersPage() {
 
                 {/* Avatar */}
                 <div className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
-                  style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${statusCfg ? statusCfg.color + '40' : '#1e2235'}` }}>
+                  style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${p.actively_looking ? 'rgba(34,197,94,0.4)' : '#1e2235'}` }}>
                   {p.avatar_url ? (
                     <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
                   ) : (
@@ -551,6 +557,7 @@ export default function PlayersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                    {p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                     <NewBadge createdAt={p.created_at} size="sm" />
                     {hasHighlights && (
                       <span className="text-xs flex-shrink-0" title="Has highlights">🎬</span>
@@ -564,12 +571,13 @@ export default function PlayersPage() {
                   </p>
                 </div>
 
-                {/* Status + arrow */}
+                {/* Actively Looking chip + arrow */}
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  {statusCfg && p.status !== 'signed' && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ color: statusCfg.color, backgroundColor: `${statusCfg.color}18`, fontSize: 10, whiteSpace: 'nowrap' }}>
-                      {statusCfg.label}
+                  {p.actively_looking && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold"
+                      style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', fontSize: 10, whiteSpace: 'nowrap' }}>
+                      <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+                      Actively Looking
                     </span>
                   )}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e2235" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

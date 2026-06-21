@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
@@ -17,18 +17,19 @@ type Player = {
   city: string | null
   playing_level: string | null
   status: 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring' | null
+  actively_looking: boolean
   highlight_urls: string[] | null
   created_at: string
   premium: boolean
 }
 
-type QuickTab = 'all' | 'free_agents' | 'loan' | 'new'
+type QuickTab = 'all' | 'actively_looking' | 'loan' | 'new'
 
 const QUICK_TABS: { key: QuickTab; label: string; color: string }[] = [
-  { key: 'all',         label: 'All Players', color: '#2d5fc4' },
-  { key: 'free_agents', label: 'Free Agents', color: '#60a5fa' },
-  { key: 'loan',        label: 'Loan / Dual', color: '#a78bfa' },
-  { key: 'new',         label: 'New Players', color: '#f59e0b' },
+  { key: 'all',              label: 'All Players',      color: '#2d5fc4' },
+  { key: 'actively_looking', label: 'Actively Looking', color: '#22c55e' },
+  { key: 'loan',             label: 'Loan / Dual',      color: '#a78bfa' },
+  { key: 'new',              label: 'New Players',      color: '#f59e0b' },
 ]
 
 type Filters = {
@@ -196,15 +197,91 @@ type RecPlayer = {
   city: string | null
 }
 
+// ─── Actively Looking Carousel ───────────────────────────────────────────────
+
+function ActivelyLookingCarousel({ players }: { players: Player[] }) {
+  const eligible = players.filter(p => p.actively_looking && p.avatar_url)
+  if (eligible.length === 0) return null
+
+  const copies = eligible.length < 6 ? 4 : eligible.length < 12 ? 3 : 2
+  const items = Array.from({ length: copies }, () => eligible).flat()
+  const duration = Math.max(18, eligible.length * 3.2)
+
+  return (
+    <section style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid rgba(34,197,94,0.3)', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes n11-looking-c {
+          from { transform: translateX(0); }
+          to { transform: translateX(-${100 / copies}%); }
+        }
+        .n11-looking-track-c {
+          animation: n11-looking-c ${duration}s linear infinite;
+          display: flex;
+          width: max-content;
+          will-change: transform;
+        }
+        .n11-looking-track-c:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span className="animate-pulse"
+          style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0, boxShadow: '0 0 12px rgba(34,197,94,0.7)' }} />
+        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 13, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          Actively Looking
+        </span>
+        <span style={{ fontSize: 10, color: '#8892aa' }}>· Available now</span>
+      </div>
+
+      <div style={{ overflow: 'hidden', paddingBottom: 14 }}>
+        <div className="n11-looking-track-c">
+          {items.map((p, i) => (
+            <Link
+              href={`/dashboard/player/players/${p.id}`}
+              key={`${p.id}-${i}`}
+              style={{
+                flexShrink: 0,
+                width: 104,
+                margin: '0 5px',
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: '1px solid rgba(34,197,94,0.35)',
+                backgroundColor: '#13172a',
+                textDecoration: 'none',
+                boxShadow: '0 0 16px rgba(34,197,94,0.08)',
+              }}
+            >
+              <div style={{ height: 96, position: 'relative', backgroundColor: '#1a1f3a' }}>
+                <img src={p.avatar_url!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 50%)' }} />
+                <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }}
+                  className="animate-pulse" />
+              </div>
+              <div style={{ padding: '5px 7px 7px' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name ?? 'Player'}</span>
+                  {p.premium && <span style={{ color: '#f59e0b', flexShrink: 0, fontSize: 9 }}>★</span>}
+                </p>
+                <p style={{ fontSize: 9, color: '#22c55e', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {p.position ?? '—'}
+                </p>
+                <p style={{ fontSize: 9, color: '#8892aa', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {[p.city, p.playing_level].filter(Boolean).join(' · ') || '—'}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function RecommendedForYou() {
   const [players, setPlayers] = useState<RecPlayer[]>([])
   const [hasHistory, setHasHistory] = useState(true)
   const [loaded, setLoaded] = useState(false)
-
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const interactingRef = useRef(false)
-  const rafRef = useRef<number | null>(null)
-  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetch('/api/coach/recommendations')
@@ -218,151 +295,91 @@ function RecommendedForYou() {
       .finally(() => setLoaded(true))
   }, [])
 
-  const animate = players.length >= 3
-  const loop = animate ? [...players, ...players] : players
-
-  useEffect(() => {
-    if (!animate || !loaded) return
-    const el = scrollRef.current
-    if (!el) return
-
-    let pos = 0
-
-    function startInteract() {
-      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
-      interactingRef.current = true
-    }
-    function scheduleResume() {
-      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
-      resumeTimerRef.current = setTimeout(() => { interactingRef.current = false }, 2000)
-    }
-    function onScroll() {
-      if (interactingRef.current) scheduleResume()
-    }
-
-    el.addEventListener('touchstart', startInteract, { passive: true })
-    el.addEventListener('touchend', scheduleResume, { passive: true })
-    el.addEventListener('touchcancel', scheduleResume, { passive: true })
-    el.addEventListener('scroll', onScroll, { passive: true })
-    el.addEventListener('mouseenter', startInteract)
-    el.addEventListener('mouseleave', scheduleResume)
-    el.addEventListener('pointerdown', startInteract)
-    el.addEventListener('pointerup', scheduleResume)
-
-    function tick() {
-      if (el) {
-        if (interactingRef.current) {
-          pos = el.scrollLeft
-        } else {
-          const half = el.scrollWidth / 2
-          pos += 0.5
-          if (half > 0 && pos >= half) pos -= half
-          el.scrollLeft = pos
-        }
-      }
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
-      el.removeEventListener('touchstart', startInteract)
-      el.removeEventListener('touchend', scheduleResume)
-      el.removeEventListener('touchcancel', scheduleResume)
-      el.removeEventListener('scroll', onScroll)
-      el.removeEventListener('mouseenter', startInteract)
-      el.removeEventListener('mouseleave', scheduleResume)
-      el.removeEventListener('pointerdown', startInteract)
-      el.removeEventListener('pointerup', scheduleResume)
-    }
-  }, [animate, loaded])
-
   if (!loaded) return null
   if (players.length === 0 && hasHistory) return null
 
+  const eligible = players.filter(p => p.avatar_url)
+  if (eligible.length === 0 && players.length > 0) return null
+
+  const copies = eligible.length < 6 ? 4 : eligible.length < 12 ? 3 : 2
+  const items = Array.from({ length: copies }, () => eligible).flat()
+  const duration = Math.max(18, eligible.length * 3.2)
+
   return (
-    <section className="pt-4 pb-1">
-      <div className="px-4 mb-2">
-        <div className="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#2d5fc4">
-            <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z" />
-          </svg>
-          <h2 className="text-base font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Recommended for You
-          </h2>
-        </div>
-        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Based on your recent activity</p>
+    <section style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid rgba(45,95,196,0.3)', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes n11-rec-c {
+          from { transform: translateX(0); }
+          to { transform: translateX(-${100 / copies}%); }
+        }
+        .n11-rec-track-c {
+          animation: n11-rec-c ${duration}s linear infinite;
+          display: flex;
+          width: max-content;
+          will-change: transform;
+        }
+        .n11-rec-track-c:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#2d5fc4" style={{ flexShrink: 0 }}>
+          <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z" />
+        </svg>
+        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 13, color: '#2d5fc4', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          Recommended for You
+        </span>
+        <span style={{ fontSize: 10, color: '#8892aa' }}>· Based on your activity</span>
       </div>
 
-      {players.length === 0 ? (
-        <div className="mx-4 rounded-2xl px-4 py-5 text-center"
+      {eligible.length === 0 ? (
+        <div className="mx-4 mb-3 rounded-2xl px-4 py-5 text-center"
           style={{ backgroundColor: '#13172a', border: '1px dashed #1e2235' }}>
           <p className="text-sm" style={{ color: '#8892aa' }}>
             Search for players to personalise your recommendations
           </p>
         </div>
-      ) : animate ? (
-        <div ref={scrollRef} className="flex overflow-x-auto pl-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-          {loop.map((p, i) => {
-            const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-            const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
-            return (
-              <Link key={`${p.id}-${i}`} href={`/dashboard/player/players/${p.id}`}
-                className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
-                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 220 }}>
-                <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: '#1a1f3a' }}>
-                  {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-                    : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                    {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
-                  </p>
-                  {statusCfg && (
-                    <span className="inline-block text-xs px-1.5 py-0.5 rounded-full font-medium mt-1"
-                      style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color, fontSize: 9 }}>
-                      {statusCfg.label}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
       ) : (
-        <div className="flex overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-          {players.map(p => {
-            const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-            const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
-            return (
-              <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-                className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
-                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 220 }}>
-                <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: '#1a1f3a' }}>
-                  {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-                    : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                    {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
-                  </p>
-                  {statusCfg && (
-                    <span className="inline-block text-xs px-1.5 py-0.5 rounded-full font-medium mt-1"
-                      style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color, fontSize: 9 }}>
-                      {statusCfg.label}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
+        <div style={{ overflow: 'hidden', paddingBottom: 14 }}>
+          <div className="n11-rec-track-c">
+            {items.map((p, i) => {
+              const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+              return (
+                <Link
+                  href={`/dashboard/player/players/${p.id}`}
+                  key={`${p.id}-${i}`}
+                  style={{
+                    flexShrink: 0,
+                    width: 104,
+                    margin: '0 5px',
+                    borderRadius: 14,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(45,95,196,0.35)',
+                    backgroundColor: '#13172a',
+                    textDecoration: 'none',
+                    boxShadow: '0 0 16px rgba(45,95,196,0.08)',
+                  }}
+                >
+                  <div style={{ height: 96, position: 'relative', backgroundColor: '#1a1f3a' }}>
+                    <img src={p.avatar_url!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 50%)' }} />
+                  </div>
+                  <div style={{ padding: '5px 7px 7px' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.full_name ?? 'Player'}
+                    </p>
+                    <p style={{ fontSize: 9, color: '#2d5fc4', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.position ?? '—'}
+                    </p>
+                    <p style={{ fontSize: 9, color: '#8892aa', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {[p.city, p.playing_level].filter(Boolean).join(' · ') || '—'}
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
         </div>
       )}
     </section>
@@ -395,7 +412,7 @@ export default function CoachPlayersPage() {
         .then(({ data }) => setCoachProfile(data ?? null))
 
       const playersRes = await supabase.from('profiles')
-        .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, highlight_urls, created_at, premium')
+        .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, highlight_urls, created_at, premium')
         .in('role', ['player', 'admin'])
         .eq('approved', true)
         .order('created_at', { ascending: false })
@@ -422,7 +439,7 @@ export default function CoachPlayersPage() {
   useEffect(() => {
     let result = players
 
-    if (quickTab === 'free_agents') result = result.filter(p => p.status === 'free_agent')
+    if (quickTab === 'actively_looking') result = result.filter(p => p.actively_looking)
     if (quickTab === 'loan') result = result.filter(p => p.status === 'loan_dual_reg')
     if (quickTab === 'new') {
       const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
@@ -632,8 +649,9 @@ export default function CoachPlayersPage() {
           )}
         </div>
 
-        {/* Recommended for You */}
+        {/* Recommended for You + Actively Looking */}
         {!loading && <RecommendedForYou />}
+        {!loading && <ActivelyLookingCarousel players={players} />}
 
         {loading ? (
           <div className="space-y-2 px-4">
@@ -664,7 +682,7 @@ export default function CoachPlayersPage() {
 
                   {/* Avatar */}
                   <div className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
-                    style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${statusCfg ? statusCfg.color + '40' : '#1e2235'}` }}>
+                    style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${p.actively_looking ? 'rgba(34,197,94,0.4)' : '#1e2235'}` }}>
                     {p.avatar_url ? (
                       <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
                     ) : (
@@ -678,6 +696,7 @@ export default function CoachPlayersPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+                      {p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                       {hasHighlights && (
                         <span className="text-xs flex-shrink-0" title="Has highlights">🎬</span>
                       )}
@@ -690,12 +709,13 @@ export default function CoachPlayersPage() {
                     </p>
                   </div>
 
-                  {/* Status + arrow */}
+                  {/* Actively Looking chip + arrow */}
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                    {statusCfg && p.status !== 'signed' && (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ color: statusCfg.color, backgroundColor: `${statusCfg.color}18`, fontSize: 10, whiteSpace: 'nowrap' }}>
-                        {statusCfg.label}
+                    {p.actively_looking && (
+                      <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', fontSize: 10, whiteSpace: 'nowrap' }}>
+                        <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+                        Actively Looking
                       </span>
                     )}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e2235" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

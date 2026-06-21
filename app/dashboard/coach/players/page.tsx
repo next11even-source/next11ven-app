@@ -416,7 +416,7 @@ export default function CoachPlayersPage() {
         .in('role', ['player', 'admin'])
         .eq('approved', true)
         .order('created_at', { ascending: false })
-        .limit(500)
+        .limit(1000)
 
       const raw = (playersRes.data as Player[]) ?? []
       const shuffle = <T,>(arr: T[]): T[] => {

@@ -20,6 +20,7 @@ type Profile = {
   role: string | null
   status: Status | null
   premium: boolean
+  actively_looking: boolean
   position: string | null
   club: string | null
   city: string | null
@@ -43,6 +44,8 @@ type FeaturedPlayer = {
   club: string | null
   city: string | null
   status: Status | null
+  actively_looking: boolean
+  premium: boolean
   created_at: string | null
 }
 
@@ -58,6 +61,8 @@ type ActiveUser = {
   club: string | null
   city: string | null
   status: Status | null
+  premium: boolean
+  actively_looking: boolean
   last_active: string | null
   created_at: string | null
 }
@@ -151,7 +156,7 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
     },
   ]
   return (
-    <div className="mx-4 grid grid-cols-2 gap-3">
+    <div className="mx-4 grid grid-cols-3 gap-3">
       {stats.map((s) => (
         <Link key={s.label} href={s.href}
           className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
@@ -165,6 +170,22 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
           <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
         </Link>
       ))}
+      <Link href="/dashboard/showcase"
+        className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
+        style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
+        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+        </svg>
+        <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>Showcase Games</span>
+        <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>sold out</span>
+      </Link>
     </div>
   )
 }
@@ -234,6 +255,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
           </p>
+          {!isCoach && user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
@@ -348,51 +370,172 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
 
 // ─── Featured Players Carousel ────────────────────────────────────────────────
 
-function FeaturedCarousel({ players }: { players: FeaturedPlayer[] }) {
+function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
+  const isLooking = p.actively_looking
+  return (
+    <Link href={`/dashboard/player/players/${p.id}`}
+      className="flex-shrink-0 rounded-2xl overflow-hidden block mr-3"
+      style={{
+        width: 145,
+        border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
+        textDecoration: 'none',
+        boxShadow: isLooking ? '0 0 20px rgba(34,197,94,0.1)' : 'none',
+      }}>
+      <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
+        {p.avatar_url ? (
+          <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center"
+            style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
+            <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
+              {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2) ?? '??'}
+            </span>
+          </div>
+        )}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute top-2 left-2">
+          <NewBadge createdAt={p.created_at} size="sm" />
+        </div>
+        {isLooking && (
+          <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full animate-pulse"
+            style={{ backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }} />
+        )}
+      </div>
+      <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
+        <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
+          <span className="truncate">{p.full_name ?? 'Player'}</span>
+          <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>
+        </p>
+        <p className="text-xs truncate" style={{ color: '#8892aa' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
+        {isLooking ? (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold"
+            style={{ color: '#22c55e', fontSize: 10 }}>
+            <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+            Actively Looking
+          </span>
+        ) : p.status && (
+          <p className="text-xs font-semibold" style={{ color: STATUS_COLORS[p.status] ?? '#8892aa', fontSize: 10 }}>
+            {STATUS_LABELS[p.status]}
+          </p>
+        )}
+      </div>
+    </Link>
+  )
+}
+
+function FeaturedCarousel({ players, viewerPremium, viewerLooking }: {
+  players: FeaturedPlayer[]
+  viewerPremium: boolean
+  viewerLooking: boolean
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const interactingRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   if (players.length === 0) return null
+
+  const showCta = !viewerPremium || !viewerLooking
+  const ctaHref = !viewerPremium ? '/dashboard/player/premium' : '#'
+
+  const animate = players.length >= 3
+  const loop = animate ? [...players, ...players] : players
+
+  useEffect(() => {
+    if (!animate) return
+    const el = scrollRef.current
+    if (!el) return
+
+    let pos = 0
+
+    function startInteract() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      interactingRef.current = true
+    }
+    function scheduleResume() {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      resumeTimerRef.current = setTimeout(() => { interactingRef.current = false }, 2000)
+    }
+    function onScroll() {
+      if (interactingRef.current) scheduleResume()
+    }
+
+    el.addEventListener('touchstart', startInteract, { passive: true })
+    el.addEventListener('touchend', scheduleResume, { passive: true })
+    el.addEventListener('touchcancel', scheduleResume, { passive: true })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    el.addEventListener('mouseenter', startInteract)
+    el.addEventListener('mouseleave', scheduleResume)
+    el.addEventListener('pointerdown', startInteract)
+    el.addEventListener('pointerup', scheduleResume)
+
+    function tick() {
+      if (el) {
+        if (interactingRef.current) {
+          pos = el.scrollLeft
+        } else {
+          const half = el.scrollWidth / 2
+          pos += 0.5
+          if (half > 0 && pos >= half) pos -= half
+          el.scrollLeft = pos
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      el.removeEventListener('touchstart', startInteract)
+      el.removeEventListener('touchend', scheduleResume)
+      el.removeEventListener('touchcancel', scheduleResume)
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('mouseenter', startInteract)
+      el.removeEventListener('mouseleave', scheduleResume)
+      el.removeEventListener('pointerdown', startInteract)
+      el.removeEventListener('pointerup', scheduleResume)
+    }
+  }, [animate])
+
   return (
     <section className="space-y-3">
       <div className="px-4">
         <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Featured Players
         </h2>
-        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Premium players appear first to clubs</p>
+        <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Pro players · actively looking players get extra visibility</p>
       </div>
-      <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
-        {players.map((p) => (
-          <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-            className="flex-shrink-0 rounded-2xl overflow-hidden block"
-            style={{ width: 145, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}>
-            <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
-              {p.avatar_url ? (
-                <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                  <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                    {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2) ?? '??'}
-                  </span>
-                </div>
-              )}
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
-              <div className="absolute top-2 left-2">
-                <NewBadge createdAt={p.created_at} size="sm" />
-              </div>
-              <div className="absolute top-2 right-2">
-                <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.85)', color: '#fff', fontSize: 10 }}>PRO</span>
-              </div>
+      <div ref={scrollRef} className="flex overflow-x-auto pl-4 pb-2" style={{ scrollbarWidth: 'none' }}>
+        {showCta && (
+          <Link href={ctaHref}
+            className="flex-shrink-0 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center px-4 mr-3"
+            style={{
+              width: 145,
+              minHeight: 210,
+              border: '1px dashed rgba(34,197,94,0.4)',
+              textDecoration: 'none',
+              background: 'linear-gradient(160deg, rgba(34,197,94,0.06) 0%, #13172a 100%)',
+            }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
+              style={{ backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
+              <span className="animate-pulse" style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#22c55e', display: 'block', boxShadow: '0 0 10px rgba(34,197,94,0.6)' }} />
             </div>
-            <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-              <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-              <p className="text-xs truncate" style={{ color: '#8892aa' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
-              {p.status && (
-                <p className="text-xs font-semibold" style={{ color: STATUS_COLORS[p.status], fontSize: 10 }}>
-                  {STATUS_LABELS[p.status]}
-                </p>
-              )}
-            </div>
+            <p className="text-xs font-bold uppercase leading-tight" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', letterSpacing: '0.04em' }}>
+              {!viewerPremium ? 'Want to be here?' : 'Stand out more'}
+            </p>
+            <p className="text-xs mt-1.5 leading-snug" style={{ color: '#8892aa', fontSize: 10 }}>
+              {!viewerPremium
+                ? 'Premium players get featured to every coach on the platform.'
+                : 'Turn on Actively Looking to get the green signal coaches look for.'}
+            </p>
+            <span className="mt-3 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: !viewerPremium ? '#2d5fc4' : '#22c55e', color: '#fff', fontSize: 10 }}>
+              {!viewerPremium ? 'Go Premium' : 'Enable Now'}
+            </span>
           </Link>
-        ))}
+        )}
+        {loop.map((p, i) => <FeaturedPlayerCard key={`${p.id}-${i}`} p={p} />)}
       </div>
     </section>
   )
@@ -557,6 +700,9 @@ export default function PlayerHome() {
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
+  const [savingLooking, setSavingLooking] = useState(false)
+  const [showLookingPaywall, setShowLookingPaywall] = useState(false)
+  const [nearbyCoachCount, setNearbyCoachCount] = useState<number | null>(null)
   const [statsViews, setStatsViews] = useState(0)
   const [statsOpps, setStatsOpps] = useState(0)
 
@@ -570,10 +716,10 @@ export default function PlayerHome() {
       const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
 
       const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
-        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', ''),
+        supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', ''),
         // Recently active players + coaches
-        supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
+        supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
         // Profile views this week
         supabase.from('player_views').select('id', { count: 'exact', head: true }).eq('player_id', user.id).gte('viewed_at', weekAgo),
@@ -621,6 +767,26 @@ export default function PlayerHome() {
     setSavingStatus(false)
   }
 
+  async function handleActivelyLookingToggle() {
+    if (!profile) return
+    if (!profile.premium) {
+      fetch('/api/player/actively-looking').then(r => r.json()).then(d => {
+        setNearbyCoachCount(d.nearbyCoachCount ?? null)
+      }).catch(() => {})
+      setShowLookingPaywall(true)
+      return
+    }
+    setSavingLooking(true)
+    const next = !profile.actively_looking
+    const res = await fetch('/api/player/actively-looking', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actively_looking: next }),
+    })
+    if (res.ok) setProfile(p => p ? { ...p, actively_looking: next } : p)
+    setSavingLooking(false)
+  }
+
   if (loading) return <PlayerHomeSkeleton />
 
   return (
@@ -661,74 +827,66 @@ export default function PlayerHome() {
 
       <div className="space-y-7 pb-6">
 
-        {/* Announcement + Availability — side by side on sm+ */}
+        {/* Availability */}
         <section className="px-4">
-          <div className={`grid gap-3 items-stretch ${profile?.role === 'fan' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
-
-            {/* Showcase Card */}
-            <Link href="/dashboard/showcase" style={{ textDecoration: 'none' }}>
-              <div className="rounded-2xl p-4 flex flex-col justify-between gap-3 h-full"
-                style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-black uppercase leading-tight mb-1"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                      Showcase Game 1 — Sold Out
-                    </p>
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      28 players · Steps 3–7
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.35)' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                      <path d="M4 22h16" />
-                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
-                    style={{ backgroundColor: '#2d5fc4', color: '#e8dece' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                    View Full Game
-                  </span>
-                </div>
-              </div>
-            </Link>
+          <div className="grid gap-3 items-stretch grid-cols-1">
 
             {/* Availability — hidden for fans */}
             {profile?.role !== 'fan' && (
-              <div className="rounded-2xl p-4 flex flex-col justify-between gap-3"
+              <div className="rounded-2xl p-4"
                 style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
-                  {!profile?.status && (
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Required</span>
-                  )}
+                <div className="flex gap-4">
+                  {/* Left — status dropdown */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
+                      {!profile?.status && (
+                        <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Required</span>
+                      )}
+                    </div>
+                    <select
+                      value={profile?.status ?? ''}
+                      onChange={handleStatusChange}
+                      disabled={savingStatus}
+                      className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+                      style={{
+                        backgroundColor: '#0d1020',
+                        border: `1px solid ${profile?.status ? STATUS_COLORS[profile.status] : '#1e2235'}`,
+                        color: '#e8dece',
+                      }}>
+                      <option value="" disabled style={{ backgroundColor: '#0d1020', color: '#8892aa' }}>Select status…</option>
+                      <option value="free_agent" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Free Agent</option>
+                      <option value="signed" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Signed to a club</option>
+                      <option value="loan_dual_reg" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Looking for Loan / Dual Reg</option>
+                      <option value="just_exploring" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Just Exploring</option>
+                    </select>
+                  </div>
+
+                  {/* Right — Actively Looking toggle */}
+                  <div className="flex flex-col items-center justify-center gap-2 flex-shrink-0"
+                    style={{ borderLeft: '1px solid #1e2235', paddingLeft: 16, minWidth: 90 }}>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: profile?.actively_looking ? '#22c55e' : '#3a4055', boxShadow: profile?.actively_looking ? '0 0 10px rgba(34,197,94,0.6)' : 'none' }}
+                        className={profile?.actively_looking ? 'animate-pulse' : ''} />
+                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: profile?.actively_looking ? '#e8dece' : '#8892aa' }}>
+                        Actively Looking
+                      </span>
+                    </div>
+                    {!profile?.premium && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>Pro</span>
+                    )}
+                    <button
+                      onClick={handleActivelyLookingToggle}
+                      disabled={savingLooking}
+                      className="relative rounded-full transition-colors"
+                      style={{ width: 44, height: 24, backgroundColor: profile?.actively_looking ? '#22c55e' : '#1e2235' }}>
+                      <span className="absolute top-1 rounded-full transition-all" style={{ width: 16, height: 16, backgroundColor: '#fff', left: profile?.actively_looking ? 24 : 4 }} />
+                    </button>
+                    <p className="text-center leading-tight" style={{ color: '#8892aa', fontSize: 10 }}>
+                      Let coaches know you&apos;re actively looking
+                    </p>
+                  </div>
                 </div>
-                <select
-                  value={profile?.status ?? ''}
-                  onChange={handleStatusChange}
-                  disabled={savingStatus}
-                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
-                  style={{
-                    backgroundColor: '#0d1020',
-                    border: `1px solid ${profile?.status ? STATUS_COLORS[profile.status] : '#1e2235'}`,
-                    color: '#e8dece',
-                  }}>
-                  <option value="" disabled style={{ backgroundColor: '#0d1020', color: '#8892aa' }}>Select status…</option>
-                  <option value="free_agent" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Free Agent</option>
-                  <option value="signed" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Signed to a club</option>
-                  <option value="loan_dual_reg" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Looking for Loan / Dual Reg</option>
-                  <option value="just_exploring" style={{ backgroundColor: '#0d1020', color: '#e8dece' }}>Just Exploring</option>
-                </select>
               </div>
             )}
 
@@ -742,9 +900,67 @@ export default function PlayerHome() {
         <OpportunitiesPreview opportunities={opportunities} />
 
         {/* Featured Players */}
-        <FeaturedCarousel players={featuredPlayers} />
+        <FeaturedCarousel players={featuredPlayers} viewerPremium={profile?.premium ?? false} viewerLooking={profile?.actively_looking ?? false} />
 
       </div>
+
+      {/* Actively Looking Paywall */}
+      {showLookingPaywall && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-md mx-4 rounded-t-2xl sm:rounded-2xl p-6 space-y-5"
+            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(45,95,196,0.15)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="3" />
+                  <line x1="12" y1="2" x2="12" y2="5" />
+                  <line x1="12" y1="19" x2="12" y2="22" />
+                  <line x1="2" y1="12" x2="5" y2="12" />
+                  <line x1="19" y1="12" x2="22" y2="12" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', letterSpacing: '0.04em' }}>
+                This is how coaches find you
+              </h2>
+            </div>
+
+            <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
+              Switch on Actively Looking and you&apos;ll appear in the Actively Looking carousel and free-agent searches — the players coaches see first.
+            </p>
+
+            <p className="text-sm font-medium" style={{ color: '#e8dece' }}>
+              {nearbyCoachCount
+                ? `${nearbyCoachCount} coach${nearbyCoachCount > 1 ? 'es' : ''} recruiting your position near you this week.`
+                : 'Coaches check the Actively Looking carousel every day.'}
+            </p>
+
+            <div className="space-y-2">
+              {['Appear in the Actively Looking carousel & searches', 'See who\'s viewed and shortlisted you', 'Message coaches directly'].map(b => (
+                <div key={b} className="flex items-center gap-2.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="text-sm" style={{ color: '#e8dece' }}>{b}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <Link href="/dashboard/player/premium"
+                className="block w-full text-center py-3 rounded-xl text-sm font-bold"
+                style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+                Go Premium &middot; £6.99/mo
+              </Link>
+              <button onClick={() => setShowLookingPaywall(false)}
+                className="w-full text-center py-2 text-sm"
+                style={{ color: '#8892aa' }}>
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

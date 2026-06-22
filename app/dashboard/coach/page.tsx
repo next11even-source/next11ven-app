@@ -322,15 +322,15 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/dashboard/opportunities?new=1"
-            className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
-            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}
+            className="font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-full transition-colors"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none', fontSize: 10 }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#3a6fda')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d5fc4')}>
-            + Add Opportunity
+            + Add
           </Link>
-          <Link href="/dashboard/opportunities" className="text-xs font-semibold"
-            style={{ color: '#2d5fc4', textDecoration: 'none' }}>
-            View all →
+          <Link href="/dashboard/opportunities" className="font-semibold"
+            style={{ color: '#2d5fc4', textDecoration: 'none', fontSize: 11 }}>
+            All →
           </Link>
         </div>
       </div>

@@ -53,13 +53,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getRoute(type: string): string {
+function getRoute(type: string, entityId?: string | null): string {
   switch (type) {
     case 'post_like':
     case 'post_comment':
     case 'shortlist_post':               return '/dashboard/feed'
     case 'new_opportunity_application':  return '/dashboard/opportunities'
-    case 'shortlist_availability':       return '/dashboard/coach/shortlists'
+    case 'shortlist_availability':
+      return entityId
+        ? `/dashboard/player/players/${entityId}?compose=1`
+        : '/dashboard/coach/shortlists'
     default:                             return '/dashboard/coach'
   }
 }
@@ -120,7 +123,7 @@ function NotifRow({ notif, onRead }: { notif: Notification; onRead: (id: string)
 
   function handleTap() {
     onRead(notif.id)
-    router.push(getRoute(notif.type))
+    router.push(getRoute(notif.type, notif.entity_id))
   }
 
   return (

@@ -405,6 +405,34 @@ export async function sendSubscriptionCancelledWinBackEmail({
   await send({ to, subject: "We'd love to have you back", html })
 }
 
+// ─── Shortlisted player became available (coach) ────────────────────────────
+
+export async function sendShortlistAvailableEmail({
+  to,
+  coachName,
+  playerName,
+  playerId,
+}: {
+  to: string
+  coachName: string | null
+  playerName: string
+  playerId: string
+}) {
+  const profileUrl = `${SITE}/dashboard/player/players/${playerId}?compose=1`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${coachName?.split(' ')[0] ?? 'Coach'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      <strong style="color:#e8dece;">${playerName}</strong> — a player on your shortlist — is now a <strong style="color:#60a5fa;">free agent</strong> and available.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
+      Get in touch before another coach does.
+    </p>
+    <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Player &amp; Send Message</a>
+  `, makeUnsubscribeUrl(playerId))
+
+  await send({ to, subject: `${playerName} on your shortlist is now available`, html })
+}
+
 // ─── Application received (coach) ─────────────────────────────────────────────
 
 export async function sendApplicationReceivedEmail({

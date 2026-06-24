@@ -102,25 +102,6 @@ function HighlightEmbed({ url }: { url: string }) {
   )
 }
 
-// ─── Premium Lock Banner ──────────────────────────────────────────────────────
-
-function PremiumLock({ message, cta }: { message: string; cta: string }) {
-  return (
-    <Link href="/dashboard/player/premium"
-      className="flex items-center gap-3 rounded-xl px-4 py-3.5"
-      style={{ backgroundColor: 'rgba(45,95,196,0.08)', border: '1px dashed #2d5fc4', textDecoration: 'none' }}>
-      <span className="text-lg">🔒</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>{message}</p>
-        <p className="text-xs mt-0.5" style={{ color: '#2d5fc4' }}>{cta}</p>
-      </div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 18l6-6-6-6" />
-      </svg>
-    </Link>
-  )
-}
-
 // ─── Folder Modal ─────────────────────────────────────────────────────────────
 
 function FolderModal({
@@ -380,7 +361,6 @@ export default function PlayerPublicProfile() {
   const active = isActiveThisWeek(player.last_active)
   const initials = player.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const isOwnProfile = viewer?.id === player.id
-  const viewerIsPremium = viewer?.premium ?? false
   const viewerIsCoach = viewer?.role === 'coach'
 
   return (
@@ -526,17 +506,12 @@ export default function PlayerPublicProfile() {
                   Remove
                 </button>
               </div>
-            ) : viewerIsPremium ? (
+            ) : (
               <button onClick={() => setShowFolderModal(true)} disabled={saving}
                 className="w-full py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
                 style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
                 📁 Save to Shortlist
               </button>
-            ) : (
-              <PremiumLock
-                message="Shortlisting is a Coach Pro feature"
-                cta="Upgrade to save players & get status alerts"
-              />
             )}
           </div>
         )}

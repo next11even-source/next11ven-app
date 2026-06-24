@@ -34,16 +34,12 @@ export async function GET() {
 
   const { data: coach } = await supabase
     .from('profiles')
-    .select('role, premium')
+    .select('role')
     .eq('id', user.id)
     .single()
 
   if (!coach || !['coach'].includes(coach.role)) {
     return NextResponse.json({ error: 'Coach account required' }, { status: 403 })
-  }
-
-  if (!coach.premium) {
-    return NextResponse.json({ saved: [] })
   }
 
   const service = serviceSupabase()
@@ -74,16 +70,12 @@ export async function POST(req: NextRequest) {
 
   const { data: coach } = await supabase
     .from('profiles')
-    .select('role, premium')
+    .select('role')
     .eq('id', user.id)
     .single()
 
   if (!coach || !['coach'].includes(coach.role)) {
     return NextResponse.json({ error: 'Coach account required' }, { status: 403 })
-  }
-
-  if (!coach.premium) {
-    return NextResponse.json({ error: 'Coach Pro required to shortlist players' }, { status: 403 })
   }
 
   let body: { player_id?: string; folder_name?: string }

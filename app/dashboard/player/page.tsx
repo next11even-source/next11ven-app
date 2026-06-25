@@ -146,17 +146,17 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
 function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number }) {
   const stats = [
-    {
+    ...(views > 0 ? [{
       label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week',
       color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
-    },
+    }] : []),
     {
       label: 'Opportunities', value: openOpps, href: '/dashboard/opportunities', sub: 'open',
       color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
     },
   ]
   return (
-    <div className="mx-4 grid grid-cols-3 gap-3">
+    <div className={`mx-4 grid gap-3 ${views > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
       {stats.map((s) => (
         <Link key={s.label} href={s.href}
           className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"

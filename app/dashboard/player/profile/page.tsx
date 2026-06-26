@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
@@ -166,7 +167,7 @@ function AvatarSection({ profile, onUpdate }: { profile: Profile; onUpdate: (url
           className="w-24 h-24 rounded-full overflow-hidden relative group disabled:opacity-50 flex-shrink-0"
           style={{ border: `3px solid ${statusColor ?? '#1e2235'}` }}>
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+            <Image src={profile.avatar_url} alt="" width={96} height={96} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl font-black"
               style={{ backgroundColor: '#1e2235', color: '#8892aa', fontFamily: "'Barlow Condensed', sans-serif" }}>

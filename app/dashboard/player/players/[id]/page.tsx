@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import NewBadge from '@/app/components/NewBadge'
@@ -418,7 +419,7 @@ export default function PlayerPublicProfile() {
               backgroundColor: '#1a1f3a',
             }}>
             {player.avatar_url ? (
-              <img src={player.avatar_url} alt={player.full_name ?? ''} className="w-full h-full object-cover object-center" />
+              <Image src={player.avatar_url} alt={player.full_name ?? ''} width={112} height={112} className="w-full h-full object-cover object-center" />
             ) : (
               <span className="font-black text-4xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
                 {initials}

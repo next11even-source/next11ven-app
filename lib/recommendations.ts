@@ -140,6 +140,9 @@ export async function getRecommendedPlayers(
   for (const row of emailLogRes.data ?? []) excluded.add(row.player_id)
 
   // ── Candidate pool ──────────────────────────────────────────────────────────
+  // Restrict to players active in the last 90 days — keeps the pool relevant and
+  // cuts egress (was fetching all 655 players on every coach visit + weekly cron).
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString()
   const { data: candidates, error: candidatesError } = await supabase
     .from('profiles')
     .select(
@@ -147,7 +150,9 @@ export async function getRecommendedPlayers(
     )
     .in('role', ['player', 'admin'])
     .eq('approved', true)
-    .limit(1000)
+    .not('last_active', 'is', null)
+    .gte('last_active', ninetyDaysAgo)
+    .limit(300)
 
   if (candidatesError) {
     throw new Error(`Candidate query failed: ${candidatesError.message}`)

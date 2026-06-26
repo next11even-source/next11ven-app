@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
@@ -18,10 +19,11 @@ type Player = {
   playing_level: string | null
   status: 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring' | null
   actively_looking: boolean
-  highlight_urls: string[] | null
   created_at: string
   premium: boolean
 }
+
+const PAGE_SIZE = 20
 
 type QuickTab = 'all' | 'actively_looking' | 'loan' | 'new'
 
@@ -253,7 +255,7 @@ function ActivelyLookingCarousel({ players }: { players: Player[] }) {
               }}
             >
               <div style={{ height: 96, position: 'relative', backgroundColor: '#1a1f3a' }}>
-                <img src={p.avatar_url!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+                <Image src={p.avatar_url!} alt="" fill sizes="104px" style={{ objectFit: 'cover', objectPosition: 'center' }} />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 50%)' }} />
                 <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }}
                   className="animate-pulse" />
@@ -362,7 +364,7 @@ function RecommendedForYou() {
                   }}
                 >
                   <div style={{ height: 96, position: 'relative', backgroundColor: '#1a1f3a' }}>
-                    <img src={p.avatar_url!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+                    <Image src={p.avatar_url!} alt="" fill sizes="104px" style={{ objectFit: 'cover', objectPosition: 'center' }} />
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 50%)' }} />
                   </div>
                   <div style={{ padding: '5px 7px 7px' }}>
@@ -392,7 +394,8 @@ export default function CoachPlayersPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
-  const [filtered, setFiltered] = useState<Player[]>([])
+  const [lookingPlayers, setLookingPlayers] = useState<Player[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [quickTab, setQuickTab] = useState<QuickTab>('all')
@@ -400,74 +403,75 @@ export default function CoachPlayersPage() {
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS)
   const [showFilters, setShowFilters] = useState(false)
   const [page, setPage] = useState(0)
-  const PAGE_SIZE = 20
 
+  // Coach profile (sidebar) + Actively Looking carousel — both small one-shot queries.
   useEffect(() => {
     const supabase = createClient()
-
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-
       supabase.from('profiles').select('full_name, avatar_url, coaching_role').eq('id', user.id).single()
         .then(({ data }) => setCoachProfile(data ?? null))
-
-      const playersRes = await supabase.from('profiles')
-        .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, highlight_urls, created_at, premium')
-        .in('role', ['player', 'admin'])
-        .eq('approved', true)
-        .order('created_at', { ascending: false })
-        .limit(1000)
-
-      const raw = (playersRes.data as Player[]) ?? []
-      const shuffle = <T,>(arr: T[]): T[] => {
-        const a = [...arr]
-        for (let i = a.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [a[i], a[j]] = [a[j], a[i]]
-        }
-        return a
-      }
-      const premium = shuffle(raw.filter(p => p.premium))
-      const standard = shuffle(raw.filter(p => !p.premium))
-      const allPlayers = [...premium, ...standard]
-      setPlayers(allPlayers)
-      setFiltered(allPlayers)
-      setLoading(false)
     })
+
+    supabase.from('profiles')
+      .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium')
+      .in('role', ['player', 'admin'])
+      .eq('approved', true)
+      .eq('actively_looking', true)
+      .not('avatar_url', 'is', null)
+      .neq('avatar_url', '')
+      .limit(40)
+      .then(({ data }) => setLookingPlayers((data as Player[]) ?? []))
   }, [])
 
+  // Reset to first page whenever the filter set changes.
+  useEffect(() => { setPage(0) }, [search, quickTab, appliedFilters])
+
+  // Paginated, server-side-filtered fetch. Only PAGE_SIZE rows leave Supabase per
+  // page/filter combination — no full-table download, no client-side slicing.
   useEffect(() => {
-    let result = players
+    const supabase = createClient()
+    const handler = setTimeout(async () => {
+      setLoading(true)
+      const from = page * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
 
-    if (quickTab === 'actively_looking') result = result.filter(p => p.actively_looking)
-    if (quickTab === 'loan') result = result.filter(p => p.status === 'loan_dual_reg')
-    if (quickTab === 'new') {
-      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
-      result = result.filter(p => new Date(p.created_at).getTime() > cutoff)
-    }
+      let query = supabase.from('profiles')
+        .select(
+          'id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium',
+          { count: 'exact' }
+        )
+        .in('role', ['player', 'admin'])
+        .eq('approved', true)
 
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter(p =>
-        p.full_name?.toLowerCase().includes(q) ||
-        p.club?.toLowerCase().includes(q) ||
-        p.city?.toLowerCase().includes(q)
-      )
-    }
-    if (appliedFilters.position) {
-      result = result.filter(p => p.position === appliedFilters.position || p.secondary_position === appliedFilters.position)
-    }
-    if (appliedFilters.location) {
-      const loc = appliedFilters.location.toLowerCase()
-      result = result.filter(p => p.city?.toLowerCase().includes(loc))
-    }
-    if (appliedFilters.status) result = result.filter(p => p.status === appliedFilters.status)
-    if (appliedFilters.level) result = result.filter(p => p.playing_level?.toLowerCase().includes(appliedFilters.level.toLowerCase()))
-    if (appliedFilters.hasHighlights) result = result.filter(p => (p.highlight_urls?.length ?? 0) > 0)
+      if (quickTab === 'actively_looking') query = query.eq('actively_looking', true)
+      else if (quickTab === 'loan') query = query.eq('status', 'loan_dual_reg')
+      else if (quickTab === 'new') query = query.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString())
 
-    setFiltered(result)
-    setPage(0)
-  }, [search, quickTab, appliedFilters, players])
+      if (appliedFilters.position) {
+        const pos = appliedFilters.position.replace(/[%,()]/g, ' ')
+        query = query.or(`position.eq.${pos},secondary_position.eq.${pos}`)
+      }
+      if (appliedFilters.status) query = query.eq('status', appliedFilters.status)
+      if (appliedFilters.level) query = query.ilike('playing_level', `%${appliedFilters.level}%`)
+      if (appliedFilters.location) query = query.ilike('city', `%${appliedFilters.location}%`)
+      if (appliedFilters.hasHighlights) query = query.not('highlight_urls', 'is', null)
+
+      const s = search.trim().replace(/[%,()]/g, ' ')
+      if (s) query = query.or(`full_name.ilike.%${s}%,club.ilike.%${s}%,city.ilike.%${s}%`)
+
+      const { data, count } = await query
+        .order('premium', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      setPlayers((data as Player[]) ?? [])
+      setTotalCount(count ?? 0)
+      setLoading(false)
+    }, search ? 350 : 0)
+
+    return () => clearTimeout(handler)
+  }, [page, search, quickTab, appliedFilters])
 
   // Capture coach search activity → coach_search_history (feeds recommendations).
   // Debounced 500ms; RLS limits inserts to coach accounts on their own rows.
@@ -502,8 +506,7 @@ export default function CoachPlayersPage() {
     return () => clearTimeout(timer)
   }, [search, appliedFilters])
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   const activeFilterCount = [
     appliedFilters.position,
@@ -599,7 +602,7 @@ export default function CoachPlayersPage() {
           {/* Search */}
           <input
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0) }}
+            onChange={e => setSearch(e.target.value)}
             placeholder="Search name, club, city…"
             className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
             style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}
@@ -650,8 +653,8 @@ export default function CoachPlayersPage() {
         </div>
 
         {/* Recommended for You + Actively Looking */}
-        {!loading && <RecommendedForYou />}
-        {!loading && <ActivelyLookingCarousel players={players} />}
+        <RecommendedForYou />
+        {lookingPlayers.length > 0 && <ActivelyLookingCarousel players={lookingPlayers} />}
 
         {loading ? (
           <div className="space-y-2 px-4">
@@ -668,10 +671,8 @@ export default function CoachPlayersPage() {
           </div>
         ) : (
           <div>
-            {paginated.map((p, i) => {
-              const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
+            {players.map((p, i) => {
               const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-              const hasHighlights = (p.highlight_urls?.length ?? 0) > 0
 
               return (
                 <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
@@ -684,7 +685,7 @@ export default function CoachPlayersPage() {
                   <div className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
                     style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${p.actively_looking ? 'rgba(34,197,94,0.4)' : '#1e2235'}` }}>
                     {p.avatar_url ? (
-                      <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
+                      <Image src={p.avatar_url} alt={p.full_name ?? ''} width={56} height={56} className="w-full h-full object-cover object-center" />
                     ) : (
                       <span className="font-black text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
                         {initials}
@@ -697,9 +698,6 @@ export default function CoachPlayersPage() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
                       {p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
-                      {hasHighlights && (
-                        <span className="text-xs flex-shrink-0" title="Has highlights">🎬</span>
-                      )}
                     </div>
                     <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
                       {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
@@ -748,7 +746,7 @@ export default function CoachPlayersPage() {
               </div>
             )}
 
-            {filtered.length === 0 && (
+            {totalCount === 0 && (
               <div className="py-16 text-center px-6 space-y-3">
                 <p className="text-2xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>No players found</p>
                 <p className="text-sm" style={{ color: '#8892aa' }}>Try adjusting your filters or search.</p>

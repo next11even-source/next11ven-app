@@ -257,7 +257,7 @@ function MessagesInner() {
     // Fetch conversations where this coach is on either side
     const { data } = await supabase
       .from('conversations')
-      .select('id, coach_id, player_id, last_message_at, initiated_by')
+      .select('id, coach_id, player_id, last_message_at, last_message_content, initiated_by')
       .or(`coach_id.eq.${user.id},player_id.eq.${user.id}`)
       .order('last_message_at', { ascending: false })
 
@@ -277,20 +277,8 @@ function MessagesInner() {
       (profiles ?? []).map((p: OtherPerson) => [p.id, p])
     )
 
-    // Last message per conversation
-    const convIds = data.map((c: { id: string }) => c.id)
-    const { data: lastMsgs } = await supabase
-      .from('messages')
-      .select('conversation_id, content, created_at')
-      .in('conversation_id', convIds)
-      .order('created_at', { ascending: false })
-
-    const lastMsgMap: Record<string, string> = {}
-    for (const msg of (lastMsgs ?? [])) {
-      if (!lastMsgMap[msg.conversation_id]) lastMsgMap[msg.conversation_id] = msg.content
-    }
-
     // Unread count
+    const convIds = data.map((c: { id: string }) => c.id)
     const { data: unreadData } = await supabase
       .from('messages')
       .select('conversation_id')
@@ -320,12 +308,12 @@ function MessagesInner() {
       }
     }
 
-    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; player_id: string; last_message_at: string; initiated_by: string | null }) => {
+    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; player_id: string; last_message_at: string; last_message_content: string | null; initiated_by: string | null }) => {
       const otherId = c.coach_id === user.id ? c.player_id : c.coach_id
       return {
         ...c,
         other_person: profileMap[otherId] ? { ...profileMap[otherId], id: otherId } : null,
-        last_message: lastMsgMap[c.id],
+        last_message: c.last_message_content ?? undefined,
         unread: unreadMap[c.id] ?? 0,
         coachHasReplied: repliedConvIds.has(c.id),
       }

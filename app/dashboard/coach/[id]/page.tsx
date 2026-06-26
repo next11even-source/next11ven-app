@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
@@ -293,7 +294,7 @@ export default function CoachPublicProfile() {
         <div className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center mb-4"
           style={{ border: '3px solid #2d5fc4', backgroundColor: '#1a1f3a' }}>
           {coach.avatar_url ? (
-            <img src={coach.avatar_url} alt={coach.full_name ?? ''} className="w-full h-full object-cover object-center" />
+            <Image src={coach.avatar_url} alt={coach.full_name ?? ''} width={112} height={112} className="w-full h-full object-cover object-center" />
           ) : (
             <span className="font-black text-4xl"
               style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>

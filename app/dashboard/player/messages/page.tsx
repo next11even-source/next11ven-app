@@ -254,7 +254,7 @@ function MessagesInner() {
 
     const [profileRes, convsRes] = await Promise.all([
       supabase.from('profiles').select('premium').eq('id', user.id).single(),
-      supabase.from('conversations').select('id, coach_id, last_message_at, initiated_by').eq('player_id', user.id).order('last_message_at', { ascending: false }),
+      supabase.from('conversations').select('id, coach_id, last_message_at, last_message_content, initiated_by').eq('player_id', user.id).order('last_message_at', { ascending: false }),
     ])
     const isPremium = profileRes.data?.premium ?? false
     setPlayerIsPremium(isPremium)
@@ -284,20 +284,8 @@ function MessagesInner() {
       (coaches ?? []).map((c: { id: string; full_name: string | null; avatar_url: string | null; coaching_role: string | null; club: string | null; premium: boolean }) => [c.id, c])
     )
 
-    // Get last message per conversation
-    const convIds = data.map((c: { id: string }) => c.id)
-    const { data: lastMsgs } = await supabase
-      .from('messages')
-      .select('conversation_id, content, created_at')
-      .in('conversation_id', convIds)
-      .order('created_at', { ascending: false })
-
-    const lastMsgMap: Record<string, string> = {}
-    for (const msg of (lastMsgs ?? [])) {
-      if (!lastMsgMap[msg.conversation_id]) lastMsgMap[msg.conversation_id] = msg.content
-    }
-
     // Count unread (messages from coach that player hasn't read)
+    const convIds = data.map((c: { id: string }) => c.id)
     const { data: unreadData } = await supabase
       .from('messages')
       .select('conversation_id')
@@ -310,10 +298,10 @@ function MessagesInner() {
       unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
     }
 
-    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; last_message_at: string; initiated_by: string | null }) => ({
+    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; last_message_at: string; last_message_content: string | null; initiated_by: string | null }) => ({
       ...c,
       coach: coachMap[c.coach_id] ?? null,
-      last_message: lastMsgMap[c.id],
+      last_message: c.last_message_content ?? undefined,
       unread: unreadMap[c.id] ?? 0,
     }))
     setConversations(convs)

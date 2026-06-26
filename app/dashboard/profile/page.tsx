@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
@@ -221,7 +222,7 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
         className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden relative transition-opacity disabled:opacity-50"
         style={{ backgroundColor: '#1e2235' }} title="Upload photo">
         {profile.avatar_url
-          ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+          ? <Image src={profile.avatar_url} alt="" width={80} height={80} className="w-full h-full object-cover" />
           : <span className="text-xl font-bold" style={{ color: '#8892aa' }}>{initials}</span>}
         <span className="absolute inset-0 flex flex-col items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>

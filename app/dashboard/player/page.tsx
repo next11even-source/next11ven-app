@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from './_components/SidebarContext'
@@ -244,7 +245,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
           style={{ backgroundColor: '#1a1f3a' }}>
           {user.avatar_url
-            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-center" />
+            ? <Image src={user.avatar_url} alt="" width={44} height={44} className="w-full h-full object-cover object-center" />
             : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
         </div>
         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
@@ -383,7 +384,7 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
       }}>
       <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
         {p.avatar_url ? (
-          <img src={p.avatar_url} alt={p.full_name ?? ''} className="w-full h-full object-cover object-center" />
+          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="145px" className="object-cover object-center" />
         ) : (
           <div className="w-full h-full flex items-center justify-center"
             style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
@@ -717,7 +718,7 @@ export default function PlayerHome() {
 
       const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
-        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', ''),
+        supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
         supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),

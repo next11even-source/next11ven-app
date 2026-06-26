@@ -74,7 +74,7 @@ export async function POST() {
       await supabase.from('profiles').update({ premium: true }).eq('id', profile.id)
       granted++
     } else if (!shouldBePremium && profile.premium) {
-      await supabase.from('profiles').update({ premium: false }).eq('id', profile.id)
+      await supabase.from('profiles').update({ premium: false, actively_looking: false }).eq('id', profile.id)
       revoked++
     }
   }

@@ -208,7 +208,7 @@ async function handleSubscriptionDeleted(
   const userId = await resolveUserId(supabase, sub)
   if (!userId) return
 
-  await supabase.from('profiles').update({ premium: false }).eq('id', userId)
+  await supabase.from('profiles').update({ premium: false, actively_looking: false }).eq('id', userId)
   await supabase.from('subscriptions').update({
     status: sub.status,
     cancel_at_period_end: sub.cancel_at_period_end,
@@ -365,7 +365,7 @@ async function revokeAccess(
 
   await supabase
     .from('profiles')
-    .update({ premium: false })
+    .update({ premium: false, actively_looking: false })
     .eq('id', userId)
 
   await supabase

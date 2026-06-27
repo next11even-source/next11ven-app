@@ -309,9 +309,10 @@ BottomNav — persistent on player routes via player/layout.tsx
 Known Gaps (prioritised)
 Confirmed open issues. Fix in this order:
 
-Zod validation not rolled out — Zod is installed and used in /api/messages/send only. Most API routes still trust incoming payloads. Extend coverage route by route.
+Opportunities POST has no coach-role check — /api/opportunities POST lets ANY authenticated user (player/fan/coach) create an opportunity with coach_id = their own id. UI only exposes it to coaches, but the API doesn't enforce it. Add a role guard.
 
 Recently closed (no longer gaps — kept for context):
+- Zod validation — now on ALL 17 body-reading API routes (every route that reads req.json()). safeParse after the auth/rate-limit checks, returns 400 on bad shape. Existing error strings preserved. Pattern: define a z.object schema per route (see any route for the shape). ✅
 - Rate limiting — per-user Upstash sliding-window limiter (lib/ratelimit.ts) on the cost-bearing/abuse-prone routes: messages/send (20/min), messages/initiate (10/min), applications/apply (10/min), stripe/checkout + message-pack (10/min), register/complete (5/min). Fail-open if Upstash unconfigured. Env: UPSTASH_REDIS_KV_REST_API_URL/TOKEN (Preview + Production only — local dev runs with limiting OFF). ✅
 - Privacy Policy & Terms — real copy now live at /privacy and /terms. ✅
 - Error pages — app/error.tsx + app/not-found.tsx now exist. ✅
@@ -343,7 +344,7 @@ Immediate (fix + activate)
 
 Ship launch video + paid ad to drive existing users onto the new app
 Re-engagement email/SMS to the ~90% who haven't signed in yet
-Roll Zod validation out across remaining API routes
+Add coach-role guard to /api/opportunities POST (currently any user can post a role)
 
 Growth & Monetisation
 

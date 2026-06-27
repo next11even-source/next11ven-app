@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const RemoveSchema = z.object({
+  playerId: z.string().min(1, 'Missing playerId'),
+})
 
 export async function POST(req: Request) {
   const cookieStore = await cookies()
@@ -31,8 +36,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { playerId } = await req.json()
-  if (!playerId) return NextResponse.json({ error: 'Missing playerId' }, { status: 400 })
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
+
+  const parsed = RemoveSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'Missing playerId' }, { status: 400 })
+  const { playerId } = parsed.data
 
   const { error } = await supabase
     .from('profiles')

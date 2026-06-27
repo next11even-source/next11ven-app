@@ -2,6 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const ShortlistAddSchema = z.object({
+  player_id: z.string().min(1, 'player_id is required'),
+  folder_name: z.string().max(100).optional(),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -78,17 +84,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Coach account required' }, { status: 403 })
   }
 
-  let body: { player_id?: string; folder_name?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { player_id, folder_name = 'Shortlist' } = body
-  if (!player_id) {
-    return NextResponse.json({ error: 'player_id is required' }, { status: 400 })
+  const parsed = ShortlistAddSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 })
   }
+  const { player_id } = parsed.data
+  const folder_name = parsed.data.folder_name ?? 'Shortlist'
 
   const service = serviceSupabase()
 

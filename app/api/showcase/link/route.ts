@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const LinkSchema = z.object({
+  profileId: z.string().min(1),
+  team: z.coerce.number().int().positive(),
+  squadNumber: z.coerce.number().int().positive(),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -32,15 +39,14 @@ export async function POST(req: Request) {
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (me?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { profileId, team, squadNumber } = await req.json() as {
-    profileId: string
-    team: number
-    squadNumber: number
-  }
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
 
-  if (!profileId || !team || !squadNumber) {
+  const parsed = LinkSchema.safeParse(rawBody)
+  if (!parsed.success) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
+  const { profileId, team, squadNumber } = parsed.data
 
   const supa = serviceSupabase()
 

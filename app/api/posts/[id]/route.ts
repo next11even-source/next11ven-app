@@ -2,6 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const PostUpdateSchema = z.object({
+  caption: z.string().optional(),
+})
 
 async function getCallerWithRole(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   const supabase = createServerClient(
@@ -39,8 +44,12 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   if (role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await req.json()
-  const caption = typeof body.caption === 'string' ? body.caption.trim().slice(0, 1000) : null
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
+
+  const parsed = PostUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  const caption = parsed.data.caption?.trim().slice(0, 1000) ?? null
 
   const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -2,6 +2,19 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const OpportunitySchema = z.object({
+  title: z.string().trim().min(1, 'title is required').max(200),
+  club: z.string().max(200).nullish(),
+  location: z.string().max(200).nullish(),
+  position: z.string().max(120).nullish(),
+  level: z.string().max(120).nullish(),
+  description: z.string().max(5000).nullish(),
+  urgent: z.boolean().nullish(),
+  deadline: z.string().nullish(),
+  opportunity_type: z.enum(['player', 'coach']).optional(),
+})
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -22,12 +35,18 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  let body: Record<string, unknown>
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
+
+  const parsed = OpportunitySchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request body' }, { status: 400 })
+  }
+  const body = parsed.data
 
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

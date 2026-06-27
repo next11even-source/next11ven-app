@@ -2,6 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const FolderRenameSchema = z.object({
+  folder_name: z.string().trim().min(1, 'folder_name is required').max(100),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -81,17 +86,18 @@ export async function PATCH(
     return NextResponse.json({ error: 'player_id is required' }, { status: 400 })
   }
 
-  let body: { folder_name?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { folder_name } = body
-  if (!folder_name?.trim()) {
+  const parsed = FolderRenameSchema.safeParse(rawBody)
+  if (!parsed.success) {
     return NextResponse.json({ error: 'folder_name is required' }, { status: 400 })
   }
+  const { folder_name } = parsed.data
 
   const service = serviceSupabase()
 

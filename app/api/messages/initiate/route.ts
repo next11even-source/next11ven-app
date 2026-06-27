@@ -4,6 +4,11 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alert'
 import { enforceRateLimit } from '@/lib/ratelimit'
+import { z } from 'zod'
+
+const InitiateSchema = z.object({
+  coachId: z.string().min(1, 'coachId is required'),
+})
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -24,11 +29,12 @@ export async function POST(req: NextRequest) {
   const limited = await enforceRateLimit('messagesInitiate', user.id)
   if (limited) return limited
 
-  let body: { coachId?: string }
-  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
 
-  const { coachId } = body
-  if (!coachId) return NextResponse.json({ error: 'coachId is required' }, { status: 400 })
+  const parsed = InitiateSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'coachId is required' }, { status: 400 })
+  const { coachId } = parsed.data
 
   const { data: sender } = await supabase
     .from('profiles')

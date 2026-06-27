@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alert'
+import { enforceRateLimit } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+  const limited = await enforceRateLimit('messagesInitiate', user.id)
+  if (limited) return limited
 
   let body: { coachId?: string }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }

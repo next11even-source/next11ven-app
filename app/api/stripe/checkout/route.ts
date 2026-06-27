@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, PRICE_IDS, PremiumRole } from '@/lib/stripe'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { reportError } from '@/lib/alert'
+import { enforceRateLimit } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabase()
@@ -10,6 +11,9 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const limited = await enforceRateLimit('stripeCheckout', user.id)
+  if (limited) return limited
 
   const { data: profile } = await supabase
     .from('profiles')

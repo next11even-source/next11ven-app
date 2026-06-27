@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/utils'
+import { enforceRateLimit } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: 'No authenticated user' }, { status: 401 })
   }
+
+  const limited = await enforceRateLimit('registerComplete', userId)
+  if (limited) return limited
 
   const VALID_LEVELS = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6', 'Step 7', 'U18s/Academy', 'Wales 1', 'Wales 2', 'Other']
 

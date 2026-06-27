@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { sendMessageNotificationEmail, sendDripDay0Email } from '@/lib/email'
 import { reportError } from '@/lib/alert'
+import { enforceRateLimit } from '@/lib/ratelimit'
 
 const SendMessageSchema = z.object({
   player_id: z.string().uuid().optional(),
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+  const limited = await enforceRateLimit('messagesSend', user.id)
+  if (limited) return limited
 
   let rawBody: unknown
   try {

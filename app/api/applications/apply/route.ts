@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendApplicationReceivedEmail } from '@/lib/email'
 import { reportError } from '@/lib/alert'
+import { enforceRateLimit } from '@/lib/ratelimit'
 
 function serviceSupabase() {
   return createClient(
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+  const limited = await enforceRateLimit('applicationsApply', user.id)
+  if (limited) return limited
 
   // Verify caller is a player, admin, or coach
   const { data: sender } = await supabase

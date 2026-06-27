@@ -573,6 +573,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
 
 function ActiveUserCard({ user }: { user: ActiveUser }) {
   const isCoach = user.role === 'coach'
+  const isLooking = !isCoach && user.actively_looking
   const initials = getInitials(user.full_name)
   // Homepage only needs account type + step level (not exact role)
   const accountType = isCoach ? 'Coach' : 'Player'
@@ -587,13 +588,13 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
     >
       <div className="relative flex-shrink-0">
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
-          style={{ backgroundColor: '#1a1f3a' }}>
+          style={{ backgroundColor: '#1a1f3a', boxShadow: isLooking ? '0 0 0 2px #22c55e, 0 0 10px rgba(34,197,94,0.5)' : 'none' }}>
           {user.avatar_url
             ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-center" />
             : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
         </div>
-        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
-          style={{ backgroundColor: '#3a6fda', border: '2px solid #13172a' }} />
+        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
+          style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">

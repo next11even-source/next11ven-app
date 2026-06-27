@@ -2,6 +2,15 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+// Type guard only — the userId / role checks below stay as-is to preserve
+// their exact error messages.
+const RescueSchema = z.object({
+  userId: z.string().optional(),
+  role: z.string().optional(),
+  full_name: z.string().optional(),
+})
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -25,14 +34,18 @@ export async function POST(req: NextRequest) {
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (me?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { userId?: string; role?: string; full_name?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { userId, role, full_name: bodyName } = body
+  const parsed = RescueSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+  const { userId, role, full_name: bodyName } = parsed.data
   if (!userId) return NextResponse.json({ error: 'userId is required' }, { status: 400 })
 
   const allowedRoles = ['player', 'coach', 'fan']

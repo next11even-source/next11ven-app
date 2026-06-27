@@ -4,6 +4,12 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { onUserApproved } from '@/lib/mailerlite'
 import { reportError } from '@/lib/alert'
+import { z } from 'zod'
+
+const ReviewSchema = z.object({
+  user_id: z.string().min(1),
+  action: z.enum(['approve', 'decline']),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -43,17 +49,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { user_id?: string; action?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { user_id, action } = body
-  if (!user_id || !['approve', 'decline'].includes(action ?? '')) {
+  const parsed = ReviewSchema.safeParse(rawBody)
+  if (!parsed.success) {
     return NextResponse.json({ error: 'user_id and action (approve|decline) are required' }, { status: 400 })
   }
+  const { user_id, action } = parsed.data
 
   const isApproving = action === 'approve'
 

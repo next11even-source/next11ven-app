@@ -2,6 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const DeleteUserSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+})
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -25,15 +30,16 @@ export async function POST(req: NextRequest) {
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (me?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { userId?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { userId } = body
-  if (!userId) return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  const parsed = DeleteUserSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  const { userId } = parsed.data
 
   // Prevent deleting your own account
   if (userId === user.id) {

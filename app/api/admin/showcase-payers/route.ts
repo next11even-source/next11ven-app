@@ -3,9 +3,14 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { stripe } from '@/lib/stripe'
+import { z } from 'zod'
 
 // £14.99 = 1499p, £20 = 2000p
 const SHOWCASE_AMOUNTS = [1499, 2000]
+
+const EnablePayersSchema = z.object({
+  ids: z.array(z.string()).min(1),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -140,8 +145,12 @@ export async function POST(req: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { ids } = await req.json() as { ids: string[] }
-  if (!ids?.length) return NextResponse.json({ error: 'No ids provided' }, { status: 400 })
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
+
+  const parsed = EnablePayersSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'No ids provided' }, { status: 400 })
+  const { ids } = parsed.data
 
   const supabase = serviceSupabase()
   const { error } = await supabase

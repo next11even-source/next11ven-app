@@ -3,8 +3,12 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sendApplicationDecisionEmail } from '@/lib/email'
 import { reportError } from '@/lib/alert'
+import { z } from 'zod'
 
-const VALID_STATUSES = ['accepted', 'rejected', 'shortlisted', 'viewed', 'pending']
+const DecisionSchema = z.object({
+  status: z.enum(['accepted', 'rejected', 'shortlisted', 'viewed', 'pending']),
+  message: z.string().max(2000).optional(),
+})
 
 export async function PATCH(
   request: NextRequest,
@@ -29,12 +33,12 @@ export async function PATCH(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
-  const { status, message } = body as { status: string; message?: string }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
 
-  if (!VALID_STATUSES.includes(status)) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-  }
+  const parsed = DecisionSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  const { status, message } = parsed.data
 
   // Fetch application and verify this coach owns it
   const { data: app, error: fetchErr } = await supabase

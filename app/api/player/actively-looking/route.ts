@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const ActivelyLookingSchema = z.object({
+  actively_looking: z.boolean(),
+})
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -78,12 +83,14 @@ export async function PATCH(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  let body: { actively_looking?: boolean }
-  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
 
-  if (typeof body.actively_looking !== 'boolean') {
+  const parsed = ActivelyLookingSchema.safeParse(rawBody)
+  if (!parsed.success) {
     return NextResponse.json({ error: 'actively_looking must be a boolean' }, { status: 400 })
   }
+  const body = parsed.data
 
   const { data: profile } = await supabase
     .from('profiles')

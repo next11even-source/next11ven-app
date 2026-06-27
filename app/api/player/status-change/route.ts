@@ -3,8 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendShortlistAvailableEmail } from '@/lib/email'
+import { z } from 'zod'
 
-const VALID_STATUSES = ['free_agent', 'signed', 'loan_dual_reg', 'just_exploring'] as const
+const StatusChangeSchema = z.object({
+  status: z.enum(['free_agent', 'signed', 'loan_dual_reg', 'just_exploring']),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -32,13 +35,12 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  let body: { status?: string }
-  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
 
-  const { status } = body
-  if (!status || !VALID_STATUSES.includes(status as typeof VALID_STATUSES[number])) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-  }
+  const parsed = StatusChangeSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  const { status } = parsed.data
 
   const service = serviceSupabase()
 

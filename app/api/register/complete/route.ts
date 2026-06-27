@@ -4,6 +4,35 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/utils'
 import { enforceRateLimit } from '@/lib/ratelimit'
+import { z } from 'zod'
+
+// Type guard for the incoming body. Field-level rules (role whitelist, level
+// checks) stay as explicit checks below — this just rejects wrong-typed input
+// before it reaches the DB upsert. All fields optional/nullable to match the
+// permissive passthrough the route already relies on.
+const RegisterSchema = z.object({
+  userId: z.string().optional(),
+  full_name: z.string().max(200).nullish(),
+  email: z.string().max(320).nullish(),
+  phone: z.string().max(40).nullish(),
+  date_of_birth: z.string().nullish(),
+  role: z.string().nullish(),
+  city: z.string().max(160).nullish(),
+  location: z.string().max(200).nullish(),
+  referral: z.string().max(500).nullish(),
+  gdpr_consent: z.boolean().nullish(),
+  playing_level: z.string().nullish(),
+  club: z.string().max(200).nullish(),
+  position: z.string().max(80).nullish(),
+  secondary_position: z.string().max(80).nullish(),
+  foot: z.string().max(20).nullish(),
+  status: z.string().max(40).nullish(),
+  highlight_urls: z.array(z.string()).nullish(),
+  height: z.string().max(20).nullish(),
+  coaching_role: z.string().max(160).nullish(),
+  coaching_level: z.string().nullish(),
+  coaching_history: z.string().max(5000).nullish(),
+})
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -24,14 +53,20 @@ export async function POST(req: NextRequest) {
   // Verify the caller is authenticated — their session was just created by signUp
   const { data: { user } } = await supabase.auth.getUser()
 
-  let body: Record<string, unknown>
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const userId = user?.id ?? (body.userId as string | undefined)
+  const parsed = RegisterSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request body' }, { status: 400 })
+  }
+  const body = parsed.data
+
+  const userId = user?.id ?? body.userId
   if (!userId) {
     return NextResponse.json({ error: 'No authenticated user' }, { status: 401 })
   }

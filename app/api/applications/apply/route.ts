@@ -5,6 +5,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendApplicationReceivedEmail } from '@/lib/email'
 import { reportError } from '@/lib/alert'
 import { enforceRateLimit } from '@/lib/ratelimit'
+import { z } from 'zod'
+
+const ApplySchema = z.object({
+  opportunity_id: z.string().min(1, 'opportunity_id is required'),
+  message: z.string().trim().max(2000, 'Message must be 2000 characters or fewer').optional(),
+})
 
 function serviceSupabase() {
   return createClient(
@@ -48,20 +54,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only players and coaches can apply to opportunities' }, { status: 403 })
   }
 
-  let body: { opportunity_id?: string; message?: string }
+  let rawBody: unknown
   try {
-    body = await req.json()
+    rawBody = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { opportunity_id, message } = body
-  if (!opportunity_id) {
-    return NextResponse.json({ error: 'opportunity_id is required' }, { status: 400 })
+  const parsed = ApplySchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 })
   }
-  if (message && message.trim().length > 2000) {
-    return NextResponse.json({ error: 'Message must be 2000 characters or fewer' }, { status: 400 })
-  }
+  const { opportunity_id, message } = parsed.data
 
   // Fetch opportunity + coach details
   const service = serviceSupabase()

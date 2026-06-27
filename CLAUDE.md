@@ -309,10 +309,10 @@ BottomNav — persistent on player routes via player/layout.tsx
 Known Gaps (prioritised)
 Confirmed open issues. Fix in this order:
 
-No rate limiting — checkout, messaging, apply routes all unprotected. (Still open — no rate-limit code anywhere.)
 Zod validation not rolled out — Zod is installed and used in /api/messages/send only. Most API routes still trust incoming payloads. Extend coverage route by route.
 
 Recently closed (no longer gaps — kept for context):
+- Rate limiting — per-user Upstash sliding-window limiter (lib/ratelimit.ts) on the cost-bearing/abuse-prone routes: messages/send (20/min), messages/initiate (10/min), applications/apply (10/min), stripe/checkout + message-pack (10/min), register/complete (5/min). Fail-open if Upstash unconfigured. Env: UPSTASH_REDIS_KV_REST_API_URL/TOKEN (Preview + Production only — local dev runs with limiting OFF). ✅
 - Privacy Policy & Terms — real copy now live at /privacy and /terms. ✅
 - Error pages — app/error.tsx + app/not-found.tsx now exist. ✅
 - Shortlist CRUD API — built at /api/coach/shortlist (+ [player_id]). ✅
@@ -343,7 +343,6 @@ Immediate (fix + activate)
 
 Ship launch video + paid ad to drive existing users onto the new app
 Re-engagement email/SMS to the ~90% who haven't signed in yet
-Rate limiting on checkout / messaging / apply routes
 Roll Zod validation out across remaining API routes
 
 Growth & Monetisation

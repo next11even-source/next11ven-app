@@ -5,8 +5,9 @@ Custom non-league football recruitment platform. Live at app.next11ven.com.
 Glide is dead. Migration is complete. Focus is now usage, activation, and monetisation.
 Solo founder build. Launched April 2026.
 Stack
-Next.js 14 App Router, TypeScript, Tailwind CSS, Supabase (PostgreSQL + Auth + Storage),
-Stripe, Twilio, Resend, MailerLite, Vercel (production at app.next11ven.com)
+Next.js 16 (16.1.6) App Router, React 19, TypeScript, Tailwind CSS v4, Supabase (PostgreSQL + Auth + Storage),
+Stripe, Twilio, Resend, MailerLite, Telegram (metrics), Vercel (production at app.next11ven.com)
+Build uses Webpack (`next build --webpack`), not Turbopack.
 Brand & Style
 
 Background: #0a0a0a — Surface: #13172a — Border: #1e2235
@@ -93,6 +94,11 @@ Functions in lib/email.ts:
   sendDripDay7Email — final reminder at 7 days
   sendWeeklyViewsDigestFreeEmail — weekly view count with upgrade CTA
   sendWeeklyViewsDigestPremiumEmail — weekly view count with named coach list
+  sendPaymentFailedEmail — invoice.payment_failed notice
+  sendPaymentFailedFollowUpEmail — payment-failed follow-up reminder
+  sendSubscriptionCancelledWinBackEmail — win-back after subscription cancelled
+  sendShortlistAvailableEmail — player notified a coach shortlisted them
+  sendCoachRecommendationsEmail — weekly coach recommendation digest (recommendation engine)
 Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
 
 MailerLite ✅ LIVE
@@ -104,6 +110,18 @@ Skips existing subscribers — no duplicate sequences
 Tags: player_premium, coach_pro on upgrade
 Feature flagged: MAILERLITE_ENABLED in .env
 email_marketing_opt_out on profiles — drip sequence skips opted-out players; transactional emails are never suppressed
+
+Telegram ✅ LIVE
+
+Weekly metrics report pushed to a Telegram chat (lib/telegram.ts + lib/weeklyReport.ts)
+Sent by /api/cron/weekly-metrics-telegram — Monday 08:00 UTC
+Env vars: TELEGRAM_BOT_TOKEN, TELEGRAM_REPORT_CHAT_ID (TELEGRAM_API base URL)
+
+Coach Recommendation Engine ✅ LIVE
+
+Weekly per-coach player recommendations (lib/recommendations.ts)
+On-demand: GET /api/coach/recommendations — Cron: /api/cron/coach-recommendations (Tuesday 08:00 UTC)
+Emails matched players via sendCoachRecommendationsEmail
 
 Meta Pixel ✅ LIVE
 
@@ -122,8 +140,14 @@ Live Automations
   Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
 - Weekly digest: /api/cron/weekly-views-digest — Sunday 10:00 UTC
   Sends coach view count to all players. Free = upgrade CTA. Premium = named coach list.
+- Coach recommendations: /api/cron/coach-recommendations — Tuesday 08:00 UTC
+  Emails each coach a fresh batch of recommended players (sendCoachRecommendationsEmail).
+- Weekly metrics (Telegram): /api/cron/weekly-metrics-telegram — Monday 08:00 UTC
+  Pushes the weekly platform metrics report to the founder Telegram chat. Internal only.
 - Unsubscribe: /api/unsubscribe — sets email_marketing_opt_out = true on profiles
   Note: transactional emails (failed payment, application decisions) must NEVER be suppressed by this flag
+
+All 4 crons are registered in vercel.json. Keep that file and this list in sync.
 
 APIs
 
@@ -135,6 +159,18 @@ GET  /api/messages/quota — returns player's current period message quota
 Player
 GET   /api/player/actively-looking — returns { actively_looking, nearbyCoachCount } for paywall
 PATCH /api/player/actively-looking — toggle actively_looking; server rejects true for non-premium (403 NOT_PREMIUM); player/admin only
+POST  /api/player/status-change — update status (free_agent/signed/etc); logs to status_change_log
+
+Coach
+GET    /api/coach/recommendations — on-demand recommended players for the logged-in coach
+GET    /api/coach/shortlist — list the coach's shortlisted players
+POST   /api/coach/shortlist — add a player to the shortlist
+DELETE /api/coach/shortlist/[player_id] — remove a player from the shortlist
+
+Opportunities
+GET  /api/opportunities — list opportunities
+POST /api/opportunities — create an opportunity (coach)
+GET  /api/opportunities/counts — per-opportunity application counts
 
 Applications
 POST  /api/applications/apply — premium-gated, fires coach email; players apply to any role, coaches apply to coaching-staff roles only (opportunity_type='coach', not their own)
@@ -162,9 +198,7 @@ GET  /api/admin/recent-logins — recent login activity
 GET  /api/admin/orphaned-users — auth users without profiles
 GET  /api/admin/showcase-stats — showcase event stats
 GET/POST /api/admin/showcase-payers — showcase payment tracking
-
-Opportunities
-GET /api/opportunities/counts — per-opportunity application counts
+GET/POST /api/admin/showcase-waitlist — showcase waitlist tracking
 
 Showcase
 POST    /api/showcase/confirm — mark player as showcase-confirmed
@@ -183,6 +217,8 @@ POST /api/unsubscribe — sets email_marketing_opt_out on profile
 Cron
 GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
 GET /api/cron/weekly-views-digest — sends weekly profile view digest to all players
+GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
+GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
 
 
 Route Map
@@ -194,8 +230,8 @@ Route                         Status
 /claim                        Magic link claim (migration) ✅ do not delete
 /set-password                 Set password post-claim ✅ do not delete
 /auth/confirm                 Auth callback for magic link confirm ✅
-/privacy                      Privacy Policy page — exists but "coming soon" placeholder copy ⚠️
-/terms                        Terms of Service page — exists but "coming soon" placeholder copy ⚠️
+/privacy                      Privacy Policy — real copy live (Last updated June 2026) ✅
+/terms                        Terms of Service — real copy live (Last updated June 2026) ✅
 /premium/success              Stripe checkout success landing ✅
 
 Player
@@ -218,7 +254,7 @@ Route                                        Status
 /dashboard/coach                             Dashboard, active opportunities, quick actions ✅
 /dashboard/coach/[id]                        Coach profile — visible to any logged-in user ✅
 /dashboard/coach/messages                    Bidirectional inbox ✅
-/dashboard/coach/shortlists                  Saved players (frontend built, no CRUD API yet) ⚠️
+/dashboard/coach/shortlists                  Saved players — CRUD wired via /api/coach/shortlist ✅
 /dashboard/coach/opportunities               Redirect → /dashboard/opportunities ↩️
 /dashboard/coach/market                      4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
 /dashboard/coach/players                     Browse players (coach view) ✅
@@ -271,15 +307,17 @@ BottomNav — persistent on player routes via player/layout.tsx
 
 
 Known Gaps (prioritised)
-Confirmed issues. Fix in this order:
+Confirmed open issues. Fix in this order:
 
-Privacy Policy & Terms — pages exist at /privacy and /terms but display "coming soon" placeholder summaries. Legal risk with paying customers. Replace with real copy immediately.
-No error pages — no error.tsx or not-found.tsx anywhere in app/. Users hit raw Next.js errors or white screens.
-No rate limiting — checkout, messaging, apply routes all unprotected.
-Shortlist CRUD API — frontend is built, no API behind it.
-No input validation (Zod) — API routes trust all incoming payloads.
-No pagination on player browse — will degrade at scale.
-Avatar upload — avatar_url field and UI exist; verify Supabase Storage + upload API are wired end-to-end.
+No rate limiting — checkout, messaging, apply routes all unprotected. (Still open — no rate-limit code anywhere.)
+Zod validation not rolled out — Zod is installed and used in /api/messages/send only. Most API routes still trust incoming payloads. Extend coverage route by route.
+
+Recently closed (no longer gaps — kept for context):
+- Privacy Policy & Terms — real copy now live at /privacy and /terms. ✅
+- Error pages — app/error.tsx + app/not-found.tsx now exist. ✅
+- Shortlist CRUD API — built at /api/coach/shortlist (+ [player_id]). ✅
+- Pagination on player browse — server-side pagination live on player + coach browse. ✅
+- Avatar upload — wired to Supabase Storage (storage.from().upload()) in profile pages. ✅
 
 
 Current State — Migration & Activation
@@ -305,8 +343,8 @@ Immediate (fix + activate)
 
 Ship launch video + paid ad to drive existing users onto the new app
 Re-engagement email/SMS to the ~90% who haven't signed in yet
-Privacy Policy + Terms (legal requirement, paying customers exist)
-Error pages
+Rate limiting on checkout / messaging / apply routes
+Roll Zod validation out across remaining API routes
 
 Growth & Monetisation
 
@@ -321,7 +359,6 @@ Feature Depth
 Fan onboarding: MailerLite automation not yet built (same pattern as player/coach)
 Highlight reel improvements
 Push notifications (web push or in-app)
-Pagination on player browse
 
 
 Code Style

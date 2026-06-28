@@ -157,7 +157,7 @@ POST /api/messages/initiate — atomic quota check + conversation creation (call
 GET  /api/messages/quota — returns player's current period message quota
 
 Player
-GET   /api/player/actively-looking — returns { actively_looking, nearbyCoachCount } for paywall
+GET   /api/player/actively-looking — returns { actively_looking, liveCount } for paywall (liveCount = { n, scope: 'local'|'position', position } | null; null → client shows static PROOF_LINE; only computed for free players, floored at 3, never returns 0/1/2)
 PATCH /api/player/actively-looking — toggle actively_looking; server rejects true for non-premium (403 NOT_PREMIUM); player/admin only
 POST  /api/player/status-change — update status (free_agent/signed/etc); logs to status_change_log
 
@@ -304,6 +304,13 @@ PremiumLock — wherever features are gated
 CoachBottomNav + CoachSidebar — persistent on coach routes via coach/layout.tsx
 BottomNav — persistent on player routes via player/layout.tsx
 /dashboard/profile — role-aware, shared between player and coach
+
+Premium conversion surfaces (all copy from lib/premiumContent.ts — single source of truth, never hardcode):
+- lib/premiumContent.ts — canonical copy/stats/feature order. PROOF_LINE, PREMIUM_STATS, MODAL_BULLETS, COMPARISON_ROWS, DISCOVER_EMOTIONAL_LINE, price constants, liveCountSuffix(). RULE: every surface sells "pay to be found" in this order with these exact figures.
+- ActivelyLookingModal — paywall when a free player reaches for the Actively Looking toggle (replaces old inline modals in player/page + profile/page)
+- LockedMessageTrigger — locked inbound-message screen; fires when a non-premium player taps a locked conversation. Renders SYNTHETIC blurred preview only — real message body never sent to non-premium clients
+- LiveCoachCount — animated live-demand count; self-fetches /api/player/actively-looking or takes a value prop; falls back to PROOF_LINE when count < 3
+- PremiumComparison — Free vs Premium table (full = 6 rows / compact = 3); shown to free AND premium players on the premium page
 
 
 Known Gaps (prioritised)

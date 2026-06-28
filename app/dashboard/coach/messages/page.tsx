@@ -257,11 +257,24 @@ function MessagesInner() {
     // Fetch conversations where this coach is on either side
     const { data } = await supabase
       .from('conversations')
-      .select('id, coach_id, player_id, last_message_at, last_message_content, initiated_by')
+      .select('id, coach_id, player_id, last_message_at, initiated_by')
       .or(`coach_id.eq.${user.id},player_id.eq.${user.id}`)
       .order('last_message_at', { ascending: false })
 
     if (!data || data.length === 0) { setLoading(false); return }
+
+    // last_message_content is no longer column-readable by clients (it duplicates
+    // message bodies). Fetch the preview via the gated RPC — coaches always get it
+    // for their own conversations.
+    const previewMap: Record<string, string> = {}
+    {
+      const { data: previews } = await supabase.rpc('conversation_previews', {
+        conv_ids: data.map((c: { id: string }) => c.id),
+      })
+      for (const p of (previews ?? []) as { conversation_id: string; last_message_content: string | null }[]) {
+        if (p.last_message_content) previewMap[p.conversation_id] = p.last_message_content
+      }
+    }
 
     // Collect all "other person" IDs
     const otherIds = data.map((c: { coach_id: string; player_id: string }) =>
@@ -308,12 +321,12 @@ function MessagesInner() {
       }
     }
 
-    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; player_id: string; last_message_at: string; last_message_content: string | null; initiated_by: string | null }) => {
+    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; player_id: string; last_message_at: string; initiated_by: string | null }) => {
       const otherId = c.coach_id === user.id ? c.player_id : c.coach_id
       return {
         ...c,
         other_person: profileMap[otherId] ? { ...profileMap[otherId], id: otherId } : null,
-        last_message: c.last_message_content ?? undefined,
+        last_message: previewMap[c.id],
         unread: unreadMap[c.id] ?? 0,
         coachHasReplied: repliedConvIds.has(c.id),
       }

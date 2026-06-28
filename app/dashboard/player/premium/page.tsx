@@ -5,17 +5,36 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
+import LiveCoachCount from '@/app/components/LiveCoachCount'
+import PremiumComparison from '@/app/components/PremiumComparison'
+import {
+  PREMIUM_FEATURES,
+  PREMIUM_STATS,
+  SHOWCASE_LINE,
+  PREMIUM_PRICE_WEEKLY,
+  DISCOVER_EMOTIONAL_LINE,
+} from '@/lib/premiumContent'
 
 type Role = 'player' | 'coach' | null
 
-const PLAYER_FEATURES = [
-  { icon: '👁️', text: 'See which coaches are viewing your profile' },
-  { icon: '⚡', text: 'Apply to trials & opportunities instantly' },
-  { icon: '🎟️', text: 'First access to showcase events' },
-  { icon: '🔝', text: 'Appear higher in coach searches' },
-  { icon: '💬', text: 'Access direct messages sent from coaches' },
-  { icon: '🏅', text: 'Premium badge on your profile' },
-]
+// Flagship — Get discovered. Hoisted out of the feature list so it can sit ABOVE
+// the comparison table it sells (the table proves the gap; this card is the offer).
+// The green dot is an allowed availability signal (Actively Looking), not UI chrome.
+function GetDiscoveredCard() {
+  const hero = PREMIUM_FEATURES.find(f => f.hero)
+  if (!hero) return null
+  return (
+    <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="animate-pulse" style={{ width: 9, height: 9, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 10px rgba(34,197,94,0.7)' }} />
+        <p className="font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 18, letterSpacing: '0.03em' }}>{hero.title}</p>
+      </div>
+      <p className="text-sm leading-snug" style={{ color: '#8892aa' }}>{hero.copy}</p>
+      <p className="text-sm font-semibold leading-snug mt-2" style={{ color: '#e8dece' }}>{DISCOVER_EMOTIONAL_LINE}</p>
+    </div>
+  )
+}
+
 
 const COACH_FEATURES = [
   { icon: '💬', text: 'Message any player — they receive it instantly' },
@@ -85,7 +104,7 @@ export default function PremiumPage() {
   }
 
   const isCoach = role === 'coach'
-  const features = isCoach ? COACH_FEATURES : PLAYER_FEATURES
+  const features = COACH_FEATURES // player features render via <PlayerFeatures />; coach uses this flat list
   const price = isCoach ? '£9.99' : '£6.99'
   const tagline = isCoach ? 'Recruit faster. Move quicker.' : 'Get seen faster. Move quicker.'
   const tierLabel = isCoach ? 'Coach Pro' : 'Player Premium'
@@ -139,6 +158,12 @@ export default function PremiumPage() {
             <span className="text-lg font-normal ml-1" style={{ color: 'rgba(255,255,255,0.55)' }}>/month</span>
           </p>
 
+          {!isCoach && (
+            <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.8)' }}>
+              {PREMIUM_PRICE_WEEKLY} to be the player coaches find first.
+            </p>
+          )}
+
           {premium && (
             <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full"
               style={{ backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
@@ -150,22 +175,59 @@ export default function PremiumPage() {
           )}
         </div>
 
-        {/* Feature list */}
-        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <div className="px-5 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
-            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#8892aa' }}>
-              What&apos;s included
-            </p>
+        {/* Player sales sections — prospects only (hidden once subscribed / for coaches) */}
+        {!isCoach && !premium && (
+          <>
+            {/* Proof strip */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { stat: PREMIUM_STATS.discoveryMultiplier, label: 'more likely to be discovered' },
+                  { stat: PREMIUM_STATS.foundPremiumPct, label: `of premium players get found (vs ${PREMIUM_STATS.foundFreePct} free)` },
+                  { stat: PREMIUM_STATS.avgViewsPremium, label: `avg coach views (vs ${PREMIUM_STATS.avgViewsFree} free)` },
+                ].map(b => (
+                  <div key={b.label} className="rounded-2xl px-2 py-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                    <p className="font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#3a6fda', fontSize: 32 }}>{b.stat}</p>
+                    <p className="mt-1.5 leading-tight" style={{ color: '#8892aa', fontSize: 10 }}>{b.label}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-center" style={{ color: '#e8dece' }}>{SHOWCASE_LINE}</p>
+            </div>
+
+            {/* Live demand banner */}
+            <div className="rounded-xl px-4 py-3" style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.3)' }}>
+              <LiveCoachCount size="inline" fallbackToProof />
+            </div>
+
+            {/* Flagship — sits ABOVE the comparison table it sells */}
+            <GetDiscoveredCard />
+          </>
+        )}
+
+        {/* Free vs Premium comparison — shown to all players, incl. subscribers
+            (their feature recap now that What's Included is gone) */}
+        {!isCoach && <PremiumComparison variant="full" />}
+
+        {/* Feature list — coach only. The player story is the GET DISCOVERED card
+            + comparison table above; What's Included was redundant repetition. */}
+        {isCoach && (
+          <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#8892aa' }}>
+                What&apos;s included
+              </p>
+            </div>
+            <ul className="divide-y" style={{ borderColor: '#1e2235' }}>
+              {features.map((f, i) => (
+                <li key={i} className="flex items-center gap-4 px-5 py-4">
+                  <span className="text-xl w-7 text-center flex-shrink-0">{f.icon}</span>
+                  <span className="text-sm font-medium leading-snug" style={{ color: '#e8dece' }}>{f.text}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="divide-y" style={{ borderColor: '#1e2235' }}>
-            {features.map((f, i) => (
-              <li key={i} className="flex items-center gap-4 px-5 py-4">
-                <span className="text-xl w-7 text-center flex-shrink-0">{f.icon}</span>
-                <span className="text-sm font-medium leading-snug" style={{ color: '#e8dece' }}>{f.text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        )}
 
         {/* Error */}
         {error && (

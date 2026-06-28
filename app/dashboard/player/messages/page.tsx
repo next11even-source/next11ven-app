@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { revealCoachStep } from '@/lib/levels'
+import LockedMessageTrigger from '@/app/components/LockedMessageTrigger'
 import { useSidebar } from '../_components/SidebarContext'
 
 type Conversation = {
@@ -15,8 +17,11 @@ type Conversation = {
     avatar_url: string | null
     coaching_role: string | null
     club: string | null
-    premium: boolean
+    coaching_level: string | null
   } | null
+  // Coach's club step to reveal on the locked screen — only set when it's a
+  // strong signal (coach at/above player's level). Null = stay generic.
+  revealedStep?: string | null
   last_message?: string
   unread?: number
 }
@@ -59,6 +64,9 @@ function ChatView({
   const c = conversation.coach
 
   useEffect(() => {
+    // Locked (non-premium) view never fetches message content or marks read —
+    // the lock screen renders from safe metadata only.
+    if (!canRead) { setLoading(false); return }
     loadMessages()
     // Mark incoming messages as read
     const supabase = createClient()
@@ -68,7 +76,7 @@ function ChatView({
       .neq('sender_id', playerId)
       .is('read_at', null)
       .then(() => {})
-  }, [conversation.id])
+  }, [conversation.id, canRead])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -252,11 +260,16 @@ function MessagesInner() {
     if (!user) { router.push('/'); return }
     setPlayerId(user.id)
 
-    const [profileRes, convsRes] = await Promise.all([
-      supabase.from('profiles').select('premium').eq('id', user.id).single(),
-      supabase.from('conversations').select('id, coach_id, last_message_at, last_message_content, initiated_by').eq('player_id', user.id).order('last_message_at', { ascending: false }),
-    ])
-    const isPremium = profileRes.data?.premium ?? false
+    // Player level decides whether a coach's step is a "strong" signal worth
+    // revealing on the locked screen. Fetch premium first — it gates which
+    // columns we're even allowed to pull (player-pays-only).
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('premium, playing_level')
+      .eq('id', user.id)
+      .single()
+    const isPremium = profileData?.premium ?? false
+    const playerLevel = profileData?.playing_level ?? null
     setPlayerIsPremium(isPremium)
 
     if (isPremium) {
@@ -271,21 +284,38 @@ function MessagesInner() {
         .catch(() => {})
     }
 
-    const data = convsRes.data
-    if (!data || data.length === 0) { setLoading(false); return }
+    // NB: select strings are built at runtime, so supabase-js can't infer row
+    // types — cast to explicit shapes below.
+    type ConvoRow = { id: string; coach_id: string; last_message_at: string; initiated_by: string | null }
+    type CoachRow = { id: string; full_name?: string | null; avatar_url?: string | null; coaching_role: string | null; club?: string | null; coaching_level: string | null }
 
-    // Fetch coach profiles including premium status
-    const coachIds = data.map((c: { coach_id: string }) => c.coach_id)
-    const { data: coaches } = await supabase
+    // last_message_content is no longer column-readable by clients (it duplicates
+    // message bodies). The premium preview comes from the conversation_previews
+    // RPC, which only returns it to coaches / premium players.
+    const convoRes = await supabase
+      .from('conversations')
+      .select('id, coach_id, last_message_at, initiated_by')
+      .eq('player_id', user.id)
+      .order('last_message_at', { ascending: false })
+    const data = (convoRes.data ?? []) as unknown as ConvoRow[]
+
+    if (data.length === 0) { setLoading(false); return }
+
+    // Coach identity (name/club/avatar) is also withheld from non-premium clients —
+    // only the generic role + their level (for the step-if-strong reveal) is pulled.
+    const coachIds = data.map(c => c.coach_id)
+    const coachCols = isPremium
+      ? 'id, full_name, avatar_url, coaching_role, club, coaching_level'
+      : 'id, coaching_role, coaching_level'
+    const coachesRes = await supabase
       .from('profiles')
-      .select('id, full_name, avatar_url, coaching_role, club, premium')
+      .select(coachCols)
       .in('id', coachIds)
-    const coachMap = Object.fromEntries(
-      (coaches ?? []).map((c: { id: string; full_name: string | null; avatar_url: string | null; coaching_role: string | null; club: string | null; premium: boolean }) => [c.id, c])
-    )
+    const coaches = (coachesRes.data ?? []) as unknown as CoachRow[]
+    const coachMap = Object.fromEntries(coaches.map(c => [c.id, c])) as Record<string, CoachRow>
 
     // Count unread (messages from coach that player hasn't read)
-    const convIds = data.map((c: { id: string }) => c.id)
+    const convIds = data.map(c => c.id)
     const { data: unreadData } = await supabase
       .from('messages')
       .select('conversation_id')
@@ -298,18 +328,56 @@ function MessagesInner() {
       unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
     }
 
-    const convs: Conversation[] = data.map((c: { id: string; coach_id: string; last_message_at: string; last_message_content: string | null; initiated_by: string | null }) => ({
-      ...c,
-      coach: coachMap[c.coach_id] ?? null,
-      last_message: c.last_message_content ?? undefined,
-      unread: unreadMap[c.id] ?? 0,
-    }))
+    // Premium-only message previews via the gated RPC (returns nothing for
+    // non-premium players — they're locked anyway).
+    const previewMap: Record<string, string> = {}
+    if (isPremium) {
+      const { data: previews } = await supabase.rpc('conversation_previews', { conv_ids: convIds })
+      for (const p of (previews ?? []) as { conversation_id: string; last_message_content: string | null }[]) {
+        if (p.last_message_content) previewMap[p.conversation_id] = p.last_message_content
+      }
+    }
+
+    const convs: Conversation[] = data.map(c => {
+      const row = coachMap[c.coach_id]
+      const coach: Conversation['coach'] = row
+        ? {
+            full_name: row.full_name ?? null,
+            avatar_url: row.avatar_url ?? null,
+            coaching_role: row.coaching_role ?? null,
+            club: row.club ?? null,
+            coaching_level: row.coaching_level ?? null,
+          }
+        : null
+      return {
+        id: c.id,
+        coach_id: c.coach_id,
+        last_message_at: c.last_message_at,
+        initiated_by: c.initiated_by,
+        coach,
+        revealedStep: revealCoachStep(playerLevel, coach?.coaching_level),
+        last_message: previewMap[c.id],
+        unread: unreadMap[c.id] ?? 0,
+      }
+    })
     setConversations(convs)
     setLoading(false)
   }
 
   if (selected) {
-    const canRead = playerIsPremium || (selected.coach?.premium ?? false)
+    // Player-pays-only: reading is gated purely on the player's own premium.
+    const canRead = playerIsPremium
+    if (!canRead) {
+      // Locked inbound-message trigger — the strongest conversion moment.
+      return (
+        <LockedMessageTrigger
+          revealedStep={selected.revealedStep ?? null}
+          sentAt={selected.last_message_at}
+          totalWaiting={conversations.length}
+          onBack={() => { setSelected(null); load() }}
+        />
+      )
+    }
     return (
       <ChatView
         conversation={selected}
@@ -324,7 +392,7 @@ function MessagesInner() {
   }
 
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread ?? 0), 0)
-  const lockedUnread = conversations.filter(c => !playerIsPremium && !(c.coach?.premium ?? false) && (c.unread ?? 0) > 0).length
+  const lockedUnread = playerIsPremium ? 0 : conversations.filter(c => (c.unread ?? 0) > 0).length
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -399,7 +467,9 @@ function MessagesInner() {
         <div className="mx-4 mt-3 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
           style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.3)' }}>
           <p className="text-xs leading-snug" style={{ color: '#e8dece' }}>
-            🔒 You have {lockedUnread} message{lockedUnread > 1 ? 's' : ''} you can&apos;t read yet.
+            {lockedUnread > 1
+              ? `${lockedUnread} coaches are waiting for your reply.`
+              : 'A coach is waiting for your reply.'}
           </p>
           <a href="/dashboard/player/premium"
             className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
@@ -437,8 +507,7 @@ function MessagesInner() {
             const c = conv.coach
             const initials = c?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const hasUnread = (conv.unread ?? 0) > 0
-            const convCanRead = playerIsPremium || (c?.premium ?? false)
-            const isLocked = !convCanRead
+            const isLocked = !playerIsPremium
             return (
               <button key={conv.id} onClick={() => {
                 setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread: 0 } : c))
@@ -482,7 +551,7 @@ function MessagesInner() {
                   {isLocked ? (
                     <>
                       <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                        {c?.club ?? 'Club hidden'} · Identity hidden
+                        {conv.revealedStep ? `${conv.revealedStep} club · Identity hidden` : 'Identity hidden'}
                       </p>
                       <a href="/dashboard/player/premium"
                         onClick={e => e.stopPropagation()}

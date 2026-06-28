@@ -9,6 +9,7 @@ import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
+import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -704,7 +705,6 @@ export default function PlayerHome() {
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingLooking, setSavingLooking] = useState(false)
   const [showLookingPaywall, setShowLookingPaywall] = useState(false)
-  const [nearbyCoachCount, setNearbyCoachCount] = useState<number | null>(null)
   const [statsViews, setStatsViews] = useState(0)
   const [statsOpps, setStatsOpps] = useState(0)
 
@@ -772,9 +772,7 @@ export default function PlayerHome() {
   async function handleActivelyLookingToggle() {
     if (!profile) return
     if (!profile.premium) {
-      fetch('/api/player/actively-looking').then(r => r.json()).then(d => {
-        setNearbyCoachCount(d.nearbyCoachCount ?? null)
-      }).catch(() => {})
+      // The modal self-fetches the live coach count.
       setShowLookingPaywall(true)
       return
     }
@@ -906,63 +904,8 @@ export default function PlayerHome() {
 
       </div>
 
-      {/* Actively Looking Paywall */}
-      {showLookingPaywall && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-          <div className="w-full max-w-md mx-4 rounded-t-2xl sm:rounded-2xl p-6 space-y-5"
-            style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(45,95,196,0.15)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="3" />
-                  <line x1="12" y1="2" x2="12" y2="5" />
-                  <line x1="12" y1="19" x2="12" y2="22" />
-                  <line x1="2" y1="12" x2="5" y2="12" />
-                  <line x1="19" y1="12" x2="22" y2="12" />
-                </svg>
-              </div>
-              <h2 className="text-lg font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', letterSpacing: '0.04em' }}>
-                This is how coaches find you
-              </h2>
-            </div>
-
-            <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
-              Switch on Actively Looking and you&apos;ll appear in the Actively Looking carousel and free-agent searches — the players coaches see first.
-            </p>
-
-            <p className="text-sm font-medium" style={{ color: '#e8dece' }}>
-              {nearbyCoachCount
-                ? `${nearbyCoachCount} coach${nearbyCoachCount > 1 ? 'es' : ''} recruiting your position near you this week.`
-                : 'Coaches check the Actively Looking carousel every day.'}
-            </p>
-
-            <div className="space-y-2">
-              {['Appear in the Actively Looking carousel & searches', 'See who\'s viewed and shortlisted you', 'Message coaches directly'].map(b => (
-                <div key={b} className="flex items-center gap-2.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span className="text-sm" style={{ color: '#e8dece' }}>{b}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-3 pt-1">
-              <Link href="/dashboard/player/premium"
-                className="block w-full text-center py-3 rounded-xl text-sm font-bold"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-                Go Premium &middot; £6.99/mo
-              </Link>
-              <button onClick={() => setShowLookingPaywall(false)}
-                className="w-full text-center py-2 text-sm"
-                style={{ color: '#8892aa' }}>
-                Not now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Actively Looking Paywall — shared component (§2) */}
+      <ActivelyLookingModal open={showLookingPaywall} onClose={() => setShowLookingPaywall(false)} />
     </div>
   )
 }

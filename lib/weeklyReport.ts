@@ -69,37 +69,30 @@ export function buildReport(cur: Metrics, prev: Metrics | null): string {
   // ── 💰 Money (current) ──────────────────────────────────────────────────────
   const arpu = arpuPence(cur)
   const arpuPrev = prev ? arpuPence(prev) : undefined
-  const newMrr = (cur.new_premium_player_pence ?? 0) + (cur.new_premium_coach_pence ?? 0)
+  const newMrr = cur.new_premium_player_pence ?? 0
   const netMrr = newMrr - (cur.voluntary_churn_pence ?? 0)
   L.push('')
   L.push(`💰 <b>MONEY</b> <i>(now)</i>`)
-  L.push(`💷 MRR: <b>${pounds(cur.mrr_pence)}</b>${dMoney(cur.mrr_pence, p('mrr_pence'))}`)
+  L.push(`💷 MRR (players): <b>${pounds(cur.mrr_pence)}</b>${dMoney(cur.mrr_pence, p('mrr_pence'))}`)
   L.push(`📈 ARPU: <b>${arpu === null ? '—' : pounds(arpu)}</b>${dMoney(arpu, arpuPrev)}`)
-  L.push(`👥 Active premium: <b>${num(cur.active_subs)}</b> (${num(cur.player_subs)} players · ${num(cur.coach_subs)} coaches)${d(cur.active_subs, p('active_subs'))}`)
+  L.push(`👥 Active premium players: <b>${num(cur.active_subs)}</b>${d(cur.active_subs, p('active_subs'))}`)
   L.push(`🔄 Net MRR this week (new − churn): <b>${signedPounds(netMrr)}</b>`)
 
   // ── 🆕 Premium movement (this week) ─────────────────────────────────────────
   L.push('')
   L.push(`🆕 <b>PREMIUM MOVEMENT</b> <i>(7d)</i>`)
-
-  // First coach conversion milestone — only on a real 0 → ≥1 crossing
-  if ((cur.coach_subs_all_time ?? 0) >= 1 && p('coach_subs_all_time') === 0) {
-    L.push(`🎉 <b>MILESTONE: FIRST COACH CONVERSION!</b>`)
-  }
-
-  L.push(`⬆️ New premium — players: <b>${num(cur.new_premium_player_count)}</b> · ${pounds(cur.new_premium_player_pence)}/mo${d(cur.new_premium_player_count, p('new_premium_player_count'))}`)
-  L.push(`⬆️ New premium — coaches: <b>${num(cur.new_premium_coach_count)}</b> · ${pounds(cur.new_premium_coach_pence)}/mo${d(cur.new_premium_coach_count, p('new_premium_coach_count'))}`)
+  L.push(`⬆️ New premium players: <b>${num(cur.new_premium_player_count)}</b> · ${pounds(cur.new_premium_player_pence)}/mo${d(cur.new_premium_player_count, p('new_premium_player_count'))}`)
   L.push(`⬇️ Voluntary churn: <b>${num(cur.voluntary_churn_count)}</b> · ${pounds(cur.voluntary_churn_pence)}/mo${d(cur.voluntary_churn_count, p('voluntary_churn_count'))}`)
   L.push(`⚠️ In dunning (failed payment): <b>${num(cur.dunning_count)}</b> · ${pounds(cur.dunning_pence)}/mo${d(cur.dunning_count, p('dunning_count'))}`)
-  const netPrem = (cur.new_premium_player_count ?? 0) + (cur.new_premium_coach_count ?? 0) - (cur.voluntary_churn_count ?? 0)
+  const netPrem = (cur.new_premium_player_count ?? 0) - (cur.voluntary_churn_count ?? 0)
   L.push(`➕ Net premium change: <b>${netPrem >= 0 ? '+' : '−'}${Math.abs(netPrem)}</b>`)
 
   const adoption = rate(cur.actively_looking_premium ?? 0, cur.premium_players ?? 0)
   const adoptionPrev = prev ? rate(p('actively_looking_premium') ?? 0, p('premium_players') ?? 0) : undefined
-  const newPremTotal = (cur.new_premium_player_count ?? 0) + (cur.new_premium_coach_count ?? 0)
-  const conv = rate(newPremTotal, cur.active_free_players ?? 0)
+  const newPremPlayers = cur.new_premium_player_count ?? 0
+  const conv = rate(newPremPlayers, cur.active_free_players ?? 0)
   L.push(`🎯 Actively Looking adoption: <b>${pct(adoption)}</b> of premium${dPts(adoption, adoptionPrev)}`)
-  L.push(`💸 Conversion (new ÷ active free): <b>${pct(conv)}</b> <i>(${newPremTotal}/${num(cur.active_free_players)})</i>`)
+  L.push(`💸 Conversion (new ÷ active free): <b>${pct(conv)}</b> <i>(${newPremPlayers}/${num(cur.active_free_players)})</i>`)
 
   // ── 🚀 Growth (this week) ───────────────────────────────────────────────────
   L.push('')
@@ -110,6 +103,9 @@ export function buildReport(cur: Metrics, prev: Metrics | null): string {
   const completed = (cur.new_players_completed ?? 0) + (cur.new_coaches_completed ?? 0)
   L.push(`✅ Activated (completed profile): <b>${completed}</b> (${num(cur.new_players_completed)} · ${num(cur.new_coaches_completed)})`)
   L.push(`🗂 Total registered <i>(now)</i>: <b>${num(cur.total_players)}</b> players · <b>${num(cur.total_coaches)}</b> coaches${d(cur.total_players, p('total_players'))}`)
+  const totalApproved = (cur.total_players ?? 0) + (cur.total_coaches ?? 0)
+  const migPct = rate(cur.ever_signed_in ?? 0, totalApproved)
+  L.push(`🔄 Migration: <b>${pct(migPct)}</b> of approved users have signed into the new app <i>(${num(cur.ever_signed_in)}/${totalApproved})</i>`)
 
   // ── 🔥 Active users ─────────────────────────────────────────────────────────
   L.push('')
@@ -132,7 +128,6 @@ export function buildReport(cur: Metrics, prev: Metrics | null): string {
   L.push('')
   L.push(`💬 <b>MESSAGING</b> <i>(7d)</i>`)
   L.push(`✉️ Sent: <b>${num(cur.messages_total)}</b> (${num(cur.messages_coach_first)} by coaches · ${num(cur.messages_player_first)} by players)${d(cur.messages_total, p('messages_total'))}`)
-  L.push(`🔁 First-message reply rate: <b>${pct(cur.first_reply_rate_pct)}</b>${dPts(cur.first_reply_rate_pct, p('first_reply_rate_pct'))}`)
   const med = cur.median_first_reply_hours
   L.push(`⏱ Median time to first reply: <b>${med === null || med === undefined ? '—' : `${med}h`}</b>`)
 

@@ -225,20 +225,18 @@ function PostOpportunityForm({ onPosted, onCancel }: {
             placeholder="Tell players what you're looking for, training times, any requirements…" />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:items-end">
           <Field label="Application Deadline">
             <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
               onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')} />
           </Field>
-          <Field label="&nbsp;">
-            <label className="flex items-center gap-3 rounded-lg px-4 py-2.5 cursor-pointer h-full"
-              style={{ backgroundColor: '#0a0a0a', border: `1px solid ${urgent ? '#f59e0b' : '#1e2235'}` }}>
-              <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} className="accent-amber-500" />
-              <span className="text-sm" style={{ color: urgent ? '#f59e0b' : '#8892aa' }}>Mark as Urgent</span>
-            </label>
-          </Field>
+          <label className="flex items-center gap-3 rounded-lg px-4 py-2.5 cursor-pointer"
+            style={{ backgroundColor: '#0a0a0a', border: `1px solid ${urgent ? '#f59e0b' : '#1e2235'}` }}>
+            <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} className="accent-amber-500 shrink-0" />
+            <span className="text-sm" style={{ color: urgent ? '#f59e0b' : '#8892aa' }}>Mark as Urgent</span>
+          </label>
         </div>
 
         {error && <p className="text-sm px-4 py-3 rounded-lg" style={{ color: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)' }}>{error}</p>}

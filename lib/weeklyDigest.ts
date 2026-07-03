@@ -5,11 +5,11 @@
 // thing is deterministic and testable, and a bad render throws (assertClean)
 // instead of mailing a broken/negative email.
 //
-// Positivity guarantee: blocks 1 and 4 ALWAYS render (with floors/fallbacks), so
-// the email is never empty and never shows a deflating "0". Personal numbers are
-// only shown when they help; platform numbers are swapped for qualitative copy
-// below a credibility floor (the platform is still ~10% activated — never print
-// "2 coaches active").
+// Positivity guarantee: block 4 ('Your move') ALWAYS renders, so the email is
+// never empty and never shows a deflating "0". Platform stats (block 1) only
+// appear when a number clears its credibility floor — below that the whole block
+// is omitted rather than padded with filler (the platform is still ~10% activated
+// — never print "2 coaches active", and never a content-free "coaches were active").
 
 import { positionCategory, type PositionCategory } from '@/lib/positions'
 import { calcCompletion, type CompletionProfile } from '@/lib/profileCompletion'
@@ -108,20 +108,15 @@ function block1(p: DigestPlatform): string {
 
   if (p.newOpps >= OPPS_NUMBER_FLOOR) {
     lines.push(statLine(`<strong style="color:#fff;">${p.newOpps} new opportunities</strong> were posted this week`))
-  } else if (p.newOpps >= 1) {
-    lines.push(statLine(`Fresh opportunities were posted this week`))
   }
-
   if (p.activeCoaches >= COACHES_NUMBER_FLOOR) {
     lines.push(statLine(`<strong style="color:#fff;">${p.activeCoaches} coaches</strong> were active this week`))
-  } else if (p.activeCoaches >= 1) {
-    lines.push(statLine(`Coaches were active across the platform this week`))
   }
 
-  // Dead-week floor — block 1 is never empty.
-  if (lines.length === 0) {
-    lines.push(statLine(`Coaches are browsing NEXT11VEN for players every day`))
-  }
+  // Only worth a section when there's a real number to show. Below the floors it
+  // collapsed to a content-free "coaches were active" line — omit the whole block
+  // instead. (Block 4 'Your move' always renders, so the email is never empty.)
+  if (lines.length === 0) return ''
 
   return section(
     'This week on NEXT11VEN',

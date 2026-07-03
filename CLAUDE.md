@@ -92,8 +92,7 @@ Functions in lib/email.ts:
   sendDripDay0Email — coach messaged free player (upgrade to read)
   sendDripDay3Email — unread message reminder at 3 days
   sendDripDay7Email — final reminder at 7 days
-  sendWeeklyViewsDigestFreeEmail — weekly view count with upgrade CTA
-  sendWeeklyViewsDigestPremiumEmail — weekly view count with named coach list
+  sendWeeklyDigestEmail — weekly player digest (body built + validated in lib/weeklyDigest.ts)
   sendPaymentFailedEmail — invoice.payment_failed notice
   sendPaymentFailedFollowUpEmail — payment-failed follow-up reminder
   sendSubscriptionCancelledWinBackEmail — win-back after subscription cancelled
@@ -138,8 +137,13 @@ Live Automations
   Step 2 (Day 3): processed by cron — email only (sendDripDay3Email)
   Step 3 (Day 7): processed by cron — SMS best-effort (sms_opt_in checked) + email (sendDripDay7Email)
   Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
-- Weekly digest: /api/cron/weekly-views-digest — Sunday 10:00 UTC
-  Sends coach view count to all players. Free = upgrade CTA. Premium = named coach list.
+- Weekly digest: /api/cron/weekly-digest — Thursday 08:00 UTC
+  Emails every approved player one positive digest (lib/weeklyDigest.ts builds/validates the body).
+  4 blocks (This week / Roles for you / Your week / Your move) with credibility floors — never a bare
+  "0" or a deflating number; blocks 1 & 4 always render so it's never empty/negative. Free = view
+  count + upgrade CTA; premium = named coach list. Unclaimed players (password_set_at IS NULL) get a
+  claim-your-account banner and all CTAs funnel to /claim. Respects email_marketing_opt_out.
+  Supports ?to=<email> (safe single test) and ?dryRun=1. Bounded-concurrency send, maxDuration 300.
 - Coach recommendations: /api/cron/coach-recommendations — Tuesday 08:00 UTC
   Emails each coach a fresh batch of recommended players (sendCoachRecommendationsEmail).
 - Weekly metrics (Telegram): /api/cron/weekly-metrics-telegram — Monday 08:00 UTC
@@ -216,7 +220,7 @@ POST /api/unsubscribe — sets email_marketing_opt_out on profile
 
 Cron
 GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
-GET /api/cron/weekly-views-digest — sends weekly profile view digest to all players
+GET /api/cron/weekly-digest — sends the weekly player digest to all approved players (Thursday)
 GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
 GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
 

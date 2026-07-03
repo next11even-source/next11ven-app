@@ -7,6 +7,8 @@ export type Position = typeof POSITIONS[number]
 // instead of a hyper-specific "lbs". Plural form is the value.
 export type PositionCategory = 'goalkeepers' | 'defenders' | 'midfielders' | 'attackers'
 
+export const POSITION_CATEGORIES: PositionCategory[] = ['goalkeepers', 'defenders', 'midfielders', 'attackers']
+
 const POSITION_CATEGORY: Record<string, PositionCategory> = {
   GK: 'goalkeepers',
   LB: 'defenders',

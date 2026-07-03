@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { buildWeeklyDigest, type DigestPlatform, type DigestCoachView } from '@/lib/weeklyDigest'
 import { sendWeeklyDigestEmail } from '@/lib/email'
-import { positionCategory } from '@/lib/positions'
+import { positionCategory, POSITION_CATEGORIES } from '@/lib/positions'
 import { reportError } from '@/lib/alert'
 
 export const runtime = 'nodejs'
@@ -93,9 +93,16 @@ export async function GET(req: NextRequest) {
 
   const oppsByCategory: Record<string, number> = {}
   for (const o of activeOppsRes.data ?? []) {
-    const cat = positionCategory((o as { position: string | null }).position)
-    if (!cat) continue
-    oppsByCategory[cat] = (oppsByCategory[cat] ?? 0) + 1
+    const pos = (o as { position: string | null }).position
+    const cat = positionCategory(pos)
+    if (cat) {
+      oppsByCategory[cat] = (oppsByCategory[cat] ?? 0) + 1
+    } else if (!pos || !pos.trim()) {
+      // "Any position" role (position stored null/blank) is open to everyone —
+      // count it toward every category so it triggers "Roles for you" for all.
+      for (const c of POSITION_CATEGORIES) oppsByCategory[c] = (oppsByCategory[c] ?? 0) + 1
+    }
+    // else: a non-null but unmapped position — skip (shouldn't happen via the form)
   }
 
   const platform: DigestPlatform = {

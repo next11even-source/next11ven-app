@@ -67,28 +67,44 @@ export async function GET(req: NextRequest) {
   )
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
   // ── Platform aggregates (computed once, shared by every email) ──────────────
-  const [newOppsRes, activeCoachesRes, activeOppsRes] = await Promise.all([
+  const [newOppsRes, coachIdsRes, activeOppsRes] = await Promise.all([
     supabase
       .from('opportunities')
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true)
       .gte('created_at', sevenDaysAgo),
-    supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'coach')
-      .eq('approved', true)
-      .gte('last_active', sevenDaysAgo),
+    supabase.from('profiles').select('id').eq('role', 'coach').eq('approved', true),
     supabase.from('opportunities').select('position').eq('is_active', true).limit(2000),
   ])
 
-  if (newOppsRes.error || activeCoachesRes.error || activeOppsRes.error) {
-    const err = newOppsRes.error || activeCoachesRes.error || activeOppsRes.error
+  if (newOppsRes.error || coachIdsRes.error || activeOppsRes.error) {
+    const err = newOppsRes.error || coachIdsRes.error || activeOppsRes.error
     console.error('[weekly-digest] aggregate query error:', err)
     reportError('/api/cron/weekly-digest', err, 'failed platform aggregate query')
     return NextResponse.json({ error: 'Query failed' }, { status: 500 })
+  }
+
+  // Coaches "active this month" = signed in within 30 days. last_active only
+  // updates on profile edits (undercounts), so use auth's last_sign_in_at.
+  // Degrades gracefully: on error the count stays 0 and the line is omitted.
+  const coachIds = new Set((coachIdsRes.data ?? []).map(c => (c as { id: string }).id))
+  let activeCoachesMonth = 0
+  try {
+    for (let page = 1; ; page++) {
+      const { data: au, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error || !au?.users?.length) break
+      for (const u of au.users) {
+        if (u.last_sign_in_at && coachIds.has(u.id) && new Date(u.last_sign_in_at).toISOString() >= thirtyDaysAgo) {
+          activeCoachesMonth++
+        }
+      }
+      if (au.users.length < 1000) break
+    }
+  } catch (e) {
+    console.error('[weekly-digest] listUsers failed for active-coaches count:', e)
   }
 
   const oppsByCategory: Record<string, number> = {}
@@ -107,7 +123,7 @@ export async function GET(req: NextRequest) {
 
   const platform: DigestPlatform = {
     newOpps: newOppsRes.count ?? 0,
-    activeCoaches: activeCoachesRes.count ?? 0,
+    activeCoachesMonth,
     oppsByCategory,
   }
 

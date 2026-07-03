@@ -139,8 +139,10 @@ Live Automations
   Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
 - Weekly digest: /api/cron/weekly-digest — Thursday 08:00 UTC
   Emails every approved player one positive digest (lib/weeklyDigest.ts builds/validates the body).
-  4 blocks (This week / Roles for you / Your week / Your move) with credibility floors — never a bare
-  "0" or a deflating number; blocks 1 & 4 always render so it's never empty/negative. Free = view
+  4 blocks (On NEXT11VEN / Roles for you / Your week / Your move) with credibility floors — never a
+  bare "0" or a deflating number. "On NEXT11VEN" shows coaches active this month (auth last_sign_in_at,
+  30d) + new opps this week, and is omitted entirely if neither clears its floor. Block 4 always renders
+  so the email is never empty/negative. Free = view
   count + upgrade CTA; premium = named coach list. Unclaimed players (password_set_at IS NULL) get a
   claim-your-account banner and all CTAs funnel to /claim. Respects email_marketing_opt_out.
   Supports ?to=<email> (safe single test) and ?dryRun=1. Bounded-concurrency send, maxDuration 300.

@@ -32,7 +32,8 @@ export type DigestPlayer = CompletionProfile & {
 
 export type DigestPlatform = {
   newOpps: number
-  activeCoaches: number
+  // coaches who signed in within the last 30 days (auth last_sign_in_at)
+  activeCoachesMonth: number
   // live (is_active) opportunity counts bucketed by position category
   oppsByCategory: Record<string, number>
 }
@@ -69,7 +70,7 @@ function escapeHtml(s: string): string {
 
 function section(heading: string, body: string): string {
   return `<div>
-    <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8892aa;">${heading}</p>
+    <p style="margin:0 0 12px;font-size:13px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#e8dece;">${heading}</p>
     ${body}
   </div>`
 }
@@ -106,20 +107,21 @@ function statLine(text: string): string {
 function block1(p: DigestPlatform): string {
   const lines: string[] = []
 
+  // Lead with the always-on activity signal — coaches signed in this month.
+  if (p.activeCoachesMonth >= COACHES_NUMBER_FLOOR) {
+    lines.push(statLine(`<strong style="color:#fff;">${p.activeCoachesMonth} coaches</strong> have been active this month`))
+  }
   if (p.newOpps >= OPPS_NUMBER_FLOOR) {
     lines.push(statLine(`<strong style="color:#fff;">${p.newOpps} new opportunities</strong> were posted this week`))
   }
-  if (p.activeCoaches >= COACHES_NUMBER_FLOOR) {
-    lines.push(statLine(`<strong style="color:#fff;">${p.activeCoaches} coaches</strong> were active this week`))
-  }
 
-  // Only worth a section when there's a real number to show. Below the floors it
-  // collapsed to a content-free "coaches were active" line — omit the whole block
-  // instead. (Block 4 'Your move' always renders, so the email is never empty.)
+  // Only worth a section when there's a real number to show. Below the floors,
+  // omit the whole block rather than pad it with filler. (Block 4 'Your move'
+  // always renders, so the email is never empty.)
   if (lines.length === 0) return ''
 
   return section(
-    'This week on NEXT11VEN',
+    'On NEXT11VEN',
     `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:8px 18px;">${lines.join('')}</div>`
   )
 }

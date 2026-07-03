@@ -326,6 +326,25 @@ export async function sendWeeklyViewsDigestPremiumEmail({
   await send({ to, subject: `${coachCount} coach${coachCount === 1 ? '' : 'es'} checked out your profile this week`, html })
 }
 
+// ─── Weekly digest (marketing — suppressible via email_marketing_opt_out) ────
+// Body is built + validated in lib/weeklyDigest.ts. This wrapper only frames it
+// in the base template and sends. Keep the transport thin.
+
+export async function sendWeeklyDigestEmail({
+  to,
+  playerId,
+  subject,
+  contentHtml,
+}: {
+  to: string
+  playerId: string
+  subject: string
+  contentHtml: string
+}) {
+  const html = baseTemplate(contentHtml, makeUnsubscribeUrl(playerId))
+  await send({ to, subject, html })
+}
+
 // ─── Billing: payment failed (transactional — never suppress) ────────────────
 
 function firstName(name: string | null): string {

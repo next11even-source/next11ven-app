@@ -6,8 +6,28 @@ import NewBadge from '@/app/components/NewBadge'
 import type { MatchSummary } from '@/lib/performance'
 
 type TileState =
-  | { kind: 'icon'; sub: string }               // loading / locked / no games yet
-  | { kind: 'stat'; value: number; sub: string } // live hero stat
+  | { kind: 'icon'; sub: string }                              // loading / locked / no games yet
+  | { kind: 'stat'; num: string; unit: string | null; sub: string } // live stat with its unit
+
+// The number must mean something at a glance, so it carries its unit and the
+// stat is picked per position with positive fallbacks: attackers lead with
+// G/A, defenders/keepers with clean sheets; when that's 0 fall back to avg
+// minutes (the reliability stat), then avg rating, then apps.
+function pickStat(s: MatchSummary, defensive: boolean): { num: string; unit: string | null; sub: string } {
+  if (defensive && s.cleanSheets > 0) {
+    return { num: String(s.cleanSheets), unit: 'CS', sub: `clean sheet${s.cleanSheets === 1 ? '' : 's'}` }
+  }
+  if (!defensive && s.involvements > 0) {
+    return { num: String(s.involvements), unit: 'G/A', sub: 'goals + assists' }
+  }
+  if (s.avgMinutes != null && s.avgMinutes > 0) {
+    return { num: `${s.avgMinutes}'`, unit: null, sub: 'avg minutes' }
+  }
+  if (s.avgRating != null) {
+    return { num: s.avgRating.toFixed(1), unit: null, sub: 'avg rating' }
+  }
+  return { num: String(s.apps), unit: null, sub: `app${s.apps === 1 ? '' : 's'} this season` }
+}
 
 // Homepage quick-stats tile for the Game Performance Tracker — sits in the
 // same row as Profile Views and Opportunities, so it leads with a number as
@@ -26,12 +46,7 @@ export default function TrackerStatTile() {
           setState({ kind: 'icon', sub: 'log your first match' })
           return
         }
-        const defensive = data.focus === 'defensive'
-        setState({
-          kind: 'stat',
-          value: defensive ? competitive.cleanSheets : competitive.involvements,
-          sub: defensive ? 'clean sheets' : 'goal involvements',
-        })
+        setState({ kind: 'stat', ...pickStat(competitive, data.focus === 'defensive') })
       })
       .catch(() => {})
   }, [])
@@ -46,9 +61,9 @@ export default function TrackerStatTile() {
         <NewBadge force size="sm" />
       </span>
       {state.kind === 'stat' ? (
-        <span className="text-2xl font-black leading-none"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#38bdf8' }}>
-          {state.value}
+        <span className="leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#38bdf8' }}>
+          <span className="text-2xl font-black">{state.num}</span>
+          {state.unit && <span className="text-sm font-black ml-1">{state.unit}</span>}
         </span>
       ) : (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

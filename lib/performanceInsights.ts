@@ -13,7 +13,11 @@ import { stepNumber } from './levels'
 import type { ClubStint, PerformanceMatch, TrackerFocus } from './performance'
 import { involvements, isCleanSheet } from './performance'
 
-export type Insight = { id: string; text: string }
+// Tone drives the banner accent so different kinds of insight stand apart:
+// streak = orange flame, best = amber star (peak moments), trend = blue bolt.
+export type InsightTone = 'streak' | 'best' | 'trend'
+
+export type Insight = { id: string; text: string; tone: InsightTone }
 
 export type InsightContext = {
   /** Competitive matches this season, sorted match_date DESC. */
@@ -28,6 +32,7 @@ export type InsightContext = {
 
 type InsightRule = {
   id: string
+  tone: InsightTone
   evaluate: (ctx: InsightContext) => string | null
 }
 
@@ -68,6 +73,7 @@ const DEFENSIVE_RULES: InsightRule[] = [
   {
     // Penalty saved in the latest game — the keeper's brag stat, always leads.
     id: 'penalty-save',
+    tone: 'best',
     evaluate: ({ season }) => {
       const latest = season[0]
       if (!latest || !latest.penalty_saves) return null
@@ -79,6 +85,7 @@ const DEFENSIVE_RULES: InsightRule[] = [
   {
     // Consecutive recent games with a recorded score and nothing conceded.
     id: 'clean-sheet-streak',
+    tone: 'streak',
     evaluate: ({ season }) => {
       let streak = 0
       for (const m of season) {
@@ -93,6 +100,7 @@ const DEFENSIVE_RULES: InsightRule[] = [
   {
     // Played every minute of the last 3+ games — the reliability boost.
     id: 'full-shift-run',
+    tone: 'streak',
     evaluate: ({ season }) => {
       let run = 0
       for (const m of season) {
@@ -106,6 +114,7 @@ const DEFENSIVE_RULES: InsightRule[] = [
   {
     // Season minutes milestone, fired by the latest game crossing it.
     id: 'minutes-milestone',
+    tone: 'trend',
     evaluate: ({ season }) => {
       const total = season.reduce((n, m) => n + (m.minutes_played ?? 0), 0)
       const latest = season[0]?.minutes_played ?? 0
@@ -123,6 +132,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Consecutive recent games with a goal involvement.
     id: 'goal-involvement-streak',
+    tone: 'streak',
     evaluate: ({ season }) => {
       let streak = 0
       let contributions = 0
@@ -139,6 +149,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Latest match is the best-rated of the season (needs 3+ rated games).
     id: 'best-rated-of-season',
+    tone: 'best',
     evaluate: ({ season, stints }) => {
       const rated = season.filter(m => m.rating != null)
       if (rated.length < 3) return null
@@ -152,6 +163,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Career-best goals in a single game (2+ so one goal doesn't trigger it).
     id: 'career-best-goals',
+    tone: 'best',
     evaluate: ({ season, career }) => {
       const latest = season[0]
       if (!latest || latest.goals < 2) return null
@@ -163,6 +175,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Rating trend since a "return from injury" tag (within last 6 games).
     id: 'return-from-injury-trend',
+    tone: 'trend',
     evaluate: ({ season }) => {
       const idx = season.findIndex(m => m.tags.includes('return_from_injury'))
       if (idx < 2 || idx > 5) return null // need 2+ games logged since the return
@@ -176,6 +189,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Last 3 rated games averaging at least 0.5 above the previous 3.
     id: 'rating-trend-up',
+    tone: 'trend',
     evaluate: ({ season, stints }) => {
       const rated = season.filter(m => m.rating != null)
       if (rated.length < 6) return null
@@ -188,6 +202,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Career competitive appearance milestones.
     id: 'apps-milestone',
+    tone: 'trend',
     evaluate: ({ career }) => {
       const milestones = [10, 25, 50, 75, 100, 150, 200]
       if (!milestones.includes(career.length)) return null
@@ -197,6 +212,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Latest game tagged as a first start.
     id: 'first-start',
+    tone: 'best',
     evaluate: ({ season }) => {
       const latest = season[0]
       if (!latest || !latest.tags.includes('first_start')) return null
@@ -206,6 +222,7 @@ const ATTACKING_RULES: InsightRule[] = [
   {
     // Latest game tagged man of the match.
     id: 'man-of-the-match',
+    tone: 'best',
     evaluate: ({ season }) => {
       const latest = season[0]
       if (!latest || !latest.tags.includes('man_of_the_match')) return null
@@ -226,7 +243,7 @@ export function generateInsight(ctx: InsightContext): Insight | null {
     : [...ATTACKING_RULES, ...DEFENSIVE_RULES]
   for (const rule of rules) {
     const text = rule.evaluate(ctx)
-    if (text) return { id: rule.id, text }
+    if (text) return { id: rule.id, text, tone: rule.tone }
   }
   return null
 }

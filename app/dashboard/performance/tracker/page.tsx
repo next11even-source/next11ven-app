@@ -26,7 +26,7 @@ type Summary = {
   competitive: MatchSummary
   friendlies: MatchSummary
   trend: 'up' | 'down' | 'flat' | null
-  insight: { id: string; text: string } | null
+  insight: { id: string; text: string; tone: 'streak' | 'best' | 'trend' } | null
   recent: PerformanceMatch[]
   activeStint: ClubStint | null
   stints: ClubStint[]
@@ -42,6 +42,41 @@ function fmtDate(d: string) {
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
+
+// Insight banner accents by tone — streaks burn orange, peak moments get the
+// amber star, trends keep the house blue. Text stays cream throughout.
+const INSIGHT_TONES = {
+  streak: {
+    accent: '#f97316',
+    background: 'linear-gradient(135deg, rgba(249,115,22,0.16) 0%, rgba(249,115,22,0.05) 100%)',
+    border: '1px solid rgba(249,115,22,0.45)',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+      </svg>
+    ),
+  },
+  best: {
+    accent: '#f59e0b',
+    background: 'linear-gradient(135deg, rgba(245,158,11,0.16) 0%, rgba(245,158,11,0.05) 100%)',
+    border: '1px solid rgba(245,158,11,0.45)',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    ),
+  },
+  trend: {
+    accent: '#3a6fda',
+    background: 'linear-gradient(135deg, rgba(45,95,196,0.18) 0%, rgba(45,95,196,0.06) 100%)',
+    border: '1px solid rgba(45,95,196,0.4)',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    ),
+  },
+} as const
 
 // ── Locked state (free players) — same sell pattern as other premium surfaces ─
 function LockedState() {
@@ -307,16 +342,17 @@ export default function TrackerDashboardPage() {
               </div>
             </div>
 
-            {/* Insight banner */}
-            {s.insight && (
-              <div className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
-                style={{ background: 'linear-gradient(135deg, rgba(45,95,196,0.18) 0%, rgba(45,95,196,0.06) 100%)', border: '1px solid rgba(45,95,196,0.4)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-                <p className="text-sm font-semibold leading-snug" style={{ color: '#e8dece' }}>{s.insight.text}</p>
-              </div>
-            )}
+            {/* Insight banner — accent follows the insight's tone */}
+            {s.insight && (() => {
+              const tone = INSIGHT_TONES[s.insight.tone] ?? INSIGHT_TONES.trend
+              return (
+                <div className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
+                  style={{ background: tone.background, border: tone.border }}>
+                  {tone.icon}
+                  <p className="text-sm font-semibold leading-snug" style={{ color: '#e8dece' }}>{s.insight.text}</p>
+                </div>
+              )
+            })()}
 
             {/* Season grid — competitive only, position-aware */}
             <div className="grid grid-cols-4 gap-2">

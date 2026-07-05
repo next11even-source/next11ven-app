@@ -66,6 +66,17 @@ const avg = (ms: PerformanceMatch[]) => {
 
 const DEFENSIVE_RULES: InsightRule[] = [
   {
+    // Penalty saved in the latest game — the keeper's brag stat, always leads.
+    id: 'penalty-save',
+    evaluate: ({ season }) => {
+      const latest = season[0]
+      if (!latest || !latest.penalty_saves) return null
+      return latest.penalty_saves === 1
+        ? `Penalty saved vs ${latest.opponent} — one for the highlight reel`
+        : `${latest.penalty_saves} penalties saved vs ${latest.opponent} — unbeatable`
+    },
+  },
+  {
     // Consecutive recent games with a recorded score and nothing conceded.
     id: 'clean-sheet-streak',
     evaluate: ({ season }) => {

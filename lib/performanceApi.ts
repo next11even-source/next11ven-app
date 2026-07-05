@@ -11,7 +11,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { performanceTrackerEnabled } from './performance'
+import { performanceTrackerEnabled, performanceTrackerFree } from './performance'
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -61,7 +61,8 @@ export async function requireTrackerPlayer(opts?: { requirePremium?: boolean }):
     return { ok: false, res: NextResponse.json({ error: 'Players only' }, { status: 403 }) }
   }
 
-  if (requirePremium && !profile.premium) {
+  // Free-launch mode skips the premium gate entirely (data-gathering phase)
+  if (requirePremium && !profile.premium && !performanceTrackerFree()) {
     return { ok: false, res: NextResponse.json({ error: 'NOT_PREMIUM' }, { status: 403 }) }
   }
 

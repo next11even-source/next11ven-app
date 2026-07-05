@@ -22,6 +22,7 @@ const MatchPatchSchema = z.object({
   minutes_played: z.number().int().min(0).max(120).nullable(),
   goals: z.number().int().min(0).max(30),
   assists: z.number().int().min(0).max(30),
+  penalty_saves: z.number().int().min(0).max(5),
   rating: z.number().min(1).max(10).multipleOf(0.5).nullable(),
   notes: z.string().max(2000).nullable(),
   tags: z.array(z.enum(MATCH_TAGS)).max(MATCH_TAGS.length),

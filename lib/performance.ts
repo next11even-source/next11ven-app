@@ -14,6 +14,13 @@ export function performanceTrackerEnabled(): boolean {
   return process.env.NEXT_PUBLIC_PERFORMANCE_TRACKER_ENABLED === 'true'
 }
 
+// Free-launch mode: when on, the tracker skips the premium gate (client locked
+// state + server 403) so usage data can build before it becomes a paid
+// feature. Default off = premium-gated as designed. Flip without code changes.
+export function performanceTrackerFree(): boolean {
+  return process.env.NEXT_PUBLIC_PERFORMANCE_TRACKER_FREE === 'true'
+}
+
 // ── Competition types ─────────────────────────────────────────────────────────
 export const COMPETITION_TYPES = ['league', 'cup', 'pre_season', 'friendly', 'other'] as const
 export type CompetitionType = typeof COMPETITION_TYPES[number]
@@ -91,6 +98,7 @@ export type PerformanceMatch = {
   minutes_played: number | null
   goals: number
   assists: number
+  penalty_saves: number
   rating: number | null
   notes: string | null
   tags: string[]
@@ -133,6 +141,7 @@ export type MatchSummary = {
   ratedCount: number
   cleanSheets: number        // score recorded and 0 conceded
   scoredApps: number         // matches with a score recorded (clean-sheet denominator)
+  penaltySaves: number
   won: number
   drawn: number
   lost: number
@@ -142,13 +151,14 @@ export function summariseMatches(matches: PerformanceMatch[]): MatchSummary {
   const s: MatchSummary = {
     apps: matches.length, starts: 0, goals: 0, assists: 0, involvements: 0,
     minutes: 0, avgMinutes: null, minutesApps: 0, avgRating: null, ratedCount: 0,
-    cleanSheets: 0, scoredApps: 0, won: 0, drawn: 0, lost: 0,
+    cleanSheets: 0, scoredApps: 0, penaltySaves: 0, won: 0, drawn: 0, lost: 0,
   }
   let ratingSum = 0
   for (const m of matches) {
     if (m.started) s.starts++
     s.goals += m.goals
     s.assists += m.assists
+    s.penaltySaves += m.penalty_saves ?? 0
     if (m.minutes_played != null) { s.minutes += m.minutes_played; s.minutesApps++ }
     if (m.rating != null) { ratingSum += Number(m.rating); s.ratedCount++ }
     if (m.goals_for != null && m.goals_against != null) {

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY } from '@/lib/premiumContent'
 import {
   COMPETITION_TYPE_LABELS,
+  performanceTrackerFree,
   seasonLabel as fmtSeason,
   type ClubStint,
   type CompetitionType,
@@ -179,8 +180,10 @@ export default function TrackerDashboardPage() {
           if (!data) return
           const isPlayer = data.role === 'player' || data.role === 'admin'
           if (!isPlayer) { router.push('/dashboard/coach'); return }
-          setPremium(data.premium ?? false)
-          if (data.premium) loadSummary()
+          // Free-launch mode: everyone gets the real tracker, no locked state
+          const unlocked = (data.premium ?? false) || performanceTrackerFree()
+          setPremium(unlocked)
+          if (unlocked) loadSummary()
           else setLoading(false)
         })
     })
@@ -321,7 +324,9 @@ export default function TrackerDashboardPage() {
                 ? [
                     { label: 'Apps', value: s.competitive.apps },
                     { label: 'Clean sheets', value: s.competitive.cleanSheets },
-                    { label: 'G + A', value: s.competitive.involvements },
+                    s.category === 'goalkeepers'
+                      ? { label: 'Pen saves', value: s.competitive.penaltySaves }
+                      : { label: 'G + A', value: s.competitive.involvements },
                     { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
                   ]
                 : [

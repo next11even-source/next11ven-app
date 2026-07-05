@@ -50,6 +50,7 @@ export default function LogMatchPage() {
           minutes_played: 90,
           goals: 0,
           assists: 0,
+          penalty_saves: 0,
           rating: null,
           notes: null,
           tags: [],

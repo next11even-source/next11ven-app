@@ -87,7 +87,8 @@ function SeasonWrapInner() {
   const competitive = all.filter(m => isCompetitive(m.competition_type))
   const summary: MatchSummary = summariseMatches(competitive)
   const friendlies = summariseMatches(all.filter(m => !isCompetitive(m.competition_type)))
-  const focus = trackerFocus(dominantCategory(profilePosition, all))
+  const category = dominantCategory(profilePosition, all)
+  const focus = trackerFocus(category)
 
   const chronological = [...competitive].sort((a, b) => a.match_date.localeCompare(b.match_date))
   const rated = chronological.filter(m => m.rating != null)
@@ -181,7 +182,9 @@ function SeasonWrapInner() {
                   ? [
                       { label: 'Apps', value: summary.apps },
                       { label: 'Clean sheets', value: summary.cleanSheets },
-                      { label: 'G + A', value: summary.involvements },
+                      category === 'goalkeepers'
+                        ? { label: 'Pen saves', value: summary.penaltySaves }
+                        : { label: 'G + A', value: summary.involvements },
                       { label: 'Avg rating', value: summary.avgRating ?? '—' },
                     ]
                   : [

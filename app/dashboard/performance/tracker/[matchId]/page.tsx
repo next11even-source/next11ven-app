@@ -176,6 +176,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
                 minutes_played: m.minutes_played,
                 goals: m.goals,
                 assists: m.assists,
+                penalty_saves: m.penalty_saves ?? 0,
                 rating: m.rating != null ? Number(m.rating) : null,
                 notes: m.notes,
                 tags: m.tags,
@@ -244,6 +245,11 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
               <p className="text-sm" style={{ color: '#8892aa' }}>
                 <span style={{ color: '#e8dece', fontWeight: 600 }}>{m.started ? 'Started' : 'Subbed on'}</span>
                 {m.position && <> · {m.position}</>}
+                {(m.penalty_saves ?? 0) > 0 && (
+                  <> · <span style={{ color: '#3a6fda', fontWeight: 600 }}>
+                    {m.penalty_saves} penalt{m.penalty_saves === 1 ? 'y' : 'ies'} saved
+                  </span></>
+                )}
               </p>
             </div>
 

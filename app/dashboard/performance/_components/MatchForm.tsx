@@ -35,6 +35,7 @@ export type MatchFormValues = {
   minutes_played: number | null
   goals: number
   assists: number
+  penalty_saves: number
   rating: number | null
   notes: string | null
   tags: string[]
@@ -232,6 +233,14 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
             <Stepper value={v.assists} onChange={n => set('assists', n)} />
           </div>
         </div>
+
+        {/* Penalty saves — goalkeepers only */}
+        {v.position === 'GK' && (
+          <div>
+            <Label>Penalty saves</Label>
+            <Stepper value={v.penalty_saves} onChange={n => set('penalty_saves', n)} max={5} />
+          </div>
+        )}
 
         {/* Rating */}
         <div>

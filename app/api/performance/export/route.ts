@@ -34,7 +34,7 @@ export async function GET() {
   const header = [
     'Date', 'Opponent', 'Competition', 'Competition name', 'Club', 'Club level',
     'Stint type', 'Result', 'Started', 'Position', 'Minutes', 'Goals', 'Assists',
-    'Rating', 'Tags', 'Notes',
+    'Penalty saves', 'Rating', 'Tags', 'Notes',
   ]
 
   const lines = [header.join(',')]
@@ -56,6 +56,7 @@ export async function GET() {
       csvCell(m.minutes_played),
       csvCell(m.goals),
       csvCell(m.assists),
+      csvCell(m.penalty_saves),
       csvCell(m.rating),
       csvCell(m.tags.map(t => MATCH_TAG_LABELS[t as MatchTag] ?? t).join('; ')),
       csvCell(m.notes),

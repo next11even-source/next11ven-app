@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
+import { performanceTrackerEnabled } from '@/lib/performance'
 
 type Props = {
   isOpen: boolean
@@ -223,6 +224,17 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
             </svg>
             <p className="text-sm font-semibold">Showcase</p>
           </Link>
+
+          {performanceTrackerEnabled() && (
+            <Link href="/dashboard/performance/tracker" onClick={onClose}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+              style={{ textDecoration: 'none', color: '#8892aa' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              <p className="text-sm font-semibold">Game Performance Tracker</p>
+            </Link>
+          )}
 
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

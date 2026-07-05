@@ -1,0 +1,367 @@
+'use client'
+
+import { useState } from 'react'
+import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
+import {
+  COMPETITION_TYPES,
+  COMPETITION_TYPE_LABELS,
+  MATCH_TAGS,
+  MATCH_TAG_LABELS,
+  STINT_TYPES,
+  STINT_TYPE_LABELS,
+  type ClubStint,
+  type CompetitionType,
+  type StintType,
+} from '@/lib/performance'
+
+const surface = { backgroundColor: '#13172a', border: '1px solid #1e2235' }
+const input = {
+  backgroundColor: '#0d1020',
+  border: '1px solid #1e2235',
+  color: '#e8dece',
+} as const
+
+export type MatchFormValues = {
+  match_date: string
+  opponent: string
+  competition_type: CompetitionType
+  competition_name: string | null
+  stint_id: string | null
+  goals_for: number | null
+  goals_against: number | null
+  started: boolean
+  position: string | null
+  minutes_played: number | null
+  goals: number
+  assists: number
+  rating: number | null
+  notes: string | null
+  tags: string[]
+}
+
+export type NewStintValues = {
+  club_name: string
+  level: string | null
+  stint_type: StintType
+}
+
+type Props = {
+  initial: MatchFormValues
+  stints: ClubStint[]
+  submitLabel: string
+  busy: boolean
+  error: string | null
+  /** newStint is set when the player chose "New club" — create it first, then
+      attach the match to it. */
+  onSubmit: (values: MatchFormValues, newStint: NewStintValues | null) => void
+  onCancel?: () => void
+}
+
+const NEW_STINT = '__new__'
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs uppercase tracking-wider font-semibold mb-1.5" style={{ color: '#8892aa' }}>
+      {children}
+    </p>
+  )
+}
+
+function Stepper({ value, onChange, max = 30 }: { value: number; onChange: (n: number) => void; max?: number }) {
+  return (
+    <div className="flex items-center gap-3">
+      <button type="button" onClick={() => onChange(Math.max(0, value - 1))}
+        className="w-9 h-9 rounded-xl text-lg font-bold flex items-center justify-center"
+        style={{ ...input, color: '#8892aa' }}>−</button>
+      <span className="text-xl font-black w-8 text-center" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        {value}
+      </span>
+      <button type="button" onClick={() => onChange(Math.min(max, value + 1))}
+        className="w-9 h-9 rounded-xl text-lg font-bold flex items-center justify-center"
+        style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.4)', color: '#2d5fc4' }}>+</button>
+    </div>
+  )
+}
+
+export default function MatchForm({ initial, stints, submitLabel, busy, error, onSubmit, onCancel }: Props) {
+  const [v, setV] = useState<MatchFormValues>(initial)
+  const [stintChoice, setStintChoice] = useState<string>(initial.stint_id ?? '')
+  const [newStint, setNewStint] = useState<NewStintValues>({ club_name: '', level: null, stint_type: 'contracted' })
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  const set = <K extends keyof MatchFormValues>(key: K, val: MatchFormValues[K]) =>
+    setV(prev => ({ ...prev, [key]: val }))
+
+  function toggleTag(tag: string) {
+    set('tags', v.tags.includes(tag) ? v.tags.filter(t => t !== tag) : [...v.tags, tag])
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLocalError(null)
+    if (!v.opponent.trim()) { setLocalError('Add the opponent name'); return }
+    if (stintChoice === NEW_STINT && !newStint.club_name.trim()) { setLocalError('Add the club name for your new club'); return }
+    onSubmit(
+      { ...v, opponent: v.opponent.trim(), stint_id: stintChoice && stintChoice !== NEW_STINT ? stintChoice : null },
+      stintChoice === NEW_STINT ? { ...newStint, club_name: newStint.club_name.trim() } : null,
+    )
+  }
+
+  const ongoingStints = stints.filter(s => !s.end_date)
+  const endedStints = stints.filter(s => s.end_date)
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+
+      {/* Date + opponent */}
+      <div className="rounded-2xl p-4 space-y-4" style={surface}>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Date</Label>
+            <input type="date" value={v.match_date} required
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={e => set('match_date', e.target.value)}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+              style={{ ...input, colorScheme: 'dark' }} />
+          </div>
+          <div>
+            <Label>Opponent</Label>
+            <input type="text" value={v.opponent} placeholder="e.g. Hashtag United" maxLength={60}
+              onChange={e => set('opponent', e.target.value)}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+              style={input} />
+          </div>
+        </div>
+
+        {/* Game type */}
+        <div>
+          <Label>Game type</Label>
+          <div className="flex flex-wrap gap-2">
+            {COMPETITION_TYPES.map(t => {
+              const active = v.competition_type === t
+              return (
+                <button key={t} type="button" onClick={() => set('competition_type', t)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors"
+                  style={active
+                    ? { backgroundColor: '#2d5fc4', color: '#fff', border: '1px solid #2d5fc4' }
+                    : { ...input, color: '#8892aa' }}>
+                  {COMPETITION_TYPE_LABELS[t]}
+                </button>
+              )
+            })}
+          </div>
+          {(v.competition_type === 'cup' || v.competition_type === 'other') && (
+            <input type="text" value={v.competition_name ?? ''} placeholder="Competition name (optional, e.g. FA Vase)"
+              maxLength={60}
+              onChange={e => set('competition_name', e.target.value || null)}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mt-2"
+              style={input} />
+          )}
+        </div>
+
+        {/* Score */}
+        <div>
+          <Label>Score (optional)</Label>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 flex items-center gap-2">
+              <input type="number" min={0} max={99} inputMode="numeric" placeholder="–"
+                value={v.goals_for ?? ''}
+                onChange={e => set('goals_for', e.target.value === '' ? null : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-full rounded-xl px-3 py-2.5 text-sm text-center outline-none"
+                style={input} />
+              <span className="text-xs whitespace-nowrap" style={{ color: '#8892aa' }}>us</span>
+            </div>
+            <span className="text-sm font-bold" style={{ color: '#8892aa' }}>:</span>
+            <div className="flex-1 flex items-center gap-2">
+              <input type="number" min={0} max={99} inputMode="numeric" placeholder="–"
+                value={v.goals_against ?? ''}
+                onChange={e => set('goals_against', e.target.value === '' ? null : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-full rounded-xl px-3 py-2.5 text-sm text-center outline-none"
+                style={input} />
+              <span className="text-xs whitespace-nowrap" style={{ color: '#8892aa' }}>them</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Your game */}
+      <div className="rounded-2xl p-4 space-y-4" style={surface}>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Started or sub?</Label>
+            <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+              {([['Started', true], ['Sub', false]] as const).map(([label, val]) => (
+                <button key={label} type="button" onClick={() => set('started', val)}
+                  className="flex-1 py-2.5 text-xs font-bold"
+                  style={v.started === val
+                    ? { backgroundColor: '#2d5fc4', color: '#fff' }
+                    : { backgroundColor: '#0d1020', color: '#8892aa' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label>Minutes</Label>
+            <input type="number" min={0} max={120} inputMode="numeric"
+              value={v.minutes_played ?? ''}
+              onChange={e => set('minutes_played', e.target.value === '' ? null : Math.min(120, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+              style={input} />
+          </div>
+        </div>
+
+        <div>
+          <Label>Position played</Label>
+          <select value={v.position ?? ''} onChange={e => set('position', e.target.value || null)}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+            style={input}>
+            <option value="">Select position…</option>
+            {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Goals</Label>
+            <Stepper value={v.goals} onChange={n => set('goals', n)} />
+          </div>
+          <div>
+            <Label>Assists</Label>
+            <Stepper value={v.assists} onChange={n => set('assists', n)} />
+          </div>
+        </div>
+
+        {/* Rating */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
+              Your rating
+            </p>
+            {v.rating != null && (
+              <button type="button" onClick={() => set('rating', null)} className="text-xs" style={{ color: '#8892aa' }}>
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <input type="range" min={1} max={10} step={0.5}
+              value={v.rating ?? 6}
+              onChange={e => set('rating', parseFloat(e.target.value))}
+              className="flex-1"
+              style={{ accentColor: '#2d5fc4' }} />
+            <span className="text-2xl font-black w-12 text-right"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: v.rating != null ? '#2d5fc4' : '#3a4060' }}>
+              {v.rating != null ? v.rating.toFixed(1) : '—'}
+            </span>
+          </div>
+          {v.rating == null && (
+            <p className="text-xs mt-1" style={{ color: '#8892aa' }}>Drag the slider to rate your game out of 10</p>
+          )}
+        </div>
+      </div>
+
+      {/* Club */}
+      <div className="rounded-2xl p-4 space-y-3" style={surface}>
+        <Label>Playing for</Label>
+        <select value={stintChoice} onChange={e => setStintChoice(e.target.value)}
+          className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+          style={input}>
+          {ongoingStints.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.club_name}{s.stint_type !== 'contracted' ? ` (${STINT_TYPE_LABELS[s.stint_type]})` : ''}
+            </option>
+          ))}
+          <option value="">No club — unattached</option>
+          <option value={NEW_STINT}>New club…</option>
+          {endedStints.length > 0 && (
+            <optgroup label="Previous clubs">
+              {endedStints.map(s => (
+                <option key={s.id} value={s.id}>{s.club_name}</option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+
+        {stintChoice === NEW_STINT && (
+          <div className="space-y-3 rounded-xl p-3" style={{ backgroundColor: '#0d1020', border: '1px solid #1e2235' }}>
+            <input type="text" value={newStint.club_name} placeholder="Club name" maxLength={60}
+              onChange={e => setNewStint(prev => ({ ...prev, club_name: e.target.value }))}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+              style={{ ...input, backgroundColor: '#13172a' }} />
+            <div className="grid grid-cols-2 gap-3">
+              <select value={newStint.level ?? ''}
+                onChange={e => setNewStint(prev => ({ ...prev, level: e.target.value || null }))}
+                className="rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+                style={{ ...input, backgroundColor: '#13172a' }}>
+                <option value="">Level…</option>
+                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+              <select value={newStint.stint_type}
+                onChange={e => setNewStint(prev => ({ ...prev, stint_type: e.target.value as StintType }))}
+                className="rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+                style={{ ...input, backgroundColor: '#13172a' }}>
+                {STINT_TYPES.map(t => <option key={t} value={t}>{STINT_TYPE_LABELS[t]}</option>)}
+              </select>
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+              {newStint.stint_type === 'trial'
+                ? 'Trial games are kept separate from your club stat lines.'
+                : 'This becomes your current club — your previous stint is closed off from this date.'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Tags + notes */}
+      <div className="rounded-2xl p-4 space-y-4" style={surface}>
+        <div>
+          <Label>Tags</Label>
+          <div className="flex flex-wrap gap-2">
+            {MATCH_TAGS.map(t => {
+              const active = v.tags.includes(t)
+              return (
+                <button key={t} type="button" onClick={() => toggleTag(t)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors"
+                  style={active
+                    ? { backgroundColor: 'rgba(45,95,196,0.2)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.5)' }
+                    : { ...input, color: '#8892aa' }}>
+                  {MATCH_TAG_LABELS[t]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <Label>Notes</Label>
+          <textarea value={v.notes ?? ''} rows={3} maxLength={2000}
+            placeholder="Anything worth remembering — how you played, what to work on…"
+            onChange={e => set('notes', e.target.value || null)}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none resize-none"
+            style={input} />
+        </div>
+      </div>
+
+      {(localError || error) && (
+        <p className="text-xs px-3 py-2 rounded-lg"
+          style={{ color: '#e8dece', backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+          {localError || error}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        <button type="submit" disabled={busy}
+          className="w-full py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
+          style={{ backgroundColor: busy ? '#1e2a4a' : '#2d5fc4', color: '#fff', cursor: busy ? 'not-allowed' : 'pointer' }}>
+          {busy ? 'Saving…' : submitLabel}
+        </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="w-full py-2 text-sm" style={{ color: '#8892aa' }}>
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  )
+}

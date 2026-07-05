@@ -10,6 +10,7 @@ import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
+import TrackerEntryCard from '@/app/dashboard/performance/_components/TrackerEntryCard'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -892,6 +893,9 @@ export default function PlayerHome() {
 
           </div>
         </section>
+
+        {/* Game Performance Tracker entry — hidden while the kill switch is off */}
+        {profile?.role !== 'fan' && <TrackerEntryCard />}
 
         {/* Feed Preview */}
         <FeedPreviewSection posts={feedPosts} />

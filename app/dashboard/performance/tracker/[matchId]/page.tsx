@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import MatchForm, { type MatchFormValues, type NewStintValues } from '../../_components/MatchForm'
 import RatingTrendChart from '../../_components/RatingTrendChart'
+import { statAccent } from '../../_components/statAccents'
 import {
   COMPETITION_TYPE_LABELS,
   MATCH_TAG_LABELS,
@@ -229,15 +230,19 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
                 { label: 'Assists', value: m.assists },
                 { label: 'Minutes', value: m.minutes_played ?? '—' },
                 { label: 'Rating', value: m.rating != null ? Number(m.rating).toFixed(1) : '—' },
-              ].map(({ label, value }) => (
-                <div key={label} className="rounded-2xl px-2 py-3.5 text-center" style={surface}>
-                  <p className="text-2xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: label === 'Rating' && m.rating != null ? '#3a6fda' : '#e8dece' }}>
-                    {value}
-                  </p>
-                  <p className="mt-1.5 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{label}</p>
-                </div>
-              ))}
+              ].map(({ label, value }) => {
+                const a = statAccent(label)
+                return (
+                  <div key={label} className="rounded-2xl px-2 py-3.5 text-center"
+                    style={{ background: a.background, border: a.border }}>
+                    <p className="text-2xl font-black leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: a.fg }}>
+                      {value}
+                    </p>
+                    <p className="mt-1.5 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{label}</p>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Appearance detail */}

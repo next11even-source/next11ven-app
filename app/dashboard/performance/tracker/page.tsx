@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { statAccent } from '../_components/statAccents'
 import { createClient } from '@/lib/supabase-browser'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY } from '@/lib/premiumContent'
 import {
@@ -371,15 +372,19 @@ export default function TrackerDashboardPage() {
                     { label: 'Assists', value: s.competitive.assists },
                     { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
                   ]
-              ).map(({ label, value }) => (
-                <div key={label} className="rounded-2xl px-2 py-3.5 text-center" style={surface}>
-                  <p className="text-2xl font-black leading-none"
-                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                    {value}
-                  </p>
-                  <p className="mt-1.5 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{label}</p>
-                </div>
-              ))}
+              ).map(({ label, value }) => {
+                const a = statAccent(label)
+                return (
+                  <div key={label} className="rounded-2xl px-2 py-3.5 text-center"
+                    style={{ background: a.background, border: a.border }}>
+                    <p className="text-2xl font-black leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: a.fg }}>
+                      {value}
+                    </p>
+                    <p className="mt-1.5 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{label}</p>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Minutes row — the reliability story, for every position */}

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { statAccent } from '../../_components/statAccents'
 import { createClient } from '@/lib/supabase-browser'
 import {
   isCompetitive,
@@ -193,16 +194,19 @@ function SeasonWrapInner() {
                       { label: 'Assists', value: summary.assists },
                       { label: 'Avg rating', value: summary.avgRating ?? '—' },
                     ]
-                ).map(({ label, value }) => (
-                  <div key={label} className="rounded-xl px-1 py-2.5 text-center"
-                    style={{ backgroundColor: 'rgba(10,12,24,0.55)', border: '1px solid rgba(30,34,53,0.9)' }}>
-                    <p className="text-xl font-black leading-none"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                      {value}
-                    </p>
-                    <p className="mt-1 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 9 }}>{label}</p>
-                  </div>
-                ))}
+                ).map(({ label, value }) => {
+                  const a = statAccent(label)
+                  return (
+                    <div key={label} className="rounded-xl px-1 py-2.5 text-center"
+                      style={{ backgroundColor: 'rgba(10,12,24,0.55)', border: a.border }}>
+                      <p className="text-xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: a.fg }}>
+                        {value}
+                      </p>
+                      <p className="mt-1 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 9 }}>{label}</p>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Highlights */}

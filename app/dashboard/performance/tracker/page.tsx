@@ -336,6 +336,56 @@ export default function TrackerDashboardPage() {
               </p>
             )}
 
+            {/* Season target progress */}
+            {s.target && (s.target.apps_target != null || s.target.goals_target != null || s.target.assists_target != null) && (
+              <div className="rounded-2xl p-4 space-y-3" style={surface}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
+                    Season target
+                  </p>
+                  <Link href="/dashboard/performance/tracker/target" className="text-xs font-semibold"
+                    style={{ color: '#3a6fda', textDecoration: 'none' }}>
+                    Edit
+                  </Link>
+                </div>
+                {([
+                  { label: 'Apps', current: s.competitive.apps, target: s.target.apps_target },
+                  { label: 'Goals', current: s.competitive.goals, target: s.target.goals_target },
+                  { label: 'Assists', current: s.competitive.assists, target: s.target.assists_target },
+                ] as const).filter(row => row.target != null).map(row => {
+                  const pct = Math.min(1, row.current / row.target!)
+                  const hit = row.current >= row.target!
+                  return (
+                    <div key={row.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold" style={{ color: '#e8dece' }}>{row.label}</span>
+                        <span className="text-xs font-bold" style={{ color: hit ? '#3a6fda' : '#8892aa' }}>
+                          {row.current} / {row.target}{hit && ' · hit'}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#0d1020' }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct * 100}%`, backgroundColor: '#2d5fc4' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Season wrap + target links */}
+            <div className="grid grid-cols-2 gap-2">
+              <Link href={`/dashboard/performance/tracker/season?season=${s.season}`}
+                className="text-center py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
+                style={{ ...surface, color: '#e8dece', textDecoration: 'none' }}>
+                Season wrap
+              </Link>
+              <Link href="/dashboard/performance/tracker/target"
+                className="text-center py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
+                style={{ ...surface, color: '#e8dece', textDecoration: 'none' }}>
+                {s.target ? 'Edit target' : 'Set a target'}
+              </Link>
+            </div>
+
             {/* Recent matches */}
             <div className="space-y-2.5">
               <p className="text-xs uppercase tracking-wider font-semibold px-1" style={{ color: '#8892aa' }}>Recent matches</p>

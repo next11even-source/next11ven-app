@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireTrackerPlayer } from '@/lib/performanceApi'
 import { COMPETITION_TYPES, MATCH_TAGS, seasonRange } from '@/lib/performance'
+import { POSITIONS } from '@/lib/positions'
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -14,7 +15,8 @@ const MatchSchema = z.object({
   goals_for: z.number().int().min(0).max(99).nullable().optional(),
   goals_against: z.number().int().min(0).max(99).nullable().optional(),
   started: z.boolean(),
-  position: z.string().trim().max(40).nullable().optional(),
+  // Controlled list — the rules engine keys position-aware logic off these values
+  position: z.enum(POSITIONS).nullable().optional(),
   minutes_played: z.number().int().min(0).max(120).nullable().optional(),
   goals: z.number().int().min(0).max(30).default(0),
   assists: z.number().int().min(0).max(30).default(0),

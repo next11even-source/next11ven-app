@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireTrackerPlayer } from '@/lib/performanceApi'
 import { STINT_TYPES } from '@/lib/performance'
+import { LEVELS } from '@/lib/levels'
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 const StintPatchSchema = z.object({
   club_name: z.string().trim().min(1).max(60),
-  level: z.string().trim().max(30).nullable(),
+  level: z.enum(LEVELS).nullable(),
   stint_type: z.enum(STINT_TYPES),
   start_date: z.string().regex(DATE, 'Invalid date'),
   end_date: z.string().regex(DATE, 'Invalid date').nullable(),

@@ -260,13 +260,14 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
               onChange={e => set('rating', parseFloat(e.target.value))}
               className="flex-1"
               style={{ accentColor: '#2d5fc4' }} />
+            {/* Always-visible readout: dim preview until the slider is touched */}
             <span className="text-2xl font-black w-12 text-right"
               style={{ fontFamily: "'Barlow Condensed', sans-serif", color: v.rating != null ? '#2d5fc4' : '#3a4060' }}>
-              {v.rating != null ? v.rating.toFixed(1) : '—'}
+              {(v.rating ?? 6).toFixed(1)}
             </span>
           </div>
           {v.rating == null && (
-            <p className="text-xs mt-1" style={{ color: '#8892aa' }}>Drag the slider to rate your game out of 10</p>
+            <p className="text-xs mt-1" style={{ color: '#8892aa' }}>Drag to set your rating — left blank until you do</p>
           )}
         </div>
       </div>

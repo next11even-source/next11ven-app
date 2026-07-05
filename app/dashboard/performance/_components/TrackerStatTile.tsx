@@ -39,19 +39,19 @@ export default function TrackerStatTile() {
   return (
     <Link href="/dashboard/performance/tracker"
       className="relative flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-      style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
-      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
+      style={{ backgroundColor: 'rgba(56,189,248,0.07)', border: '1.5px solid rgba(56,189,248,0.5)', textDecoration: 'none' }}
+      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#38bdf8')}
+      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(56,189,248,0.5)')}>
       <span className="absolute" style={{ top: -8, right: -6 }}>
         <NewBadge force size="sm" />
       </span>
       {state.kind === 'stat' ? (
         <span className="text-2xl font-black leading-none"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#38bdf8' }}>
           {state.value}
         </span>
       ) : (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       )}

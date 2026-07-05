@@ -10,7 +10,8 @@ import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
-import TrackerEntryCard from '@/app/dashboard/performance/_components/TrackerEntryCard'
+import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
+import { performanceTrackerEnabled } from '@/lib/performance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -173,22 +174,28 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
           <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
         </Link>
       ))}
-      <Link href="/dashboard/showcase"
-        className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-        style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
-        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-          <path d="M4 22h16" />
-          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-          <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
-        </svg>
-        <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>Showcase Games</span>
-        <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>sold out</span>
-      </Link>
+      {performanceTrackerEnabled() ? (
+        /* Game Performance Tracker replaces the Showcase tile once live —
+           Showcase keeps its sidebar entry */
+        <TrackerStatTile />
+      ) : (
+        <Link href="/dashboard/showcase"
+          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
+          style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+          </svg>
+          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>Showcase Games</span>
+          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>sold out</span>
+        </Link>
+      )}
     </div>
   )
 }
@@ -893,9 +900,6 @@ export default function PlayerHome() {
 
           </div>
         </section>
-
-        {/* Game Performance Tracker entry — hidden while the kill switch is off */}
-        {profile?.role !== 'fan' && <TrackerEntryCard />}
 
         {/* Feed Preview */}
         <FeedPreviewSection posts={feedPosts} />

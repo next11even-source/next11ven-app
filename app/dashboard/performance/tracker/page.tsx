@@ -36,6 +36,10 @@ function fmtDate(d: string) {
   return new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
+function plural(n: number, word: string) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
 // ── Locked state (free players) — same sell pattern as other premium surfaces ─
 function LockedState() {
   return (
@@ -279,7 +283,7 @@ export default function TrackerDashboardPage() {
                 </span>
                 <div className="pb-1.5">
                   <p className="text-xs" style={{ color: '#8892aa' }}>
-                    {s.competitive.goals} goals · {s.competitive.assists} assists
+                    {plural(s.competitive.goals, 'goal')} · {plural(s.competitive.assists, 'assist')}
                   </p>
                   {s.trend === 'up' && (
                     <p className="text-xs font-bold mt-0.5 flex items-center gap-1" style={{ color: '#3a6fda' }}>
@@ -328,7 +332,7 @@ export default function TrackerDashboardPage() {
             {/* Friendlies / pre-season line — outside the headline numbers */}
             {s.friendlies.apps > 0 && (
               <p className="text-xs px-1" style={{ color: '#8892aa' }}>
-                Plus {s.friendlies.apps} pre-season & friendly game{s.friendlies.apps === 1 ? '' : 's'} · {s.friendlies.goals} goals · {s.friendlies.assists} assists
+                Plus {s.friendlies.apps} pre-season & friendly game{s.friendlies.apps === 1 ? '' : 's'} · {plural(s.friendlies.goals, 'goal')} · {plural(s.friendlies.assists, 'assist')}
               </p>
             )}
 

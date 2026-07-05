@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireTrackerPlayer } from '@/lib/performanceApi'
 import {
   isCompetitive,
+  isCleanSheet,
   seasonLabel,
   seasonOfMatch,
   seasonStartYear,
   summariseMatches,
   involvements,
+  dominantCategory,
+  trackerFocus,
   type ClubStint,
   type PerformanceMatch,
 } from '@/lib/performance'
@@ -56,14 +59,22 @@ export async function GET(req: NextRequest) {
   const seasonFriendlies = seasonMatches.filter(m => !isCompetitive(m.competition_type))
   const careerCompetitive = all.filter(m => isCompetitive(m.competition_type))
 
-  // Hero: goal involvements this season, trend = last 5 competitive games vs
-  // the 5 before (needs a full comparison window, otherwise null).
+  // Position-aware layout: GK/DEF lead with clean sheets, MID/ATT with goal
+  // involvements. Category from profile position, falling back to the
+  // most-logged match position.
+  const category = dominantCategory(gate.position, all)
+  const focus = trackerFocus(category)
+
+  // Hero trend = last 5 competitive games vs the 5 before (needs a full
+  // comparison window, otherwise null). Metric follows the focus.
+  const heroMetric = (m: PerformanceMatch) =>
+    focus === 'defensive' ? (isCleanSheet(m) ? 1 : 0) : involvements(m)
   const last5 = seasonCompetitive.slice(0, 5)
   const prev5 = seasonCompetitive.slice(5, 10)
   let trend: 'up' | 'down' | 'flat' | null = null
   if (prev5.length === 5) {
-    const recent = last5.reduce((n, m) => n + involvements(m), 0)
-    const previous = prev5.reduce((n, m) => n + involvements(m), 0)
+    const recent = last5.reduce((n, m) => n + heroMetric(m), 0)
+    const previous = prev5.reduce((n, m) => n + heroMetric(m), 0)
     trend = recent > previous ? 'up' : recent < previous ? 'down' : 'flat'
   }
 
@@ -72,6 +83,7 @@ export async function GET(req: NextRequest) {
     career: careerCompetitive,
     stints,
     seasonLabel: seasonLabel(season),
+    focus,
   })
 
   const activeStint = stints.find(s => s.end_date === null) ?? null
@@ -82,6 +94,8 @@ export async function GET(req: NextRequest) {
     season,
     seasonLabel: seasonLabel(season),
     seasons,
+    category,
+    focus,
     competitive: summariseMatches(seasonCompetitive),
     friendlies: summariseMatches(seasonFriendlies),
     trend,

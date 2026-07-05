@@ -4,6 +4,8 @@
 // season totals, the hero stat and insights. Pre-season/friendlies/other are
 // logged and filterable but sit outside the headline numbers.
 
+import { positionCategory, type PositionCategory } from './positions'
+
 // ── Kill switch ───────────────────────────────────────────────────────────────
 // Global flag, separate from premium gating: controls whether the tracker is
 // visible to ANYONE. Default off — code ships dark until explicitly enabled.
@@ -125,8 +127,12 @@ export type MatchSummary = {
   assists: number
   involvements: number
   minutes: number
+  avgMinutes: number | null  // over matches with minutes recorded, whole number
+  minutesApps: number        // matches with minutes recorded
   avgRating: number | null   // over rated matches only, 1dp
   ratedCount: number
+  cleanSheets: number        // score recorded and 0 conceded
+  scoredApps: number         // matches with a score recorded (clean-sheet denominator)
   won: number
   drawn: number
   lost: number
@@ -135,26 +141,64 @@ export type MatchSummary = {
 export function summariseMatches(matches: PerformanceMatch[]): MatchSummary {
   const s: MatchSummary = {
     apps: matches.length, starts: 0, goals: 0, assists: 0, involvements: 0,
-    minutes: 0, avgRating: null, ratedCount: 0, won: 0, drawn: 0, lost: 0,
+    minutes: 0, avgMinutes: null, minutesApps: 0, avgRating: null, ratedCount: 0,
+    cleanSheets: 0, scoredApps: 0, won: 0, drawn: 0, lost: 0,
   }
   let ratingSum = 0
   for (const m of matches) {
     if (m.started) s.starts++
     s.goals += m.goals
     s.assists += m.assists
-    s.minutes += m.minutes_played ?? 0
+    if (m.minutes_played != null) { s.minutes += m.minutes_played; s.minutesApps++ }
     if (m.rating != null) { ratingSum += Number(m.rating); s.ratedCount++ }
     if (m.goals_for != null && m.goals_against != null) {
+      s.scoredApps++
+      if (m.goals_against === 0) s.cleanSheets++
       if (m.goals_for > m.goals_against) s.won++
       else if (m.goals_for === m.goals_against) s.drawn++
       else s.lost++
     }
   }
   s.involvements = s.goals + s.assists
+  s.avgMinutes = s.minutesApps ? Math.round(s.minutes / s.minutesApps) : null
   s.avgRating = s.ratedCount ? Math.round((ratingSum / s.ratedCount) * 10) / 10 : null
   return s
 }
 
 export function involvements(m: PerformanceMatch): number {
   return m.goals + m.assists
+}
+
+export function isCleanSheet(m: PerformanceMatch): boolean {
+  return m.goals_for != null && m.goals_against === 0
+}
+
+// ── Position-aware layout ─────────────────────────────────────────────────────
+// Goalkeepers and defenders lead with clean sheets; midfielders and attackers
+// lead with goal involvements. Category comes from the profile position, falling
+// back to the most-logged match position so the tracker adapts even when the
+// profile is thin.
+export type TrackerFocus = 'defensive' | 'attacking'
+
+export function trackerFocus(category: PositionCategory | null): TrackerFocus {
+  return category === 'goalkeepers' || category === 'defenders' ? 'defensive' : 'attacking'
+}
+
+export function dominantCategory(
+  profilePosition: string | null | undefined,
+  matches: PerformanceMatch[],
+): PositionCategory | null {
+  const fromProfile = positionCategory(profilePosition)
+  if (fromProfile) return fromProfile
+  const counts = new Map<PositionCategory, number>()
+  for (const m of matches) {
+    const c = positionCategory(m.position)
+    if (c) counts.set(c, (counts.get(c) ?? 0) + 1)
+  }
+  let best: PositionCategory | null = null
+  let bestCount = 0
+  for (const [c, n] of counts) {
+    if (n > bestCount) { best = c; bestCount = n }
+  }
+  return best
 }

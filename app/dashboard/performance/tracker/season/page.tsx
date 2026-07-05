@@ -10,6 +10,8 @@ import {
   seasonLabel,
   seasonStartYear,
   summariseMatches,
+  dominantCategory,
+  trackerFocus,
   type ClubStint,
   type MatchSummary,
   type PerformanceMatch,
@@ -43,6 +45,7 @@ function SeasonWrapInner() {
   const season = seasonParam && /^\d{4}$/.test(seasonParam) ? parseInt(seasonParam, 10) : seasonStartYear()
 
   const [name, setName] = useState<string | null>(null)
+  const [profilePosition, setProfilePosition] = useState<string | null>(null)
   const [matches, setMatches] = useState<PerformanceMatch[] | null>(null)
   const [stints, setStints] = useState<ClubStint[]>([])
   const [shared, setShared] = useState(false)
@@ -51,8 +54,8 @@ function SeasonWrapInner() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('profiles').select('full_name').eq('id', user.id).single()
-        .then(({ data }) => setName(data?.full_name ?? null))
+      supabase.from('profiles').select('full_name, position').eq('id', user.id).single()
+        .then(({ data }) => { setName(data?.full_name ?? null); setProfilePosition(data?.position ?? null) })
     })
 
     Promise.all([
@@ -69,7 +72,10 @@ function SeasonWrapInner() {
 
   async function handleShare() {
     const competitiveCount = competitive.length
-    const text = `${seasonLabel(season)} so far on NEXT11VEN: ${summary.involvements} goal involvements in ${competitiveCount} games (${summary.goals}G ${summary.assists}A)${summary.avgRating != null ? ` · avg rating ${summary.avgRating}` : ''}`
+    const headline = focus === 'defensive'
+      ? `${summary.cleanSheets} clean sheets in ${competitiveCount} games${summary.minutes > 0 ? ` · ${summary.minutes.toLocaleString('en-GB')} minutes played` : ''}`
+      : `${summary.involvements} goal involvements in ${competitiveCount} games (${summary.goals}G ${summary.assists}A)`
+    const text = `${seasonLabel(season)} so far on NEXT11VEN: ${headline}${summary.avgRating != null ? ` · avg rating ${summary.avgRating}` : ''}`
     if (navigator.share) {
       try { await navigator.share({ text }) } catch { /* user dismissed */ }
     } else {
@@ -81,6 +87,7 @@ function SeasonWrapInner() {
   const competitive = all.filter(m => isCompetitive(m.competition_type))
   const summary: MatchSummary = summariseMatches(competitive)
   const friendlies = summariseMatches(all.filter(m => !isCompetitive(m.competition_type)))
+  const focus = trackerFocus(dominantCategory(profilePosition, all))
 
   const chronological = [...competitive].sort((a, b) => a.match_date.localeCompare(b.match_date))
   const rated = chronological.filter(m => m.rating != null)
@@ -157,25 +164,33 @@ function SeasonWrapInner() {
                 <img src="/logo.jpg" alt="NEXT11VEN" className="h-9 w-auto rounded-md flex-shrink-0" />
               </div>
 
-              {/* Hero */}
+              {/* Hero — position-aware */}
               <div className="px-5 pt-5">
                 <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
-                  Goal involvements
+                  {focus === 'defensive' ? 'Clean sheets' : 'Goal involvements'}
                 </p>
                 <p className="font-black leading-none mt-1"
                   style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 72 }}>
-                  {summary.involvements}
+                  {focus === 'defensive' ? summary.cleanSheets : summary.involvements}
                 </p>
               </div>
 
-              {/* Stat row */}
+              {/* Stat row — position-aware */}
               <div className="grid grid-cols-4 gap-2 px-5 pt-4">
-                {[
-                  { label: 'Apps', value: summary.apps },
-                  { label: 'Goals', value: summary.goals },
-                  { label: 'Assists', value: summary.assists },
-                  { label: 'Avg rating', value: summary.avgRating ?? '—' },
-                ].map(({ label, value }) => (
+                {(focus === 'defensive'
+                  ? [
+                      { label: 'Apps', value: summary.apps },
+                      { label: 'Clean sheets', value: summary.cleanSheets },
+                      { label: 'G + A', value: summary.involvements },
+                      { label: 'Avg rating', value: summary.avgRating ?? '—' },
+                    ]
+                  : [
+                      { label: 'Apps', value: summary.apps },
+                      { label: 'Goals', value: summary.goals },
+                      { label: 'Assists', value: summary.assists },
+                      { label: 'Avg rating', value: summary.avgRating ?? '—' },
+                    ]
+                ).map(({ label, value }) => (
                   <div key={label} className="rounded-xl px-1 py-2.5 text-center"
                     style={{ backgroundColor: 'rgba(10,12,24,0.55)', border: '1px solid rgba(30,34,53,0.9)' }}>
                     <p className="text-xl font-black leading-none"
@@ -208,6 +223,17 @@ function SeasonWrapInner() {
                     <p className="text-sm" style={{ color: '#e8dece' }}>
                       Best spell: <span className="font-bold">{spell.avg} avg</span>
                       <span style={{ color: '#8892aa' }}> · {fmtShort(spell.from)} – {fmtShort(spell.to)}</span>
+                    </p>
+                  </div>
+                )}
+                {summary.minutes > 0 && (
+                  <div className="flex items-center gap-2.5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <p className="text-sm" style={{ color: '#e8dece' }}>
+                      <span className="font-bold">{summary.minutes.toLocaleString('en-GB')} minutes</span> on the pitch
+                      {summary.avgMinutes != null && <span style={{ color: '#8892aa' }}> · avg {summary.avgMinutes} a game</span>}
                     </p>
                   </div>
                 )}

@@ -20,6 +20,8 @@ type Summary = {
   season: number
   seasonLabel: string
   seasons: number[]
+  category: string | null
+  focus: 'defensive' | 'attacking'
   competitive: MatchSummary
   friendlies: MatchSummary
   trend: 'up' | 'down' | 'flat' | null
@@ -271,19 +273,21 @@ export default function TrackerDashboardPage() {
               Log a match
             </Link>
 
-            {/* Hero — goal involvements */}
+            {/* Hero — clean sheets for GK/DEF, goal involvements for MID/ATT */}
             <div className="rounded-2xl px-5 py-5" style={surface}>
               <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
-                Goal involvements · {s.seasonLabel}
+                {s.focus === 'defensive' ? 'Clean sheets' : 'Goal involvements'} · {s.seasonLabel}
               </p>
               <div className="flex items-end gap-3 mt-1">
                 <span className="text-6xl font-black leading-none"
                   style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                  {s.competitive.involvements}
+                  {s.focus === 'defensive' ? s.competitive.cleanSheets : s.competitive.involvements}
                 </span>
                 <div className="pb-1.5">
                   <p className="text-xs" style={{ color: '#8892aa' }}>
-                    {plural(s.competitive.goals, 'goal')} · {plural(s.competitive.assists, 'assist')}
+                    {s.focus === 'defensive'
+                      ? `${plural(s.competitive.involvements, 'goal involvement')}${s.competitive.avgMinutes != null ? ` · ${s.competitive.avgMinutes} mins a game` : ''}`
+                      : `${plural(s.competitive.goals, 'goal')} · ${plural(s.competitive.assists, 'assist')}`}
                   </p>
                   {s.trend === 'up' && (
                     <p className="text-xs font-bold mt-0.5 flex items-center gap-1" style={{ color: '#3a6fda' }}>
@@ -311,14 +315,22 @@ export default function TrackerDashboardPage() {
               </div>
             )}
 
-            {/* Season grid — competitive only */}
+            {/* Season grid — competitive only, position-aware */}
             <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: 'Apps', value: s.competitive.apps },
-                { label: 'Goals', value: s.competitive.goals },
-                { label: 'Assists', value: s.competitive.assists },
-                { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
-              ].map(({ label, value }) => (
+              {(s.focus === 'defensive'
+                ? [
+                    { label: 'Apps', value: s.competitive.apps },
+                    { label: 'Clean sheets', value: s.competitive.cleanSheets },
+                    { label: 'G + A', value: s.competitive.involvements },
+                    { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
+                  ]
+                : [
+                    { label: 'Apps', value: s.competitive.apps },
+                    { label: 'Goals', value: s.competitive.goals },
+                    { label: 'Assists', value: s.competitive.assists },
+                    { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
+                  ]
+              ).map(({ label, value }) => (
                 <div key={label} className="rounded-2xl px-2 py-3.5 text-center" style={surface}>
                   <p className="text-2xl font-black leading-none"
                     style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
@@ -328,6 +340,32 @@ export default function TrackerDashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Minutes row — the reliability story, for every position */}
+            {s.competitive.minutesApps > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Minutes played', value: s.competitive.minutes.toLocaleString('en-GB') },
+                  { label: 'Avg per game', value: s.competitive.avgMinutes != null ? `${s.competitive.avgMinutes}'` : '—' },
+                  { label: 'Starts', value: `${s.competitive.starts}/${s.competitive.apps}` },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-2xl px-2 py-3 text-center" style={surface}>
+                    <p className="text-lg font-black leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                      {value}
+                    </p>
+                    <p className="mt-1 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 9 }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Clean-sheet nudge — only when scores are missing for a defensive player */}
+            {s.focus === 'defensive' && s.competitive.apps > 0 && s.competitive.scoredApps < s.competitive.apps && (
+              <p className="text-xs px-1" style={{ color: '#8892aa' }}>
+                Add match scores when you log — that&apos;s how clean sheets get counted.
+              </p>
+            )}
 
             {/* Friendlies / pre-season line — outside the headline numbers */}
             {s.friendlies.apps > 0 && (

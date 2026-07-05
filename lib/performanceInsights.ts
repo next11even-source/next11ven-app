@@ -10,8 +10,8 @@
 // across different pyramid steps get level context appended where it matters.
 
 import { stepNumber } from './levels'
-import type { ClubStint, PerformanceMatch } from './performance'
-import { involvements } from './performance'
+import type { ClubStint, PerformanceMatch, TrackerFocus } from './performance'
+import { involvements, isCleanSheet } from './performance'
 
 export type Insight = { id: string; text: string }
 
@@ -22,6 +22,8 @@ export type InsightContext = {
   career: PerformanceMatch[]
   stints: ClubStint[]
   seasonLabel: string
+  /** Position-aware ordering: defensive players see clean-sheet/minutes rules first. */
+  focus: TrackerFocus
 }
 
 type InsightRule = {
@@ -60,9 +62,53 @@ const avg = (ms: PerformanceMatch[]) => {
   return rated.reduce((sum, m) => sum + Number(m.rating), 0) / rated.length
 }
 
-// ── Rules (order = priority) ──────────────────────────────────────────────────
+// ── Defensive rules (lead for goalkeepers and defenders) ──────────────────────
 
-const RULES: InsightRule[] = [
+const DEFENSIVE_RULES: InsightRule[] = [
+  {
+    // Consecutive recent games with a recorded score and nothing conceded.
+    id: 'clean-sheet-streak',
+    evaluate: ({ season }) => {
+      let streak = 0
+      for (const m of season) {
+        if (m.goals_for == null || m.goals_against == null) break
+        if (!isCleanSheet(m)) break
+        streak++
+      }
+      if (streak < 2) return null
+      return `${streak} clean sheets in your last ${streak} games`
+    },
+  },
+  {
+    // Played every minute of the last 3+ games — the reliability boost.
+    id: 'full-shift-run',
+    evaluate: ({ season }) => {
+      let run = 0
+      for (const m of season) {
+        if (m.minutes_played == null || m.minutes_played < 90) break
+        run++
+      }
+      if (run < 3) return null
+      return `Every minute of your last ${run} games — a manager's dream`
+    },
+  },
+  {
+    // Season minutes milestone, fired by the latest game crossing it.
+    id: 'minutes-milestone',
+    evaluate: ({ season }) => {
+      const total = season.reduce((n, m) => n + (m.minutes_played ?? 0), 0)
+      const latest = season[0]?.minutes_played ?? 0
+      if (!latest) return null
+      const milestone = [2700, 1800, 900].find(ms => total >= ms && total - latest < ms)
+      if (!milestone) return null
+      return `${total} minutes on the pitch this season — ${Math.floor(milestone / 90)} full games' worth and counting`
+    },
+  },
+]
+
+// ── Attacking rules ───────────────────────────────────────────────────────────
+
+const ATTACKING_RULES: InsightRule[] = [
   {
     // Consecutive recent games with a goal involvement.
     id: 'goal-involvement-streak',
@@ -157,10 +203,17 @@ const RULES: InsightRule[] = [
   },
 ]
 
-/** First rule that fires wins. Null = banner hidden (never a filler message). */
+/**
+ * First rule that fires wins. Null = banner hidden (never a filler message).
+ * Defensive players (GK/DEF) get clean-sheet and minutes rules first; everyone
+ * still gets every rule — only the priority order changes.
+ */
 export function generateInsight(ctx: InsightContext): Insight | null {
   if (!ctx.season.length) return null
-  for (const rule of RULES) {
+  const rules = ctx.focus === 'defensive'
+    ? [...DEFENSIVE_RULES, ...ATTACKING_RULES]
+    : [...ATTACKING_RULES, ...DEFENSIVE_RULES]
+  for (const rule of rules) {
     const text = rule.evaluate(ctx)
     if (text) return { id: rule.id, text }
   }

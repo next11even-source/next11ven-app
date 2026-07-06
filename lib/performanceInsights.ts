@@ -67,6 +67,19 @@ const avg = (ms: PerformanceMatch[]) => {
   return rated.reduce((sum, m) => sum + Number(m.rating), 0) / rated.length
 }
 
+// ── Man of the match — outranks every other rule; it's the biggest single-game
+// flex a player can log, regardless of position. ─────────────────────────────
+
+const MOTM_RULE: InsightRule = {
+  id: 'man-of-the-match',
+  tone: 'best',
+  evaluate: ({ season }) => {
+    const latest = season[0]
+    if (!latest || !latest.tags.includes('man_of_the_match')) return null
+    return `Man of the match vs ${latest.opponent}`
+  },
+}
+
 // ── Defensive rules (lead for goalkeepers and defenders) ──────────────────────
 
 const DEFENSIVE_RULES: InsightRule[] = [
@@ -219,16 +232,6 @@ const ATTACKING_RULES: InsightRule[] = [
       return `First start logged, vs ${latest.opponent} — one to build on`
     },
   },
-  {
-    // Latest game tagged man of the match.
-    id: 'man-of-the-match',
-    tone: 'best',
-    evaluate: ({ season }) => {
-      const latest = season[0]
-      if (!latest || !latest.tags.includes('man_of_the_match')) return null
-      return `Man of the match vs ${latest.opponent}`
-    },
-  },
 ]
 
 /**
@@ -238,9 +241,10 @@ const ATTACKING_RULES: InsightRule[] = [
  */
 export function generateInsight(ctx: InsightContext): Insight | null {
   if (!ctx.season.length) return null
-  const rules = ctx.focus === 'defensive'
+  const positional = ctx.focus === 'defensive'
     ? [...DEFENSIVE_RULES, ...ATTACKING_RULES]
     : [...ATTACKING_RULES, ...DEFENSIVE_RULES]
+  const rules = [MOTM_RULE, ...positional]
   for (const rule of rules) {
     const text = rule.evaluate(ctx)
     if (text) return { id: rule.id, text, tone: rule.tone }

@@ -36,6 +36,7 @@ const STAT_ACCENTS: Record<string, StatAccent> = {
   'Avg rating': AMBER,
   Rating: AMBER,
   Minutes: BLUE,
+  MOTM: AMBER,
 }
 
 export function statAccent(label: string): StatAccent {

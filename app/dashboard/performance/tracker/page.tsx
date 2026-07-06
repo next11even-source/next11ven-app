@@ -132,12 +132,21 @@ function LockedState() {
 }
 
 // ── Match card ────────────────────────────────────────────────────────────────
+function MotmBadge() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  )
+}
+
 function MatchCard({ m }: { m: PerformanceMatch }) {
   const hasScore = m.goals_for != null && m.goals_against != null
   const outcome = hasScore
     ? m.goals_for! > m.goals_against! ? 'W' : m.goals_for! === m.goals_against! ? 'D' : 'L'
     : null
   const inv = m.goals + m.assists
+  const isMotm = m.tags?.includes('man_of_the_match')
 
   return (
     <Link href={`/dashboard/performance/tracker/${m.id}`}
@@ -162,7 +171,10 @@ function MatchCard({ m }: { m: PerformanceMatch }) {
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>vs {m.opponent}</p>
+          <p className="text-sm font-bold truncate flex items-center gap-1.5" style={{ color: '#e8dece' }}>
+            vs {m.opponent}
+            {isMotm && <MotmBadge />}
+          </p>
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
             {fmtDate(m.match_date)} · {COMPETITION_TYPE_LABELS[m.competition_type as CompetitionType] ?? m.competition_type}
             {m.position ? ` · ${m.position}` : ''}
@@ -412,6 +424,17 @@ export default function TrackerDashboardPage() {
                 )
               })}
             </div>
+
+            {/* Man of the match — season total, only shown when it's happened */}
+            {s.competitive.motmCount > 0 && (
+              <div className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
+                style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.16) 0%, rgba(245,158,11,0.05) 100%)', border: '1px solid rgba(245,158,11,0.45)' }}>
+                <MotmBadge />
+                <p className="text-sm font-semibold leading-snug" style={{ color: '#e8dece' }}>
+                  {plural(s.competitive.motmCount, 'Man of the match award')} this season
+                </p>
+              </div>
+            )}
 
             {/* Minutes row — the reliability story, for every position */}
             {s.competitive.minutesApps > 0 && (

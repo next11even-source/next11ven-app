@@ -216,6 +216,17 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
               </p>
             </div>
 
+            {/* Man of the match — called out on its own, not buried in the tag list */}
+            {m.tags.includes('man_of_the_match') && (
+              <div className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
+                style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.16) 0%, rgba(245,158,11,0.05) 100%)', border: '1px solid rgba(245,158,11,0.45)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Man of the match</p>
+              </div>
+            )}
+
             {/* Result */}
             {hasScore && (
               <div className="rounded-2xl px-5 py-4 flex items-center justify-between" style={surface}>
@@ -271,10 +282,10 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
               </div>
             )}
 
-            {/* Tags */}
-            {m.tags.length > 0 && (
+            {/* Tags — man of the match has its own banner above, so it's excluded here */}
+            {m.tags.filter(t => t !== 'man_of_the_match').length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {m.tags.map(t => (
+                {m.tags.filter(t => t !== 'man_of_the_match').map(t => (
                   <span key={t} className="px-3 py-1.5 rounded-xl text-xs font-bold"
                     style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.35)' }}>
                     {MATCH_TAG_LABELS[t as MatchTag] ?? t}

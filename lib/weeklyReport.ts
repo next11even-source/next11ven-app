@@ -139,5 +139,15 @@ export function buildReport(cur: Metrics, prev: Metrics | null): string {
   const avg = cur.avg_views_per_active_player
   L.push(`📊 Avg views / active player: <b>${avg === null || avg === undefined ? '—' : avg}</b>`)
 
+  // ── 📒 Game Performance Tracker ─────────────────────────────────────────────
+  // Only rendered once the tracker rpc is feeding the snapshot (post-launch).
+  if (cur.tracker_matches_total !== undefined) {
+    L.push('')
+    L.push(`📒 <b>GAME PERFORMANCE TRACKER</b>`)
+    L.push(`📝 Matches logged <i>(7d)</i>: <b>${num(cur.tracker_matches_7d)}</b>${d(cur.tracker_matches_7d, p('tracker_matches_7d'))} · ${num(cur.tracker_matches_total)} total`)
+    L.push(`👤 Players logging <i>(now)</i>: <b>${num(cur.tracker_players_total)}</b>${d(cur.tracker_players_total, p('tracker_players_total'))}`)
+    L.push(`🆕 First-time loggers <i>(7d)</i>: <b>${num(cur.tracker_new_players_7d)}</b>${d(cur.tracker_new_players_7d, p('tracker_new_players_7d'))}`)
+  }
+
   return L.join('\n')
 }

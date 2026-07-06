@@ -25,7 +25,17 @@ export async function GET(req: NextRequest) {
     reportError('/api/cron/weekly-metrics-telegram', rpcError, 'analytics_weekly_snapshot failed')
     return NextResponse.json({ error: 'Snapshot failed' }, { status: 500 })
   }
-  const cur = metrics as Metrics
+  let cur = metrics as Metrics
+
+  // Game Performance Tracker adoption — merged into the snapshot so deltas
+  // carry over week to week. Non-fatal if it fails.
+  const { data: trackerStats, error: trackerError } = await supabase.rpc('tracker_weekly_stats')
+  if (trackerError) {
+    console.error('[weekly-metrics-telegram] tracker stats error:', trackerError)
+    reportError('/api/cron/weekly-metrics-telegram', trackerError, 'tracker_weekly_stats failed')
+  } else if (trackerStats) {
+    cur = { ...cur, ...(trackerStats as Metrics) }
+  }
 
   const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
 

@@ -10,6 +10,8 @@ import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
+import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
+import { performanceTrackerEnabled } from '@/lib/performance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,48 +148,64 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
 // ─── Quick Stats Bar ──────────────────────────────────────────────────────────
 
+type QuickStat = {
+  label: string; value: number; href: string; sub: string
+  color: string; bg: string; border: string
+}
+
+function QuickStatTile({ s }: { s: QuickStat }) {
+  return (
+    <Link href={s.href}
+      className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
+      style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}
+      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = s.color)}
+      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = s.border)}>
+      <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
+        {s.value}
+      </span>
+      <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
+      <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
+    </Link>
+  )
+}
+
+// Order: Opportunities (amber) · Game Performance Tracker (sky) · Profile
+// Views (blue) — one colour per tile.
 function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number }) {
-  const stats = [
-    ...(views > 0 ? [{
-      label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week',
-      color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
-    }] : []),
-    {
-      label: 'Opportunities', value: openOpps, href: '/dashboard/opportunities', sub: 'open',
-      color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
-    },
-  ]
   return (
     <div className={`mx-4 grid gap-3 ${views > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-      {stats.map((s) => (
-        <Link key={s.label} href={s.href}
+      <QuickStatTile s={{
+        label: 'Opportunities', value: openOpps, href: '/dashboard/opportunities', sub: 'open',
+        color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
+      }} />
+      {performanceTrackerEnabled() ? (
+        /* Game Performance Tracker replaces the Showcase tile once live —
+           Showcase keeps its sidebar entry */
+        <TrackerStatTile />
+      ) : (
+        <Link href="/dashboard/showcase"
           className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-          style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = s.color)}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = s.border)}>
-          <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
-            {s.value}
-          </span>
-          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
-          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
+          style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+          </svg>
+          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>Showcase Games</span>
+          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>sold out</span>
         </Link>
-      ))}
-      <Link href="/dashboard/showcase"
-        className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-        style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
-        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-          <path d="M4 22h16" />
-          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-          <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
-        </svg>
-        <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>Showcase Games</span>
-        <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>sold out</span>
-      </Link>
+      )}
+      {views > 0 && (
+        <QuickStatTile s={{
+          label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week',
+          color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
+        }} />
+      )}
     </div>
   )
 }

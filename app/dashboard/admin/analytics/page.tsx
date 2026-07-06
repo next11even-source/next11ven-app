@@ -73,6 +73,17 @@ type PlatformStats = {
   legacy_upgrade_pence: number
 }
 
+type TrackerStats = {
+  eligible_players: number
+  adopters_total: number
+  adopters_7d: number
+  matches_total: number
+  matches_7d: number
+  repeat_loggers: number
+  motm_logged: number
+  daily_trend: { label: string; value: number }[]
+}
+
 type DayPoint = { label: string; value: number }
 
 type RecentLogin = {
@@ -244,6 +255,8 @@ export default function AnalyticsPage() {
   const [showcaseWaitlist, setShowcaseWaitlist] = useState<ShowcaseWaitlist | null>(null)
   const [showcaseLoading, setShowcaseLoading] = useState(true)
   const [showShowcaseList, setShowShowcaseList] = useState(false)
+  const [trackerStats, setTrackerStats] = useState<TrackerStats | null>(null)
+  const [trackerLoading, setTrackerLoading] = useState(true)
 
   useEffect(() => { load() }, [])
 
@@ -282,6 +295,13 @@ export default function AnalyticsPage() {
       .then(r => r.json())
       .then(d => { setShowcaseWaitlist(d); setShowcaseLoading(false) })
       .catch(() => setShowcaseLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/tracker-stats')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setTrackerStats(d); setTrackerLoading(false) })
+      .catch(() => setTrackerLoading(false))
   }, [])
 
   async function loadMsgLog() {
@@ -424,6 +444,85 @@ export default function AnalyticsPage() {
                 ? { delta: platformStats.mau - platformStats.mau_prev, label: 'vs prev 30d' }
                 : null}
             />
+          </section>
+
+          {/* ── Game Performance Tracker — Adoption ───────────────────────────── */}
+          <section>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Game Performance Tracker</p>
+              <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                style={{ backgroundColor: 'rgba(56,189,248,0.12)', color: '#38bdf8' }}>
+                Free launch
+              </span>
+            </div>
+
+            {trackerLoading ? (
+              <div className="rounded-xl p-6 flex items-center justify-center"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#38bdf8', borderTopColor: 'transparent' }} />
+              </div>
+            ) : trackerStats ? (
+              <div className="space-y-2">
+                <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Players who've logged a match</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                      style={{ backgroundColor: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>
+                      {trackerStats.adopters_total} / {trackerStats.eligible_players}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs" style={{ color: '#8892aa' }}>
+                        Adoption
+                        {trackerStats.adopters_7d > 0 && (
+                          <span style={{ color: '#38bdf8' }}> · +{trackerStats.adopters_7d} new this week</span>
+                        )}
+                      </p>
+                      <p className="text-xs font-bold" style={{ color: '#38bdf8' }}>
+                        {trackerStats.eligible_players > 0
+                          ? Math.round((trackerStats.adopters_total / trackerStats.eligible_players) * 100)
+                          : 0}%
+                      </p>
+                    </div>
+                    <div className="w-full rounded-full h-2" style={{ backgroundColor: '#1e2235' }}>
+                      <div className="h-2 rounded-full transition-all" style={{
+                        width: `${trackerStats.eligible_players > 0 ? Math.round((trackerStats.adopters_total / trackerStats.eligible_players) * 100) : 0}%`,
+                        backgroundColor: '#38bdf8',
+                      }} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <StatCard label="Matches Logged" value={trackerStats.matches_total} color="#38bdf8" sub={`+${trackerStats.matches_7d} this week`} />
+                    <StatCard label="Repeat Loggers" value={trackerStats.repeat_loggers} color="#2d5fc4"
+                      sub={trackerStats.adopters_total > 0 ? `${Math.round((trackerStats.repeat_loggers / trackerStats.adopters_total) * 100)}% of adopters` : undefined} />
+                  </div>
+                  {trackerStats.motm_logged > 0 && (
+                    <div className="flex items-center gap-2 rounded-lg px-3 py-2"
+                      style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <span style={{ color: '#f59e0b' }}>★</span>
+                      <p className="text-xs" style={{ color: '#8892aa' }}>
+                        <span style={{ color: '#f59e0b', fontWeight: 700 }}>{trackerStats.motm_logged}</span> Man of the Match award{trackerStats.motm_logged === 1 ? '' : 's'} logged
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {trackerStats.daily_trend.length > 0 && (
+                  <ChartCard
+                    title="Matches Logged (14 days)"
+                    data={trackerStats.daily_trend}
+                    color="#38bdf8"
+                    total={trackerStats.daily_trend.reduce((sum, d) => sum + d.value, 0)}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>Could not load tracker data.</p>
+              </div>
+            )}
           </section>
 
           {/* ── Showcase Game 2 Waitlist ──────────────────────────────────────── */}

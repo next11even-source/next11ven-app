@@ -32,6 +32,8 @@ export default function LogMatchPage() {
       })
       .then(data => {
         if (!data) return
+        // Logging is the paid action — read-only players go to the upgrade page
+        if (data.access === 'readonly') { router.push('/dashboard/player/premium'); return }
         setStints(data.stints ?? [])
         const activeStint = (data.activeStint as ClubStint | null) ?? null
         setInitial({

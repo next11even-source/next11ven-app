@@ -36,7 +36,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requireTrackerPlayer()
+  const gate = await requireTrackerPlayer({ write: true })
   if (!gate.ok) return gate.res
 
   let rawBody: unknown

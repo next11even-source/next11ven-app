@@ -18,7 +18,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const gate = await requireTrackerPlayer()
+  const gate = await requireTrackerPlayer({ write: true })
   if (!gate.ok) return gate.res
   const { id } = await params
 
@@ -69,7 +69,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const gate = await requireTrackerPlayer()
+  const gate = await requireTrackerPlayer({ write: true })
   if (!gate.ok) return gate.res
   const { id } = await params
 

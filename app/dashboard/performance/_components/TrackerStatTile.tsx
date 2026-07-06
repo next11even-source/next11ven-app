@@ -43,7 +43,8 @@ export default function TrackerStatTile() {
         if (!data) return // locked or error — stay a doorway
         const competitive = data.competitive as MatchSummary
         if (!competitive || competitive.apps === 0) {
-          setState({ kind: 'icon', sub: 'log your first match' })
+          // Read-only players without data get the doorway, not a CTA they can't act on
+          setState({ kind: 'icon', sub: data.access === 'readonly' ? 'track your season' : 'log your first match' })
           return
         }
         setState({ kind: 'stat', ...pickStat(competitive, data.focus === 'defensive') })

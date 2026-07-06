@@ -4,9 +4,11 @@
 //   1. Kill switch — 404 when the feature is globally off (looks like it doesn't exist)
 //   2. Auth — 401
 //   3. Player role (admin counts as player, house rule) — 403
-//   4. Premium — 403 NOT_PREMIUM (skippable: CSV export stays open to lapsed
-//      players so they always own their record)
-// RLS is the privacy backstop underneath all of this.
+//   4. Writes only: premium — 403 NOT_PREMIUM (skipped in free-launch mode)
+//
+// Reads are never premium-gated: a player can ALWAYS see and export what they
+// logged (the endowment that drives the upgrade after the premium flip) — only
+// adding/editing is paid. RLS is the privacy backstop underneath all of this.
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -30,12 +32,10 @@ async function getSupabase() {
 type Supabase = Awaited<ReturnType<typeof getSupabase>>
 
 export type TrackerGate =
-  | { ok: true; supabase: Supabase; userId: string; premium: boolean; position: string | null }
+  | { ok: true; supabase: Supabase; userId: string; premium: boolean; position: string | null; canWrite: boolean }
   | { ok: false; res: NextResponse }
 
-export async function requireTrackerPlayer(opts?: { requirePremium?: boolean }): Promise<TrackerGate> {
-  const requirePremium = opts?.requirePremium ?? true
-
+export async function requireTrackerPlayer(opts?: { write?: boolean }): Promise<TrackerGate> {
   if (!performanceTrackerEnabled()) {
     return { ok: false, res: NextResponse.json({ error: 'Not found' }, { status: 404 }) }
   }
@@ -61,10 +61,11 @@ export async function requireTrackerPlayer(opts?: { requirePremium?: boolean }):
     return { ok: false, res: NextResponse.json({ error: 'Players only' }, { status: 403 }) }
   }
 
-  // Free-launch mode skips the premium gate entirely (data-gathering phase)
-  if (requirePremium && !profile.premium && !performanceTrackerFree()) {
+  const canWrite = !!profile.premium || performanceTrackerFree()
+
+  if (opts?.write && !canWrite) {
     return { ok: false, res: NextResponse.json({ error: 'NOT_PREMIUM' }, { status: 403 }) }
   }
 
-  return { ok: true, supabase, userId: user.id, premium: !!profile.premium, position: profile.position ?? null }
+  return { ok: true, supabase, userId: user.id, premium: !!profile.premium, position: profile.position ?? null, canWrite }
 }

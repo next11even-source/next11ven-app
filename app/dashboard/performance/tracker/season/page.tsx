@@ -50,6 +50,7 @@ function SeasonWrapInner() {
   const [matches, setMatches] = useState<PerformanceMatch[] | null>(null)
   const [stints, setStints] = useState<ClubStint[]>([])
   const [shared, setShared] = useState(false)
+  const [readonly, setReadonly] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -68,6 +69,7 @@ function SeasonWrapInner() {
     ]).then(([matchesData, stintsData]) => {
       setMatches((matchesData?.matches ?? []) as PerformanceMatch[])
       setStints((stintsData?.stints ?? []) as ClubStint[])
+      setReadonly(matchesData?.access === 'readonly')
     }).catch(() => setMatches([]))
   }, [season, router])
 
@@ -143,7 +145,34 @@ function SeasonWrapInner() {
           </div>
         )}
 
-        {matches !== null && competitive.length > 0 && (
+        {/* The wrap is a Premium flex — read-only players get the teaser */}
+        {matches !== null && competitive.length > 0 && readonly && (
+          <div className="rounded-2xl p-6 text-center space-y-4"
+            style={{ border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)' }}>
+            <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center"
+              style={{ backgroundColor: 'rgba(45,95,196,0.15)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-lg font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                Your season wrap is waiting
+              </p>
+              <p className="text-sm mt-1.5 leading-relaxed" style={{ color: '#8892aa' }}>
+                {summary.apps} game{summary.apps === 1 ? '' : 's'} logged and counting. The shareable season card — best game, best spell, the lot — is a Premium flex.
+              </p>
+            </div>
+            <Link href="/dashboard/player/premium"
+              className="block w-full text-center py-3 rounded-2xl text-sm font-bold uppercase tracking-wider"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+              Unlock your wrap
+            </Link>
+          </div>
+        )}
+
+        {matches !== null && competitive.length > 0 && !readonly && (
           <>
             {/* ── The shareable card ── */}
             <div className="rounded-3xl overflow-hidden"

@@ -64,11 +64,11 @@ export async function GET(req: NextRequest) {
   const { data, count, error } = await query
   if (error) return NextResponse.json({ error: 'Failed to load matches' }, { status: 500 })
 
-  return NextResponse.json({ matches: data ?? [], total: count ?? 0 })
+  return NextResponse.json({ matches: data ?? [], total: count ?? 0, access: gate.canWrite ? 'full' : 'readonly' })
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requireTrackerPlayer()
+  const gate = await requireTrackerPlayer({ write: true })
   if (!gate.ok) return gate.res
 
   let rawBody: unknown

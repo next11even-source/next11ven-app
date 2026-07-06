@@ -67,7 +67,13 @@ export default function SeasonTargetPage() {
         body: JSON.stringify({ season_start_year: season, ...parsedValues }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'Could not save your target'); setBusy(false); return }
+      if (!res.ok) {
+        setError(data.error === 'NOT_PREMIUM'
+          ? 'Setting targets is a Premium feature — upgrade to lock yours in.'
+          : data.error ?? 'Could not save your target')
+        setBusy(false)
+        return
+      }
       router.push('/dashboard/performance/tracker')
     } catch {
       setError('Something went wrong. Please try again.')

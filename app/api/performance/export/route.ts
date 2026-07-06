@@ -17,7 +17,7 @@ function csvCell(value: string | number | null | undefined): string {
 // CSV export of the player's full logged history. Deliberately NOT premium-
 // gated (auth + player role only): a lapsed player always owns their record.
 export async function GET() {
-  const gate = await requireTrackerPlayer({ requirePremium: false })
+  const gate = await requireTrackerPlayer()
   if (!gate.ok) return gate.res
 
   const { data, error } = await gate.supabase

@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import MatchForm, { type MatchFormValues, type NewStintValues } from '../../_components/MatchForm'
@@ -33,6 +34,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
   const router = useRouter()
 
   const [match, setMatch] = useState<MatchWithStint | null>(null)
+  const [readonly, setReadonly] = useState(false)
   const [seasonMatches, setSeasonMatches] = useState<PerformanceMatch[]>([])
   const [stints, setStints] = useState<ClubStint[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,6 +54,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
         if (!data?.match) { setLoading(false); return }
         const m = data.match as MatchWithStint
         setMatch(m)
+        setReadonly(data.access === 'readonly')
         const season = seasonOfMatch(m.match_date)
         return Promise.all([
           fetch(`/api/performance/matches?season=${season}&limit=200`).then(r => (r.ok ? r.json() : null)),
@@ -295,7 +298,15 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
               </p>
             )}
 
-            {/* Actions */}
+            {/* Actions — read-only players can look but not touch */}
+            {readonly ? (
+              <p className="text-xs text-center pt-1" style={{ color: '#8892aa' }}>
+                Editing and logging are Premium —{' '}
+                <Link href="/dashboard/player/premium" style={{ color: '#3a6fda', textDecoration: 'none', fontWeight: 600 }}>
+                  unlock your tracker
+                </Link>
+              </p>
+            ) : (
             <div className="space-y-2 pt-1">
               <button onClick={() => setEditing(true)}
                 className="w-full py-3 rounded-2xl text-sm font-bold uppercase tracking-wider"
@@ -327,6 +338,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </div>

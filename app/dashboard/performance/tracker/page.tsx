@@ -9,7 +9,6 @@ import { createClient } from '@/lib/supabase-browser'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY } from '@/lib/premiumContent'
 import {
   COMPETITION_TYPE_LABELS,
-  performanceTrackerFree,
   seasonLabel as fmtSeason,
   type ClubStint,
   type CompetitionType,
@@ -22,6 +21,7 @@ type Summary = {
   season: number
   seasonLabel: string
   seasons: number[]
+  access: 'full' | 'readonly'
   category: string | null
   focus: 'defensive' | 'attacking'
   competitive: MatchSummary
@@ -195,7 +195,6 @@ function MatchCard({ m }: { m: PerformanceMatch }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function TrackerDashboardPage() {
   const router = useRouter()
-  const [premium, setPremium] = useState<boolean | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -211,21 +210,19 @@ export default function TrackerDashboardPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push('/'); return }
-      supabase.from('profiles').select('role, premium').eq('id', user.id).single()
+      supabase.from('profiles').select('role').eq('id', user.id).single()
         .then(({ data }) => {
           if (!data) return
           const isPlayer = data.role === 'player' || data.role === 'admin'
           if (!isPlayer) { router.push('/dashboard/coach'); return }
-          // Free-launch mode: everyone gets the real tracker, no locked state
-          const unlocked = (data.premium ?? false) || performanceTrackerFree()
-          setPremium(unlocked)
-          if (unlocked) loadSummary()
-          else setLoading(false)
+          // Reads are never premium-gated — the API decides full vs readonly
+          loadSummary()
         })
     })
   }, [router, loadSummary])
 
   const s = summary
+  const readonly = s?.access === 'readonly'
   const hasMatches = (s?.recent.length ?? 0) > 0 || (s?.competitive.apps ?? 0) > 0 || (s?.seasons.length ?? 0) > 0
 
   return (
@@ -246,7 +243,7 @@ export default function TrackerDashboardPage() {
               style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
               Game Performance Tracker
             </h1>
-            {premium && s && (
+            {s && hasMatches && (
               <p className="text-sm mt-1" style={{ color: '#8892aa' }}>
                 {s.activeStint
                   ? <>Playing for <span style={{ color: '#e8dece', fontWeight: 600 }}>{s.activeStint.club_name}</span>
@@ -257,7 +254,7 @@ export default function TrackerDashboardPage() {
             )}
           </div>
           {/* Season picker */}
-          {premium && s && s.seasons.length > 1 && (
+          {s && s.seasons.length > 1 && (
             <select value={s.season}
               onChange={e => loadSummary(parseInt(e.target.value, 10))}
               className="rounded-xl px-2.5 py-2 text-xs font-bold outline-none appearance-none cursor-pointer flex-shrink-0"
@@ -267,15 +264,16 @@ export default function TrackerDashboardPage() {
           )}
         </div>
 
-        {premium === false && <LockedState />}
-
-        {premium && loading && (
+        {loading && (
           <div className="rounded-2xl p-8 text-center" style={surface}>
             <p className="text-sm" style={{ color: '#8892aa' }}>Loading your season…</p>
           </div>
         )}
 
-        {premium && !loading && s && !hasMatches && (
+        {/* No data + no write access = the full sell */}
+        {!loading && s && readonly && !hasMatches && <LockedState />}
+
+        {!loading && s && !readonly && !hasMatches && (
           /* First-run empty state */
           <div className="rounded-2xl p-6 text-center space-y-4" style={surface}>
             <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center"
@@ -300,17 +298,31 @@ export default function TrackerDashboardPage() {
           </div>
         )}
 
-        {premium && !loading && s && hasMatches && (
+        {!loading && s && hasMatches && (
           <>
-            {/* Log match — the one loud CTA on the page */}
-            <Link href="/dashboard/performance/tracker/log"
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Log a match
-            </Link>
+            {/* Log match — the one loud CTA on the page. Read-only players
+                (post-premium-flip) keep their history but logging is the paid
+                action, so the button becomes the upgrade. */}
+            {readonly ? (
+              <Link href="/dashboard/player/premium"
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
+                style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                Log your next match · Premium
+              </Link>
+            ) : (
+              <Link href="/dashboard/performance/tracker/log"
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
+                style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Log a match
+              </Link>
+            )}
 
             {/* Hero — clean sheets for GK/DEF, goal involvements for MID/ATT */}
             <div className="rounded-2xl px-5 py-5" style={surface}>
@@ -343,8 +355,22 @@ export default function TrackerDashboardPage() {
               </div>
             </div>
 
-            {/* Insight banner — accent follows the insight's tone */}
-            {s.insight && (() => {
+            {/* Insight banner — accent follows the insight's tone. Read-only
+                players get the locked teaser instead (the FOMO surface —
+                insight text is never sent to them). */}
+            {readonly ? (
+              <Link href="/dashboard/player/premium"
+                className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
+                style={{ background: 'linear-gradient(135deg, rgba(45,95,196,0.18) 0%, rgba(45,95,196,0.06) 100%)', border: '1px solid rgba(45,95,196,0.4)', textDecoration: 'none' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <p className="text-sm font-semibold leading-snug" style={{ color: '#e8dece' }}>
+                  Your insights are locked — streaks, personal bests, form trends. <span style={{ color: '#3a6fda' }}>Unlock with Premium</span>
+                </p>
+              </Link>
+            ) : s.insight && (() => {
               const tone = INSIGHT_TONES[s.insight.tone] ?? INSIGHT_TONES.trend
               return (
                 <div className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
@@ -456,16 +482,28 @@ export default function TrackerDashboardPage() {
               </div>
             )}
 
-            {/* Season wrap + target links */}
+            {/* Season wrap + target links — locked for read-only players */}
             <div className="grid grid-cols-2 gap-2">
-              <Link href={`/dashboard/performance/tracker/season?season=${s.season}`}
-                className="text-center py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
+              <Link href={readonly ? '/dashboard/player/premium' : `/dashboard/performance/tracker/season?season=${s.season}`}
+                className="flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
                 style={{ ...surface, color: '#e8dece', textDecoration: 'none' }}>
+                {readonly && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
                 Season wrap
               </Link>
-              <Link href="/dashboard/performance/tracker/target"
-                className="text-center py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
+              <Link href={readonly ? '/dashboard/player/premium' : '/dashboard/performance/tracker/target'}
+                className="flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
                 style={{ ...surface, color: '#e8dece', textDecoration: 'none' }}>
+                {readonly && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
                 {s.target ? 'Edit target' : 'Set a target'}
               </Link>
             </div>

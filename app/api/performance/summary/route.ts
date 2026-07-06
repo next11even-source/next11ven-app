@@ -78,13 +78,17 @@ export async function GET(req: NextRequest) {
     trend = recent > previous ? 'up' : recent < previous ? 'down' : 'flat'
   }
 
-  const insight = generateInsight({
-    season: seasonCompetitive,
-    career: careerCompetitive,
-    stints,
-    seasonLabel: seasonLabel(season),
-    focus,
-  })
+  // Read-only players (post-premium-flip) never receive insight text — it's a
+  // locked teaser client-side, and the real content stays server-side.
+  const insight = gate.canWrite
+    ? generateInsight({
+        season: seasonCompetitive,
+        career: careerCompetitive,
+        stints,
+        seasonLabel: seasonLabel(season),
+        focus,
+      })
+    : null
 
   const activeStint = stints.find(s => s.end_date === null) ?? null
   const lastMatch = all[0] ?? null
@@ -94,6 +98,7 @@ export async function GET(req: NextRequest) {
     season,
     seasonLabel: seasonLabel(season),
     seasons,
+    access: gate.canWrite ? 'full' : 'readonly',
     category,
     focus,
     competitive: summariseMatches(seasonCompetitive),

@@ -5,6 +5,17 @@ export const LEVELS = [
 
 export type Level = typeof LEVELS[number]
 
+// Sorts arbitrary level strings (e.g. distinct values pulled from live data)
+// into the canonical LEVELS order — Step 1 first, Other last. Values outside
+// LEVELS (legacy/off-list) sort after everything else.
+export function sortLevels(levels: string[]): string[] {
+  const rank = (l: string) => {
+    const i = LEVELS.indexOf(l as Level)
+    return i === -1 ? LEVELS.length : i
+  }
+  return [...levels].sort((a, b) => rank(a) - rank(b))
+}
+
 // ─── Step ladder helpers ──────────────────────────────────────────────────────
 // On the non-league pyramid a LOWER step number = HIGHER level (Step 1 is the
 // top). Only "Step N" values sit on the comparable ladder; U18s/Academy, Wales

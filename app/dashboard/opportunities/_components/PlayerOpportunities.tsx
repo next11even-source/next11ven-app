@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
+import { getLevelConfig } from '@/lib/opportunityLevel'
+import { sortLevels } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,54 @@ type PlayerProfile = {
 function isRecent(d: string) { return Date.now() - new Date(d).getTime() < 48 * 3600000 }
 function daysLeft(d: string) { return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) }
 
+// Compact relative timestamp for the list card ("3h", "23h", "3d") — distinct
+// from lib/utils timeAgo, which appends " ago" and is used elsewhere.
+function compactTimeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 60) return 'now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d`
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+// Football position / club abbreviations that should stay uppercase when a
+// free-text title is converted to sentence case.
+const KNOWN_ACRONYMS = new Set([
+  'GK', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST',
+  'FC', 'AFC', 'U18', 'U21', 'U23',
+])
+
+// Coach-entered titles are often ALL CAPS free text. Convert to sentence case
+// for display only (never mutates stored data), preserving known position /
+// club acronyms and any punctuation (including em dashes) untouched.
+function toSentenceCase(text: string): string {
+  if (!text) return text
+  return text.split(' ').map((word, i) => {
+    const core = word.replace(/[^A-Za-z0-9]/g, '')
+    if (core.length > 1 && KNOWN_ACRONYMS.has(core.toUpperCase())) return word.toUpperCase()
+    const lower = word.toLowerCase()
+    if (i === 0 && lower) return lower.charAt(0).toUpperCase() + lower.slice(1)
+    return lower
+  }).join(' ')
+}
+
+type PrimarySignal = { key: string; label: string; color: string; bg: string; pulse?: boolean }
+
+// Single highest-priority status signal for the compact card, in this order:
+// Urgent > Be first to apply / Just posted > Only N applied > Xd left.
+// Within tier 2, "Be first to apply" wins over "Just posted" when both apply,
+// since zero applicants is the stronger signal for the player.
+function getPrimarySignal(opp: { urgent: boolean; created_at: string; application_count: number; deadline: string | null }): PrimarySignal | null {
+  if (opp.urgent) return { key: 'urgent', label: '🔴 Urgent', color: '#f87171', bg: 'rgba(239,68,68,0.12)', pulse: true }
+  if (opp.application_count === 0) return { key: 'be_first', label: '🚀 Be first to apply', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' }
+  if (isRecent(opp.created_at)) return { key: 'just_posted', label: '⚡ Just posted', color: '#4d8ae8', bg: 'rgba(45,95,196,0.12)' }
+  if (opp.application_count < 5) return { key: 'low_applicants', label: `👥 Only ${opp.application_count} applied`, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' }
+  const deadlineDays = opp.deadline ? daysLeft(opp.deadline) : null
+  if (deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 14) return { key: 'deadline', label: `⏳ ${deadlineDays}d left`, color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' }
+  return null
+}
+
 function Chip({ children, color, bg, pulse }: { children: React.ReactNode; color: string; bg: string; pulse?: boolean }) {
   return (
     <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${pulse ? 'animate-pulse' : ''}`}
@@ -81,6 +131,111 @@ function SkeletonRow() {
   )
 }
 
+// Compact "Open Roles" list card. Whole header is the tap target: premium
+// players expand the inline apply form (existing flow, untouched); free
+// players are routed to the existing premium paywall link — same gating as
+// before, just triggered from the card instead of a full-width button.
+function PlayerOpportunityCard({
+  opp, isPremium, applied, isApplying, highlighted, message, onMessageChange, onTap, onCancel, onConfirm,
+}: {
+  opp: Opportunity
+  isPremium: boolean
+  applied: boolean
+  isApplying: boolean
+  highlighted: boolean
+  message: string
+  onMessageChange: (v: string) => void
+  onTap: () => void
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const signal = getPrimarySignal(opp)
+  const level = getLevelConfig(opp.level)
+  const club = isPremium ? opp.club : null
+  const meta = [club, opp.location].filter(Boolean).join(' · ')
+  const title = toSentenceCase(opp.title)
+
+  const rightLabel = applied ? '✓ Applied' : isPremium ? 'Apply →' : '🔒 Premium →'
+  const ariaLabel = applied
+    ? `Already applied to ${title}`
+    : isPremium
+      ? `Apply to ${title}${meta ? ` at ${meta}` : ''}`
+      : `Upgrade to premium to view club details and apply to ${title}`
+
+  const header = (
+    <div style={{ padding: '13px 14px' }}>
+      <div className="flex gap-2.5">
+        <span aria-hidden="true"><ClubCrest club={club} size={34} /></span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold truncate"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 16, lineHeight: 1.2 }}>
+              {title}
+            </h3>
+            <span className="flex-shrink-0" style={{ fontSize: 11, color: '#5b6478', paddingTop: 2 }}>
+              {compactTimeAgo(opp.created_at)}
+            </span>
+          </div>
+          <p className="truncate mt-0.5" style={{ fontSize: 12, color: '#8892aa' }}>{meta || 'Details to follow'}</p>
+          <div className="flex items-center gap-1.5 mt-1.5 overflow-hidden">
+            <Chip color={level.color} bg={level.bg}>{level.line1}{level.line2 ? ` ${level.line2}` : ''}</Chip>
+            {opp.position && <Chip color="#60a5fa" bg="rgba(96,165,250,0.12)">{opp.position.toUpperCase()}</Chip>}
+            {signal && <Chip color={signal.color} bg={signal.bg} pulse={signal.pulse}>{signal.label}</Chip>}
+            <span className="ml-auto flex-shrink-0 text-xs font-bold" style={{ color: applied || isPremium ? '#2d5fc4' : '#8892aa' }}>
+              {rightLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div id={'opp-' + opp.id}
+      className="relative rounded-2xl overflow-hidden transition-colors"
+      style={{
+        backgroundColor: '#13172a',
+        border: `1px solid ${applied ? '#2d5fc4' : '#1e2235'}`,
+        borderLeft: signal?.key === 'urgent' ? '3px solid #ef4444' : undefined,
+        outline: highlighted ? '2px solid #2d5fc4' : 'none',
+        outlineOffset: 2,
+        scrollMarginTop: 120,
+      }}>
+      {isPremium ? (
+        <button type="button" onClick={onTap} disabled={applied} aria-label={ariaLabel}
+          className="w-full text-left disabled:cursor-default" style={{ minHeight: 44 }}>
+          {header}
+        </button>
+      ) : (
+        <Link href="/dashboard/player/premium" aria-label={ariaLabel} className="block" style={{ minHeight: 44 }}>
+          {header}
+        </Link>
+      )}
+
+      {isApplying && (
+        <div className="space-y-2" style={{ padding: '0 14px 13px' }}>
+          <textarea value={message} onChange={e => onMessageChange(e.target.value)} rows={3}
+            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+            style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
+            placeholder="Tell the coach about yourself (optional)…" />
+          <div className="flex gap-2">
+            <button onClick={onCancel}
+              className="flex-1 rounded-full py-2.5 text-sm font-semibold uppercase"
+              style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+              Cancel
+            </button>
+            <button onClick={onConfirm}
+              className="flex-1 rounded-full py-2.5 text-sm font-semibold uppercase"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+              Confirm Apply
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Opportunities Tab ────────────────────────────────────────────────────────
 
 function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
@@ -101,7 +256,6 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
   const [highlightId, setHighlightId] = useState<string | null>(null)
 
   const isPremium = profile?.premium ?? false
-  const playerCity = profile?.city ?? null
 
   useEffect(() => {
     async function load() {
@@ -137,7 +291,7 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
 
   // Filter options + filtering. Club is intentionally excluded from free-player
   // search so the gated club name can't leak via keyword.
-  const levelOptions = Array.from(new Set(opportunities.map(o => o.level).filter(Boolean) as string[]))
+  const levelOptions = sortLevels(Array.from(new Set(opportunities.map(o => o.level).filter(Boolean) as string[])))
   const positionOptions = Array.from(new Set(opportunities.map(o => o.position).filter(Boolean) as string[]))
   const q = search.trim().toLowerCase()
   const filtered = opportunities.filter(o => {
@@ -252,118 +406,19 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {filtered.map(opp => {
-            const applied = appliedIds.has(opp.id)
-            const isApplying = applying === opp.id
-            const local = playerCity && opp.location ? opp.location.toLowerCase().includes(playerCity.toLowerCase()) : false
-            const deadlineDays = opp.deadline ? daysLeft(opp.deadline) : null
-            const lowApplicants = opp.application_count < 5
-            const justPosted = isRecent(opp.created_at)
-            const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
-            const meta = [isPremium ? opp.club : null, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
-
-            return (
-              <div key={opp.id} id={'opp-' + opp.id}
-                className="relative rounded-2xl overflow-hidden transition-all"
-                style={{
-                  backgroundColor: '#13172a',
-                  border: `1px solid ${applied ? '#2d5fc4' : '#1e2235'}`,
-                  outline: highlightId === opp.id ? '2px solid #2d5fc4' : 'none',
-                  outlineOffset: 2,
-                  scrollMarginTop: 120,
-                }}
-                onMouseEnter={e => {
-                  if (applied) return
-                  e.currentTarget.style.borderColor = 'rgba(45,95,196,0.5)'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(45,95,196,0.12)'
-                }}
-                onMouseLeave={e => {
-                  if (applied) return
-                  e.currentTarget.style.borderColor = '#1e2235'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}>
-                {opp.urgent && (
-                  <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: '#ef4444' }} />
-                )}
-
-                <div className="p-4 lg:p-5 space-y-3">
-                  <div className="flex gap-3.5">
-                    <LevelBadge level={opp.level} />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <ClubCrest club={isPremium ? opp.club : null} />
-                          <h3 className="font-bold uppercase truncate"
-                            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 19, lineHeight: 1.1 }}>
-                            {opp.title}
-                          </h3>
-                        </div>
-                        <span className="text-xs flex-shrink-0 pt-1" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</span>
-                      </div>
-
-                      <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
-
-                      {opp.description && (
-                        <p className="text-xs mt-2 line-clamp-2" style={{ color: '#6b7488' }}>{opp.description}</p>
-                      )}
-
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {opp.urgent && <Chip color="#f87171" bg="rgba(239,68,68,0.12)" pulse>🔴 Urgent</Chip>}
-                        {justPosted && <Chip color="#4d8ae8" bg="rgba(45,95,196,0.12)">⚡ Just posted</Chip>}
-                        {local && <Chip color="#60a5fa" bg="rgba(96,165,250,0.12)">📍 Local to You</Chip>}
-                        {lowApplicants && opp.application_count === 0 && <Chip color="#a78bfa" bg="rgba(167,139,250,0.12)">🚀 Be first to apply</Chip>}
-                        {lowApplicants && opp.application_count > 0 && <Chip color="#a78bfa" bg="rgba(167,139,250,0.12)">👥 Only {opp.application_count} applied</Chip>}
-                        {!lowApplicants && <Chip color="#8892aa" bg="rgba(136,146,170,0.08)">👥 {opp.application_count} applicants</Chip>}
-                        {deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 14 && <Chip color="#fbbf24" bg="rgba(251,191,36,0.12)">⏳ {deadlineDays}d left</Chip>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action */}
-                  {isApplying ? (
-                    <div className="space-y-2">
-                      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
-                        className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
-                        style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
-                        placeholder="Tell the coach about yourself (optional)…" />
-                      <div className="flex gap-2">
-                        <button onClick={() => { setApplying(null); setMessage('') }}
-                          className="flex-1 rounded-full py-2.5 text-sm font-semibold uppercase"
-                          style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
-                          Cancel
-                        </button>
-                        <button onClick={() => handleApply(opp)}
-                          className="flex-1 rounded-full py-2.5 text-sm font-semibold uppercase"
-                          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-                          Confirm Apply
-                        </button>
-                      </div>
-                    </div>
-                  ) : isPremium ? (
-                    <button onClick={() => !applied && setApplying(opp.id)} disabled={applied}
-                      className="w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider transition-colors disabled:cursor-default"
-                      style={{
-                        backgroundColor: applied ? 'transparent' : '#2d5fc4',
-                        color: applied ? '#2d5fc4' : '#fff',
-                        border: applied ? '1px solid #2d5fc4' : 'none',
-                      }}>
-                      {applied ? '✓ Applied' : 'Apply Now'}
-                    </button>
-                  ) : (
-                    <a href="/dashboard/player/premium"
-                      className="w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2"
-                      style={{ backgroundColor: 'rgba(45,95,196,0.1)', border: '1px solid rgba(45,95,196,0.35)', color: '#2d5fc4', textDecoration: 'none' }}>
-                      <span>🔒</span> Go Premium to See Club &amp; Apply
-                    </a>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+          {filtered.map(opp => (
+            <PlayerOpportunityCard key={opp.id} opp={opp}
+              isPremium={isPremium}
+              applied={appliedIds.has(opp.id)}
+              isApplying={applying === opp.id}
+              highlighted={highlightId === opp.id}
+              message={message}
+              onMessageChange={setMessage}
+              onTap={() => setApplying(opp.id)}
+              onCancel={() => { setApplying(null); setMessage('') }}
+              onConfirm={() => handleApply(opp)} />
+          ))}
         </div>
       )}
     </div>

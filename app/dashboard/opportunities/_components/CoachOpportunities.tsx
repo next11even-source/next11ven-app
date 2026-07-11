@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
-import { LEVELS } from '@/lib/levels'
+import { LEVELS, sortLevels } from '@/lib/levels'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -571,7 +571,7 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
   const tabbed = activeTab === 'mine' ? ownOpps : opps
 
   // Filter options derived from the current tab's roles
-  const levelOptions = Array.from(new Set(tabbed.map(o => o.level).filter(Boolean) as string[]))
+  const levelOptions = sortLevels(Array.from(new Set(tabbed.map(o => o.level).filter(Boolean) as string[])))
   const positionOptions = Array.from(new Set(tabbed.map(o => o.position).filter(Boolean) as string[]))
 
   const q = search.trim().toLowerCase()

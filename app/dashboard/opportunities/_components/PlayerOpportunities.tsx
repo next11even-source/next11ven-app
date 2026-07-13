@@ -314,7 +314,9 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
     : []
 
   // Filter options + filtering. Club is intentionally excluded from free-player
-  // search so the gated club name can't leak via keyword.
+  // search so the gated club name can't leak via keyword. Stays in the
+  // chronological (newest-first) order the initial query already returned —
+  // relevance ranking is surfaced only in "Best matches for you" above.
   const levelOptions = sortLevels(Array.from(new Set(opportunities.map(o => o.level).filter(Boolean) as string[])))
   const positionOptions = Array.from(new Set(opportunities.map(o => o.position).filter(Boolean) as string[]))
   const q = search.trim().toLowerCase()
@@ -327,7 +329,7 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
       if (!hay.includes(q)) return false
     }
     return true
-  }).sort((a, b) => scoreOf(b) - scoreOf(a))
+  })
   const hasActiveFilters = !!(q || levelFilter || positionFilter || urgentOnly)
   const selectStyle = { backgroundColor: '#0d1020', border: '1px solid #1e2235', color: '#e8dece' }
 

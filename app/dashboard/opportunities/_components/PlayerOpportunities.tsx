@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
@@ -8,6 +8,7 @@ import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { sortLevels } from '@/lib/levels'
+import { getOpportunityRelevanceScore } from '@/lib/opportunityRelevance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,10 @@ type Application = {
 type PlayerProfile = {
   id: string
   city: string | null
+  location: string | null
   position: string | null
+  secondary_position: string | null
+  playing_level: string | null
   premium: boolean
 }
 
@@ -136,7 +140,7 @@ function SkeletonRow() {
 // players are routed to the existing premium paywall link — same gating as
 // before, just triggered from the card instead of a full-width button.
 function PlayerOpportunityCard({
-  opp, isPremium, applied, isApplying, highlighted, message, onMessageChange, onTap, onCancel, onConfirm,
+  opp, isPremium, applied, isApplying, highlighted, message, onMessageChange, onTap, onCancel, onConfirm, anchorId = true,
 }: {
   opp: Opportunity
   isPremium: boolean
@@ -147,6 +151,9 @@ function PlayerOpportunityCard({
   onMessageChange: (v: string) => void
   onTap: () => void
   onCancel: () => void
+  // Set false for a duplicate render of the same opportunity (e.g. the "Best
+  // matches" preview) so it doesn't collide with the main list's anchor id.
+  anchorId?: boolean
   onConfirm: () => void
 }) {
   const signal = getPrimarySignal(opp)
@@ -191,7 +198,7 @@ function PlayerOpportunityCard({
   )
 
   return (
-    <div id={'opp-' + opp.id}
+    <div id={anchorId ? 'opp-' + opp.id : undefined}
       className="relative rounded-2xl overflow-hidden transition-colors"
       style={{
         backgroundColor: '#13172a',
@@ -254,8 +261,20 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
   const [positionFilter, setPositionFilter] = useState('')
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [highlightId, setHighlightId] = useState<string | null>(null)
+  const defaultsApplied = useRef(false)
 
   const isPremium = profile?.premium ?? false
+
+  // Default the level/position filters to the player's own step and primary
+  // position on first load — display default only, still fully overridable.
+  // Guarded so it only ever fires once (not on every profile refetch), and
+  // never fights a filter the player has already touched.
+  useEffect(() => {
+    if (defaultsApplied.current || !profile) return
+    defaultsApplied.current = true
+    if (profile.playing_level) setLevelFilter(profile.playing_level)
+    if (profile.position) setPositionFilter(profile.position)
+  }, [profile])
 
   useEffect(() => {
     async function load() {
@@ -289,6 +308,22 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
     }
   }
 
+  // Relevance score per opportunity, keyed to the viewing player's step,
+  // position and location (see lib/opportunityRelevance.ts). A soft ranking
+  // signal only — nothing below is ever hidden because of its score.
+  const relevance = profile
+    ? new Map(opportunities.map(o => [o.id, getOpportunityRelevanceScore(o, profile)]))
+    : null
+  const scoreOf = (o: Opportunity) => relevance?.get(o.id) ?? 0
+
+  // "Best matches for you" — top 2-3 by relevance, computed off the full
+  // (unfiltered) list. Only shown once we have a real signal to rank on and
+  // enough roles to make "best" meaningful.
+  const hasMatchSignal = !!(profile?.position || profile?.playing_level)
+  const topMatches = hasMatchSignal && relevance
+    ? [...opportunities].sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, Math.min(3, opportunities.length))
+    : []
+
   // Filter options + filtering. Club is intentionally excluded from free-player
   // search so the gated club name can't leak via keyword.
   const levelOptions = sortLevels(Array.from(new Set(opportunities.map(o => o.level).filter(Boolean) as string[])))
@@ -303,7 +338,7 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
       if (!hay.includes(q)) return false
     }
     return true
-  })
+  }).sort((a, b) => scoreOf(b) - scoreOf(a))
   const hasActiveFilters = !!(q || levelFilter || positionFilter || urgentOnly)
   const selectStyle = { backgroundColor: '#0d1020', border: '1px solid #1e2235', color: '#e8dece' }
 
@@ -354,6 +389,36 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
 
   return (
     <div className="px-4 py-4 space-y-4">
+      {/* Best matches for you — soft rank, top of the tab. Same cards as the
+          full list below; nothing here is removed from that list. */}
+      {topMatches.length >= 2 && (
+        <div className="space-y-2">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
+              Best matches for you
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+              Matched to your step and position.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+            {topMatches.map(opp => (
+              <PlayerOpportunityCard key={'match-' + opp.id} opp={opp}
+                isPremium={isPremium}
+                applied={appliedIds.has(opp.id)}
+                isApplying={applying === opp.id}
+                highlighted={highlightId === opp.id}
+                message={message}
+                onMessageChange={setMessage}
+                onTap={() => setApplying(opp.id)}
+                onCancel={() => { setApplying(null); setMessage('') }}
+                onConfirm={() => handleApply(opp)}
+                anchorId={false} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1" style={{ minWidth: 180 }}>
@@ -526,7 +591,7 @@ export default function PlayerOpportunities({ playerId }: { playerId: string }) 
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('profiles').select('id, city, position, premium').eq('id', playerId).single()
+    supabase.from('profiles').select('id, city, location, position, secondary_position, playing_level, premium').eq('id', playerId).single()
       .then(({ data }) => setProfile(data as PlayerProfile))
   }, [playerId])
 

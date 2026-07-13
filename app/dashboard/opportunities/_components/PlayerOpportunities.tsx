@@ -8,7 +8,7 @@ import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { sortLevels } from '@/lib/levels'
-import { getOpportunityRelevanceScore } from '@/lib/opportunityRelevance'
+import { getOpportunityRelevanceScore, isCloseMatch } from '@/lib/opportunityRelevance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -304,12 +304,13 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
     : null
   const scoreOf = (o: Opportunity) => relevance?.get(o.id) ?? 0
 
-  // "Best matches for you" — top 2-3 by relevance, computed off the full
-  // (unfiltered) list. Only shown once we have a real signal to rank on and
-  // enough roles to make "best" meaningful.
-  const hasMatchSignal = !!(profile?.position || profile?.playing_level)
-  const topMatches = hasMatchSignal && relevance
-    ? [...opportunities].sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, Math.min(3, opportunities.length))
+  // "Best matches for you" — hard-filtered to the player's own position (or
+  // roles open to any position) within one step of their own level (see
+  // lib/opportunityRelevance.ts isCloseMatch), then ordered by relevance.
+  // Needs both a position and a level on the profile to filter on.
+  const hasMatchSignal = !!(profile?.position && profile?.playing_level)
+  const topMatches = hasMatchSignal && profile
+    ? opportunities.filter(o => isCloseMatch(o, profile)).sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, 6)
     : []
 
   // Filter options + filtering. Club is intentionally excluded from free-player
@@ -379,7 +380,7 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
     <div className="px-4 py-4 space-y-4">
       {/* Best matches for you — soft rank, top of the tab. Same cards as the
           full list below; nothing here is removed from that list. */}
-      {topMatches.length >= 2 && (
+      {topMatches.length >= 1 && (
         <div className="space-y-2">
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>

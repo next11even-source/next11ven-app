@@ -96,3 +96,25 @@ export function getOpportunityRelevanceScore(
 
   return Math.round(score * 100) / 100
 }
+
+/**
+ * Hard filter for the "Best matches for you" section — unlike the general
+ * score above (which never excludes anything), a recommendation must have a
+ * real position fit — the player's own position, or a role open to any
+ * position — and a step within one division of the player's own. Prevents
+ * off-position roles (e.g. a goalkeeper-specific listing for an outfield
+ * player) or far-off steps from ever surfacing as a "match".
+ */
+export function isCloseMatch(
+  opportunity: RelevanceOpportunity,
+  player: RelevancePlayerProfile
+): boolean {
+  const oppPos = norm(opportunity.position)
+  const positionFits = !oppPos || oppPos === norm(player.position) || oppPos === norm(player.secondary_position)
+
+  const playerStep = stepNumber(player.playing_level)
+  const oppStep = stepNumber(opportunity.level)
+  const stepFits = playerStep !== null && oppStep !== null && Math.abs(playerStep - oppStep) <= 1
+
+  return positionFits && stepFits
+}

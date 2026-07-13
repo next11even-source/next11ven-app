@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
@@ -261,20 +261,8 @@ function OpportunitiesTab({ playerId, profile, focusOppId, onFocused }: {
   const [positionFilter, setPositionFilter] = useState('')
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [highlightId, setHighlightId] = useState<string | null>(null)
-  const defaultsApplied = useRef(false)
 
   const isPremium = profile?.premium ?? false
-
-  // Default the level/position filters to the player's own step and primary
-  // position on first load — display default only, still fully overridable.
-  // Guarded so it only ever fires once (not on every profile refetch), and
-  // never fights a filter the player has already touched.
-  useEffect(() => {
-    if (defaultsApplied.current || !profile) return
-    defaultsApplied.current = true
-    if (profile.playing_level) setLevelFilter(profile.playing_level)
-    if (profile.position) setPositionFilter(profile.position)
-  }, [profile])
 
   useEffect(() => {
     async function load() {

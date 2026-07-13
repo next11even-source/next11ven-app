@@ -27,6 +27,14 @@ function norm(s: string | null | undefined): string {
  * approach the coach recommendation engine uses (lib/recommendations.ts),
  * applied in reverse (ranking roles for a player instead of players for a
  * coach) — same tiering, same "location is a weak text signal" limitation.
+ *
+ * Step proximity is deliberately the dominant axis, not just the highest
+ * weight: a Step 5 "Any position" role must always outrank a Step 7 exact
+ * position match for a Step 5 player — being asked to play out of position
+ * is fine, being asked to play two divisions off is a much worse match.
+ * The step tiers are spaced further apart than the maximum combined
+ * position + location + recency score (58) can ever bridge, so position/
+ * location/recency only ever break ties within the same step tier.
  */
 export function getOpportunityRelevanceScore(
   opportunity: RelevanceOpportunity,
@@ -34,11 +42,11 @@ export function getOpportunityRelevanceScore(
 ): number {
   let score = 0
 
-  // Position match (0–40, highest weight): exact primary/secondary match
-  // scores highest, same broad category (lib/positions.ts groups RW/LW etc.
-  // together as "attackers") gets partial credit, unrelated positions score
-  // low. An opportunity open to "Any position" fits everyone, so it gets a
-  // flat mid-value rather than being penalised as unrelated.
+  // Position match (0–40): exact primary/secondary match scores highest,
+  // same broad category (lib/positions.ts groups RW/LW etc. together as
+  // "attackers") gets partial credit, unrelated positions score low. An
+  // opportunity open to "Any position" fits everyone, so it gets a flat
+  // mid-value rather than being penalised as unrelated.
   const oppPos = norm(opportunity.position)
   if (!oppPos) {
     score += 18
@@ -50,17 +58,19 @@ export function getOpportunityRelevanceScore(
     score += oppCategory && oppCategory === playerCategory ? 20 : 4
   }
 
-  // Step proximity (0–30): exact step match highest, ±1 next, further steps
-  // lower still. Off-ladder levels (U18s/Academy, Wales, Other) or an unset
-  // level on either side just score 0 here — never excluded, only unweighted.
+  // Step proximity (0–320, dominant axis): exact step match highest, ±1
+  // next, further steps lower still — see function-level comment for why
+  // the gaps are this wide. Off-ladder levels (U18s/Academy, Wales, Other)
+  // or an unset level on either side score 0 here — never excluded, only
+  // unweighted, so they fall in behind any opportunity with a known step.
   const playerStep = stepNumber(player.playing_level)
   const oppStep = stepNumber(opportunity.level)
   if (playerStep !== null && oppStep !== null) {
     const diff = Math.abs(playerStep - oppStep)
-    if (diff === 0) score += 30
-    else if (diff === 1) score += 20
-    else if (diff === 2) score += 10
-    else if (diff === 3) score += 4
+    if (diff === 0) score += 320
+    else if (diff === 1) score += 240
+    else if (diff === 2) score += 160
+    else if (diff === 3) score += 80
   }
 
   // Location proximity (0–15): free text only on both sides (no lat/long or

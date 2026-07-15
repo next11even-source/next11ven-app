@@ -10,6 +10,7 @@ import {
   involvements,
   dominantCategory,
   trackerFocus,
+  effectiveIncludePreseason,
   type ClubStint,
   type PerformanceMatch,
 } from '@/lib/performance'
@@ -59,18 +60,27 @@ export async function GET(req: NextRequest) {
   const seasonFriendlies = seasonMatches.filter(m => !isCompetitive(m.competition_type))
   const careerCompetitive = all.filter(m => isCompetitive(m.competition_type))
 
+  // Pre-season toggle: player can fold pre-season/friendly matches into the
+  // headline numbers instead of waiting for league/cup games (useful during
+  // pre-season, when adoption matters most). Auto-on the moment they've
+  // logged one, pinned once they've explicitly chosen either way.
+  const preseasonLogged = all.some(m => !isCompetitive(m.competition_type))
+  const includePreseason = effectiveIncludePreseason(gate.includePreseasonPref, preseasonLogged)
+  const primarySeason = includePreseason ? seasonMatches : seasonCompetitive
+  const primaryCareer = includePreseason ? all : careerCompetitive
+
   // Position-aware layout: GK/DEF lead with clean sheets, MID/ATT with goal
   // involvements. Category from profile position, falling back to the
   // most-logged match position.
   const category = dominantCategory(gate.position, all)
   const focus = trackerFocus(category)
 
-  // Hero trend = last 5 competitive games vs the 5 before (needs a full
-  // comparison window, otherwise null). Metric follows the focus.
+  // Hero trend = last 5 games vs the 5 before (needs a full comparison
+  // window, otherwise null). Metric follows the focus.
   const heroMetric = (m: PerformanceMatch) =>
     focus === 'defensive' ? (isCleanSheet(m) ? 1 : 0) : involvements(m)
-  const last5 = seasonCompetitive.slice(0, 5)
-  const prev5 = seasonCompetitive.slice(5, 10)
+  const last5 = primarySeason.slice(0, 5)
+  const prev5 = primarySeason.slice(5, 10)
   let trend: 'up' | 'down' | 'flat' | null = null
   if (prev5.length === 5) {
     const recent = last5.reduce((n, m) => n + heroMetric(m), 0)
@@ -82,8 +92,8 @@ export async function GET(req: NextRequest) {
   // locked teaser client-side, and the real content stays server-side.
   const insight = gate.canWrite
     ? generateInsight({
-        season: seasonCompetitive,
-        career: careerCompetitive,
+        season: primarySeason,
+        career: primaryCareer,
         stints,
         seasonLabel: seasonLabel(season),
         focus,
@@ -101,8 +111,10 @@ export async function GET(req: NextRequest) {
     access: gate.canWrite ? 'full' : 'readonly',
     category,
     focus,
-    competitive: summariseMatches(seasonCompetitive),
-    friendlies: summariseMatches(seasonFriendlies),
+    includePreseason,
+    preseasonLogged,
+    competitive: summariseMatches(primarySeason),
+    friendlies: summariseMatches(includePreseason ? [] : seasonFriendlies),
     trend,
     insight,
     recent: seasonMatches.slice(0, 10),

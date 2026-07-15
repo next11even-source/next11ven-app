@@ -32,7 +32,7 @@ async function getSupabase() {
 type Supabase = Awaited<ReturnType<typeof getSupabase>>
 
 export type TrackerGate =
-  | { ok: true; supabase: Supabase; userId: string; premium: boolean; position: string | null; canWrite: boolean }
+  | { ok: true; supabase: Supabase; userId: string; premium: boolean; position: string | null; canWrite: boolean; includePreseasonPref: boolean | null }
   | { ok: false; res: NextResponse }
 
 export async function requireTrackerPlayer(opts?: { write?: boolean }): Promise<TrackerGate> {
@@ -48,7 +48,7 @@ export async function requireTrackerPlayer(opts?: { write?: boolean }): Promise<
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, premium, position')
+    .select('role, premium, position, performance_include_preseason')
     .eq('id', user.id)
     .single()
 
@@ -67,5 +67,13 @@ export async function requireTrackerPlayer(opts?: { write?: boolean }): Promise<
     return { ok: false, res: NextResponse.json({ error: 'NOT_PREMIUM' }, { status: 403 }) }
   }
 
-  return { ok: true, supabase, userId: user.id, premium: !!profile.premium, position: profile.position ?? null, canWrite }
+  return {
+    ok: true,
+    supabase,
+    userId: user.id,
+    premium: !!profile.premium,
+    position: profile.position ?? null,
+    canWrite,
+    includePreseasonPref: profile.performance_include_preseason,
+  }
 }

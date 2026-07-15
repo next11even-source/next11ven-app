@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { statAccent } from '../_components/statAccents'
+import PreseasonToggle from '../_components/PreseasonToggle'
 import { createClient } from '@/lib/supabase-browser'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY } from '@/lib/premiumContent'
 import {
@@ -24,6 +25,8 @@ type Summary = {
   access: 'full' | 'readonly'
   category: string | null
   focus: 'defensive' | 'attacking'
+  includePreseason: boolean
+  preseasonLogged: boolean
   competitive: MatchSummary
   friendlies: MatchSummary
   trend: 'up' | 'down' | 'flat' | null
@@ -393,7 +396,17 @@ export default function TrackerDashboardPage() {
               )
             })()}
 
-            {/* Season grid — competitive only, position-aware */}
+            {/* Pre-season toggle — only worth showing once there's something
+                to fold in. Auto-on the moment they've logged a non-competitive
+                match; pinned once they've chosen either way (server-side). */}
+            {s.preseasonLogged && (
+              <PreseasonToggle
+                included={s.includePreseason}
+                onChange={() => loadSummary(s.season)}
+              />
+            )}
+
+            {/* Season grid — competitive only (or +pre-season/friendlies when toggled on), position-aware */}
             <div className="grid grid-cols-4 gap-2">
               {(s.focus === 'defensive'
                 ? [

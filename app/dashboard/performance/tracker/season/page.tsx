@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { statAccent } from '../../_components/statAccents'
+import PreseasonToggle from '../../_components/PreseasonToggle'
 import { createClient } from '@/lib/supabase-browser'
 import {
   isCompetitive,
@@ -51,6 +52,8 @@ function SeasonWrapInner() {
   const [stints, setStints] = useState<ClubStint[]>([])
   const [shared, setShared] = useState(false)
   const [readonly, setReadonly] = useState(false)
+  const [includePreseason, setIncludePreseason] = useState(false)
+  const [preseasonLogged, setPreseasonLogged] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -66,10 +69,13 @@ function SeasonWrapInner() {
         return r.ok ? r.json() : null
       }),
       fetch('/api/performance/stints').then(r => (r.ok ? r.json() : null)),
-    ]).then(([matchesData, stintsData]) => {
+      fetch('/api/performance/preferences').then(r => (r.ok ? r.json() : null)),
+    ]).then(([matchesData, stintsData, prefData]) => {
       setMatches((matchesData?.matches ?? []) as PerformanceMatch[])
       setStints((stintsData?.stints ?? []) as ClubStint[])
       setReadonly(matchesData?.access === 'readonly')
+      setIncludePreseason(!!prefData?.includePreseason)
+      setPreseasonLogged(!!prefData?.preseasonLogged)
     }).catch(() => setMatches([]))
   }, [season, router])
 
@@ -87,9 +93,11 @@ function SeasonWrapInner() {
   }
 
   const all = matches ?? []
-  const competitive = all.filter(m => isCompetitive(m.competition_type))
+  // Pre-season toggle folds non-competitive matches into the primary set —
+  // same behaviour as the tracker dashboard, so the two stay in sync.
+  const competitive = includePreseason ? all : all.filter(m => isCompetitive(m.competition_type))
   const summary: MatchSummary = summariseMatches(competitive)
-  const friendlies = summariseMatches(all.filter(m => !isCompetitive(m.competition_type)))
+  const friendlies = summariseMatches(includePreseason ? [] : all.filter(m => !isCompetitive(m.competition_type)))
   const category = dominantCategory(profilePosition, all)
   const focus = trackerFocus(category)
 
@@ -123,6 +131,10 @@ function SeasonWrapInner() {
             {seasonLabel(season)} — built from every game you&apos;ve logged. Screenshot the card and post it anywhere.
           </p>
         </div>
+
+        {preseasonLogged && (
+          <PreseasonToggle included={includePreseason} onChange={setIncludePreseason} />
+        )}
 
         {matches === null && (
           <div className="rounded-2xl p-8 text-center" style={surface}>

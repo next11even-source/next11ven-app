@@ -5,9 +5,11 @@
 // add a new rule by inserting an object, no UI changes needed. Tone follows
 // the weekly digest: always positive or neutral, never deflating.
 //
-// All rules operate on COMPETITIVE matches (league + cup) sorted newest-first,
-// per the season scoping done by the caller. Stint-awareness: comparisons
-// across different pyramid steps get level context appended where it matters.
+// All rules operate on whatever match set the caller passes in — competitive
+// (league + cup) matches only by default, or pre-season/friendlies folded in
+// too when the player has opted into that via the pre-season toggle — sorted
+// newest-first. Stint-awareness: comparisons across different pyramid steps
+// get level context appended where it matters.
 
 import { stepNumber } from './levels'
 import type { ClubStint, PerformanceMatch, TrackerFocus } from './performance'

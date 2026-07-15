@@ -40,6 +40,16 @@ export function isCompetitive(type: string): boolean {
   return COMPETITIVE_TYPES.includes(type as CompetitionType)
 }
 
+// ── Pre-season inclusion toggle ───────────────────────────────────────────────
+// Player-level preference (profiles.performance_include_preseason): null means
+// they haven't chosen — auto-resolves to on the moment they've logged a
+// non-competitive match, so pre-season players get useful stats immediately
+// instead of waiting for a league game. Once they explicitly set true/false
+// (the toggle in the UI), that choice is pinned regardless of future matches.
+export function effectiveIncludePreseason(pref: boolean | null, hasPreseasonMatches: boolean): boolean {
+  return pref === null ? hasPreseasonMatches : pref
+}
+
 // ── Stints ────────────────────────────────────────────────────────────────────
 export const STINT_TYPES = ['contracted', 'trial', 'loan'] as const
 export type StintType = typeof STINT_TYPES[number]

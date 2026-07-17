@@ -7,7 +7,9 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import NewBadge from '@/app/components/NewBadge'
+import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
+import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -190,6 +192,7 @@ export default function PlayerPublicProfile() {
   const { openSidebar } = useSidebar()
   const [player, setPlayer] = useState<PublicProfile | null>(null)
   const [viewer, setViewer] = useState<ViewerProfile | null>(null)
+  const [perf, setPerf] = useState<PublicPerformance | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Coach shortlist state
@@ -210,9 +213,13 @@ export default function PlayerPublicProfile() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/'); return }
 
-        const [playerRes, viewerRes] = await Promise.all([
+        const [playerRes, viewerRes, perfRes] = await Promise.all([
           supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
+          // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
+          // RPC — returns objective stats only, gated on the player's coarse
+          // visibility switch server-side).
+          supabase.rpc('public_player_performance', { p_player_id: id }),
         ])
 
         if (playerRes.error) {
@@ -225,6 +232,13 @@ export default function PlayerPublicProfile() {
 
         setPlayer({ ...playerRes.data, highlight_urls: playerRes.data.highlight_urls ?? [] } as PublicProfile)
         setViewer(viewerRes.data as ViewerProfile)
+
+        // Reconcile the allowlisted payload into the rendered aggregate (applies
+        // the anti-double-count rule client-side — all data here is already
+        // objective/public, so this is correctness, not a secrecy boundary).
+        if (perfRes.data) {
+          setPerf(buildPublicPerformance(perfRes.data as PublicPerformancePayload, playerRes.data.position))
+        }
 
         // Record view — players and coaches only, not fans
         const viewerRole = viewerRes.data?.role ?? null
@@ -520,8 +534,18 @@ export default function PlayerPublicProfile() {
 
       <div className="px-4 space-y-4 pb-8">
 
-        {/* Stats */}
-        {(player.goals > 0 || player.assists > 0 || player.appearances > 0) && (
+        {/* Performance stats.
+            - Tracked (perf.visible && hasAny): the derived block from the log +
+              career history.
+            - Opted out (perf.visible === false): show nothing — respect the
+              player's coarse visibility switch.
+            - No tracked data yet, or the RPC failed: fall back to the legacy
+              manual season stats so the profile never shows LESS than today
+              (no blank-profile window until the backfill has run). */}
+        {perf?.visible && perf.hasAny ? (
+          <PublicPerformanceStats perf={perf} />
+        ) : (!perf || (perf.visible && !perf.hasAny)) &&
+            (player.goals > 0 || player.assists > 0 || player.appearances > 0) ? (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
@@ -535,7 +559,7 @@ export default function PlayerPublicProfile() {
               <StatTile label="Apps" value={player.appearances} />
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Football Info */}
         <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>

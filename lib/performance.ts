@@ -158,7 +158,22 @@ export type MatchSummary = {
   lost: number
 }
 
-export function summariseMatches(matches: PerformanceMatch[]): MatchSummary {
+// The structural subset summariseMatches actually reads. PerformanceMatch
+// satisfies it; so does the allowlisted public payload (lib/publicStats.ts),
+// which lets the public profile reuse the exact same aggregation.
+export type AggregatableMatch = {
+  started: boolean
+  goals: number
+  assists: number
+  penalty_saves: number | null
+  tags?: string[] | null
+  minutes_played: number | null
+  rating: number | null
+  goals_for: number | null
+  goals_against: number | null
+}
+
+export function summariseMatches(matches: AggregatableMatch[]): MatchSummary {
   const s: MatchSummary = {
     apps: matches.length, starts: 0, goals: 0, assists: 0, involvements: 0,
     minutes: 0, avgMinutes: null, minutesApps: 0, avgRating: null, ratedCount: 0,
@@ -208,7 +223,7 @@ export function trackerFocus(category: PositionCategory | null): TrackerFocus {
 
 export function dominantCategory(
   profilePosition: string | null | undefined,
-  matches: PerformanceMatch[],
+  matches: { position: string | null }[],
 ): PositionCategory | null {
   const fromProfile = positionCategory(profilePosition)
   if (fromProfile) return fromProfile

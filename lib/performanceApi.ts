@@ -13,7 +13,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { performanceTrackerEnabled, performanceTrackerFree } from './performance'
+import { performanceTrackerEnabled } from './performance'
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -61,7 +61,14 @@ export async function requireTrackerPlayer(opts?: { write?: boolean }): Promise<
     return { ok: false, res: NextResponse.json({ error: 'Players only' }, { status: 403 }) }
   }
 
-  const canWrite = !!profile.premium || performanceTrackerFree()
+  // Input is free, forever — logging is the flywheel intake and is never gated.
+  // The old premium write-gate (!!profile.premium || performanceTrackerFree())
+  // is deliberately neutralised: any approved player can write. The premium sell
+  // has moved to being *found* (Actively Looking), not to the act of logging.
+  // performanceTrackerFree() / the kill switch are left intact, and the client
+  // readonly + upgrade-CTA scaffolding stays dormant for repurposing into the
+  // "get found" wall — do not rip it out.
+  const canWrite = true
 
   if (opts?.write && !canWrite) {
     return { ok: false, res: NextResponse.json({ error: 'NOT_PREMIUM' }, { status: 403 }) }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { statAccent } from '../_components/statAccents'
 import PreseasonToggle from '../_components/PreseasonToggle'
+import VisibilityControl from '../_components/VisibilityControl'
 import { createClient } from '@/lib/supabase-browser'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY } from '@/lib/premiumContent'
 import {
@@ -338,6 +339,10 @@ export default function TrackerDashboardPage() {
                 Log a match
               </Link>
             )}
+
+            {/* Who can see this — coarse visibility switch + the default-on
+                heads-up. Shown once there's data worth exposing. */}
+            <VisibilityControl />
 
             {/* Hero — clean sheets for GK/DEF, goal involvements for MID/ATT */}
             <div className="rounded-2xl px-5 py-5" style={surface}>

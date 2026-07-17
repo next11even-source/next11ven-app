@@ -36,6 +36,8 @@ export type MatchFormValues = {
   goals: number
   assists: number
   penalty_saves: number
+  yellow_cards: number
+  red_card: boolean
   rating: number | null
   notes: string | null
   tags: string[]
@@ -69,6 +71,37 @@ function Label({ children }: { children: React.ReactNode }) {
   )
 }
 
+// ── Delineation pills — where each field ends up, shown at the point of entry.
+// Objective fields (goals, minutes, cards, MOTM…) are on the profile coaches
+// see; rating, notes and the private tags stay yours. Not a consent wall — a
+// small honest indicator next to the field.
+function PublicPill() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.35)' }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+      </svg>
+      On profile
+    </span>
+  )
+}
+function PrivatePill() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa', border: '1px solid #1e2235' }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      Private
+    </span>
+  )
+}
+
+// Man of the match is a real public stat, surfaced separately from the private
+// tag chips so the delineation stays honest.
+const OTHER_TAGS = MATCH_TAGS.filter(t => t !== 'man_of_the_match')
+
 function Stepper({ value, onChange, max = 30 }: { value: number; onChange: (n: number) => void; max?: number }) {
   return (
     <div className="flex items-center gap-3">
@@ -90,6 +123,9 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
   const [stintChoice, setStintChoice] = useState<string>(initial.stint_id ?? '')
   const [newStint, setNewStint] = useState<NewStintValues>({ club_name: '', level: null, stint_type: 'contracted' })
   const [localError, setLocalError] = useState<string | null>(null)
+  // Discipline lives in an optional "add more" section so the core log stays
+  // ~20 seconds. Auto-open when editing a match that already has a card.
+  const [showMore, setShowMore] = useState<boolean>((initial.yellow_cards ?? 0) > 0 || initial.red_card)
 
   const set = <K extends keyof MatchFormValues>(key: K, val: MatchFormValues[K]) =>
     setV(prev => ({ ...prev, [key]: val }))
@@ -245,8 +281,8 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
         {/* Rating */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
-              Your rating
+            <p className="text-xs uppercase tracking-wider font-semibold flex items-center gap-2" style={{ color: '#8892aa' }}>
+              Your rating <PrivatePill />
             </p>
             {v.rating != null && (
               <button type="button" onClick={() => set('rating', null)} className="text-xs" style={{ color: '#8892aa' }}>
@@ -324,12 +360,77 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
         )}
       </div>
 
-      {/* Tags + notes */}
+      {/* Man of the match — a real public stat, on its own so the delineation
+          stays honest (the rest of the tags below are private). */}
+      <div className="rounded-2xl p-4" style={surface}>
+        <button type="button" onClick={() => toggleTag('man_of_the_match')}
+          className="w-full flex items-center justify-between gap-3">
+          <div className="text-left">
+            <p className="text-sm font-bold flex items-center gap-2" style={{ color: '#e8dece' }}>
+              Man of the match <PublicPill />
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Tap if you won it — shows on your profile</p>
+          </div>
+          <span className="relative flex-shrink-0 w-12 h-7 rounded-full transition-colors"
+            style={{
+              backgroundColor: v.tags.includes('man_of_the_match') ? '#f59e0b' : '#0d1020',
+              border: `1px solid ${v.tags.includes('man_of_the_match') ? '#f59e0b' : '#1e2235'}`,
+            }}>
+            <span className="absolute top-0.5 w-5 h-5 rounded-full transition-all"
+              style={{ backgroundColor: '#fff', left: v.tags.includes('man_of_the_match') ? '22px' : '2px' }} />
+          </span>
+        </button>
+      </div>
+
+      {/* Add more — optional detail kept out of the core ~20s flow. Discipline
+          lives here (public: suspensions matter to coaches). */}
+      <div className="rounded-2xl overflow-hidden" style={surface}>
+        <button type="button" onClick={() => setShowMore(s => !s)}
+          className="w-full flex items-center justify-between px-4 py-3.5">
+          <span className="text-sm font-semibold" style={{ color: '#e8dece' }}>Add more detail</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: showMore ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {showMore && (
+          <div className="px-4 pb-4 space-y-4" style={{ borderTop: '1px solid #1e2235' }}>
+            <div className="grid grid-cols-2 gap-3 pt-4">
+              <div>
+                <p className="text-xs uppercase tracking-wider font-semibold mb-1.5 flex items-center gap-2" style={{ color: '#8892aa' }}>
+                  Yellow cards <PublicPill />
+                </p>
+                <Stepper value={v.yellow_cards} onChange={n => set('yellow_cards', n)} max={2} />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider font-semibold mb-1.5 flex items-center gap-2" style={{ color: '#8892aa' }}>
+                  Red card <PublicPill />
+                </p>
+                <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
+                  {([['No', false], ['Sent off', true]] as const).map(([label, val]) => (
+                    <button key={label} type="button" onClick={() => set('red_card', val)}
+                      className="flex-1 py-2.5 text-xs font-bold"
+                      style={v.red_card === val
+                        ? { backgroundColor: val ? 'rgba(239,68,68,0.2)' : '#2d5fc4', color: val ? '#ef4444' : '#fff' }
+                        : { backgroundColor: '#0d1020', color: '#8892aa' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Private tags + notes — for the player's own record, never public. */}
       <div className="rounded-2xl p-4 space-y-4" style={surface}>
         <div>
-          <Label>Tags</Label>
+          <p className="text-xs uppercase tracking-wider font-semibold mb-1.5 flex items-center gap-2" style={{ color: '#8892aa' }}>
+            Tags <PrivatePill />
+          </p>
           <div className="flex flex-wrap gap-2">
-            {MATCH_TAGS.map(t => {
+            {OTHER_TAGS.map(t => {
               const active = v.tags.includes(t)
               return (
                 <button key={t} type="button" onClick={() => toggleTag(t)}
@@ -344,7 +445,9 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
           </div>
         </div>
         <div>
-          <Label>Notes</Label>
+          <p className="text-xs uppercase tracking-wider font-semibold mb-1.5 flex items-center gap-2" style={{ color: '#8892aa' }}>
+            Notes <PrivatePill />
+          </p>
           <textarea value={v.notes ?? ''} rows={3} maxLength={2000}
             placeholder="Anything worth remembering — how you played, what to work on…"
             onChange={e => set('notes', e.target.value || null)}

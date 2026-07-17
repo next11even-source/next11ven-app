@@ -29,6 +29,7 @@ type Profile = {
   foot: string | null
   height: string | null
   status: string | null
+  contract_status: string | null
   goals: number
   assists: number
   appearances: number
@@ -348,6 +349,7 @@ export default function PlayerProfilePage() {
   const [foot, setFoot] = useState('')
   const [height, setHeight] = useState('')
   const [status, setStatus] = useState('')
+  const [contractStatus, setContractStatus] = useState('')
 
   // Stats fields
   const [goals, setGoals] = useState(0)
@@ -387,6 +389,7 @@ export default function PlayerProfilePage() {
     setFoot(p.foot ?? '')
     setHeight(p.height ?? '')
     setStatus(p.status ?? '')
+    setContractStatus(p.contract_status ?? '')
     setGoals(p.goals ?? 0)
     setAssists(p.assists ?? 0)
     setAppearances(p.appearances ?? 0)
@@ -509,7 +512,7 @@ export default function PlayerProfilePage() {
           action={
             <EditButton editing={editingFootball} saving={saving}
               onEdit={() => setEditingFootball(e => !e)}
-              onSave={() => save({ position: position || null, secondary_position: secondaryPosition || null, club: club || null, playing_level: playingLevel || null, foot: foot || null, height: height || null, status: status || null }, 'football')} />
+              onSave={() => save({ position: position || null, secondary_position: secondaryPosition || null, club: club || null, playing_level: playingLevel || null, foot: foot || null, height: height || null, status: status || null, contract_status: contractStatus || null }, 'football')} />
           }>
           {editingFootball ? (
             <div className="space-y-3">
@@ -554,6 +557,14 @@ export default function PlayerProfilePage() {
                   <option value="just_exploring">Just Exploring</option>
                 </Select>
               </Field>
+              <Field label="Contract Status">
+                <Select value={contractStatus} onChange={e => setContractStatus(e.target.value)}>
+                  <option value="">Prefer not to say</option>
+                  <option value="non_contract">Non-contract</option>
+                  <option value="contracted">Contracted</option>
+                  <option value="out_of_contract">Out of contract</option>
+                </Select>
+              </Field>
             </div>
           ) : (
             <div className="space-y-0.5 divide-y" style={{ borderColor: '#1e2235' }}>
@@ -563,6 +574,7 @@ export default function PlayerProfilePage() {
               <ReadOnlyRow label="Foot" value={profile.foot} />
               <ReadOnlyRow label="Height" value={profile.height} />
               <ReadOnlyRow label="Status" value={profile.status ? { free_agent: 'Free Agent', signed: 'Signed to a club', loan_dual_reg: 'Looking for Loan / Dual Reg', just_exploring: 'Just Exploring' }[profile.status] ?? null : null} />
+              <ReadOnlyRow label="Contract" value={profile.contract_status ? { non_contract: 'Non-contract', contracted: 'Contracted', out_of_contract: 'Out of contract' }[profile.contract_status] ?? null : null} />
             </div>
           )}
         </SectionCard>

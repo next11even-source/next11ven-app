@@ -181,6 +181,8 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
                 goals: m.goals,
                 assists: m.assists,
                 penalty_saves: m.penalty_saves ?? 0,
+                yellow_cards: m.yellow_cards ?? 0,
+                red_card: m.red_card ?? false,
                 rating: m.rating != null ? Number(m.rating) : null,
                 notes: m.notes,
                 tags: m.tags,
@@ -268,6 +270,14 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
                   <> · <span style={{ color: '#3a6fda', fontWeight: 600 }}>
                     {m.penalty_saves} penalt{m.penalty_saves === 1 ? 'y' : 'ies'} saved
                   </span></>
+                )}
+                {(m.yellow_cards ?? 0) > 0 && (
+                  <> · <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                    {m.yellow_cards} yellow{m.yellow_cards === 1 ? '' : 's'}
+                  </span></>
+                )}
+                {m.red_card && (
+                  <> · <span style={{ color: '#ef4444', fontWeight: 600 }}>Red card</span></>
                 )}
               </p>
             </div>

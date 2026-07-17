@@ -109,10 +109,11 @@ export type PerformanceMatch = {
   goals: number
   assists: number
   penalty_saves: number
+  yellow_cards: number
+  red_card: boolean
   rating: number | null
   notes: string | null
   tags: string[]
-  visible_on_profile: boolean
   created_at: string
   updated_at: string
 }

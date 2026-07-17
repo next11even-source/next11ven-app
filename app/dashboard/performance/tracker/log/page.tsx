@@ -55,6 +55,8 @@ export default function LogMatchPage() {
           goals: 0,
           assists: 0,
           penalty_saves: 0,
+          yellow_cards: 0,
+          red_card: false,
           rating: null,
           notes: null,
           tags: [],

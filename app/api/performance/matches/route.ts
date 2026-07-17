@@ -21,6 +21,8 @@ const MatchSchema = z.object({
   goals: z.number().int().min(0).max(30).default(0),
   assists: z.number().int().min(0).max(30).default(0),
   penalty_saves: z.number().int().min(0).max(5).default(0),
+  yellow_cards: z.number().int().min(0).max(2).default(0),
+  red_card: z.boolean().default(false),
   rating: z.number().min(1).max(10).multipleOf(0.5).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   tags: z.array(z.enum(MATCH_TAGS)).max(MATCH_TAGS.length).default([]),

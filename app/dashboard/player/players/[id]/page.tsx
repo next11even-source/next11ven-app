@@ -26,6 +26,7 @@ type PublicProfile = {
   foot: string | null
   height: string | null
   status: string | null
+  contract_status: string | null
   goals: number
   assists: number
   appearances: number
@@ -214,7 +215,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -568,6 +569,7 @@ export default function PlayerPublicProfile() {
           </div>
           <div className="px-4">
             <Row label="Position" value={[player.position, player.secondary_position].filter(Boolean).join(' / ') || null} />
+            <Row label="Contract" value={player.contract_status ? { non_contract: 'Non-contract', contracted: 'Contracted', out_of_contract: 'Out of contract' }[player.contract_status] ?? null : null} />
             <Row label="Playing Level" value={player.playing_level} />
             <Row label="Strongest Foot" value={player.foot} />
             <Row label="Height" value={player.height} />

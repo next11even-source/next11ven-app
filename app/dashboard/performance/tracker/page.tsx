@@ -7,6 +7,7 @@ import Breadcrumb from '@/app/components/Breadcrumb'
 import { statAccent } from '../_components/statAccents'
 import PreseasonToggle from '../_components/PreseasonToggle'
 import VisibilityControl from '../_components/VisibilityControl'
+import PlaceSeasonNudge from '../_components/PlaceSeasonNudge'
 import { createClient } from '@/lib/supabase-browser'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY } from '@/lib/premiumContent'
 import {
@@ -279,6 +280,10 @@ export default function TrackerDashboardPage() {
             </select>
           )}
         </div>
+
+        {/* Standing "place your season" nudge — self-fetches; shows only when
+            the player has legacy stats with no career row to carry them. */}
+        <PlaceSeasonNudge />
 
         {loading && (
           <div className="rounded-2xl p-8 text-center" style={surface}>

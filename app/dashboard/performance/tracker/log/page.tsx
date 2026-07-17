@@ -37,7 +37,9 @@ export default function LogMatchPage() {
         setStints(data.stints ?? [])
         const activeStint = (data.activeStint as ClubStint | null) ?? null
         setInitial({
-          match_date: lastSaturday(),
+          // Derived from the player's own match-day pattern (server-side);
+          // lastSaturday() is the client fallback if the field is missing.
+          match_date: data.defaults?.suggestedMatchDate ?? lastSaturday(),
           opponent: '',
           competition_type: 'league',
           competition_name: null,

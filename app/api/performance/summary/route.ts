@@ -11,6 +11,7 @@ import {
   dominantCategory,
   trackerFocus,
   effectiveIncludePreseason,
+  suggestedMatchDate,
   type ClubStint,
   type PerformanceMatch,
 } from '@/lib/performance'
@@ -124,6 +125,9 @@ export async function GET(req: NextRequest) {
     defaults: {
       position: lastMatch?.position ?? null,
       stint_id: lastMatch?.stint_id ?? null,
+      // Likely last match day, derived from the weekday the player usually logs
+      // on (Saturday until there's enough history) — pre-fills the log form.
+      suggestedMatchDate: suggestedMatchDate(all.map(m => m.match_date)),
     },
   })
 }

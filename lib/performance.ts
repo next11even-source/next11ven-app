@@ -239,3 +239,36 @@ export function dominantCategory(
   }
   return best
 }
+
+// ── Match-day suggestion (friction-killer) ────────────────────────────────────
+// Non-league sides mostly play a fixed weekday. We don't capture fixtures, so we
+// derive the player's likely match day from the weekday they actually log on,
+// and pre-fill the log form's date to the most recent occurrence of it — turning
+// a blank date field into a one-tap confirm. Same derivation powers the
+// post-match nudge (which day to remind them about).
+
+/** Most common weekday (0=Sun … 6=Sat) across match dates. Needs ≥3 matches to
+ *  trust a pattern; otherwise null so callers fall back to Saturday. */
+export function likelyMatchWeekday(dates: string[]): number | null {
+  if (dates.length < 3) return null
+  const counts = new Array(7).fill(0)
+  for (const d of dates) counts[new Date(`${d}T00:00:00Z`).getUTCDay()]++
+  let best = 0
+  for (let i = 1; i < 7; i++) if (counts[i] > counts[best]) best = i
+  return counts[best] > 0 ? best : null
+}
+
+/** Most recent date (YYYY-MM-DD, UTC) on or before `from` that falls on `weekday`. */
+export function mostRecentWeekday(weekday: number, from: Date = new Date()): string {
+  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()))
+  const diff = (d.getUTCDay() - weekday + 7) % 7
+  d.setUTCDate(d.getUTCDate() - diff)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Date to pre-fill on the log form: the player's likely last match day — modal
+ *  weekday from history, or Saturday when there isn't enough history yet. */
+export function suggestedMatchDate(dates: string[], from: Date = new Date()): string {
+  const weekday = likelyMatchWeekday(dates) ?? 6 // Saturday default
+  return mostRecentWeekday(weekday, from)
+}

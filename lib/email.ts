@@ -247,6 +247,33 @@ export async function sendDripDay7Email({
   await send({ to, subject: "Don't let this coach move on without you", html })
 }
 
+// ─── Post-match log nudge (engagement — suppressible via email_marketing_opt_out) ─
+// The intake valve for the tracker flywheel: a light "log yesterday's game"
+// prompt the day after the player's likely match day. Free feature — no upsell.
+
+export async function sendLogNudgeEmail({
+  to,
+  toName,
+  playerId,
+}: {
+  to: string
+  toName: string | null
+  playerId: string
+}) {
+  const logUrl = `${SITE}/dashboard/performance/tracker/log`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Played this weekend? Get it on the record before it fades. Logging a game takes about 20 seconds — goals, assists, minutes, done.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
+      Every game you log builds your season stats and keeps your profile current for the coaches looking at you.
+    </p>
+    <a href="${logUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Log your match</a>
+  `, makeUnsubscribeUrl(playerId))
+  await send({ to, subject: 'Played this weekend? Log it in 20 seconds', html })
+}
+
 // ─── Weekly digest (marketing — suppressible via email_marketing_opt_out) ────
 // Body is built + validated in lib/weeklyDigest.ts. This wrapper only frames it
 // in the base template and sends. Keep the transport thin.

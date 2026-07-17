@@ -98,6 +98,7 @@ Functions in lib/email.ts:
   sendSubscriptionCancelledWinBackEmail — win-back after subscription cancelled
   sendShortlistAvailableEmail — player notified a coach shortlisted them
   sendCoachRecommendationsEmail — weekly coach recommendation digest (recommendation engine)
+  sendLogNudgeEmail — post-match "log your game" nudge (tracker flywheel intake; email fallback to SMS)
 Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
 
 MailerLite ✅ LIVE
@@ -137,6 +138,11 @@ Live Automations
   Step 2 (Day 3): processed by cron — email only (sendDripDay3Email)
   Step 3 (Day 7): processed by cron — SMS best-effort (sms_opt_in checked) + email (sendDripDay7Email)
   Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
+- Post-match log nudge: /api/cron/log-nudge — daily 10:00 UTC
+  Targets players with an ACTIVE club stint whose likely match day was yesterday
+  (modal weekday from their logged history; Saturday until there's enough) and who
+  haven't logged that game. SMS-first (sms_opt_in + 1/day last_sms_at limit), email
+  fallback (sendLogNudgeEmail, respects email_marketing_opt_out). Free — no upsell.
 - Weekly digest: /api/cron/weekly-digest — Thursday 08:00 UTC
   Emails every approved player one positive digest (lib/weeklyDigest.ts builds/validates the body).
   4 blocks (On NEXT11VEN / Roles for you / Your week / Your move) with credibility floors — never a
@@ -153,7 +159,7 @@ Live Automations
 - Unsubscribe: /api/unsubscribe — sets email_marketing_opt_out = true on profiles
   Note: transactional emails (failed payment, application decisions) must NEVER be suppressed by this flag
 
-All 4 crons are registered in vercel.json. Keep that file and this list in sync.
+All 5 crons are registered in vercel.json. Keep that file and this list in sync.
 
 APIs
 
@@ -223,6 +229,7 @@ POST /api/unsubscribe — sets email_marketing_opt_out on profile
 Cron
 GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
 GET /api/cron/weekly-digest — sends the weekly player digest to all approved players (Thursday)
+GET /api/cron/log-nudge — post-match "log your game" nudge to active-stint players (daily)
 GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
 GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
 

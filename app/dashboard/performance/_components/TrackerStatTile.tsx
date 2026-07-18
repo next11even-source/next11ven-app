@@ -6,8 +6,11 @@ import NewBadge from '@/app/components/NewBadge'
 import type { MatchSummary } from '@/lib/performance'
 
 type TileState =
-  | { kind: 'icon'; sub: string }                              // loading / locked / no games yet
-  | { kind: 'stat'; num: string; unit: string | null; sub: string } // live stat with its unit
+  | { kind: 'icon'; sub: string; href: string }                              // loading / locked / no games yet
+  | { kind: 'stat'; num: string; unit: string | null; sub: string; href: string } // live stat with its unit
+
+const HUB = '/dashboard/performance/tracker'
+const LOG = '/dashboard/performance/tracker/log'
 
 // The number must mean something at a glance, so it carries its unit and the
 // stat is picked per position with positive fallbacks: attackers lead with
@@ -34,7 +37,7 @@ function pickStat(s: MatchSummary, defensive: boolean): { num: string; unit: str
 // soon as the player has logged a game. Until then (or when the summary is
 // premium-locked) it's a doorway with a clear first action.
 export default function TrackerStatTile() {
-  const [state, setState] = useState<TileState>({ kind: 'icon', sub: 'track your season' })
+  const [state, setState] = useState<TileState>({ kind: 'icon', sub: 'track your season', href: HUB })
 
   useEffect(() => {
     fetch('/api/performance/summary')
@@ -43,17 +46,19 @@ export default function TrackerStatTile() {
         if (!data) return // locked or error — stay a doorway
         const competitive = data.competitive as MatchSummary
         if (!competitive || competitive.apps === 0) {
-          // Read-only players without data get the doorway, not a CTA they can't act on
-          setState({ kind: 'icon', sub: data.access === 'readonly' ? 'track your season' : 'log your first match' })
+          // No data yet: writers deep-link straight to the log form (no hunt);
+          // read-only players get the hub doorway, not a CTA they can't act on.
+          const readonly = data.access === 'readonly'
+          setState({ kind: 'icon', sub: readonly ? 'track your season' : 'log your first match', href: readonly ? HUB : LOG })
           return
         }
-        setState({ kind: 'stat', ...pickStat(competitive, data.focus === 'defensive') })
+        setState({ kind: 'stat', ...pickStat(competitive, data.focus === 'defensive'), href: HUB })
       })
       .catch(() => {})
   }, [])
 
   return (
-    <Link href="/dashboard/performance/tracker"
+    <Link href={state.href}
       className="relative flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
       style={{ backgroundColor: 'rgba(56,189,248,0.07)', border: '1.5px solid rgba(56,189,248,0.5)', textDecoration: 'none' }}
       onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#38bdf8')}

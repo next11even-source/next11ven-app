@@ -138,11 +138,12 @@ Live Automations
   Step 2 (Day 3): processed by cron — email only (sendDripDay3Email)
   Step 3 (Day 7): processed by cron — SMS best-effort (sms_opt_in checked) + email (sendDripDay7Email)
   Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
-- Post-match log nudge: /api/cron/log-nudge — daily 10:00 UTC
-  Targets players with an ACTIVE club stint whose likely match day was yesterday
+- Post-match log nudge: /api/cron/log-nudge — daily 18:00 UTC
+  Targets players with an ACTIVE club stint whose likely match day is TODAY
   (modal weekday from their logged history; Saturday until there's enough) and who
-  haven't logged that game. SMS-first (sms_opt_in + 1/day last_sms_at limit), email
-  fallback (sendLogNudgeEmail, respects email_marketing_opt_out). Free — no upsell.
+  haven't logged that game — fires the evening of the match while it's fresh.
+  SMS-first (sms_opt_in + 1/day last_sms_at limit), email fallback
+  (sendLogNudgeEmail, respects email_marketing_opt_out). Free — no upsell.
 - Weekly digest: /api/cron/weekly-digest — Thursday 08:00 UTC
   Emails every approved player one positive digest (lib/weeklyDigest.ts builds/validates the body).
   4 blocks (On NEXT11VEN / Roles for you / Your week / Your move) with credibility floors — never a

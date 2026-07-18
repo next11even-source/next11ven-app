@@ -11,11 +11,12 @@ import {
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-// Post-match log nudge — the flywheel's intake valve. Runs daily; for each
-// player with an ACTIVE club stint whose likely match day was YESTERDAY (derived
-// from the weekday they usually log on, Saturday until there's history) and who
-// hasn't logged that game, sends one gentle "log it" reminder. SMS-first when
-// opted in and inside the 1/day rate limit; email fallback otherwise.
+// Post-match log nudge — the flywheel's intake valve. Runs daily at 18:00 UTC;
+// for each player with an ACTIVE club stint whose likely match day is TODAY
+// (derived from the weekday they usually log on, Saturday until there's history)
+// and who hasn't logged that game, sends one gentle "log it" reminder the evening
+// of the match while it's fresh. SMS-first when opted in and inside the 1/day
+// rate limit; email fallback otherwise.
 //
 // Free feature, no upsell. Respects sms_opt_in and email_marketing_opt_out.
 
@@ -102,10 +103,11 @@ export async function GET(req: NextRequest) {
       const weekday = likelyMatchWeekday(dates) ?? 6 // Saturday default
       const occurrence = mostRecentWeekday(weekday, now)
 
-      // Only nudge the day AFTER the likely match day (never the morning of a
-      // game they haven't played yet).
+      // Nudge the EVENING of the likely match day — this cron runs 18:00 UTC
+      // (≈6pm in-season / 7pm summer), after a 3pm kickoff, while the game is
+      // fresh. daysSince 0 = today is that match day.
       const daysSince = Math.round((todayUtc - Date.parse(`${occurrence}T00:00:00Z`)) / DAY)
-      if (daysSince !== 1) { skipped++; continue }
+      if (daysSince !== 0) { skipped++; continue }
 
       // Already logged that game (or something later)? Nothing to nudge.
       if (dates.some(d => d >= occurrence)) { skipped++; continue }

@@ -11,6 +11,7 @@ import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
+import WeekendLogBanner from '@/app/dashboard/performance/_components/WeekendLogBanner'
 import { performanceTrackerEnabled } from '@/lib/performance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -827,6 +828,9 @@ export default function PlayerHome() {
           <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span>
         </p>
       </div>
+
+      {/* Weekend log nudge — Sat–Mon, players only */}
+      {profile?.role !== 'fan' && performanceTrackerEnabled() && <WeekendLogBanner />}
 
       {/* Profile Completion — not shown for fans */}
       {profile && profile.role !== 'fan' && <div className="pb-4"><ProfileCompletionBar profile={profile} /></div>}

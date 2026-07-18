@@ -271,7 +271,7 @@ export default function TrackerDashboardPage() {
         ]} />
       </div>
 
-      <div className="px-4 pt-6 max-w-lg mx-auto space-y-5">
+      <div className="px-4 pt-6 max-w-lg mx-auto space-y-3.5">
 
         {/* Title */}
         <div className="flex items-end justify-between gap-3">
@@ -392,35 +392,32 @@ export default function TrackerDashboardPage() {
               const delta = formDelta(s.recent, defensive)
               const up = (delta ?? 0) >= 0
               return (
-                <div className="rounded-2xl px-5 py-4"
+                <div className="rounded-2xl px-4 py-3 flex items-center gap-3"
                   style={{ background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.03) 100%)', border: '1px solid rgba(45,95,196,0.3)' }}>
-                  <div className="flex items-center justify-between gap-3">
+                  <span className="font-black leading-none flex-shrink-0" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 40, color: '#3a6fda' }}>
+                    {defensive ? s.competitive.cleanSheets : s.competitive.involvements}
+                  </span>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
                       {defensive ? 'Clean sheets' : 'Goal involvements'} · {s.seasonLabel}
                     </p>
-                    {delta != null && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={up
-                          ? { color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }
-                          : { color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.1)', border: '1px solid #1e2235' }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: up ? 'none' : 'scaleY(-1)' }}>
-                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
-                        </svg>
-                        {up ? '+' : ''}{delta}%
-                        <span className="font-medium" style={{ opacity: 0.75 }}>vs prev 5</span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-end gap-3 mt-1.5">
-                    <span className="font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 46, color: '#e8dece' }}>
-                      {defensive ? s.competitive.cleanSheets : s.competitive.involvements}
-                    </span>
-                    <p className="text-xs pb-1.5" style={{ color: '#8892aa' }}>
+                    <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
                       {defensive
                         ? `${plural(s.competitive.involvements, 'goal involvement')}${s.competitive.avgMinutes != null ? ` · ${s.competitive.avgMinutes}' a game` : ''}`
                         : `${plural(s.competitive.goals, 'goal')} · ${plural(s.competitive.assists, 'assist')}`}
                     </p>
                   </div>
+                  {delta != null && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={up
+                        ? { color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }
+                        : { color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.1)', border: '1px solid #1e2235' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: up ? 'none' : 'scaleY(-1)' }}>
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
+                      </svg>
+                      {up ? '+' : ''}{delta}%
+                    </span>
+                  )}
                 </div>
               )
             })()}

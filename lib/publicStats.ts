@@ -76,14 +76,54 @@ export type PublicSeasonRow = {
   redCards: number
 }
 
+// Per-90 / per-game normalisation — the numbers that make a 22-game season
+// comparable to a 40-game one. null when there's nothing to divide by.
+export type PublicRates = {
+  per90Goals: number | null
+  per90Assists: number | null
+  per90Involvements: number | null
+  perGameGoals: number | null
+  perGameInvolvements: number | null
+}
+
+// Recent form — public-safe (results from scores + goal involvements; never the
+// private self-rating). Newest first.
+export type PublicForm = {
+  results: ('W' | 'D' | 'L')[]   // last up-to-5 matches that had a score
+  involvementsLast5: number      // G+A across the last up-to-5 matches
+}
+
+// Availability/durability as a first-class stat — no dishonest "%", just the
+// concrete signals we actually capture.
+export type PublicDurability = {
+  starts: number
+  apps: number
+  minutes: number
+  avgMinutes: number | null
+  gamesLast6Weeks: number
+  startStreak: number            // consecutive most-recent games started
+}
+
+export type PublicCurrentDetail = {
+  rates: PublicRates
+  form: PublicForm
+  durability: PublicDurability
+  discipline: { yellowCards: number; redCards: number }
+  involvementStreak: number      // consecutive most-recent games with a goal or assist
+}
+
 export type PublicPerformance = {
   visible: boolean
   hasAny: boolean
   focus: 'defensive' | 'attacking'
+  level: string | null           // current level/step context (most recent logged club level)
+  versatility: string[]          // distinct positions played this season
   // Current-season headline, competitive (league+cup) only, from the live log.
   currentSeason: { startYear: number; label: string; summary: MatchSummary } | null
-  seasons: PublicSeasonRow[]   // full history, newest first
+  currentDetail: PublicCurrentDetail | null
+  seasons: PublicSeasonRow[]     // full history, newest first
   totals: { apps: number; goals: number; assists: number; minutes: number; cleanSheets: number; motm: number }
+  milestones: string[]           // career milestones crossed (e.g. "100 career appearances")
 }
 
 // Map an allowlisted PublicMatch onto the structural shape summariseMatches
@@ -134,6 +174,61 @@ function uniq(xs: (string | null)[]): string[] {
   return [...new Set(xs.filter((x): x is string => !!x))]
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+function computeRates(s: MatchSummary): PublicRates {
+  const inv = s.goals + s.assists
+  const per90 = (v: number) => (s.minutes > 0 ? round2((v / s.minutes) * 90) : null)
+  const perGame = (v: number) => (s.apps > 0 ? round2(v / s.apps) : null)
+  return {
+    per90Goals: per90(s.goals),
+    per90Assists: per90(s.assists),
+    per90Involvements: per90(inv),
+    perGameGoals: perGame(s.goals),
+    perGameInvolvements: perGame(inv),
+  }
+}
+
+// matches must be newest-first (as the RPC returns them).
+function computeForm(matches: PublicMatch[]): PublicForm {
+  const last5 = matches.slice(0, 5)
+  const results: ('W' | 'D' | 'L')[] = []
+  for (const m of last5) {
+    if (m.goals_for == null || m.goals_against == null) continue
+    results.push(m.goals_for > m.goals_against ? 'W' : m.goals_for === m.goals_against ? 'D' : 'L')
+  }
+  const involvementsLast5 = last5.reduce((n, m) => n + m.goals + m.assists, 0)
+  return { results, involvementsLast5 }
+}
+
+function computeDurability(s: MatchSummary, matches: PublicMatch[], now: Date): PublicDurability {
+  const sixWeeksAgo = new Date(now.getTime() - 42 * 86_400_000).toISOString().slice(0, 10)
+  const gamesLast6Weeks = matches.filter(m => m.match_date >= sixWeeksAgo).length
+  let startStreak = 0
+  for (const m of matches) { if (m.started) startStreak++; else break }
+  return { starts: s.starts, apps: s.apps, minutes: s.minutes, avgMinutes: s.avgMinutes, gamesLast6Weeks, startStreak }
+}
+
+// Consecutive most-recent games with a goal or assist (newest-first input).
+function involvementStreak(matches: PublicMatch[]): number {
+  let streak = 0
+  for (const m of matches) { if (m.goals + m.assists > 0) streak++; else break }
+  return streak
+}
+
+function careerMilestones(totals: { apps: number; goals: number; assists: number; motm: number }): string[] {
+  const out: string[] = []
+  const highest = (v: number, steps: number[]) => steps.filter(t => v >= t).pop() ?? null
+  const apps = highest(totals.apps, [50, 100, 150, 200, 250, 300])
+  if (apps) out.push(`${apps}+ career appearances`)
+  const goals = highest(totals.goals, [10, 25, 50, 75, 100, 150])
+  if (goals) out.push(`${goals}+ career goals`)
+  const assists = highest(totals.assists, [25, 50, 100])
+  if (assists) out.push(`${assists}+ career assists`)
+  if (totals.motm >= 5) out.push(`${highest(totals.motm, [5, 10, 20, 30])}+ Man of the match awards`)
+  return out
+}
+
 export function buildPublicPerformance(
   payload: PublicPerformancePayload,
   profilePosition: string | null | undefined,
@@ -142,9 +237,13 @@ export function buildPublicPerformance(
     visible: !!payload.visible,
     hasAny: false,
     focus: 'attacking',
+    level: null,
+    versatility: [],
     currentSeason: null,
+    currentDetail: null,
     seasons: [],
     totals: { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
+    milestones: [],
   }
   if (!payload.visible) return empty
 
@@ -204,13 +303,38 @@ export function buildPublicPerformance(
 
   seasons.sort((a, b) => b.seasonStartYear - a.seasonStartYear)
 
-  // ── Current-season headline: competitive only, from the log ──────────────────
+  // ── Current-season headline + detail: competitive only, from the log ─────────
   const currentYear = seasonStartYear()
-  const currentLog = logBySeason.get(currentYear) ?? []
+  const currentLog = logBySeason.get(currentYear) ?? []           // newest-first
   const currentCompetitive = currentLog.filter(m => isCompetitive(m.competition_type))
-  const currentSeason = currentCompetitive.length > 0
-    ? { startYear: currentYear, label: seasonLabel(currentYear), summary: summariseMatches(currentCompetitive.map(toAggregatable)) }
+  const currentSummary = currentCompetitive.length > 0 ? summariseMatches(currentCompetitive.map(toAggregatable)) : null
+  const currentSeason = currentSummary
+    ? { startYear: currentYear, label: seasonLabel(currentYear), summary: currentSummary }
     : null
+
+  const currentDetail: PublicCurrentDetail | null = currentSummary
+    ? {
+        rates: computeRates(currentSummary),
+        form: computeForm(currentCompetitive),
+        durability: computeDurability(currentSummary, currentCompetitive, new Date()),
+        discipline: {
+          yellowCards: currentCompetitive.reduce((n, m) => n + (m.yellow_cards ?? 0), 0),
+          redCards: currentCompetitive.reduce((n, m) => n + (m.red_card ? 1 : 0), 0),
+        },
+        involvementStreak: involvementStreak(currentCompetitive),
+      }
+    : null
+
+  // Step/level context: the most recent logged club level, else newest season.
+  const level = currentLog.find(m => m.club_level)?.club_level
+    ?? matches.find(m => m.club_level)?.club_level
+    ?? seasons.find(s => s.level)?.level
+    ?? null
+
+  // Versatility: distinct positions played this season (falls back to all-time
+  // when the player hasn't logged a competitive game yet).
+  const versatilitySource = currentCompetitive.length > 0 ? currentCompetitive : matches
+  const versatility = uniq(versatilitySource.map(m => m.position))
 
   // ── Totals across everything rendered (log seasons + non-superseded career) ──
   const totals = seasons.reduce(
@@ -225,5 +349,9 @@ export function buildPublicPerformance(
     { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
   )
 
-  return { visible: true, hasAny: true, focus, currentSeason, seasons, totals }
+  return {
+    visible: true, hasAny: true, focus, level, versatility,
+    currentSeason, currentDetail, seasons, totals,
+    milestones: careerMilestones(totals),
+  }
 }

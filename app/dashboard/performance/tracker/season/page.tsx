@@ -316,15 +316,22 @@ function SeasonWrapInner() {
               </div>
             </div>
 
-            {/* Share */}
+            {/* Branded 9:16 image card — opens the generated PNG to save/post */}
+            <a href="/api/performance/share-card" target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+              </svg>
+              Get your shareable card
+            </a>
+
+            {/* Share text */}
             <button onClick={handleShare}
               className="w-full py-3 rounded-2xl text-sm font-bold uppercase tracking-wider"
               style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.4)', color: '#3a6fda' }}>
-              {shared ? 'Copied to clipboard' : 'Share your season'}
+              {shared ? 'Copied to clipboard' : 'Share as text'}
             </button>
-            <p className="text-center text-xs -mt-2" style={{ color: '#8892aa' }}>
-              Or screenshot the card — it&apos;s made for it.
-            </p>
           </>
         )}
       </div>

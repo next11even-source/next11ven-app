@@ -116,6 +116,90 @@ describe('buildPublicPerformance — anti-double-count', () => {
   })
 })
 
+describe('buildPublicPerformance — richer metrics (stage 6)', () => {
+  // Current season = 2026/27 (seasonStartYear on 2026-07-18).
+  it('per-90 and per-game normalisation', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-08-10', minutes_played: 90, goals: 2, assists: 1 }),
+        match({ match_date: '2026-08-03', minutes_played: 90, goals: 2, assists: 1 }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(out.currentDetail).not.toBeNull()
+    expect(out.currentDetail!.rates.per90Goals).toBe(2)        // 4 goals / 180 mins * 90
+    expect(out.currentDetail!.rates.perGameGoals).toBe(2)      // 4 / 2 apps
+    expect(out.currentDetail!.rates.per90Involvements).toBe(3) // 6 / 180 * 90
+  })
+
+  it('form = last-5 results (newest first) + involvements', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-09-10', goals_for: 3, goals_against: 1, goals: 1, assists: 0 }),
+        match({ match_date: '2026-09-03', goals_for: 1, goals_against: 1, goals: 0, assists: 1 }),
+        match({ match_date: '2026-08-27', goals_for: 0, goals_against: 2, goals: 0, assists: 0 }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(out.currentDetail!.form.results).toEqual(['W', 'D', 'L'])
+    expect(out.currentDetail!.form.involvementsLast5).toBe(2)
+  })
+
+  it('involvement streak breaks at the first blank game', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-09-10', goals: 1, assists: 0 }),
+        match({ match_date: '2026-09-03', goals: 0, assists: 1 }),
+        match({ match_date: '2026-08-27', goals: 0, assists: 0 }),
+        match({ match_date: '2026-08-20', goals: 2, assists: 0 }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(out.currentDetail!.involvementStreak).toBe(2)
+  })
+
+  it('start streak counts consecutive most-recent starts', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-09-10', started: true }),
+        match({ match_date: '2026-09-03', started: true }),
+        match({ match_date: '2026-08-27', started: false }),
+        match({ match_date: '2026-08-20', started: true }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(out.currentDetail!.durability.startStreak).toBe(2)
+  })
+
+  it('career milestones from totals', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [],
+      career: [career({ season_start_year: 2010, apps: 120, goals: 55, assists: 30 })],
+    }, 'ST')
+    expect(out.milestones).toContain('100+ career appearances')
+    expect(out.milestones).toContain('50+ career goals')
+    expect(out.milestones).toContain('25+ career assists')
+  })
+
+  it('versatility lists distinct positions played', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-09-10', position: 'RB' }),
+        match({ match_date: '2026-09-03', position: 'CB' }),
+        match({ match_date: '2026-08-27', position: 'RB' }),
+      ],
+      career: [],
+    }, 'RB')
+    expect(out.versatility.sort()).toEqual(['CB', 'RB'])
+  })
+})
+
 describe('buildPublicPerformance — headline', () => {
   it('current-season headline is competitive-only', () => {
     const currentYear = new Date().getUTCMonth() >= 6

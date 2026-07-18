@@ -147,6 +147,7 @@ export type PublicPerformance = {
   currentDetail: PublicCurrentDetail | null
   seasons: PublicSeasonRow[]     // full history, newest first
   totals: { apps: number; goals: number; assists: number; minutes: number; cleanSheets: number; motm: number }
+  avgMinutes: number | null      // career avg minutes/game over seasons that recorded minutes
   milestones: string[]           // career milestones crossed (e.g. "100 career appearances")
 }
 
@@ -267,6 +268,7 @@ export function buildPublicPerformance(
     currentDetail: null,
     seasons: [],
     totals: { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
+    avgMinutes: null,
     milestones: [],
   }
   if (!payload.visible) return empty
@@ -373,9 +375,18 @@ export function buildPublicPerformance(
     { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
   )
 
+  // Career avg minutes/game — averaged only over seasons that actually recorded
+  // minutes, so seasons with no minutes data don't drag it down. Applies to
+  // every position, and isn't surfaced anywhere else.
+  const minutesSeasons = seasons.filter(s => s.minutes > 0 && s.apps > 0)
+  const minutesApps = minutesSeasons.reduce((n, s) => n + s.apps, 0)
+  const avgMinutes = minutesApps > 0
+    ? Math.round(minutesSeasons.reduce((n, s) => n + s.minutes, 0) / minutesApps)
+    : null
+
   return {
     visible: true, hasAny: true, focus, level, versatility,
-    currentSeason, currentDetail, seasons, totals,
+    currentSeason, currentDetail, seasons, totals, avgMinutes,
     milestones: careerMilestones(totals),
   }
 }

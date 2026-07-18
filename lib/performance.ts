@@ -118,6 +118,24 @@ export type PerformanceMatch = {
   updated_at: string
 }
 
+// Pre-platform career history (per-season summaries the player enters).
+export type CareerStat = {
+  id: string
+  player_id: string
+  season_start_year: number
+  club_name: string | null
+  level: string | null
+  position: string | null
+  apps: number | null
+  goals: number | null
+  assists: number | null
+  minutes: number | null
+  clean_sheets: number | null
+  source: 'self_reported' | 'legacy_import'
+  created_at: string
+  updated_at: string
+}
+
 // ── Season helpers (1 July – 30 June) ─────────────────────────────────────────
 /** Season start year for a date: July onwards = that year, else previous. */
 export function seasonStartYear(date: Date = new Date()): number {

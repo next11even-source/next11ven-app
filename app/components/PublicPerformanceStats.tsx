@@ -97,10 +97,18 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold" style={{ color: '#e8dece' }}>{s.seasonLabel}</span>
-                    {s.selfReported && (
+                    {s.selfReported ? (
                       <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
                         style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa', border: '1px solid #1e2235' }}>
                         Self-reported
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.35)' }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Logged here
                       </span>
                     )}
                   </div>

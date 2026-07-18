@@ -316,6 +316,16 @@ export default function TrackerDashboardPage() {
               style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
               Log a match
             </Link>
+            <div className="space-y-1.5">
+              <Link href="/dashboard/performance/tracker/quick-log"
+                className="block text-xs font-semibold" style={{ color: '#8892aa', textDecoration: 'none' }}>
+                Joined mid-season? Quick-log games you&apos;ve already played →
+              </Link>
+              <Link href="/dashboard/performance/tracker/career"
+                className="block text-xs font-semibold" style={{ color: '#8892aa', textDecoration: 'none' }}>
+                Or add the seasons you played before joining →
+              </Link>
+            </div>
           </div>
         )}
 
@@ -342,6 +352,13 @@ export default function TrackerDashboardPage() {
                   <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 Log a match
+              </Link>
+            )}
+
+            {!readonly && (
+              <Link href="/dashboard/performance/tracker/quick-log"
+                className="block text-center text-xs font-semibold" style={{ color: '#8892aa', textDecoration: 'none' }}>
+                Quick-log past games from this season
               </Link>
             )}
 
@@ -553,6 +570,13 @@ export default function TrackerDashboardPage() {
                 {s.target ? 'Edit target' : 'Set a target'}
               </Link>
             </div>
+
+            {/* Career history — pre-platform seasons (free; the player's own record) */}
+            <Link href="/dashboard/performance/tracker/career"
+              className="flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider"
+              style={{ ...surface, color: '#e8dece', textDecoration: 'none' }}>
+              Career history
+            </Link>
 
             {/* Recent matches */}
             <div className="space-y-2.5">

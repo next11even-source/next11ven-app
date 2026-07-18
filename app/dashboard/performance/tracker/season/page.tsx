@@ -236,7 +236,7 @@ function SeasonWrapInner() {
                       { label: 'Avg rating', value: summary.avgRating ?? '—' },
                     ]
                 ).map(({ label, value }) => {
-                  const a = statAccent(label)
+                  const a = statAccent()
                   return (
                     <div key={label} className="rounded-xl px-1 py-2.5 text-center"
                       style={{ backgroundColor: 'rgba(10,12,24,0.55)', border: a.border }}>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
-import { statAccent } from '../_components/statAccents'
+import { PRIMARY_STAT, NEUTRAL_STAT } from '../_components/statAccents'
 import PreseasonToggle from '../_components/PreseasonToggle'
 import VisibilityControl from '../_components/VisibilityControl'
 import PlaceSeasonNudge from '../_components/PlaceSeasonNudge'
@@ -47,6 +47,26 @@ function fmtDate(d: string) {
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+// Focus-metric value for one match — goal involvements for attackers, clean
+// sheets for defenders — the basis for the live form delta.
+function focusValue(m: PerformanceMatch, defensive: boolean): number {
+  if (defensive) return m.goals_against != null && m.goals_against === 0 ? 1 : 0
+  return m.goals + m.assists
+}
+
+// Last 5 games vs the 5 before, as a % change. Null unless there's a real prior
+// window to compare against (needs ≥3 earlier games and a non-zero base) so the
+// number is a genuine signal, never noise or a divide-by-zero.
+function formDelta(recent: PerformanceMatch[], defensive: boolean): number | null {
+  const last5 = recent.slice(0, 5)
+  const prev5 = recent.slice(5, 10)
+  if (prev5.length < 3) return null
+  const a = last5.reduce((n, m) => n + focusValue(m, defensive), 0)
+  const b = prev5.reduce((n, m) => n + focusValue(m, defensive), 0)
+  if (b === 0) return null
+  return Math.round(((a - b) / b) * 100)
 }
 
 // Insight banner accents by tone — streaks burn orange, peak moments get the
@@ -366,36 +386,44 @@ export default function TrackerDashboardPage() {
                 heads-up. Shown once there's data worth exposing. */}
             <VisibilityControl />
 
-            {/* Hero — clean sheets for GK/DEF, goal involvements for MID/ATT */}
-            <div className="rounded-2xl px-5 py-5" style={surface}>
-              <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
-                {s.focus === 'defensive' ? 'Clean sheets' : 'Goal involvements'} · {s.seasonLabel}
-              </p>
-              <div className="flex items-end gap-3 mt-1">
-                <span className="text-6xl font-black leading-none"
-                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                  {s.focus === 'defensive' ? s.competitive.cleanSheets : s.competitive.involvements}
-                </span>
-                <div className="pb-1.5">
-                  <p className="text-xs" style={{ color: '#8892aa' }}>
-                    {s.focus === 'defensive'
-                      ? `${plural(s.competitive.involvements, 'goal involvement')}${s.competitive.avgMinutes != null ? ` · ${s.competitive.avgMinutes} mins a game` : ''}`
-                      : `${plural(s.competitive.goals, 'goal')} · ${plural(s.competitive.assists, 'assist')}`}
-                  </p>
-                  {s.trend === 'up' && (
-                    <p className="text-xs font-bold mt-0.5 flex items-center gap-1" style={{ color: '#3a6fda' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
-                      </svg>
-                      Up on your previous 5 games
+            {/* Hero — the one blue moment: focus metric + live form delta */}
+            {(() => {
+              const defensive = s.focus === 'defensive'
+              const delta = formDelta(s.recent, defensive)
+              const up = (delta ?? 0) >= 0
+              return (
+                <div className="rounded-2xl px-5 py-4"
+                  style={{ background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.03) 100%)', border: '1px solid rgba(45,95,196,0.3)' }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
+                      {defensive ? 'Clean sheets' : 'Goal involvements'} · {s.seasonLabel}
                     </p>
-                  )}
-                  {s.trend === 'flat' && (
-                    <p className="text-xs font-semibold mt-0.5" style={{ color: '#8892aa' }}>Level with your previous 5</p>
-                  )}
+                    {delta != null && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={up
+                          ? { color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }
+                          : { color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.1)', border: '1px solid #1e2235' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: up ? 'none' : 'scaleY(-1)' }}>
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
+                        </svg>
+                        {up ? '+' : ''}{delta}%
+                        <span className="font-medium" style={{ opacity: 0.75 }}>vs prev 5</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-end gap-3 mt-1.5">
+                    <span className="font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 46, color: '#e8dece' }}>
+                      {defensive ? s.competitive.cleanSheets : s.competitive.involvements}
+                    </span>
+                    <p className="text-xs pb-1.5" style={{ color: '#8892aa' }}>
+                      {defensive
+                        ? `${plural(s.competitive.involvements, 'goal involvement')}${s.competitive.avgMinutes != null ? ` · ${s.competitive.avgMinutes}' a game` : ''}`
+                        : `${plural(s.competitive.goals, 'goal')} · ${plural(s.competitive.assists, 'assist')}`}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )
+            })()}
 
             {/* Insight banner — accent follows the insight's tone. Read-only
                 players get the locked teaser instead (the FOMO surface —
@@ -423,46 +451,47 @@ export default function TrackerDashboardPage() {
               )
             })()}
 
-            {/* Pre-season toggle — only worth showing once there's something
-                to fold in. Auto-on the moment they've logged a non-competitive
-                match; pinned once they've chosen either way (server-side). */}
-            {s.preseasonLogged && (
-              <PreseasonToggle
-                included={s.includePreseason}
-                onChange={() => loadSummary(s.season)}
-              />
-            )}
+            {/* Season grid — uniform tiles, one blue primary (the focus stat).
+                Pre-season toggle sits with it as a slim inline control. */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 gap-2">
+                {(s.focus === 'defensive'
+                  ? [
+                      { label: 'Apps', value: s.competitive.apps },
+                      { label: 'Clean sheets', value: s.competitive.cleanSheets, primary: true },
+                      s.category === 'goalkeepers'
+                        ? { label: 'Pen saves', value: s.competitive.penaltySaves }
+                        : { label: 'G + A', value: s.competitive.involvements },
+                      { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
+                    ]
+                  : [
+                      { label: 'Apps', value: s.competitive.apps },
+                      { label: 'Goals', value: s.competitive.goals, primary: true },
+                      { label: 'Assists', value: s.competitive.assists },
+                      { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
+                    ]
+                ).map(({ label, value, primary }) => {
+                  const a = primary ? PRIMARY_STAT : NEUTRAL_STAT
+                  return (
+                    <div key={label} className="rounded-2xl px-2 py-3.5 text-center"
+                      style={{ background: a.background, border: a.border }}>
+                      <p className="text-2xl font-black leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: a.fg }}>
+                        {value}
+                      </p>
+                      <p className="mt-1.5 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{label}</p>
+                    </div>
+                  )
+                })}
+              </div>
 
-            {/* Season grid — competitive only (or +pre-season/friendlies when toggled on), position-aware */}
-            <div className="grid grid-cols-4 gap-2">
-              {(s.focus === 'defensive'
-                ? [
-                    { label: 'Apps', value: s.competitive.apps },
-                    { label: 'Clean sheets', value: s.competitive.cleanSheets },
-                    s.category === 'goalkeepers'
-                      ? { label: 'Pen saves', value: s.competitive.penaltySaves }
-                      : { label: 'G + A', value: s.competitive.involvements },
-                    { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
-                  ]
-                : [
-                    { label: 'Apps', value: s.competitive.apps },
-                    { label: 'Goals', value: s.competitive.goals },
-                    { label: 'Assists', value: s.competitive.assists },
-                    { label: 'Avg rating', value: s.competitive.avgRating ?? '—' },
-                  ]
-              ).map(({ label, value }) => {
-                const a = statAccent(label)
-                return (
-                  <div key={label} className="rounded-2xl px-2 py-3.5 text-center"
-                    style={{ background: a.background, border: a.border }}>
-                    <p className="text-2xl font-black leading-none"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: a.fg }}>
-                      {value}
-                    </p>
-                    <p className="mt-1.5 uppercase tracking-wider font-semibold" style={{ color: '#8892aa', fontSize: 10 }}>{label}</p>
-                  </div>
-                )
-              })}
+              {/* Pre-season toggle — slim, only once there's something to fold in */}
+              {s.preseasonLogged && (
+                <PreseasonToggle
+                  included={s.includePreseason}
+                  onChange={() => loadSummary(s.season)}
+                />
+              )}
             </div>
 
             {/* Man of the match — season total, only shown when it's happened */}

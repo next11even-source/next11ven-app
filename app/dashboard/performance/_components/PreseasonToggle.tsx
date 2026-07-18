@@ -35,19 +35,19 @@ export default function PreseasonToggle({
     <button
       onClick={toggle}
       disabled={saving}
-      className="flex items-center justify-between w-full rounded-2xl px-4 py-3.5 text-left"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', opacity: saving ? 0.6 : 1 }}
+      className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-left"
+      style={{ opacity: saving ? 0.6 : 1 }}
     >
-      <span className="text-sm font-semibold pr-3" style={{ color: '#e8dece' }}>
-        Include pre-season &amp; friendlies in stats
+      <span className="text-xs font-medium" style={{ color: '#8892aa' }}>
+        Include pre-season &amp; friendlies
       </span>
       <span
         className="relative flex-shrink-0 rounded-full transition-colors"
-        style={{ width: 40, height: 22, backgroundColor: included ? '#2d5fc4' : '#1e2235', border: '1px solid #1e2235' }}
+        style={{ width: 32, height: 18, backgroundColor: included ? '#2d5fc4' : '#1e2235', border: '1px solid #1e2235' }}
       >
         <span
           className="absolute top-0.5 rounded-full transition-transform"
-          style={{ width: 18, height: 18, left: 2, backgroundColor: '#e8dece', transform: included ? 'translateX(18px)' : 'translateX(0)' }}
+          style={{ width: 14, height: 14, left: 2, backgroundColor: '#e8dece', transform: included ? 'translateX(14px)' : 'translateX(0)' }}
         />
       </span>
     </button>

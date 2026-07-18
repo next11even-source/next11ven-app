@@ -247,7 +247,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
                 { label: 'Minutes', value: m.minutes_played ?? '—' },
                 { label: 'Rating', value: m.rating != null ? Number(m.rating).toFixed(1) : '—' },
               ].map(({ label, value }) => {
-                const a = statAccent(label)
+                const a = statAccent()
                 return (
                   <div key={label} className="rounded-2xl px-2 py-3.5 text-center"
                     style={{ background: a.background, border: a.border }}>

@@ -58,6 +58,30 @@ export type PublicPerformancePayload = {
   career?: PublicCareerRow[]
 }
 
+// Map raw performance_matches rows (with a club_stints join) into the
+// allowlisted public shape — MOTM derived from tags to a boolean; notes/tags/
+// rating never carried across. Used server-side wherever owner rows are turned
+// into a public aggregate (share card, coach dashboard).
+export function toPublicMatches(rows: Record<string, unknown>[]): PublicMatch[] {
+  return rows.map(m => ({
+    match_date: m.match_date as string,
+    competition_type: m.competition_type as string,
+    goals_for: (m.goals_for as number | null) ?? null,
+    goals_against: (m.goals_against as number | null) ?? null,
+    started: m.started as boolean,
+    position: (m.position as string | null) ?? null,
+    minutes_played: (m.minutes_played as number | null) ?? null,
+    goals: (m.goals as number) ?? 0,
+    assists: (m.assists as number) ?? 0,
+    penalty_saves: (m.penalty_saves as number) ?? 0,
+    yellow_cards: (m.yellow_cards as number) ?? 0,
+    red_card: (m.red_card as boolean) ?? false,
+    club_name: (m.club_stints as { club_name?: string } | null)?.club_name ?? null,
+    club_level: (m.club_stints as { level?: string } | null)?.level ?? null,
+    man_of_the_match: Array.isArray(m.tags) && (m.tags as string[]).includes('man_of_the_match'),
+  }))
+}
+
 // ── Rendered output ───────────────────────────────────────────────────────────
 export type PublicSeasonRow = {
   seasonStartYear: number

@@ -175,6 +175,7 @@ POST  /api/player/status-change — update status (free_agent/signed/etc); logs 
 
 Coach
 GET    /api/coach/recommendations — on-demand recommended players for the logged-in coach
+GET    /api/coach/performance-search — Coach Pro: facts-only sortable/filterable tracked stats for players who consented (actively_looking + performance_stats_public); non-premium coaches get { locked: true }
 GET    /api/coach/shortlist — list the coach's shortlisted players
 POST   /api/coach/shortlist — add a player to the shortlist
 DELETE /api/coach/shortlist/[player_id] — remove a player from the shortlist
@@ -271,6 +272,7 @@ Route                                        Status
 /dashboard/coach/opportunities               Redirect → /dashboard/opportunities ↩️
 /dashboard/coach/market                      4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
 /dashboard/coach/players                     Browse players (coach view) ✅
+/dashboard/coach/performance                 Coach Pro: recruit-by-stats dashboard (facts-only sort/filter, consent-gated) ✅
 /dashboard/coach/coaches                     Redirect → /dashboard/coaches ↩️
 /dashboard/coach/premium                     Coach upgrade page ✅
 /dashboard/coach/notifications               Notifications centre ✅

@@ -47,10 +47,11 @@ type ViewerProfile = {
   city: string | null
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  available:      { label: 'Available',      color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-  open_to_offers: { label: 'Open to Offers', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-  not_available:  { label: 'Not Available',  color: '#8892aa', bg: 'rgba(136,146,170,0.1)' },
+const STATUS_LABELS: Record<string, string> = {
+  free_agent: 'Free agent',
+  signed: 'Signed',
+  loan_dual_reg: 'Loan / dual-reg',
+  just_exploring: 'Just exploring',
 }
 
 function isActiveThisWeek(lastActive: string | null) {
@@ -373,11 +374,15 @@ export default function PlayerPublicProfile() {
 
   if (!player) return null
 
-  const statusCfg = player.status ? STATUS_CONFIG[player.status] : null
   const active = isActiveThisWeek(player.last_active)
   const initials = player.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const isOwnProfile = viewer?.id === player.id
   const viewerIsCoach = viewer?.role === 'coach'
+  const firstName = player.full_name?.split(' ')[0] ?? 'this player'
+  const statusLabel = player.status ? STATUS_LABELS[player.status] ?? null : null
+  // "Free Agent" often lives in the club field for migrated profiles — that's a
+  // status, not a club, so don't render it as one.
+  const realClub = player.club && player.club.trim().toLowerCase() !== 'free agent' ? player.club.trim() : null
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -424,55 +429,61 @@ export default function PlayerPublicProfile() {
         </div>
       </div>
 
-      {/* Profile header — circular avatar, centered */}
-      <div className="flex flex-col items-center px-6 pt-7 pb-5 text-center">
-        {/* Avatar circle */}
-        <div className="relative mb-4">
-          <div className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center"
-            style={{
-              border: `3px solid ${player.actively_looking ? '#22c55e' : '#1e2235'}`,
-              backgroundColor: '#1a1f3a',
-            }}>
-            {player.avatar_url ? (
-              <Image src={player.avatar_url} alt={player.full_name ?? ''} width={112} height={112} className="w-full h-full object-cover object-center" />
-            ) : (
-              <span className="font-black text-4xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                {initials}
-              </span>
+      {/* Profile header — compact identity so a coach sees who this is (name,
+          position, level, availability) and can act without scrolling. */}
+      <div className="px-5 pt-5 pb-1 max-w-2xl mx-auto w-full">
+        <div className="flex items-center gap-4">
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center"
+              style={{ border: `2.5px solid ${player.actively_looking ? '#22c55e' : '#1e2235'}`, backgroundColor: '#1a1f3a' }}>
+              {player.avatar_url ? (
+                <Image src={player.avatar_url} alt={player.full_name ?? ''} width={80} height={80} className="w-full h-full object-cover object-center" />
+              ) : (
+                <span className="font-black text-2xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>{initials}</span>
+              )}
+            </div>
+            {player.actively_looking && (
+              <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 animate-pulse"
+                style={{ backgroundColor: '#22c55e', borderColor: '#0a0a0a', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
             )}
           </div>
-          {player.actively_looking && (
-            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 animate-pulse"
-              style={{ backgroundColor: '#22c55e', borderColor: '#0a0a0a', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
-          )}
+
+          {/* Identity */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                {player.full_name ?? 'Player'}
+              </h1>
+              {player.premium && <span style={{ color: '#f59e0b', fontSize: 16 }}>★</span>}
+              <NewBadge createdAt={player.created_at} />
+            </div>
+            <p className="text-sm mt-1 truncate" style={{ color: '#8892aa' }}>
+              {[[player.position, player.secondary_position].filter(Boolean).join(' / '), player.playing_level].filter(Boolean).join(' · ') || 'Player'}
+            </p>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {player.actively_looking && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                  style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
+                  <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
+                  Actively Looking
+                </span>
+              )}
+              {statusLabel && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                  style={{ color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.1)', border: '1px solid #1e2235' }}>{statusLabel}</span>
+              )}
+              {realClub && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                  style={{ color: '#e8dece', backgroundColor: '#13172a', border: '1px solid #1e2235' }}>{realClub}</span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Name */}
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          <h1 className="text-3xl font-black uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            {player.full_name ?? 'Player'}
-          </h1>
-          {player.premium && <span style={{ color: '#f59e0b', fontSize: 20 }}>★</span>}
-          <NewBadge createdAt={player.created_at} />
-        </div>
-
-        {/* Position · Club */}
-        <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>
-          {[player.position, player.club].filter(Boolean).join(' · ') || 'Player'}
-        </p>
-
-        {/* Actively Looking badge */}
-        {player.actively_looking && (
-          <span className="inline-flex items-center gap-1.5 mt-3 text-xs px-3 py-1 rounded-full font-semibold"
-            style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
-            <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
-            Actively Looking
-          </span>
-        )}
-
-        {/* ── Action buttons — coach only, right below the photo ── */}
+        {/* ── Action buttons — coach only ── */}
         {!isOwnProfile && viewerIsCoach && (
-          <div className="w-full mt-5 space-y-2 px-2">
+          <div className="mt-4 space-y-2">
             {/* DM button */}
             {showDMInput ? (
               <form onSubmit={handleSendDM} className="space-y-2">
@@ -480,7 +491,7 @@ export default function PlayerPublicProfile() {
                   autoFocus
                   value={dmText}
                   onChange={e => setDmText(e.target.value)}
-                  placeholder={`Message ${player.full_name?.split(' ')[0] ?? 'player'}… (they'll get an SMS alert)`}
+                  placeholder={`Message ${firstName}… (they'll get an SMS alert)`}
                   rows={3}
                   className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-none"
                   style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#e8dece' }}
@@ -499,22 +510,41 @@ export default function PlayerPublicProfile() {
                 </div>
               </form>
             ) : (
-              <button onClick={() => setShowDMInput(true)}
-                className="w-full py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                Send Message
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setShowDMInput(true)}
+                  className="flex-1 py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #3a6fda 0%, #2d5fc4 100%)', color: '#fff', boxShadow: '0 6px 18px rgba(45,95,196,0.35)' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  Message {firstName}
+                </button>
+                {/* Shortlist as a compact icon action alongside the primary CTA */}
+                {!savedFolder && (
+                  <button onClick={() => setShowFolderModal(true)} disabled={saving} title="Save to shortlist"
+                    className="px-4 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             )}
 
-            {/* Save to shortlist — premium coaches only */}
+            {!showDMInput && (
+              <p className="text-[11px] text-center" style={{ color: '#8892aa' }}>
+                {player.actively_looking ? 'Actively looking — ' : ''}Gets an instant SMS &amp; email alert
+              </p>
+            )}
+
+            {/* Saved-to-shortlist state */}
             {savedFolder ? (
               <div className="flex items-center gap-2">
                 <div className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm"
                   style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                  <span>📁</span> Saved to <strong>{savedFolder}</strong>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                  Saved to <strong>{savedFolder}</strong>
                 </div>
                 <button onClick={handleRemove} disabled={saving}
                   className="px-4 py-3 rounded-2xl text-sm"
@@ -522,18 +552,12 @@ export default function PlayerPublicProfile() {
                   Remove
                 </button>
               </div>
-            ) : (
-              <button onClick={() => setShowFolderModal(true)} disabled={saving}
-                className="w-full py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
-                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                📁 Save to Shortlist
-              </button>
-            )}
+            ) : null}
           </div>
         )}
       </div>
 
-      <div className="px-4 space-y-4 pb-8">
+      <div className="px-4 space-y-4 pb-8 max-w-2xl mx-auto">
 
         {/* Performance stats.
             - Tracked (perf.visible && hasAny): the derived block from the log +

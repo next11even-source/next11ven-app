@@ -1,4 +1,4 @@
-export const POSITIONS = ['GK', 'LB', 'RB', 'CB', 'CM', 'RW', 'LW', 'ST', 'Winger'] as const
+export const POSITIONS = ['GK', 'LB', 'LWB', 'RB', 'RWB', 'CB', 'CM', 'RW', 'LW', 'ST', 'Winger'] as const
 
 export type Position = typeof POSITIONS[number]
 
@@ -12,7 +12,9 @@ export const POSITION_CATEGORIES: PositionCategory[] = ['goalkeepers', 'defender
 const POSITION_CATEGORY: Record<string, PositionCategory> = {
   GK: 'goalkeepers',
   LB: 'defenders',
+  LWB: 'defenders',
   RB: 'defenders',
+  RWB: 'defenders',
   CB: 'defenders',
   CM: 'midfielders',
   RW: 'attackers',

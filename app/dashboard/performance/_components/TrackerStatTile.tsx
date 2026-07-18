@@ -17,14 +17,17 @@ const LOG = '/dashboard/performance/tracker/log'
 // G/A, defenders/keepers with clean sheets; when that's 0 fall back to avg
 // minutes (the reliability stat), then avg rating, then apps.
 function pickStat(s: MatchSummary, defensive: boolean): { num: string; unit: string | null; sub: string } {
+  // Avg minutes per game applies to every player and isn't shown anywhere else,
+  // so it's the sub-line whenever we have it and it isn't already the headline.
+  const avgMins = s.avgMinutes != null && s.avgMinutes > 0 ? `${s.avgMinutes}' avg / game` : null
   if (defensive && s.cleanSheets > 0) {
-    return { num: String(s.cleanSheets), unit: 'CS', sub: `clean sheet${s.cleanSheets === 1 ? '' : 's'}` }
+    return { num: String(s.cleanSheets), unit: 'CS', sub: avgMins ?? `clean sheet${s.cleanSheets === 1 ? '' : 's'}` }
   }
   if (!defensive && s.involvements > 0) {
-    return { num: String(s.involvements), unit: 'G/A', sub: 'goals + assists' }
+    return { num: String(s.involvements), unit: 'G/A', sub: avgMins ?? 'goals + assists' }
   }
   if (s.avgMinutes != null && s.avgMinutes > 0) {
-    return { num: `${s.avgMinutes}'`, unit: null, sub: 'avg minutes' }
+    return { num: `${s.avgMinutes}'`, unit: null, sub: `avg mins · ${s.apps} app${s.apps === 1 ? '' : 's'}` }
   }
   if (s.avgRating != null) {
     return { num: s.avgRating.toFixed(1), unit: null, sub: 'avg rating' }

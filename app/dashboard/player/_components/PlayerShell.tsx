@@ -49,6 +49,19 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
               .eq('id', user.id)
               .then(() => {})
           }
+          // Activity touch — powers the tier-blind, activity-first ordering on the
+          // player/coach browse lists (order by last_active desc). Throttled to at
+          // most one write per browser per day so navigation doesn't spam the DB.
+          try {
+            const today = new Date().toISOString().slice(0, 10)
+            if (localStorage.getItem('n11_last_active_day') !== today) {
+              localStorage.setItem('n11_last_active_day', today)
+              supabase.from('profiles')
+                .update({ last_active: new Date().toISOString() })
+                .eq('id', user.id)
+                .then(() => {})
+            }
+          } catch { /* localStorage unavailable — skip the touch */ }
         })
     })
   }, [])

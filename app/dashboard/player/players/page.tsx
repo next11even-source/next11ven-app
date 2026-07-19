@@ -355,8 +355,11 @@ export default function PlayersPage() {
       const s = search.trim().replace(/[%,()]/g, ' ')
       if (s) query = query.or(`full_name.ilike.%${s}%,club.ilike.%${s}%,city.ilike.%${s}%`)
 
+      // Tier-blind ordering: active players surface first regardless of premium,
+      // so browse never reads as pay-to-be-seen. Premium's real perks are the
+      // ★ badge + the Actively Looking carousel above, not list ranking.
       const { data, count } = await query
-        .order('premium', { ascending: false })
+        .order('last_active', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .range(from, to)
 

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpportunityMatchPercent, isCloseMatch, type RelevancePlayerProfile } from '@/lib/opportunityRelevance'
 import { stepNumber } from '@/lib/levels'
+import { isGoalkeeper } from '@/lib/positions'
 
 // Player-facing opportunities feed. Everything the Open Roles list needs in one
 // gated payload. Two things are enforced HERE, server-side, and must never move
@@ -80,19 +81,35 @@ export async function GET(req: NextRequest) {
       }
     : null
 
-  // TODO(pagination): this fetches all active opportunities in one bounded shot
-  // (capped at 200) so the client can filter + rank the full set locally. Once
-  // the active-opps count approaches that cap, move to server-side pagination
-  // here (and push search/filter/ranking server-side) to protect egress — same
+  // TODO(pagination): this fetches active opportunities in one bounded shot
+  // (capped at 200) so the client can filter + rank the set locally. Once the
+  // active-opps count approaches that cap, move to server-side pagination here
+  // (and push search/filter/ranking server-side) to protect egress — same
   // treatment already applied to the player/coach browse pages.
+  //
+  // Over-fetch when a small limit is requested (e.g. the homepage preview asks
+  // for 5) so the GK/outfield boundary filter below can still fill the count.
+  const fetchLimit = Math.min(limit * 8, 200)
   const { data: oppRows } = await admin
     .from('opportunities')
     .select('id, coach_id, title, club, location, position, level, description, urgent, deadline, created_at')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .limit(fetchLimit)
 
-  const opps = oppRows ?? []
+  // Hard GK/outfield boundary: a goalkeeper is only shown GK + any-position
+  // roles, and an outfield player is never shown GK roles — they'd never play
+  // there, so scoring/showing them across it is noise. "Any position" roles
+  // (no position set) are shown to everyone; skipped when the player's own
+  // position is unknown (can't determine the boundary).
+  const playerIsGk = isGoalkeeper(profile?.position)
+  const playerPosKnown = !!profile?.position
+  const boundaryOk = (oppPosition: string | null) => {
+    if (!oppPosition || !playerPosKnown) return true
+    return isGoalkeeper(oppPosition) === playerIsGk
+  }
+
+  const opps = (oppRows ?? []).filter(o => boundaryOk(o.position)).slice(0, limit)
   const oppIds = opps.map(o => o.id)
 
   // One applications query serves both the per-role counts and this player's

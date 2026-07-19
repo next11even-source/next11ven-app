@@ -37,6 +37,19 @@ export function positionCategory(position: string | null | undefined): PositionC
 }
 
 /**
+ * True when a position denotes a goalkeeper. Robust to free-text opportunity
+ * positions ("GK", "Goalkeeper", "Keeper", "Goalie") as well as stored codes.
+ * Used to keep the GK/outfield boundary hard: outfield players are never shown
+ * GK roles, and goalkeepers are never shown outfield roles.
+ */
+export function isGoalkeeper(position: string | null | undefined): boolean {
+  if (!position) return false
+  if (positionCategory(position) === 'goalkeepers') return true
+  const p = position.trim().toLowerCase()
+  return p === 'gk' || p === 'keeper' || p.includes('goalkeep') || p.includes('goalie')
+}
+
+/**
  * Returns every position that shares a category with the given position
  * (e.g. "LB" → ["LB", "RB", "CB"]). Used to widen demand counts so they match
  * the broadened category copy. Returns [position] for unknown positions, or []

@@ -2,6 +2,47 @@
 
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { getStepToken } from '@/lib/stepTokens'
+import type { PrimarySignal } from '@/lib/opportunitySignal'
+
+// Small status-signal pill (urgent / be-first / few-applied). Shared so the
+// Open Roles feed and the homepage preview render signals identically.
+export function SignalChip({ signal }: { signal: PrimarySignal }) {
+  return (
+    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${signal.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
+      style={{ color: signal.color, backgroundColor: signal.bg }}>
+      {signal.label}
+    </span>
+  )
+}
+
+// Match-score chip — the primary premium hook. Premium: the real NN% (green
+// when strong, blue otherwise). Free: a locked chip that triggers the match
+// paywall via onLocked. matchPercent is gated server-side (null for free), so
+// a free client never receives the number to render.
+export function MatchChip({ matchPercent, isPremium, onLocked }: { matchPercent: number | null; isPremium: boolean; onLocked?: () => void }) {
+  if (isPremium && matchPercent !== null) {
+    const strong = matchPercent >= 85
+    const color = strong ? '#22c55e' : '#4d8ae8'
+    return (
+      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold flex-shrink-0"
+        style={{ color, backgroundColor: `${color}1f` }}>
+        {matchPercent}% match
+      </span>
+    )
+  }
+  if (isPremium) return null // premium but no signal to score against
+  return (
+    <button type="button" onClick={e => { e.stopPropagation(); e.preventDefault(); onLocked?.() }}
+      aria-label="Match score locked — upgrade to Premium to see how well this role fits you"
+      className="text-xs px-2.5 py-0.5 rounded-full font-bold flex-shrink-0 inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
+      style={{ color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.12)' }}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      Match
+    </button>
+  )
+}
 
 // Shared opportunity-card primitives, used by the unified opportunities page
 // and the player/coach homepage previews so the Step badge + club crest look

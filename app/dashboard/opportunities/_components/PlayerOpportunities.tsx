@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
-import { LevelBadge, StepBadge } from '@/app/components/OpportunityBadges'
+import { LevelBadge, StepBadge, MatchChip, SignalChip } from '@/app/components/OpportunityBadges'
 import { getLevelConfig } from '@/lib/opportunityLevel'
+import { getPrimarySignal } from '@/lib/opportunitySignal'
 import { sortLevels } from '@/lib/levels'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
 
@@ -49,8 +50,6 @@ type Application = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function daysLeft(d: string) { return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) }
-
 // Compact relative timestamp for the list card ("3h", "23h", "3d") — distinct
 // from lib/utils timeAgo, which appends " ago" and is used elsewhere.
 function compactTimeAgo(dateStr: string): string {
@@ -83,60 +82,14 @@ function toSentenceCase(text: string): string {
   }).join(' ')
 }
 
-type PrimarySignal = { key: 'urgent' | 'first' | 'few'; label: string; color: string; bg: string; pulse?: boolean }
-
-// Single highest-priority status signal for the card. Three tiers only — the
-// blanket red "Urgent" is retired:
-//   urgent (red)   — GENUINE deadline pressure. Driven by deadline proximity,
-//                    NOT the manual boolean. The boolean can only widen the
-//                    window (7d vs 4d) — with no deadline it never fires red,
-//                    so we don't recreate the red-spam problem.
-//   first  (blue)  — zero applications yet ("Be first to apply").
-//   few    (violet)— low application count ("Only N applied").
-function getPrimarySignal(opp: { urgent: boolean; deadline: string | null; application_count: number }): PrimarySignal | null {
-  const dl = opp.deadline ? daysLeft(opp.deadline) : null
-  const urgentWindow = opp.urgent ? 7 : 4
-  if (dl !== null && dl >= 0 && dl <= urgentWindow) {
-    return { key: 'urgent', label: dl === 0 ? '⏳ Closes today' : `⏳ ${dl}d left`, color: '#fb7185', bg: 'rgba(244,63,94,0.12)', pulse: true }
-  }
-  if (opp.application_count === 0) return { key: 'first', label: '🚀 Be first to apply', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' }
-  if (opp.application_count < 5) return { key: 'few', label: `👥 Only ${opp.application_count} applied`, color: '#c084fc', bg: 'rgba(168,85,247,0.12)' }
-  return null
-}
-
-function Chip({ children, color, bg, pulse }: { children: React.ReactNode; color: string; bg: string; pulse?: boolean }) {
+// Generic pill used for the position tag on a card. Status signals use the
+// shared SignalChip; the match score uses the shared MatchChip.
+function Chip({ children, color, bg }: { children: React.ReactNode; color: string; bg: string }) {
   return (
-    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
+    <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0"
       style={{ color, backgroundColor: bg }}>
       {children}
     </span>
-  )
-}
-
-// Match-score chip — the primary premium hook. Premium: the real NN% (green when
-// strong, blue otherwise). Free: a locked chip that triggers the match paywall.
-function MatchChip({ opp, isPremium, onLocked }: { opp: Opportunity; isPremium: boolean; onLocked: () => void }) {
-  if (isPremium && opp.matchPercent !== null) {
-    const strong = opp.matchPercent >= 85
-    const color = strong ? '#22c55e' : '#4d8ae8'
-    return (
-      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold flex-shrink-0"
-        style={{ color, backgroundColor: `${color}1f` }}>
-        {opp.matchPercent}% match
-      </span>
-    )
-  }
-  if (isPremium) return null // premium but no signal to score against
-  return (
-    <button type="button" onClick={e => { e.stopPropagation(); onLocked() }}
-      aria-label="Match score locked — upgrade to Premium to see how well this role fits you"
-      className="text-xs px-2.5 py-0.5 rounded-full font-bold flex-shrink-0 inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
-      style={{ color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.12)' }}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </svg>
-      Match
-    </button>
   )
 }
 
@@ -241,7 +194,7 @@ function PlayerOpportunityCard({
               {/* Top-right cluster — match % (the premium hook) sits up on the
                   title line, with the timestamp beside it. */}
               <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 1 }}>
-                <MatchChip opp={opp} isPremium={isPremium} onLocked={onLockedMatch} />
+                <MatchChip matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
                 <span style={{ fontSize: 11, color: '#5b6478' }}>{compactTimeAgo(opp.created_at)}</span>
               </div>
             </div>
@@ -261,7 +214,7 @@ function PlayerOpportunityCard({
             {(showPos || signal) && (
               <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                 {showPos && <Chip color="#60a5fa" bg="rgba(96,165,250,0.12)">{opp.position!.toUpperCase()}</Chip>}
-                {signal && <Chip color={signal.color} bg={signal.bg} pulse={signal.pulse}>{signal.label}</Chip>}
+                {signal && <SignalChip signal={signal} />}
               </div>
             )}
             <button type="button" onClick={onApplyClick} disabled={applied}

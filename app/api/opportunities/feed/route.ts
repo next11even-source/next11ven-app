@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getOpportunityMatchPercent, isCloseMatch, type RelevancePlayerProfile } from '@/lib/opportunityRelevance'
 import { stepNumber } from '@/lib/levels'
 
@@ -33,7 +33,12 @@ type FeedOpportunity = {
   matchPercent: number | null
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Optional ?limit= — the homepage preview asks for a small slice; the full
+  // Open Roles feed omits it and takes the bounded default.
+  const limitParam = Number(req.nextUrl.searchParams.get('limit'))
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : 200
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -85,7 +90,7 @@ export async function GET() {
     .select('id, coach_id, title, club, location, position, level, description, urgent, deadline, created_at')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
-    .limit(200)
+    .limit(limit)
 
   const opps = oppRows ?? []
   const oppIds = opps.map(o => o.id)

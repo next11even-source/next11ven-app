@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
-import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
+import { StepBadge, MatchChip, SignalChip } from '@/app/components/OpportunityBadges'
+import { getLevelConfig } from '@/lib/opportunityLevel'
+import { getPrimarySignal } from '@/lib/opportunitySignal'
 import NewBadge from '@/app/components/NewBadge'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
@@ -72,6 +74,8 @@ type ActiveUser = {
   created_at: string | null
 }
 
+// Mirrors the gated /api/opportunities/feed row: club is null for free players,
+// matchPercent is null unless premium (both enforced server-side).
 type Opportunity = {
   id: string
   title: string
@@ -80,8 +84,11 @@ type Opportunity = {
   position: string | null
   level: string | null
   urgent: boolean
+  deadline: string | null
   created_at: string
-  coach: { full_name: string | null } | null
+  application_count: number
+  inRange: boolean
+  matchPercent: number | null
 }
 
 type FeedPost = {
@@ -565,7 +572,11 @@ function FeaturedCarousel({ players, viewerPremium, viewerLooking }: {
 
 // ─── Opportunities Preview ────────────────────────────────────────────────────
 
-function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] }) {
+function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
+  opportunities: Opportunity[]
+  isPremium: boolean
+  onLockedMatch: () => void
+}) {
   return (
     <section className="space-y-3 px-4">
       <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
@@ -583,38 +594,56 @@ function OpportunitiesPreview({ opportunities }: { opportunities: Opportunity[] 
           </div>
         ) : (
           opportunities.map((opp, i) => {
-            const meta = [opp.location, opp.position].filter(Boolean).join(' · ')
+            const signal = getPrimarySignal(opp)
+            // Don't repeat the position when the title already names it.
+            const showPos = !!opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+            // club is null for free (gated); meta mirrors the main card.
+            const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
+            const railColor = opp.inRange ? getLevelConfig(opp.level).color : '#64748b'
             return (
               <Link key={opp.id} href="/dashboard/opportunities"
-                className="relative flex items-center gap-3 px-4 py-3.5 transition-colors"
-                style={{ backgroundColor: '#13172a', borderBottom: i < opportunities.length - 1 ? '1px solid #1e2235' : undefined, display: 'flex', textDecoration: 'none' }}
+                className="relative flex items-center gap-3 pl-5 pr-3 py-3 transition-colors"
+                style={{ backgroundColor: '#13172a', borderBottom: i < opportunities.length - 1 ? '1px solid #1e2235' : undefined, textDecoration: 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#161b30')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#13172a')}>
-                {opp.urgent && <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: '#ef4444' }} />}
-                <LevelBadge level={opp.level} size={44} />
+                {/* Step-colour accent rail (desaturated when out of ±1 step) */}
+                <span aria-hidden="true" className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: railColor, opacity: opp.inRange ? 1 : 0.5 }} />
+                <StepBadge level={opp.level} inRange={opp.inRange} size={44} />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ClubCrest club={null} />
+                  <div className="flex items-start justify-between gap-2">
                     <h3 className="font-bold uppercase truncate"
                       style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
                       {opp.title}
                     </h3>
+                    <span className="flex-shrink-0" style={{ paddingTop: 1 }}>
+                      <MatchChip matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
+                    </span>
                   </div>
-                  <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
-                  {opp.urgent && <p className="text-xs mt-0.5 font-semibold" style={{ color: '#f87171' }}>🔴 Urgent</p>}
+                  <p className="text-xs mt-1 truncate flex items-center gap-1" style={{ color: '#8892aa' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" aria-hidden="true">
+                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <span className="truncate">{meta || 'Details to follow'}</span>
+                  </p>
+                  {signal && <div className="mt-1.5"><SignalChip signal={signal} /></div>}
                 </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M9 18l6-6-6-6" /></svg>
               </Link>
             )
           })
         )}
       </div>
       <Link href="/dashboard/opportunities"
-        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold uppercase tracking-wider transition-colors"
-        style={{ backgroundColor: '#e8dece', color: '#0a0a0a', textDecoration: 'none' }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d4c8b8')}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#e8dece')}>
-        All Opportunities →
+        className="group flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold uppercase tracking-wider transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] focus-visible:ring-[#4d8ae8]"
+        style={{
+          background: 'linear-gradient(135deg, #2d5fc4, #3a6fda)',
+          color: '#fff',
+          boxShadow: '0 6px 24px rgba(45,95,196,0.35)',
+          textDecoration: 'none',
+          border: '1px solid rgba(120,160,255,0.35)',
+        }}>
+        All Opportunities
+        <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
       </Link>
     </section>
   )
@@ -724,6 +753,7 @@ export default function PlayerHome() {
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingLooking, setSavingLooking] = useState(false)
   const [showLookingPaywall, setShowLookingPaywall] = useState(false)
+  const [showMatchPaywall, setShowMatchPaywall] = useState(false)
   const [statsViews, setStatsViews] = useState(0)
   const [statsOpps, setStatsOpps] = useState(0)
 
@@ -741,7 +771,9 @@ export default function PlayerHome() {
         supabase.from('profiles').select('id, full_name, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
-        supabase.from('opportunities').select('id, title, club, location, position, level, urgent, created_at, coach:coach_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
+        // Gated feed (club + match score enforced server-side) — same source as
+        // the main Open Roles page, sliced to the newest 5 for the preview.
+        fetch('/api/opportunities/feed?limit=5').then(r => r.ok ? r.json() : { opportunities: [] }),
         // Profile views this week
         supabase.from('player_views').select('id', { count: 'exact', head: true }).eq('player_id', user.id).gte('viewed_at', weekAgo),
         // Unread messages
@@ -756,7 +788,7 @@ export default function PlayerHome() {
       setProfile(profileData)
       setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5).slice(0, 10))
       setActiveUsers(((activeRes.data as ActiveUser[]) ?? []).filter(u => u.id !== user.id))
-      setOpportunities((oppsRes.data as unknown as Opportunity[]) ?? [])
+      setOpportunities((oppsRes.opportunities as Opportunity[]) ?? [])
       const rawFeed = (feedRes.data as any[]) ?? []
       setFeedPosts(rawFeed.map(p => ({
         ...p,
@@ -919,7 +951,7 @@ export default function PlayerHome() {
         <FeedPreviewSection posts={feedPosts} />
 
         {/* Opportunities */}
-        <OpportunitiesPreview opportunities={opportunities} />
+        <OpportunitiesPreview opportunities={opportunities} isPremium={profile?.premium ?? false} onLockedMatch={() => setShowMatchPaywall(true)} />
 
         {/* Featured Players */}
         <FeaturedCarousel players={featuredPlayers} viewerPremium={profile?.premium ?? false} viewerLooking={profile?.actively_looking ?? false} />
@@ -928,6 +960,8 @@ export default function PlayerHome() {
 
       {/* Actively Looking Paywall — shared component (§2) */}
       <ActivelyLookingModal open={showLookingPaywall} onClose={() => setShowLookingPaywall(false)} />
+      {/* Match-score paywall — fired from a locked match chip in the preview */}
+      <ActivelyLookingModal open={showMatchPaywall} onClose={() => setShowMatchPaywall(false)} variant="match" />
     </div>
   )
 }

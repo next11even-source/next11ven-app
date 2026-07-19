@@ -1,5 +1,12 @@
 // Colour + label config for each playing level.
 // Used by opportunity icons on coach and player homepages.
+//
+// Step colours are NOT defined here — they come from lib/stepTokens.ts, the
+// single source of truth for step colour. Any "Step N" (and its National League
+// equivalent) resolves its colour via stepEntry() below; only the off-ladder
+// levels (leagues, U18s, Wales, Other) carry their own palette.
+
+import { STEP_TOKENS, type StepKey } from '@/lib/stepTokens'
 
 export type LevelConfig = {
   line1: string  // top line of badge (e.g. "STEP", "NAT", "PL")
@@ -8,21 +15,28 @@ export type LevelConfig = {
   bg: string     // background tint
 }
 
+// Build a Step N badge config from the shared token, so step colour lives in
+// exactly one place. line2 defaults to the step number.
+function stepEntry(n: StepKey, line2?: string): LevelConfig {
+  const { color } = STEP_TOKENS[n]
+  return { line1: 'STEP', line2: line2 ?? String(n), color, bg: `${color}22` }
+}
+
 const LEVEL_MAP: Record<string, LevelConfig> = {
   'Premier League':              { line1: 'PREM',  line2: 'LEAGUE', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
   'Championship':                { line1: 'CHAM',  line2: 'PIONSHIP',color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
   'League One':                  { line1: 'LEAGUE', line2: 'ONE',   color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
   'League Two':                  { line1: 'LEAGUE', line2: 'TWO',   color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
-  'National League':             { line1: 'STEP',  line2: '1',      color: '#e2c07a', bg: 'rgba(226,192,122,0.12)' },
-  'National League North/South': { line1: 'STEP',  line2: '2',      color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-  'Step 1':                      { line1: 'STEP',  line2: '1',      color: '#e2c07a', bg: 'rgba(226,192,122,0.12)' },
-  'Step 2':                      { line1: 'STEP',  line2: '2',      color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-  'Step 3':                      { line1: 'STEP',  line2: '3',      color: '#2d5fc4', bg: 'rgba(45,95,196,0.15)' },
-  'Step 4':                      { line1: 'STEP',  line2: '4',      color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-  'Step 5':                      { line1: 'STEP',  line2: '5',      color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
-  'Step 6':                      { line1: 'STEP',  line2: '6',      color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
-  'Step 7':                      { line1: 'STEP',  line2: '7',      color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  'Step 7 and below':            { line1: 'STEP',  line2: '7+',     color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
+  'National League':             stepEntry(1),
+  'National League North/South': stepEntry(2),
+  'Step 1':                      stepEntry(1),
+  'Step 2':                      stepEntry(2),
+  'Step 3':                      stepEntry(3),
+  'Step 4':                      stepEntry(4),
+  'Step 5':                      stepEntry(5),
+  'Step 6':                      stepEntry(6),
+  'Step 7':                      stepEntry(7),
+  'Step 7 and below':            stepEntry(7, '7+'),
   'U18s/Academy':                { line1: 'U18s',  line2: 'ACAD',   color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
   'Wales 1':                     { line1: 'WALES', line2: '1',      color: '#f43f5e', bg: 'rgba(244,63,94,0.12)' },
   'Wales 2':                     { line1: 'WALES', line2: '2',      color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },

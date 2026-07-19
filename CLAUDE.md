@@ -185,6 +185,7 @@ Opportunities
 GET  /api/opportunities — list opportunities
 POST /api/opportunities — create an opportunity (coach)
 GET  /api/opportunities/counts — per-opportunity application counts
+GET  /api/opportunities/feed — player Open Roles feed (gated). Returns active opps + application_count + appliedIds + matchedCount + per-opp { inRange, isCloseMatch }. GATED SERVER-SIDE: `club` is null for non-premium; `matchPercent` (60–99, lib/opportunityRelevance.ts getOpportunityMatchPercent) is computed ONLY for premium — absent from the free payload, never just blurred. Bounded single fetch (limit 200); has a TODO to move to server-side pagination once active-opps count grows.
 
 Applications
 POST  /api/applications/apply — premium-gated, fires coach email; players apply to any role, coaches apply to coaching-staff roles only (opportunity_type='coach', not their own)
@@ -301,13 +302,25 @@ Opportunities (unified route)
 One page at /dashboard/opportunities serves both roles (layout wraps PlayerShell, same
 pattern as /feed — renders the correct sidebar + bottom nav per role). Old routes
 (/dashboard/player/opportunities, /dashboard/coach/opportunities) now redirect here.
-- Players: Open Roles (browse + apply, premium club-gate) + My Applications tabs.
+- Players: Open Roles (browse + apply, premium-gated) + My Applications tabs. The player feed
+  loads from /api/opportunities/feed (gated — see above), NOT a direct client table read.
+  Card funnels to two paths only: Apply (premium → inline form; free → apply paywall) or go
+  Premium. Match-score chip is the premium hook (locked → match paywall for free, NN% for
+  premium). "Best matches" is capped at 3 with a star eyebrow + glow, then an inline honest
+  premium banner (free only) + divider into "All open roles". Signals are 3 tiers: urgent
+  (deadline proximity, NOT the manual boolean), first (0 applied), few (<5 applied).
   My Applications cards have a "View opportunity" deep-link that scrolls/highlights the role.
 - Coaches: All Roles (global table) + Your Roles tabs, with "Add Opportunity" and inline
   applicant management (view/accept/reject/close/delete) on their own roles. Coaches can
   apply to OTHER clubs' coaching-staff roles (opportunity_type='coach', Coach Pro gated).
-- Card UI lives in app/components/OpportunityBadges.tsx (LevelBadge + ClubCrest), reused by
-  the homepage opportunity previews too. Level colours/labels come from lib/opportunityLevel.ts.
+- Card UI lives in app/components/OpportunityBadges.tsx (StepBadge + LevelBadge + ClubCrest),
+  reused by the homepage opportunity previews too. Level labels come from lib/opportunityLevel.ts.
+- STEP COLOUR: lib/stepTokens.ts (STEP_TOKENS + getStepToken) is the SINGLE source of truth for
+  non-league step colours — badges, the card's left accent rail, LevelBadge (opportunityLevel.ts
+  sources its Step 1–7 colours from here), and future map pins / filter chips. Never hardcode a
+  step colour anywhere else. Out-of-±1-step roles desaturate to slate as a "for you" signal.
+- The apply/match paywalls reuse ActivelyLookingModal via its `variant` prop ('apply' | 'match'
+  | 'toggle') — apply-/match-specific copy, not the Actively Looking toggle copy.
 
 Profile Completion Score
 13-field score — used on player homepage and profile page. Must stay in sync:

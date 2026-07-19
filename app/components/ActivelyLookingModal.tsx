@@ -9,21 +9,67 @@ import {
   PREMIUM_PRICE_WEEKLY,
 } from '@/lib/premiumContent'
 
+// The paywall sells the same premium product from three entry points. `toggle`
+// is the original Actively Looking impulse; `apply` / `match` fire from the
+// Opportunities feed and lead with apply-access / match-score copy so the modal
+// speaks to the action the player just reached for (not the toggle).
+export type PaywallVariant = 'toggle' | 'apply' | 'match'
+
+type VariantCopy = {
+  headline: string
+  subcopy: string
+  bullets: readonly string[]
+  cta: string
+}
+
+const VARIANTS: Record<PaywallVariant, VariantCopy> = {
+  toggle: {
+    headline: 'This is how coaches find you',
+    subcopy: "Switch on Actively Looking and you'll appear in the carousel and free-agent searches coaches see first.",
+    bullets: MODAL_BULLETS,
+    cta: `Switch it on · ${PREMIUM_PRICE_PER_MONTH}`,
+  },
+  apply: {
+    headline: 'Apply to this role',
+    subcopy: 'Applying to trials and showcases is a Premium feature. Upgrade to apply to this role — and every other open role — instantly.',
+    bullets: [
+      'Apply to any trial or showcase the moment it lands',
+      'See your % match on every role coaches post',
+      'Read & reply to messages coaches send you',
+    ],
+    cta: `Unlock applying · ${PREMIUM_PRICE_PER_MONTH}`,
+  },
+  match: {
+    headline: 'See your match score',
+    subcopy: 'Match scores show how well each role fits your position and step. Upgrade to unlock them on every open role.',
+    bullets: [
+      'See your % match on every role coaches post',
+      'Apply to any trial or showcase instantly',
+      'Rank above free players when coaches browse',
+    ],
+    cta: `Unlock match scores · ${PREMIUM_PRICE_PER_MONTH}`,
+  },
+}
+
 type Props = {
   open: boolean
   onClose: () => void
   /** Where the upgrade CTA points. Defaults to the Player Premium page. */
   premiumHref?: string
+  /** Which entry point this fired from — drives headline/subcopy/CTA. */
+  variant?: PaywallVariant
 }
 
 /**
- * Shared Actively Looking paywall (§2). Fires when a non-premium player reaches
- * for the Actively Looking toggle. Sells THAT impulse — the toggle is the
- * protagonist. Single source of truth: replaces the duplicated inline modals in
- * player/page.tsx and profile/page.tsx.
+ * Shared premium paywall (§2). Fires when a non-premium player reaches for a
+ * gated action — the Actively Looking toggle (`toggle`), an Apply button
+ * (`apply`), or a locked match score (`match`). Single source of truth:
+ * replaces the duplicated inline modals in player/page.tsx and profile/page.tsx.
  */
-export default function ActivelyLookingModal({ open, onClose, premiumHref = '/dashboard/player/premium' }: Props) {
+export default function ActivelyLookingModal({ open, onClose, premiumHref = '/dashboard/player/premium', variant = 'toggle' }: Props) {
   if (!open) return null
+
+  const copy = VARIANTS[variant]
 
   return (
     <div
@@ -54,7 +100,7 @@ export default function ActivelyLookingModal({ open, onClose, premiumHref = '/da
             />
           </div>
           <h2 className="text-lg font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', letterSpacing: '0.04em' }}>
-            This is how coaches find you
+            {copy.headline}
           </h2>
         </div>
 
@@ -67,14 +113,14 @@ export default function ActivelyLookingModal({ open, onClose, premiumHref = '/da
           {PROOF_LINE}
         </p>
 
-        {/* Sub-copy — one sentence */}
+        {/* Sub-copy — one sentence, tuned to the entry point */}
         <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>
-          Switch on Actively Looking and you&apos;ll appear in the carousel and free-agent searches coaches see first.
+          {copy.subcopy}
         </p>
 
-        {/* Three bullets — reframed around the toggle moment */}
+        {/* Three bullets — reframed around the action the player reached for */}
         <div className="space-y-2">
-          {MODAL_BULLETS.map(b => (
+          {copy.bullets.map(b => (
             <div key={b} className="flex items-center gap-2.5">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
@@ -91,7 +137,7 @@ export default function ActivelyLookingModal({ open, onClose, premiumHref = '/da
             className="block w-full text-center py-3 rounded-xl text-sm font-bold"
             style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}
           >
-            Switch it on &middot; {PREMIUM_PRICE_PER_MONTH}
+            {copy.cta}
           </Link>
           <p className="text-center text-xs" style={{ color: '#8892aa' }}>
             {PREMIUM_PRICE_WEEKLY}. Cancel anytime.

@@ -98,6 +98,61 @@ export function getOpportunityRelevanceScore(
 }
 
 /**
+ * Player-facing match percentage (60–99), shown on the card as the primary
+ * premium hook. Deterministic and cheap — NOT an ML score. Distinct from
+ * getOpportunityRelevanceScore (an unbounded internal ordering signal): this is
+ * a stable, honest, human-readable headline figure derived from the same
+ * signals but on a fixed scale.
+ *
+ * Weighting (max 99): position fit (≤45) + step proximity (≤45) + recency (≤9).
+ * No coordinates exist in the schema yet, so distance contributes nothing (see
+ * getOpportunityRelevanceScore's location note). Floored at 60 so a surfaced
+ * role never reads as a near-miss — anything genuinely off-position/off-step is
+ * already excluded from "Best matches" by isCloseMatch.
+ *
+ * SECURITY: only ever compute + return this for premium players. The raw value
+ * must never appear in a free-tier API payload (see /api/opportunities/feed).
+ */
+export function getOpportunityMatchPercent(
+  opportunity: RelevanceOpportunity,
+  player: RelevancePlayerProfile
+): number {
+  // Position fit (0–45): exact primary/secondary highest, "any position" role
+  // fits everyone (flat mid), same broad category partial, unrelated low.
+  const oppPos = norm(opportunity.position)
+  let position: number
+  if (!oppPos) {
+    position = 32
+  } else if (oppPos === norm(player.position) || oppPos === norm(player.secondary_position)) {
+    position = 45
+  } else {
+    const oppCategory = positionCategory(opportunity.position)
+    const playerCategory = positionCategory(player.position) ?? positionCategory(player.secondary_position)
+    position = oppCategory && oppCategory === playerCategory ? 30 : 14
+  }
+
+  // Step proximity (0–45): exact highest, then ±1, ±2, ±3. Off-ladder / unset
+  // level on either side scores a neutral mid rather than bottoming out.
+  const playerStep = stepNumber(player.playing_level)
+  const oppStep = stepNumber(opportunity.level)
+  let step: number
+  if (playerStep === null || oppStep === null) {
+    step = 20
+  } else {
+    const diff = Math.abs(playerStep - oppStep)
+    step = diff === 0 ? 45 : diff === 1 ? 34 : diff === 2 ? 20 : diff === 3 ? 10 : 4
+  }
+
+  // Recency (0–9): exponential decay, ~14-day half-life. Freshest roles read
+  // marginally higher; never enough to mask a real position/step mismatch.
+  const ageDays = (Date.now() - new Date(opportunity.created_at).getTime()) / 86400000
+  const recency = 9 * Math.pow(0.5, ageDays / 14)
+
+  const raw = position + step + recency
+  return Math.max(60, Math.min(99, Math.round(raw)))
+}
+
+/**
  * Hard filter for the "Best matches for you" section — unlike the general
  * score above (which never excludes anything), a recommendation must have a
  * real position fit — the player's own position, or a role open to any

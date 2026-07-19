@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
@@ -612,6 +613,20 @@ export default function PlayerProfilePage() {
             </div>
           )}
         </SectionCard>
+
+        {/* ── Add past seasons — on-ramp to the self-reported career editor.
+            The intent ("my profile looks thin") lives here on the edit page, so
+            this is where the CTA belongs — the editor itself is otherwise buried
+            inside the tracker. ── */}
+        <Link href="/dashboard/performance/tracker/career"
+          className="flex items-center justify-between rounded-2xl px-4 py-3.5"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}>
+          <div className="min-w-0">
+            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Played before you joined?</p>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Add past seasons so coaches see a full record, not a blank one.</p>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 ml-3"><polyline points="9 18 15 12 9 6" /></svg>
+        </Link>
 
         {/* ── Highlight Videos ── */}
         <SectionCard

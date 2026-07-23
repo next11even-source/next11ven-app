@@ -679,6 +679,53 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
           const typeStyle = FEED_TYPE_STYLE[post.post_type] ?? FEED_TYPE_STYLE.general
           const author = post.author
           const initials = author?.full_name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2) ?? '??'
+          const hasImage = !!post.image_url
+
+          // Shared author row — anchors both card styles.
+          const authorRow = (
+            <div className="flex items-center gap-1.5">
+              {author?.avatar_url ? (
+                <img src={author.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1e2235', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: '#8892aa' }}>{initials}</span>
+                </div>
+              )}
+              <span className="text-xs font-semibold truncate" style={{ color: '#e8dece', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12 }}>
+                {author?.full_name ?? 'Unknown'}
+              </span>
+            </div>
+          )
+
+          // No image → deliberate text-forward card. The post-type accent tints
+          // the whole card and the caption becomes the hero, so an imageless
+          // post reads as intentional rather than an empty photo slot.
+          if (!hasImage) {
+            return (
+              <Link
+                key={post.id}
+                href="/dashboard/feed"
+                className="flex-shrink-0 rounded-2xl overflow-hidden flex flex-col p-3 gap-2"
+                style={{
+                  width: 170, height: 214, scrollSnapAlign: 'start', textDecoration: 'none',
+                  border: `1px solid ${typeStyle.color}55`,
+                  background: `linear-gradient(160deg, ${typeStyle.bg} 0%, #13172a 70%)`,
+                }}
+              >
+                <span className="self-start px-1.5 py-0.5 rounded font-bold uppercase"
+                  style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, letterSpacing: '0.04em' }}>
+                  {typeStyle.label}
+                </span>
+                <p className="flex-1 font-semibold" style={{
+                  color: '#e8dece', fontFamily: "'Inter', sans-serif", fontSize: 14, lineHeight: 1.35,
+                  display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                }}>
+                  {post.caption}
+                </p>
+                {authorRow}
+              </Link>
+            )
+          }
 
           return (
             <Link
@@ -687,18 +734,9 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
               className="flex-shrink-0 rounded-2xl overflow-hidden flex flex-col"
               style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', backgroundColor: '#13172a', textDecoration: 'none' }}
             >
-              {/* Image or gradient placeholder */}
+              {/* Image */}
               <div className="relative flex-shrink-0" style={{ height: 120, backgroundColor: '#0d1020' }}>
-                {post.image_url ? (
-                  <img src={post.image_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)' }}>
-                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#1e2235' }}>
-                      {initials}
-                    </span>
-                  </div>
-                )}
+                <img src={post.image_url!} alt="" className="w-full h-full object-cover" />
                 {/* Post type badge */}
                 <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-bold"
                   style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, letterSpacing: '0.04em', backdropFilter: 'blur(4px)' }}>
@@ -708,19 +746,7 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
 
               {/* Content */}
               <div className="p-2.5 flex flex-col gap-1.5 flex-1">
-                {/* Author */}
-                <div className="flex items-center gap-1.5">
-                  {author?.avatar_url ? (
-                    <img src={author.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1e2235', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 8, fontWeight: 700, color: '#8892aa' }}>{initials}</span>
-                    </div>
-                  )}
-                  <span className="text-xs font-semibold truncate" style={{ color: '#e8dece', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12 }}>
-                    {author?.full_name ?? 'Unknown'}
-                  </span>
-                </div>
+                {authorRow}
 
                 {/* Caption */}
                 <p className="text-xs leading-snug" style={{

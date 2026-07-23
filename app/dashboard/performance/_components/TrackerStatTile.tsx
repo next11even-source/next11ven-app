@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import NewBadge from '@/app/components/NewBadge'
 import type { MatchSummary } from '@/lib/performance'
 
 type TileState =
@@ -66,8 +65,18 @@ export default function TrackerStatTile() {
       style={{ backgroundColor: 'rgba(56,189,248,0.07)', border: '1.5px solid rgba(56,189,248,0.5)', textDecoration: 'none' }}
       onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#38bdf8')}
       onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(56,189,248,0.5)')}>
-      <span className="absolute" style={{ top: -8, right: -6 }}>
-        <NewBadge force size="sm" />
+      {/* Dedicated "NEW FEATURE" ribbon — yellow standout, distinct from the
+          shared blue NewBadge (which marks new users, not new features).
+          Centered on the top border so it never overflows this narrow tile. */}
+      <span className="absolute uppercase font-black whitespace-nowrap"
+        style={{
+          top: -9, left: '50%', transform: 'translateX(-50%)',
+          fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, lineHeight: 1,
+          letterSpacing: '0.06em', padding: '3px 8px', borderRadius: 999,
+          color: '#0a0a0a', backgroundColor: '#facc15',
+          boxShadow: '0 2px 6px rgba(250,204,21,0.35)',
+        }}>
+        New Feature
       </span>
       {state.kind === 'stat' ? (
         <span className="leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#38bdf8' }}>
@@ -79,8 +88,9 @@ export default function TrackerStatTile() {
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       )}
-      <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>
-        Game Performance Tracker
+      <span className="mt-1 text-center leading-tight font-black uppercase"
+        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 13, letterSpacing: '0.02em' }}>
+        Track Your Games
       </span>
       <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{state.sub}</span>
     </Link>

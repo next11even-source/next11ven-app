@@ -213,7 +213,7 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
       )}
       {views > 0 && (
         <QuickStatTile s={{
-          label: 'Profile Views', value: views, href: '/dashboard/player/activity', sub: 'this week',
+          label: 'Profile Views', value: views, href: '/dashboard/player/activity/profile-views', sub: 'this week',
           color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
         }} />
       )}

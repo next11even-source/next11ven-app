@@ -8,6 +8,7 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 
 type Player = {
   id: string
@@ -420,6 +421,7 @@ export default function CoachPlayersPage() {
       .in('role', ['player', 'admin'])
       .eq('approved', true)
       .eq('actively_looking', true)
+      .not('id', 'in', HIDDEN_PROFILE_FILTER)
       .not('avatar_url', 'is', null)
       .neq('avatar_url', '')
       .limit(40)
@@ -445,6 +447,7 @@ export default function CoachPlayersPage() {
         )
         .in('role', ['player', 'admin'])
         .eq('approved', true)
+        .not('id', 'in', HIDDEN_PROFILE_FILTER)
 
       if (quickTab === 'actively_looking') query = query.eq('actively_looking', true)
       else if (quickTab === 'loan') query = query.eq('status', 'loan_dual_reg')

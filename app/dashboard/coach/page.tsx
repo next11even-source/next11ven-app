@@ -9,6 +9,7 @@ import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileComple
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -775,13 +776,15 @@ export default function CoachDashboard() {
           .select('id, full_name, role, position, avatar_url, status, actively_looking, location, city, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
-          .eq('premium', true),
+          .eq('premium', true)
+          .not('id', 'in', HIDDEN_PROFILE_FILTER),
 
         // Recently active players + coaches
         supabase.from('profiles')
           .select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at')
           .in('role', ['player', 'admin', 'coach'])
           .eq('approved', true)
+          .not('id', 'in', HIDDEN_PROFILE_FILTER)
           .not('last_active', 'is', null)
           .gte('last_active', twoWeeksAgo)
           .order('last_active', { ascending: false })

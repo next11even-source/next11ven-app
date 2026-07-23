@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { buildPublicPerformance, toPublicMatches, type PublicCareerRow } from '@/lib/publicStats'
 import { performanceTrackerEnabled } from '@/lib/performance'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 
 export const runtime = 'nodejs'
 
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
     .eq('approved', true)
     .eq('actively_looking', true)
     .eq('performance_stats_public', true)
+    .not('id', 'in', HIDDEN_PROFILE_FILTER)
 
   if (pErr) return NextResponse.json({ error: 'Failed to load players' }, { status: 500 })
 

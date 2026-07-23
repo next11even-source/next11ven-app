@@ -12,6 +12,7 @@ import { getLevelConfig } from '@/lib/opportunityLevel'
 import { getPrimarySignal } from '@/lib/opportunitySignal'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
 import WeekendLogBanner from '@/app/dashboard/performance/_components/WeekendLogBanner'
@@ -770,9 +771,9 @@ export default function PlayerHome() {
 
       const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
-        supabase.from('profiles').select('id, full_name, role, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
+        supabase.from('profiles').select('id, full_name, role, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
-        supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
+        supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
         // Gated feed (club + match score enforced server-side) — same source as
         // the main Open Roles page, sliced to the newest 5 for the preview.
         fetch('/api/opportunities/feed?limit=5').then(r => r.ok ? r.json() : { opportunities: [] }),

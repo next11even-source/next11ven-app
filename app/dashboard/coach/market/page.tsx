@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { getLevelConfig } from '@/lib/opportunityLevel'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import { Suspense } from 'react'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
@@ -556,6 +557,7 @@ function PlayersTab() {
       .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
+      .not('id', 'in', HIDDEN_PROFILE_FILTER)
       .not('avatar_url', 'is', null)
       .neq('avatar_url', '')
       .order('premium', { ascending: false })

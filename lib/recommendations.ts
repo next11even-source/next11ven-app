@@ -29,6 +29,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { calcCompletion } from '@/lib/profileCompletion'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 
 export type RecommendedPlayer = {
   id: string
@@ -150,6 +151,7 @@ export async function getRecommendedPlayers(
     )
     .in('role', ['player', 'admin'])
     .eq('approved', true)
+    .not('id', 'in', HIDDEN_PROFILE_FILTER)
     .not('last_active', 'is', null)
     .gte('last_active', ninetyDaysAgo)
     .limit(300)

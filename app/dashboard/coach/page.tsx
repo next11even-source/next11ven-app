@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from './_components/CoachSidebar'
 import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
-import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
+import { LevelBadge } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
@@ -350,7 +350,8 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
         <div className="space-y-2">
           {opps.map(opp => {
             const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
-            const meta = [showPos ? opp.position : null, opp.location].filter(Boolean).join(' · ')
+            // Mirror the player homepage: no club crest, club shown as limited text only.
+            const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
             return (
               <Link key={opp.id} href="/dashboard/opportunities"
                 className="relative flex items-center gap-3 rounded-xl px-4 py-3.5 overflow-hidden"
@@ -367,7 +368,6 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
                 <LevelBadge level={opp.level} size={44} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 min-w-0">
-                    <ClubCrest club={opp.club} />
                     <h3 className="font-bold uppercase truncate"
                       style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
                       {opp.title}

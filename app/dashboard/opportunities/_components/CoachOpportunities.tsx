@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS, sortLevels } from '@/lib/levels'
-import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
+import { LevelBadge } from '@/app/components/OpportunityBadges'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -795,7 +795,6 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                         {/* Title row */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <ClubCrest club={opp.club} />
                             <h3 className="font-bold uppercase truncate"
                               style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 19, lineHeight: 1.1 }}>
                               {opp.title}

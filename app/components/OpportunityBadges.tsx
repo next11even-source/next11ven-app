@@ -100,27 +100,3 @@ export function StepBadge({ level, inRange = true, size = 44 }: { level: string 
     </div>
   )
 }
-
-// Club identity crest — monogram ring when a club name is provided, generic
-// shield otherwise. Pass `club={null}` to keep the club hidden (e.g. free players).
-export function ClubCrest({ club, size = 26 }: { club: string | null; size?: number }) {
-  const initials = club
-    ? club.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 3).toUpperCase()
-    : null
-  const iconSize = Math.round(size * 0.5)
-  return (
-    <div className="flex-shrink-0 rounded-full flex items-center justify-center"
-      style={{ width: size, height: size, backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)' }}>
-      {initials ? (
-        <span className="font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#4d8ae8', fontSize: size >= 34 ? 13 : 11, letterSpacing: '0.02em' }}>
-          {initials}
-        </span>
-      ) : (
-        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#4d8ae8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-      )}
-    </div>
-  )
-}

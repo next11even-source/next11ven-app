@@ -8,6 +8,7 @@ import CoachSidebar from './_components/CoachSidebar'
 import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
 import { LevelBadge, ClubCrest } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
+import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ type Status = 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring'
 type PremiumPlayer = {
   id: string
   full_name: string | null
+  role: string | null
   position: string | null
   avatar_url: string | null
   status: Status | null
@@ -72,6 +74,7 @@ type ShortlistPlayer = {
   savedId: string
   player_id: string
   full_name: string | null
+  role: string | null
   avatar_url: string | null
   position: string | null
   city: string | null
@@ -448,7 +451,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
               <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
                 <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
                   <span className="truncate">{p.full_name ?? 'Player'}</span>
-                  <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>
+                  {isFounder(p.role) ? <FounderBadge size="sm" /> : <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                 </p>
                 <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                   {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
@@ -547,7 +550,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                 <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
                   <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
                     <span className="truncate">{p.full_name ?? 'Player'}</span>
-                    {p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                    {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                   </p>
                   <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                     {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
@@ -601,7 +604,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
           </p>
-          {!isCoach && user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
+          {!isCoach && (isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>)}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
@@ -769,7 +772,7 @@ export default function CoachDashboard() {
           .limit(15),
 
         supabase.from('profiles')
-          .select('id, full_name, position, avatar_url, status, actively_looking, location, city, premium')
+          .select('id, full_name, role, position, avatar_url, status, actively_looking, location, city, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
           .eq('premium', true),
@@ -856,7 +859,7 @@ export default function CoachDashboard() {
         const playerIds = savedRows.map(r => r.player_id)
         const { data: playerData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, position, city, location, status, premium, actively_looking, updated_at')
+          .select('id, full_name, role, avatar_url, position, city, location, status, premium, actively_looking, updated_at')
           .in('id', playerIds)
         const playerMap = Object.fromEntries((playerData ?? []).map((p: any) => [p.id, p]))
         setMyShortlist(savedRows.map(r => {
@@ -865,6 +868,7 @@ export default function CoachDashboard() {
             savedId: r.id,
             player_id: r.player_id,
             full_name: p.full_name ?? null,
+            role: p.role ?? null,
             avatar_url: p.avatar_url ?? null,
             position: p.position ?? null,
             city: p.city ?? null,

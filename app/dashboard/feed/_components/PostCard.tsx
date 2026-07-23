@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import type { PostWithAuthor, PostComment } from '@/types/feed'
+import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 
 const ROLE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   player: { bg: '#2d5fc422', color: '#4d8ae8', label: 'PLAYER' },
@@ -313,10 +314,14 @@ export default function PostCard({
                   {post.author.full_name ?? 'Unknown'}
                 </span>
               </Link>
-              <span className="px-1.5 py-0.5 rounded"
-                style={{ backgroundColor: roleStyle.bg, color: roleStyle.color, fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700 }}>
-                {roleStyle.label}
-              </span>
+              {isFounder(post.author.role) ? (
+                <FounderBadge />
+              ) : (
+                <span className="px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: roleStyle.bg, color: roleStyle.color, fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700 }}>
+                  {roleStyle.label}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               {post.author.position && <span className="text-xs" style={{ color: '#8892aa' }}>{post.author.position}</span>}

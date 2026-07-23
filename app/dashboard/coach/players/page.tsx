@@ -7,10 +7,12 @@ import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 
 type Player = {
   id: string
   full_name: string | null
+  role: string | null
   avatar_url: string | null
   position: string | null
   secondary_position: string | null
@@ -263,7 +265,7 @@ function ActivelyLookingCarousel({ players }: { players: Player[] }) {
               <div style={{ padding: '5px 7px 7px' }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 2 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name ?? 'Player'}</span>
-                  {p.premium && <span style={{ color: '#f59e0b', flexShrink: 0, fontSize: 9 }}>★</span>}
+                  {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span style={{ color: '#f59e0b', flexShrink: 0, fontSize: 9 }}>★</span>}
                 </p>
                 <p style={{ fontSize: 9, color: '#22c55e', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {p.position ?? '—'}
@@ -414,7 +416,7 @@ export default function CoachPlayersPage() {
     })
 
     supabase.from('profiles')
-      .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium')
+      .select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
       .eq('actively_looking', true)
@@ -438,7 +440,7 @@ export default function CoachPlayersPage() {
 
       let query = supabase.from('profiles')
         .select(
-          'id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium',
+          'id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium',
           { count: 'exact' }
         )
         .in('role', ['player', 'admin'])
@@ -700,7 +702,7 @@ export default function CoachPlayersPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                      {p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                      {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                     </div>
                     <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
                       {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}

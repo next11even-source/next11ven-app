@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import NewBadge from '@/app/components/NewBadge'
+import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
@@ -16,6 +17,7 @@ import { buildPublicPerformance, type PublicPerformance, type PublicPerformanceP
 type PublicProfile = {
   id: string
   full_name: string | null
+  role: string | null
   avatar_url: string | null
   position: string | null
   secondary_position: string | null
@@ -216,7 +218,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -456,6 +458,7 @@ export default function PlayerPublicProfile() {
                 {player.full_name ?? 'Player'}
               </h1>
               {player.premium && <span style={{ color: '#f59e0b', fontSize: 16 }}>★</span>}
+              {isFounder(player.role) && <FounderBadge />}
               <NewBadge createdAt={player.created_at} />
             </div>
             <p className="text-sm mt-1 truncate" style={{ color: '#8892aa' }}>

@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   // Get sender profile
   const { data: sender } = await supabase
     .from('profiles')
-    .select('role, full_name, premium')
+    .select('role, full_name, premium, is_agent')
     .eq('id', user.id)
     .single()
 
@@ -129,6 +129,13 @@ export async function POST(req: NextRequest) {
     .eq('coach_id', convCoachId)
     .eq('player_id', convPlayerId)
     .maybeSingle()
+
+  // Agents may reply to a coach who reached out first, but never initiate.
+  // Keeps agents from spamming coaches with sales pitches while allowing
+  // coach-initiated contact. Enforced server-side regardless of UI state.
+  if (sender.is_agent && recipientIsCoach && !existingConv) {
+    return NextResponse.json({ error: 'Agents cannot start conversations with coaches' }, { status: 403 })
+  }
 
   // Players can only reply — they cannot start new conversations with coaches
   if (senderIsPlayer && !existingConv) {

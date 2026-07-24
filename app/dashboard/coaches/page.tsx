@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import NewBadge from '@/app/components/NewBadge'
+import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ type Coach = {
   bio: string | null
   last_active: string | null
   created_at: string | null
+  is_agent: boolean | null
 }
 
 type Quota = {
@@ -211,7 +213,7 @@ function RecentlyActiveCard({ coach }: { coach: Coach }) {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
-          <NewBadge createdAt={coach.created_at} size="sm" />
+          {isAgent({ role: 'coach', is_agent: coach.is_agent }) ? <AgentBadge size="sm" /> : <NewBadge createdAt={coach.created_at} size="sm" />}
         </div>
         {detail && <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{detail}</p>}
       </div>
@@ -414,7 +416,7 @@ export default function CoachesPage() {
       const [coachRes, profileRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, bio, last_active, created_at')
+          .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, bio, last_active, created_at, is_agent')
           .eq('role', 'coach')
           .eq('approved', true),
         supabase.from('profiles').select('role, premium').eq('id', user.id).single(),
@@ -599,6 +601,7 @@ export default function CoachesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
+                    {isAgent({ role: 'coach', is_agent: coach.is_agent }) && <AgentBadge size="sm" />}
                     <NewBadge createdAt={coach.created_at} size="sm" />
                   </div>
                   {meta && <p className="text-xs mt-0.5 truncate" style={{ color: '#8892aa' }}>{meta}</p>}

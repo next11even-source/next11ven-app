@@ -7,6 +7,7 @@ export type PostAuthor = {
   role: string | null
   position: string | null
   location: string | null
+  is_agent: boolean | null
 }
 
 export type PostWithAuthor = {

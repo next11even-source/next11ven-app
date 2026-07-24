@@ -22,6 +22,7 @@ type ApplicantProfile = {
   gdpr_consent: boolean | null
   phone: string | null
   password_set_at: string | null
+  is_agent: boolean | null
 }
 
 type TabFilter = 'pending' | 'approved' | 'declined'
@@ -73,6 +74,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabFilter>('pending')
   const [processing, setProcessing] = useState<string | null>(null)
+  const [agentSaving, setAgentSaving] = useState<string | null>(null)
   const [counts, setCounts] = useState({ pending: 0, approved: 0, declined: 0 })
   const [reconciling, setReconciling] = useState(false)
   const [reconcileResult, setReconcileResult] = useState<{ granted: number; revoked: number; checked: number } | null>(null)
@@ -157,6 +159,22 @@ export default function AdminPage() {
       })
     }
     setProcessing(null)
+  }
+
+  async function toggleAgent(profileId: string, isAgent: boolean) {
+    setAgentSaving(profileId)
+    const res = await fetch('/api/admin/set-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: profileId, is_agent: isAgent }),
+    })
+    const data = await res.json()
+    if (!data.error) {
+      setProfiles(prev => prev.map(p =>
+        p.id === profileId ? { ...p, is_agent: isAgent } : p
+      ))
+    }
+    setAgentSaving(null)
   }
 
   async function loadOrphaned() {
@@ -712,10 +730,10 @@ export default function AdminPage() {
                     <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{p.full_name ?? '(no name)'}</p>
                     <span className="text-xs px-1.5 py-0.5 rounded-full font-bold uppercase"
                       style={{
-                        backgroundColor: p.role === 'coach' ? 'rgba(168,139,250,0.15)' : 'rgba(45,95,196,0.15)',
-                        color: p.role === 'coach' ? '#a78bfa' : '#2d5fc4',
+                        backgroundColor: p.role === 'coach' ? (p.is_agent ? 'rgba(245,158,11,0.15)' : 'rgba(168,139,250,0.15)') : 'rgba(45,95,196,0.15)',
+                        color: p.role === 'coach' ? (p.is_agent ? '#f59e0b' : '#a78bfa') : '#2d5fc4',
                       }}>
-                      {p.role ?? '?'}
+                      {p.role === 'coach' && p.is_agent ? 'agent' : (p.role ?? '?')}
                     </span>
                     <span className="text-xs px-1.5 py-0.5 rounded-full"
                       style={{
@@ -724,6 +742,15 @@ export default function AdminPage() {
                       }}>
                       {p.approval_status ?? 'pending'}
                     </span>
+                    {p.role === 'coach' && (
+                      <button
+                        onClick={() => toggleAgent(p.id, !p.is_agent)}
+                        disabled={agentSaving === p.id}
+                        className="text-xs px-1.5 py-0.5 rounded-full font-bold uppercase disabled:opacity-50"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: '#8892aa', border: '1px solid #1e2235' }}>
+                        {agentSaving === p.id ? '…' : p.is_agent ? 'Unset agent' : 'Mark agent'}
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
@@ -807,11 +834,20 @@ export default function AdminPage() {
                     </p>
                     <span className="text-xs px-2 py-0.5 rounded-full font-bold uppercase"
                       style={{
-                        backgroundColor: p.role === 'coach' ? 'rgba(168,139,250,0.15)' : p.role === 'fan' ? 'rgba(136,146,170,0.15)' : 'rgba(45,95,196,0.15)',
-                        color: p.role === 'coach' ? '#a78bfa' : p.role === 'fan' ? '#8892aa' : '#2d5fc4',
+                        backgroundColor: p.role === 'coach' ? (p.is_agent ? 'rgba(245,158,11,0.15)' : 'rgba(168,139,250,0.15)') : p.role === 'fan' ? 'rgba(136,146,170,0.15)' : 'rgba(45,95,196,0.15)',
+                        color: p.role === 'coach' ? (p.is_agent ? '#f59e0b' : '#a78bfa') : p.role === 'fan' ? '#8892aa' : '#2d5fc4',
                       }}>
-                      {p.role ?? 'unknown'}
+                      {p.role === 'coach' && p.is_agent ? 'agent' : (p.role ?? 'unknown')}
                     </span>
+                    {p.role === 'coach' && (
+                      <button
+                        onClick={() => toggleAgent(p.id, !p.is_agent)}
+                        disabled={agentSaving === p.id}
+                        className="text-xs px-2 py-0.5 rounded-full font-bold uppercase disabled:opacity-50"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: '#8892aa', border: '1px solid #1e2235' }}>
+                        {agentSaving === p.id ? '…' : p.is_agent ? 'Unset agent' : 'Mark agent'}
+                      </button>
+                    )}
                   </div>
                   <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{p.email ?? '—'}</p>
                 </div>

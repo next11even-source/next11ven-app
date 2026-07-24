@@ -19,7 +19,7 @@ async function fetchPosts(pageNum: number, viewerId: string): Promise<PostWithAu
     .from('posts')
     .select(`
       id, author_id, post_type, caption, image_url, created_at,
-      author:profiles!author_id(id, full_name, avatar_url, role, position, location),
+      author:profiles!author_id(id, full_name, avatar_url, role, position, location, is_agent),
       post_likes(user_id),
       post_comments(id)
     `)
@@ -36,7 +36,7 @@ async function fetchPosts(pageNum: number, viewerId: string): Promise<PostWithAu
     caption: p.caption,
     image_url: p.image_url,
     created_at: p.created_at,
-    author: p.author ?? { id: p.author_id, full_name: null, avatar_url: null, role: null, position: null, location: null },
+    author: p.author ?? { id: p.author_id, full_name: null, avatar_url: null, role: null, position: null, location: null, is_agent: null },
     likeCount: (p.post_likes ?? []).length,
     hasLiked: (p.post_likes ?? []).some((l: { user_id: string }) => l.user_id === viewerId),
     commentCount: (p.post_comments ?? []).length,

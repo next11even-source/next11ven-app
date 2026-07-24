@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data, error } = await admin
     .from('profiles')
-    .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approved, approval_status, created_at, gdpr_consent, phone, password_set_at')
+    .select('id, full_name, email, role, position, club, city, playing_level, coaching_level, coaching_role, approved, approval_status, created_at, gdpr_consent, phone, password_set_at, is_agent')
     .or('role.neq.admin,role.is.null')
     .order('created_at', { ascending: false })
 

@@ -6,6 +6,7 @@ import { MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import type { PostWithAuthor, PostComment } from '@/types/feed'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 
 const ROLE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   player: { bg: '#2d5fc422', color: '#4d8ae8', label: 'PLAYER' },
@@ -316,6 +317,8 @@ export default function PostCard({
               </Link>
               {isFounder(post.author.role) ? (
                 <FounderBadge />
+              ) : isAgent(post.author) ? (
+                <AgentBadge />
               ) : (
                 <span className="px-1.5 py-0.5 rounded"
                   style={{ backgroundColor: roleStyle.bg, color: roleStyle.color, fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 700 }}>

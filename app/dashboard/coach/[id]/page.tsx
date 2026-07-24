@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ type CoachProfile = {
   coaching_level: string | null
   coaching_history: string | null
   last_active: string | null
+  role: string | null
+  is_agent: boolean | null
 }
 
 type Opportunity = {
@@ -94,7 +97,7 @@ export default function CoachPublicProfile() {
         const [coachRes, viewerRes, oppsRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('id, full_name, avatar_url, bio, club, city, coaching_role, coaching_level, coaching_history, last_active')
+            .select('id, full_name, avatar_url, bio, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent')
             .eq('id', id)
             .eq('role', 'coach')
             .single(),
@@ -307,6 +310,11 @@ export default function CoachPublicProfile() {
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           {coach.full_name ?? 'Coach'}
         </h1>
+        {isAgent(coach) && (
+          <div className="mt-2 flex justify-center">
+            <AgentBadge />
+          </div>
+        )}
         <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>{subtitle}</p>
 
         {isOwnProfile && (

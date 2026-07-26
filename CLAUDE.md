@@ -27,6 +27,8 @@ Single source of truth: profiles table.
 Role: 'player' | 'coach' | 'admin' | 'fan'
 Fan accounts = browse-only. No posting, no messaging. Fans see a "Become a Player or Coach" banner on the player homepage and can self-convert via /dashboard/become (→ /api/account/convert); conversion is instant (keeps approved=true, no re-approval).
 admin role also counts as a player — use .in('role', ['player', 'admin']) for player queries
+Founder = the admin account (Jamal). isFounder(role) returns role === 'admin' — admin role doubles as the founder flag (app/components/FounderBadge.tsx is the single source of truth).
+Agent = a coach row with is_agent = true (admin-toggled). Keeps every coach ability EXCEPT initiating a conversation with another coach (enforced in /api/messages/send). isAgent() in app/components/AgentBadge.tsx is the single source of truth.
 approved: boolean — approval_status: text (pending | approved | declined)
 premium: boolean — flipped by Stripe webhook
 actively_looking: boolean — premium-only toggle for player visibility; NOT auto-enabled on upgrade (player must opt in); server-enforced (API rejects true for non-premium)
@@ -34,7 +36,7 @@ Status values: free_agent | signed | loan_dual_reg | just_exploring
 ⚠️ status is a profile display field only. The "Free Agents" filter and Actively Looking carousel use actively_looking, NOT status = 'free_agent'
 
 Key columns:
-id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, actively_looking, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at
+id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, actively_looking, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at, is_agent
 
 Active tables
 profiles, conversations, messages, player_views, shortlist_alerts,
@@ -202,6 +204,7 @@ Admin
 POST /api/admin/review — approve/decline with MailerLite + Twilio
 POST /api/admin/stripe-reconcile — fixes out-of-sync premium states
 POST /api/admin/delete-user — hard delete a user account
+POST /api/admin/set-agent — admin-only: toggle is_agent on a coach (marks/unmarks them as an agent)
 POST /api/admin/rescue-profile — repair orphaned/broken profile
 GET  /api/admin/profiles — list all profiles (admin panel)
 GET  /api/admin/messages — list recent messages (admin view)
@@ -257,14 +260,14 @@ Player
 Route                                   Status
 /dashboard/player                       Dashboard — completion score, streak, opportunities, activity ✅
 /dashboard/player/profile               Full profile edit, avatar, season stats ✅
-/dashboard/player/players               Browse all approved players, filter by position/level/status/club ✅
+/dashboard/player/players               Browse all approved players, filter by position/level/status/club ✅ tier-blind, activity-first, newest-first ordering (premium does NOT float to top); seed/test profiles hidden
 /dashboard/player/players/[id]          Player profile, view tracking, shortlist button (Coach Pro gated) ✅
 /dashboard/player/market                Redirect shim → /dashboard/opportunities (activity/messages tabs route to their own pages) ↩️
 /dashboard/player/premium               Upgrade page ✅
 /dashboard/player/messages              Player message inbox ✅
 /dashboard/player/opportunities         Redirect → /dashboard/opportunities ↩️
 /dashboard/player/coaches               Redirect → /dashboard/coaches ↩️
-/dashboard/player/activity              Profile activity overview ✅
+/dashboard/player/activity              Profile activity overview — Instagram-style grouping of alerts ✅
 /dashboard/player/activity/profile-views  Who viewed my profile (detail) ✅
 /dashboard/player/extra-messages        Extra message credits balance + purchase ✅
 
@@ -276,7 +279,7 @@ Route                                        Status
 /dashboard/coach/shortlists                  Saved players — CRUD wired via /api/coach/shortlist ✅
 /dashboard/coach/opportunities               Redirect → /dashboard/opportunities ↩️
 /dashboard/coach/market                      4-tab hub: Messages, Opportunities, Shortlists, Activity ✅
-/dashboard/coach/players                     Browse players (coach view) ✅
+/dashboard/coach/players                     Browse players (coach view) ✅ same tier-blind, activity-first, newest-first ordering; seed/test profiles hidden
 /dashboard/coach/performance                 Coach Pro: recruit-by-stats dashboard (facts-only sort/filter, consent-gated) ✅
 /dashboard/coach/coaches                     Redirect → /dashboard/coaches ↩️
 /dashboard/coach/premium                     Coach upgrade page ✅
@@ -317,8 +320,9 @@ pattern as /feed — renders the correct sidebar + bottom nav per role). Old rou
 - Coaches: All Roles (global table) + Your Roles tabs, with "Add Opportunity" and inline
   applicant management (view/accept/reject/close/delete) on their own roles. Coaches can
   apply to OTHER clubs' coaching-staff roles (opportunity_type='coach', Coach Pro gated).
-- Card UI lives in app/components/OpportunityBadges.tsx (StepBadge + LevelBadge + ClubCrest),
+- Card UI lives in app/components/OpportunityBadges.tsx (StepBadge + LevelBadge),
   reused by the homepage opportunity previews too. Level labels come from lib/opportunityLevel.ts.
+  Club crest chips were removed from all opportunity surfaces — do not reintroduce them.
 - STEP COLOUR: lib/stepTokens.ts (STEP_TOKENS + getStepToken) is the SINGLE source of truth for
   non-league step colours — badges, the card's left accent rail, LevelBadge (opportunityLevel.ts
   sources its Step 1–7 colours from here), and future map pins / filter chips. Never hardcode a
@@ -337,6 +341,17 @@ PremiumLock — wherever features are gated
 CoachBottomNav + CoachSidebar — persistent on coach routes via coach/layout.tsx
 BottomNav — persistent on player routes via player/layout.tsx
 /dashboard/profile — role-aware, shared between player and coach
+
+Badges & chips (identity signals on names across lists, carousels, marquees, public profiles, feed):
+- FounderBadge (app/components/FounderBadge.tsx) — navy chip. isFounder(role) === (role === 'admin'). Shown next to Jamal everywhere.
+- AgentBadge (app/components/AgentBadge.tsx) — amber chip, REPLACES the COACH chip. isAgent(p) === (role === 'coach' && is_agent === true). Amber is deliberate — never green (green is availability-only).
+- NewBadge — recency signal on browse list items + coaches list.
+- Every surface that renders a role chip should render the founder/agent variant when applicable — use the isFounder/isAgent helpers, never re-derive the rule inline.
+
+Hidden profiles (lib/hiddenProfiles.ts):
+- HIDDEN_PROFILE_IDS / HIDDEN_PROFILE_FILTER — seed/test/internal accounts stay fully live (sign in + every journey works) but are filtered out of ALL discovery surfaces: player/coach browse, Actively Looking + Featured carousels, Recently Active marquees, coach recommendations.
+- Their own profile page (/dashboard/player/players/[id]) is intentionally NOT filtered — direct access still works so you can log in as them and verify flows end to end.
+- When adding a new discovery query, apply .not('id', 'in', HIDDEN_PROFILE_FILTER).
 
 Premium conversion surfaces (all copy from lib/premiumContent.ts — single source of truth, never hardcode):
 - lib/premiumContent.ts — canonical copy/stats/feature order. PROOF_LINE, PREMIUM_STATS, MODAL_BULLETS, COMPARISON_ROWS, DISCOVER_EMOTIONAL_LINE, price constants, liveCountSuffix(). RULE: every surface sells "pay to be found" in this order with these exact figures.

@@ -123,6 +123,53 @@ const STATUS_COLORS: Record<Status, string> = {
   just_exploring:'#f59e0b',
 }
 
+// ─── Supporter Upgrade Banner ─────────────────────────────────────────────────
+// Fans have browse-only access. This banner makes the restriction explicit and
+// funnels them into the fan → player/coach conversion flow at /dashboard/become.
+
+function FanUpgradeBanner() {
+  const locked = [
+    { icon: '💬', label: 'Message' },
+    { icon: '✍️', label: 'Post' },
+    { icon: '📋', label: 'Apply' },
+  ]
+  return (
+    <div className="px-4 pb-4">
+      <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+              You&apos;re browsing as a Supporter
+            </p>
+            <p className="text-xs mt-1 leading-snug" style={{ color: '#8892aa' }}>
+              Messaging, posting and applying to roles are player &amp; coach features. Add your details to unlock the full account.
+            </p>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0"
+            style={{ backgroundColor: 'rgba(136,146,170,0.15)', color: '#8892aa' }}>
+            Restricted
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 mt-3">
+          {locked.map((l) => (
+            <span key={l.label} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full"
+              style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#8892aa' }}>
+              <span style={{ opacity: 0.7 }}>🔒</span>{l.label}
+            </span>
+          ))}
+        </div>
+
+        <Link href="/dashboard/become"
+          className="block text-center w-full mt-4 rounded-full py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors"
+          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+          Become a Player or Coach →
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // ─── Profile Completion Bar ───────────────────────────────────────────────────
 
 function ProfileCompletionBar({ profile }: { profile: Profile }) {
@@ -889,6 +936,9 @@ export default function PlayerHome() {
           <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span>
         </p>
       </div>
+
+      {/* Supporter → full account conversion prompt (fans only) */}
+      {profile?.role === 'fan' && <FanUpgradeBanner />}
 
       {/* Weekend log nudge — Sat–Mon, players only */}
       {profile?.role !== 'fan' && performanceTrackerEnabled() && <WeekendLogBanner />}

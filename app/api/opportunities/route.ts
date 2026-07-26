@@ -35,6 +35,17 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
+  // Only coaches (and admins) may post opportunities. The UI only exposes this
+  // to coaches, but guard the API so players/fans can't create roles directly.
+  const { data: poster } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (!poster || (poster.role !== 'coach' && poster.role !== 'admin')) {
+    return NextResponse.json({ error: 'Only coaches can post opportunities' }, { status: 403 })
+  }
+
   let rawBody: unknown
   try {
     rawBody = await req.json()

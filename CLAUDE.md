@@ -25,7 +25,7 @@ Single source of truth: profiles table.
 
 
 Role: 'player' | 'coach' | 'admin' | 'fan'
-Fan accounts = browse-only. No posting, no messaging.
+Fan accounts = browse-only. No posting, no messaging. Fans see a "Become a Player or Coach" banner on the player homepage and can self-convert via /dashboard/become (→ /api/account/convert); conversion is instant (keeps approved=true, no re-approval).
 admin role also counts as a player — use .in('role', ['player', 'admin']) for player queries
 approved: boolean — approval_status: text (pending | approved | declined)
 premium: boolean — flipped by Stripe webhook
@@ -226,6 +226,9 @@ PATCH/DELETE /api/posts/[id] — edit or delete a post
 Registration
 POST /api/register/complete — complete signup (sets profile fields, sms_opt_in)
 
+Account
+POST /api/account/convert — fan → player/coach conversion. Fan-only (403 otherwise). Server-enforced core-fields gate (player: name/DOB/city/level/position/club; coach: name/role/level/club). Keeps approved=true (instant access, no re-approval), mirrors role into auth metadata, adds to MailerLite group (onUserApproved), notifies founder via Make webhook. Rate-limited (accountConvert, 5/min).
+
 Unsubscribe
 POST /api/unsubscribe — sets email_marketing_opt_out on profile
 
@@ -287,6 +290,7 @@ Route                         Status
 /dashboard/profile            Role-aware profile edit (player + coach) ✅
 /dashboard/feed               Community feed (posts, likes, comments) ✅
 /dashboard/showcase           Showcase Day registration page ✅
+/dashboard/become             Fan → player/coach conversion (fan-only; role picker + gated fields) ✅
 /dashboard/admin              Approve/decline pending registrations ✅
 /dashboard/admin/analytics    Full analytics dashboard (revenue, platform, messages) ✅
 
@@ -345,9 +349,10 @@ Premium conversion surfaces (all copy from lib/premiumContent.ts — single sour
 Known Gaps (prioritised)
 Confirmed open issues. Fix in this order:
 
-Opportunities POST has no coach-role check — /api/opportunities POST lets ANY authenticated user (player/fan/coach) create an opportunity with coach_id = their own id. UI only exposes it to coaches, but the API doesn't enforce it. Add a role guard.
+(none currently blocking)
 
 Recently closed (no longer gaps — kept for context):
+- Opportunities POST coach-role check — /api/opportunities POST now loads the poster's profile and rejects anyone who isn't coach/admin (403). Closes the hole where any authenticated user (player/fan) could create a role via the API. ✅
 - Zod validation — now on ALL 17 body-reading API routes (every route that reads req.json()). safeParse after the auth/rate-limit checks, returns 400 on bad shape. Existing error strings preserved. Pattern: define a z.object schema per route (see any route for the shape). ✅
 - Rate limiting — per-user Upstash sliding-window limiter (lib/ratelimit.ts) on the cost-bearing/abuse-prone routes: messages/send (20/min), messages/initiate (10/min), applications/apply (10/min), stripe/checkout + message-pack (10/min), register/complete (5/min). Fail-open if Upstash unconfigured. Env: UPSTASH_REDIS_KV_REST_API_URL/TOKEN (Preview + Production only — local dev runs with limiting OFF). ✅
 - Privacy Policy & Terms — real copy now live at /privacy and /terms. ✅
@@ -380,7 +385,6 @@ Immediate (fix + activate)
 
 Ship launch video + paid ad to drive existing users onto the new app
 Re-engagement email/SMS to the ~90% who haven't signed in yet
-Add coach-role guard to /api/opportunities POST (currently any user can post a role)
 
 Growth & Monetisation
 

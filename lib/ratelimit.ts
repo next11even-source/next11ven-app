@@ -29,6 +29,7 @@ type LimitName =
   | 'applicationsApply'
   | 'stripeCheckout'
   | 'registerComplete'
+  | 'accountConvert'
 
 // requests allowed per 60s sliding window, per user. Generous for real humans,
 // tight enough to stop a runaway loop or scripted abuse.
@@ -38,6 +39,7 @@ const LIMITS: Record<LimitName, number> = {
   applicationsApply: 10,
   stripeCheckout: 10,
   registerComplete: 5,
+  accountConvert: 5,
 }
 
 const limiters: Record<LimitName, Ratelimit> | null = redis

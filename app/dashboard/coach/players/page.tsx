@@ -37,6 +37,8 @@ const QUICK_TABS: { key: QuickTab; label: string; color: string }[] = [
   { key: 'new',              label: 'New Players',      color: '#f59e0b' },
 ]
 
+type SortKey = 'active' | 'newest'
+
 type Filters = {
   position: string
   location: string
@@ -402,6 +404,7 @@ export default function CoachPlayersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [quickTab, setQuickTab] = useState<QuickTab>('all')
+  const [sort, setSort] = useState<SortKey>('active')
   const [appliedFilters, setAppliedFilters] = useState<Filters>(EMPTY_FILTERS)
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS)
   const [showFilters, setShowFilters] = useState(false)
@@ -429,7 +432,7 @@ export default function CoachPlayersPage() {
   }, [])
 
   // Reset to first page whenever the filter set changes.
-  useEffect(() => { setPage(0) }, [search, quickTab, appliedFilters])
+  useEffect(() => { setPage(0) }, [search, quickTab, sort, appliedFilters])
 
   // Paginated, server-side-filtered fetch. Only PAGE_SIZE rows leave Supabase per
   // page/filter combination — no full-table download, no client-side slicing.
@@ -465,13 +468,18 @@ export default function CoachPlayersPage() {
       const s = search.trim().replace(/[%,()]/g, ' ')
       if (s) query = query.or(`full_name.ilike.%${s}%,club.ilike.%${s}%,city.ilike.%${s}%`)
 
-      // Tier-blind ordering: active players surface first regardless of premium,
-      // so browse never reads as pay-to-be-seen. Premium's real perks are the
-      // ★ badge + the Actively Looking carousel above, not list ranking.
-      const { data, count } = await query
-        .order('last_active', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false })
-        .range(from, to)
+      // 'newest' surfaces the most recent joiners first — lets coaches catch new
+      // signups they might have missed. Default 'active' is tier-blind: active
+      // players surface first regardless of premium, so browse never reads as
+      // pay-to-be-seen. Premium's real perks are the ★ badge + the Actively
+      // Looking carousel above, not list ranking.
+      const ordered = sort === 'newest'
+        ? query.order('created_at', { ascending: false })
+        : query
+            .order('last_active', { ascending: false, nullsFirst: false })
+            .order('created_at', { ascending: false })
+
+      const { data, count } = await ordered.range(from, to)
 
       setPlayers((data as Player[]) ?? [])
       setTotalCount(count ?? 0)
@@ -479,7 +487,7 @@ export default function CoachPlayersPage() {
     }, search ? 350 : 0)
 
     return () => clearTimeout(handler)
-  }, [page, search, quickTab, appliedFilters])
+  }, [page, search, quickTab, sort, appliedFilters])
 
   // Capture coach search activity → coach_search_history (feeds recommendations).
   // Debounced 500ms; RLS limits inserts to coach accounts on their own rows.
@@ -570,20 +578,38 @@ export default function CoachPlayersPage() {
                 Players
               </h1>
             </div>
-            <button onClick={openFilters}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold relative"
-              style={{ backgroundColor: activeFilterCount > 0 ? '#2d5fc420' : '#13172a', border: `1px solid ${activeFilterCount > 0 ? '#2d5fc4' : '#1e2235'}`, color: activeFilterCount > 0 ? '#2d5fc4' : '#8892aa' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
-              </svg>
-              Filter
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={sort}
+                  onChange={e => setSort(e.target.value as SortKey)}
+                  aria-label="Sort players"
+                  className="rounded-xl pl-3 pr-8 py-2 text-sm font-semibold outline-none appearance-none"
+                  style={{ backgroundColor: sort === 'newest' ? '#2d5fc420' : '#13172a', border: `1px solid ${sort === 'newest' ? '#2d5fc4' : '#1e2235'}`, color: sort === 'newest' ? '#2d5fc4' : '#8892aa' }}>
+                  <option value="active" style={{ backgroundColor: '#0a0a0a', color: '#e8dece' }}>Recently active</option>
+                  <option value="newest" style={{ backgroundColor: '#0a0a0a', color: '#e8dece' }}>Newest</option>
+                </select>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: sort === 'newest' ? '#2d5fc4' : '#8892aa' }}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </div>
+              <button onClick={openFilters}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold relative"
+                style={{ backgroundColor: activeFilterCount > 0 ? '#2d5fc420' : '#13172a', border: `1px solid ${activeFilterCount > 0 ? '#2d5fc4' : '#1e2235'}`, color: activeFilterCount > 0 ? '#2d5fc4' : '#8892aa' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+                </svg>
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Quick tabs */}

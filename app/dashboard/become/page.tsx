@@ -7,6 +7,7 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { toTitleCase } from '@/lib/utils'
 import { dobBounds, DOB_HELP } from '@/lib/dob'
+import { HEIGHT_OPTIONS } from '@/lib/height'
 
 const { min: DOB_MIN, max: DOB_MAX } = dobBounds()
 
@@ -286,7 +287,10 @@ export default function BecomePage() {
                     </Select>
                   </Field>
                   <Field label="Height">
-                    <Input value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 5'11" />
+                    <Select value={height} onChange={(e) => setHeight(e.target.value)}>
+                      <option value="">Select…</option>
+                      {HEIGHT_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+                    </Select>
                   </Field>
                 </div>
                 <Field label="Current Status">

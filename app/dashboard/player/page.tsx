@@ -172,31 +172,34 @@ function FanUpgradeBanner() {
 // ─── Profile Completion Bar ───────────────────────────────────────────────────
 
 function ProfileCompletionBar({ profile }: { profile: Profile }) {
-  const { pct, missing } = calcCompletion(profile)
-  if (pct === 100) return null
+  const { pct, next } = calcCompletion(profile)
+  if (pct === 100 || !next) return null
 
   const barColor = pct < 40 ? '#f59e0b' : pct < 75 ? '#2d5fc4' : '#34d399'
 
   return (
     <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
-      <div className="mx-4 rounded-2xl px-4 py-2.5"
+      <div className="mx-4 rounded-2xl px-4 py-3 space-y-2"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
-          <div className="flex-1 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
-                Profile Completion
-              </p>
-              <span className="text-xs font-bold" style={{ color: barColor }}>{pct}%</span>
-            </div>
-            <div className="w-full rounded-full h-1" style={{ backgroundColor: '#1e2235' }}>
-              <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-            </div>
+          {/* Name the single highest-value gap rather than a bare percentage —
+              "45%" tells a player nothing about what to actually do next. */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>
+              Add your {next.label.toLowerCase()}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{next.why}</p>
           </div>
           <span className="text-xs font-semibold flex-shrink-0 px-3 py-1 rounded-full"
             style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.3)' }}>
-            Complete →
+            Add →
           </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 rounded-full h-1" style={{ backgroundColor: '#1e2235' }}>
+            <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+          </div>
+          <span className="text-xs font-bold flex-shrink-0" style={{ color: barColor }}>{pct}%</span>
         </div>
       </div>
     </Link>

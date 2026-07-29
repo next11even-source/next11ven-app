@@ -8,6 +8,7 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
 import { dobBounds, validateDob, DOB_HELP } from '@/lib/dob'
+import { HEIGHT_OPTIONS } from '@/lib/height'
 
 const PLAYING_LEVELS = LEVELS
 const COACHING_LEVELS = LEVELS
@@ -355,7 +356,10 @@ export default function RegisterPage() {
                     </Select>
                   </Field>
                   <Field label="Height">
-                    <Input value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 5'11" />
+                    <Select value={height} onChange={(e) => setHeight(e.target.value)}>
+                      <option value="">Select…</option>
+                      {HEIGHT_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+                    </Select>
                   </Field>
                 </div>
                 <Field label="Current Status">

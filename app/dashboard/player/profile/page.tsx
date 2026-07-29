@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
 import { dobBounds } from '@/lib/dob'
+import { HEIGHT_OPTIONS, parseHeight, displayHeight } from '@/lib/height'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
@@ -389,7 +390,9 @@ export default function PlayerProfilePage() {
     setClub(p.club ?? '')
     setPlayingLevel(p.playing_level ?? '')
     setFoot(p.foot ?? '')
-    setHeight(p.height ?? '')
+    // Map a legacy free-text height onto a dropdown option so it pre-selects.
+    // Unparseable values fall back to '' rather than showing a phantom selection.
+    setHeight(parseHeight(p.height) ?? '')
     setStatus(p.status ?? '')
     setContractStatus(p.contract_status ?? '')
     setGoals(p.goals ?? 0)
@@ -545,7 +548,12 @@ export default function PlayerProfilePage() {
                     <option value="Both">Both</option>
                   </Select>
                 </Field>
-                <Field label="Height"><Input value={height} onChange={e => setHeight(e.target.value)} placeholder="e.g. 5'11" /></Field>
+                <Field label="Height">
+                  <Select value={height} onChange={e => setHeight(e.target.value)}>
+                    <option value="">Select…</option>
+                    {HEIGHT_OPTIONS.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
+                  </Select>
+                </Field>
               </div>
               <Field label="Availability Status">
                 <Select value={status} onChange={e => setStatus(e.target.value)}>
@@ -571,7 +579,7 @@ export default function PlayerProfilePage() {
               <ReadOnlyRow label="Club" value={profile.club} />
               <ReadOnlyRow label="Level" value={profile.playing_level} />
               <ReadOnlyRow label="Foot" value={profile.foot} />
-              <ReadOnlyRow label="Height" value={profile.height} />
+              <ReadOnlyRow label="Height" value={displayHeight(profile.height)} />
               <ReadOnlyRow label="Status" value={profile.status ? { free_agent: 'Free Agent', signed: 'Signed to a club', loan_dual_reg: 'Looking for Loan / Dual Reg', just_exploring: 'Just Exploring' }[profile.status] ?? null : null} />
               <ReadOnlyRow label="Contract" value={profile.contract_status ? { non_contract: 'Non-contract', contracted: 'Contracted', out_of_contract: 'Out of contract' }[profile.contract_status] ?? null : null} />
             </div>

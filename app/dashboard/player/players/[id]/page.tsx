@@ -11,6 +11,7 @@ import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
+import { displayHeight } from '@/lib/height'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -598,7 +599,7 @@ export default function PlayerPublicProfile() {
             <Row label="Contract" value={player.contract_status ? { non_contract: 'Non-contract', contracted: 'Contracted', out_of_contract: 'Out of contract' }[player.contract_status] ?? null : null} />
             <Row label="Playing Level" value={player.playing_level} />
             <Row label="Strongest Foot" value={player.foot} />
-            <Row label="Height" value={player.height} />
+            <Row label="Height" value={displayHeight(player.height)} />
             <Row label="Location" value={player.city} />
           </div>
         </div>

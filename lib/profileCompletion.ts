@@ -1,8 +1,20 @@
 // Single source of truth for profile completion scoring.
 // Used by player homepage and player profile page — keep in sync.
+//
+// ORDER IS THE RANKING. Checks are listed most-valuable first, and the
+// completion bar names the first unfinished one, so this array decides what we
+// ask people for. It is sorted by what actually costs a player opportunities,
+// which is not the same as what's cheapest to fill in:
+//   - Photo first. 52% of players have none, and a profile without a face is
+//     the one a coach scrolls past. Biggest single gap on the platform.
+//   - Bio second. Literally 0 of 889 profiles had one — it's the only field
+//     where a player speaks for themselves, and nobody knows it exists.
+//   - Then the fields coaches filter and search on.
+//   - Phone/DOB/height last: admin detail, invisible to the people recruiting.
 
 export type CompletionProfile = {
   avatar_url?: string | null
+  bio?: string | null
   position?: string | null
   club?: string | null
   city?: string | null
@@ -18,27 +30,44 @@ export type CompletionProfile = {
   appearances?: number
 }
 
-export const COMPLETION_CHECKS: { label: string; done: (p: CompletionProfile) => boolean }[] = [
-  { label: 'Profile photo',  done: p => !!p.avatar_url },
-  { label: 'Position',       done: p => !!p.position },
-  { label: 'Club',           done: p => !!p.club },
-  { label: 'Location',       done: p => !!p.city },
-  { label: 'Availability',   done: p => !!p.status },
-  { label: 'Phone number',   done: p => !!p.phone },
-  { label: 'Date of birth',  done: p => !!p.date_of_birth },
-  { label: 'Strongest foot', done: p => !!p.foot },
-  { label: 'Height',         done: p => !!p.height },
-  { label: 'Playing level',  done: p => !!p.playing_level },
-  { label: 'Highlight reel', done: p => Array.isArray(p.highlight_urls) && p.highlight_urls.length > 0 },
-  { label: 'Season stats',   done: p => (p.goals ?? 0) > 0 || (p.assists ?? 0) > 0 || (p.appearances ?? 0) > 0 },
+/** `why` is shown to the player as the reason to bother. Keep it concrete. */
+export type CompletionCheck = {
+  label: string
+  why: string
+  done: (p: CompletionProfile) => boolean
+}
+
+export const COMPLETION_CHECKS: CompletionCheck[] = [
+  { label: 'Profile photo',  why: 'Profiles with a photo get looked at first.',            done: p => !!p.avatar_url },
+  { label: 'Bio',            why: 'Your one chance to speak for yourself.',                done: p => !!p.bio },
+  { label: 'Highlight reel', why: 'Coaches want to see you play before they message.',     done: p => Array.isArray(p.highlight_urls) && p.highlight_urls.length > 0 },
+  { label: 'Position',       why: 'Coaches filter by position — you\'re invisible without it.', done: p => !!p.position },
+  { label: 'Playing level',  why: 'Matches you to roles at the right step.',               done: p => !!p.playing_level },
+  { label: 'Location',       why: 'Coaches search by area to find players nearby.',        done: p => !!p.city },
+  { label: 'Availability',   why: 'Tells coaches whether you can actually be signed.',     done: p => !!p.status },
+  { label: 'Club',           why: 'Shows where you\'re playing now.',                      done: p => !!p.club },
+  { label: 'Season stats',   why: 'Numbers back up everything else on your profile.',      done: p => (p.goals ?? 0) > 0 || (p.assists ?? 0) > 0 || (p.appearances ?? 0) > 0 },
+  { label: 'Strongest foot', why: 'A detail coaches ask about constantly.',                done: p => !!p.foot },
+  { label: 'Height',         why: 'Relevant for some positions and set pieces.',           done: p => !!p.height },
+  { label: 'Date of birth',  why: 'Confirms your age bracket for age-group sides.',        done: p => !!p.date_of_birth },
+  { label: 'Phone number',   why: 'How a coach reaches you once they\'re interested.',     done: p => !!p.phone },
 ]
 
-export function calcCompletion(profile: CompletionProfile): { pct: number; missing: string[] } {
-  const results = COMPLETION_CHECKS.map(c => ({ label: c.label, isDone: c.done(profile) }))
+export function calcCompletion(profile: CompletionProfile): {
+  pct: number
+  missing: string[]
+  /** First unfinished check in ranked order — what the bar should ask for. */
+  next: CompletionCheck | null
+} {
+  const results = COMPLETION_CHECKS.map(c => ({ check: c, isDone: c.done(profile) }))
   const filled = results.filter(r => r.isDone).length
   const pct = Math.round((filled / results.length) * 100)
-  const missing = results.filter(r => !r.isDone).map(r => r.label)
-  return { pct, missing }
+  const outstanding = results.filter(r => !r.isDone)
+  return {
+    pct,
+    missing: outstanding.map(r => r.check.label),
+    next: outstanding[0]?.check ?? null,
+  }
 }
 
 // ─── Coach completion ─────────────────────────────────────────────────────────
@@ -55,22 +84,39 @@ export type CoachCompletionProfile = {
   coaching_history?: string | null
 }
 
-export const COACH_COMPLETION_CHECKS: { label: string; done: (p: CoachCompletionProfile) => boolean }[] = [
-  { label: 'Profile photo',     done: p => !!p.avatar_url },
-  { label: 'Full name',         done: p => !!p.full_name },
-  { label: 'Coaching role',     done: p => !!p.coaching_role },
-  { label: 'Coaching level',    done: p => !!p.coaching_level },
-  { label: 'Club / Organisation', done: p => !!p.club },
-  { label: 'Location',          done: p => !!p.city },
-  { label: 'Phone number',      done: p => !!p.phone },
-  { label: 'Bio',               done: p => !!p.bio },
-  { label: 'Coaching history',  done: p => !!p.coaching_history },
+// Same ranking principle as the player list. 76% of coaches have no photo and
+// none have a bio, so those lead — a faceless coach is one players hesitate to
+// reply to, and replies are the whole point of the account.
+export type CoachCompletionCheck = {
+  label: string
+  why: string
+  done: (p: CoachCompletionProfile) => boolean
+}
+
+export const COACH_COMPLETION_CHECKS: CoachCompletionCheck[] = [
+  { label: 'Profile photo',       why: 'Players reply to a coach they can see.',              done: p => !!p.avatar_url },
+  { label: 'Bio',                 why: 'Tell players what you look for in a signing.',        done: p => !!p.bio },
+  { label: 'Club / Organisation', why: 'Players want to know who they\'d be joining.',        done: p => !!p.club },
+  { label: 'Coaching role',       why: 'Shows players who they\'re dealing with.',            done: p => !!p.coaching_role },
+  { label: 'Coaching level',      why: 'Sets expectations about the standard you work at.',   done: p => !!p.coaching_level },
+  { label: 'Coaching history',    why: 'Your track record is what earns a reply.',            done: p => !!p.coaching_history },
+  { label: 'Location',            why: 'Players search by area to find clubs nearby.',        done: p => !!p.city },
+  { label: 'Full name',           why: 'Anonymous accounts get ignored.',                     done: p => !!p.full_name },
+  { label: 'Phone number',        why: 'How a player reaches you once you\'ve made contact.', done: p => !!p.phone },
 ]
 
-export function calcCoachCompletion(profile: CoachCompletionProfile): { pct: number; missing: string[] } {
-  const results = COACH_COMPLETION_CHECKS.map(c => ({ label: c.label, isDone: c.done(profile) }))
+export function calcCoachCompletion(profile: CoachCompletionProfile): {
+  pct: number
+  missing: string[]
+  next: CoachCompletionCheck | null
+} {
+  const results = COACH_COMPLETION_CHECKS.map(c => ({ check: c, isDone: c.done(profile) }))
   const filled = results.filter(r => r.isDone).length
   const pct = Math.round((filled / results.length) * 100)
-  const missing = results.filter(r => !r.isDone).map(r => r.label)
-  return { pct, missing }
+  const outstanding = results.filter(r => !r.isDone)
+  return {
+    pct,
+    missing: outstanding.map(r => r.check.label),
+    next: outstanding[0]?.check ?? null,
+  }
 }

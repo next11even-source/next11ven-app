@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   const { data: target } = await service
     .from('profiles')
-    .select('email, full_name, role, city, location, phone, sms_opt_in')
+    .select('email, full_name, role, city, phone, sms_opt_in')
     .eq('id', user_id)
     .single()
 
@@ -90,8 +90,7 @@ export async function POST(req: NextRequest) {
   // Fire MailerLite — awaited so it completes before the serverless function returns
   if (isApproving && target?.email) {
     try {
-      const city = [target.city, target.location].filter(Boolean).join(', ') || null
-      await onUserApproved(target.email, target.full_name, target.role, city)
+      await onUserApproved(target.email, target.full_name, target.role, target.city ?? null)
     } catch (err) {
       console.error('[MailerLite] onUserApproved error:', err)
     }

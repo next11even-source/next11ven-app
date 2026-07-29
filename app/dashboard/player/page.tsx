@@ -105,7 +105,6 @@ type FeedPost = {
     avatar_url: string | null
     role: string | null
     position: string | null
-    location: string | null
   } | null
 }
 
@@ -857,7 +856,7 @@ export default function PlayerHome() {
         // Open opportunities count
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('is_active', true),
         // Feed preview — show enough cards to scroll through
-        supabase.from('posts').select('id, post_type, caption, image_url, created_at, author:profiles!author_id(full_name, avatar_url, role, position, location)').eq('is_deleted', false).order('created_at', { ascending: false }).limit(15),
+        supabase.from('posts').select('id, post_type, caption, image_url, created_at, author:profiles!author_id(full_name, avatar_url, role, position)').eq('is_deleted', false).order('created_at', { ascending: false }).limit(15),
       ])
 
       const profileData = profileRes.data as Profile

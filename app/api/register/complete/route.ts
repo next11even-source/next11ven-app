@@ -18,7 +18,6 @@ const RegisterSchema = z.object({
   date_of_birth: z.string().nullish(),
   role: z.string().nullish(),
   city: z.string().max(160).nullish(),
-  location: z.string().max(200).nullish(),
   referral: z.string().max(500).nullish(),
   gdpr_consent: z.boolean().nullish(),
   playing_level: z.string().nullish(),
@@ -33,6 +32,27 @@ const RegisterSchema = z.object({
   coaching_level: z.string().nullish(),
   coaching_history: z.string().max(5000).nullish(),
 })
+
+// Core-fields gate — server-enforced so the client can't wave through a profile
+// that nobody can find. Coaches only: an audit of live data showed coaches
+// signing up on this form were arriving emptier than the ones migrated off the
+// old site (27% no coaching role, 24% no level, 27% no city), while player
+// fields were already at ~99% without enforcement. Adding friction to the
+// player form would cost signups and buy nothing, so it stays optional there.
+// DOB is deliberately NOT required for coaches — nothing filters coaches by age.
+function missingCoachFields(b: z.infer<typeof RegisterSchema>): string[] {
+  const missing: string[] = []
+  const need = (label: string, value: unknown) => {
+    if (!value || (typeof value === 'string' && !value.trim())) missing.push(label)
+  }
+  need('Full name', b.full_name)
+  need('Mobile number', b.phone)
+  need('Nearest city', b.city)
+  need('Coaching role', b.coaching_role)
+  need('Coaching level', b.coaching_level)
+  need('Current club', b.club)
+  return missing
+}
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -83,16 +103,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
 
+  // A phone that can't be normalised would be stored as null — reject it rather
+  // than creating an account with the number silently dropped.
+  const phone = normalizePhone(body.phone as string | null)
+  if (body.phone?.trim() && !phone) {
+    return NextResponse.json({ error: 'Enter a valid UK mobile number, e.g. 07700 900000' }, { status: 400 })
+  }
+
+  if (role === 'coach') {
+    const missing = missingCoachFields(body)
+    if (missing.length) {
+      return NextResponse.json({ error: `Please complete: ${missing.join(', ')}` }, { status: 400 })
+    }
+  }
+
   const profilePayload: Record<string, unknown> = {
     id: userId,
     full_name: body.full_name ?? null,
     email: body.email ?? null,
-    phone: normalizePhone(body.phone as string | null) ?? null,
-    sms_opt_in: !!body.phone,
+    phone,
+    // Opt-in follows the number we actually stored, not the raw input — the old
+    // `!!body.phone` left 29 profiles flagged for SMS with no phone on file.
+    sms_opt_in: !!phone,
     date_of_birth: body.date_of_birth ?? null,
     role: role ?? null,
     city: body.city ?? null,
-    location: body.location ?? null,
     referral: body.referral ?? null,
     gdpr_consent: body.gdpr_consent ?? false,
     approved: false,

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
-import { toTitleCase } from '@/lib/utils'
+import { toTitleCase, normalizePhone } from '@/lib/utils'
 
 const PLAYING_LEVELS = LEVELS
 const COACHING_LEVELS = LEVELS
@@ -72,9 +72,9 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [dob, setDob] = useState('')
   const [city, setCity] = useState('')
-  const [location, setLocation] = useState('')
   const [referral, setReferral] = useState('')
   const [gdpr, setGdpr] = useState(false)
 
@@ -98,6 +98,15 @@ export default function RegisterPage() {
     e.preventDefault()
     if (!role) return
     if (!gdpr) { setError('You must accept the terms to continue.'); return }
+
+    // A phone number that can't be normalised gets stored as null, so catch it
+    // here rather than letting the account save with the number silently dropped.
+    const normalisedPhone = normalizePhone(phone)
+    if (phone.trim() && !normalisedPhone) {
+      setPhoneError('Enter a valid UK mobile number, e.g. 07700 900000')
+      setError('Check the highlighted field and try again.')
+      return
+    }
 
     setError(null)
     setLoading(true)
@@ -130,11 +139,10 @@ export default function RegisterPage() {
       userId,
       full_name: fullName,
       email,
-      phone: phone || null,
+      phone: normalisedPhone,
       date_of_birth: dob || null,
       role,
       city: city || null,
-      location: location || null,
       referral: referral || null,
       gdpr_consent: gdpr,
     }
@@ -166,7 +174,11 @@ export default function RegisterPage() {
 
     if (!profileRes.ok) {
       const profileData = await profileRes.json().catch(() => ({}))
-      setError('Account created but profile save failed: ' + (profileData.error ?? 'Unknown error'))
+      // 400 = the server-side field gate rejected the payload. Show its message
+      // as-is; anything else is a genuine save failure worth flagging as one.
+      setError(profileRes.status === 400
+        ? (profileData.error ?? 'Please check your details and try again.')
+        : 'Account created but profile save failed: ' + (profileData.error ?? 'Unknown error'))
       setLoading(false)
       return
     }
@@ -257,22 +269,31 @@ export default function RegisterPage() {
               <Field label="Password">
                 <Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" minLength={6} />
               </Field>
-              <Field label="Phone (+44 format)">
-                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+447700900000" />
+              <Field label={role === 'coach' ? 'Mobile Number' : 'Mobile Number (Optional)'}>
+                <Input
+                  required={role === 'coach'}
+                  type="tel"
+                  value={phone}
+                  placeholder="07700 900000"
+                  onChange={(e) => { setPhone(e.target.value); if (phoneError) setPhoneError(null) }}
+                  onBlur={() => setPhoneError(
+                    phone.trim() && !normalizePhone(phone)
+                      ? 'Enter a valid UK mobile number, e.g. 07700 900000'
+                      : null
+                  )}
+                />
+                {phoneError && (
+                  <p className="text-xs mt-1" style={{ color: '#f87171' }}>{phoneError}</p>
+                )}
               </Field>
               {role !== 'fan' && (
                 <>
                   <Field label="Date of Birth">
                     <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
                   </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Nearest City">
-                      <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
-                    </Field>
-                    <Field label="Town / City Based In">
-                      <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Salford" />
-                    </Field>
-                  </div>
+                  <Field label="Nearest City">
+                    <Input required={role === 'coach'} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+                  </Field>
                 </>
               )}
             </Section>
@@ -334,19 +355,19 @@ export default function RegisterPage() {
             {role === 'coach' && (
               <Section title="Coaching Details">
                 <Field label="Your Role">
-                  <Select value={coachingRole} onChange={(e) => setCoachingRole(e.target.value)}>
+                  <Select required value={coachingRole} onChange={(e) => setCoachingRole(e.target.value)}>
                     <option value="">Select role…</option>
                     {COACHING_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </Select>
                 </Field>
                 <Field label="Most Recent Level Managed / Coached">
-                  <Select value={coachingLevel} onChange={(e) => setCoachingLevel(e.target.value)}>
+                  <Select required value={coachingLevel} onChange={(e) => setCoachingLevel(e.target.value)}>
                     <option value="">Select level…</option>
                     {COACHING_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                   </Select>
                 </Field>
                 <Field label="Current Club (or No Club)">
-                  <Input value={coachClub} onChange={(e) => setCoachClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
+                  <Input required value={coachClub} onChange={(e) => setCoachClub(e.target.value)} placeholder="e.g. Abbey Hey FC — or 'No Club'" />
                 </Field>
                 <Field label="Coaching History (Previous Clubs)">
                   <textarea

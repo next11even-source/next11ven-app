@@ -340,7 +340,6 @@ export default function PlayerProfilePage() {
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [dob, setDob] = useState('')
   const [city, setCity] = useState('')
-  const [location, setLocation] = useState('')
 
   // Football fields
   const [position, setPosition] = useState('')
@@ -382,7 +381,6 @@ export default function PlayerProfilePage() {
     setSmsOptIn(p.sms_opt_in ?? false)
     setDob(p.date_of_birth ?? '')
     setCity(p.city ?? '')
-    setLocation(p.location ?? '')
     setPosition(p.position ?? '')
     setSecondaryPosition(p.secondary_position ?? '')
     setClub(p.club ?? '')
@@ -485,24 +483,21 @@ export default function PlayerProfilePage() {
           action={
             <EditButton editing={editingPersonal} saving={saving}
               onEdit={() => setEditingPersonal(e => !e)}
-              onSave={() => save({ full_name: fullName || null, phone: normalizePhone(phone), date_of_birth: dob || null, city: city || null, location: location || null }, 'personal')} />
+              onSave={() => save({ full_name: fullName || null, phone: normalizePhone(phone), date_of_birth: dob || null, city: city || null }, 'personal')} />
           }>
           {editingPersonal ? (
             <div className="space-y-3">
               <Field label="Full Name"><Input value={fullName} onChange={e => setFullName(toTitleCase(e.target.value))} placeholder="Your full name" /></Field>
               <Field label="Phone"><Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+447700900000" /></Field>
               <Field label="Date of Birth"><Input type="date" value={dob} onChange={e => setDob(e.target.value)} /></Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Nearest City"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Manchester" /></Field>
-                <Field label="Town / Area"><Input value={location} onChange={e => setLocation(e.target.value)} placeholder="Salford" /></Field>
-              </div>
+              <Field label="Nearest City"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Manchester" /></Field>
             </div>
           ) : (
             <div className="space-y-0.5 divide-y" style={{ borderColor: '#1e2235' }}>
               <ReadOnlyRow label="Name" value={profile.full_name} />
               <ReadOnlyRow label="Phone" value={profile.phone} />
               <ReadOnlyRow label="Date of Birth" value={profile.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString('en-GB') : null} />
-              <ReadOnlyRow label="City" value={[profile.city, profile.location].filter(Boolean).join(', ') || null} />
+              <ReadOnlyRow label="City" value={profile.city} />
             </div>
           )}
         </SectionCard>

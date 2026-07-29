@@ -23,7 +23,6 @@ type PremiumPlayer = {
   avatar_url: string | null
   status: Status | null
   actively_looking: boolean
-  location: string | null
   city: string | null
   premium: boolean
 }
@@ -79,7 +78,6 @@ type ShortlistPlayer = {
   avatar_url: string | null
   position: string | null
   city: string | null
-  location: string | null
   status: Status | null
   premium: boolean
   actively_looking: boolean
@@ -455,7 +453,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
                   {isFounder(p.role) ? <FounderBadge size="sm" /> : <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                 </p>
                 <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                  {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
+                  {[p.position, p.city].filter(Boolean).join(' · ') || '—'}
                 </p>
                 {isLooking ? (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold"
@@ -554,7 +552,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                     {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
                   </p>
                   <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                    {[p.position, p.city || p.location].filter(Boolean).join(' · ') || '—'}
+                    {[p.position, p.city].filter(Boolean).join(' · ') || '—'}
                   </p>
                   {p.actively_looking && (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold"
@@ -773,7 +771,7 @@ export default function CoachDashboard() {
           .limit(15),
 
         supabase.from('profiles')
-          .select('id, full_name, role, position, avatar_url, status, actively_looking, location, city, premium')
+          .select('id, full_name, role, position, avatar_url, status, actively_looking, city, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
           .eq('premium', true)
@@ -862,7 +860,7 @@ export default function CoachDashboard() {
         const playerIds = savedRows.map(r => r.player_id)
         const { data: playerData } = await supabase
           .from('profiles')
-          .select('id, full_name, role, avatar_url, position, city, location, status, premium, actively_looking, updated_at')
+          .select('id, full_name, role, avatar_url, position, city, status, premium, actively_looking, updated_at')
           .in('id', playerIds)
         const playerMap = Object.fromEntries((playerData ?? []).map((p: any) => [p.id, p]))
         setMyShortlist(savedRows.map(r => {
@@ -875,7 +873,6 @@ export default function CoachDashboard() {
             avatar_url: p.avatar_url ?? null,
             position: p.position ?? null,
             city: p.city ?? null,
-            location: p.location ?? null,
             status: p.status ?? null,
             premium: p.premium ?? false,
             actively_looking: p.actively_looking ?? false,

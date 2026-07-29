@@ -65,7 +65,7 @@ export default function ComposeModal({
     const { data: post, error: insertErr } = await supabase
       .from('posts')
       .insert({ author_id: userId, post_type: postType, caption: caption.trim(), image_url })
-      .select('id, author_id, post_type, caption, image_url, created_at, author:profiles!author_id(id, full_name, avatar_url, role, position, location)')
+      .select('id, author_id, post_type, caption, image_url, created_at, author:profiles!author_id(id, full_name, avatar_url, role, position, city)')
       .single()
 
     if (insertErr || !post) {
@@ -82,7 +82,7 @@ export default function ComposeModal({
       caption: p.caption,
       image_url: p.image_url,
       created_at: p.created_at,
-      author: p.author ?? { id: userId, full_name: null, avatar_url: null, role: null, position: null, location: null },
+      author: p.author ?? { id: userId, full_name: null, avatar_url: null, role: null, position: null, city: null },
       likeCount: 0,
       hasLiked: false,
       commentCount: 0,

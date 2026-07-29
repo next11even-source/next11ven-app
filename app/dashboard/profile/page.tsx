@@ -24,7 +24,6 @@ type Profile = {
   bio: string | null
   club: string | null
   city: string | null
-  location: string | null
   premium: boolean
   actively_looking: boolean
   stripe_customer_id: string | null

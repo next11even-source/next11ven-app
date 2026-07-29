@@ -21,7 +21,6 @@ const ConvertSchema = z.object({
   phone: z.string().max(40).nullish(),
   date_of_birth: z.string().nullish(),
   city: z.string().max(160).nullish(),
-  location: z.string().max(200).nullish(),
   // player
   playing_level: z.string().nullish(),
   club: z.string().max(200).nullish(),
@@ -51,6 +50,10 @@ function missingFields(role: 'player' | 'coach', b: z.infer<typeof ConvertSchema
     need('Best position', b.position)
     need('Current club (or status)', b.club)
   } else {
+    // Kept in step with the coach gate in /api/register/complete — otherwise a
+    // coach could sign up as a fan and convert to dodge the required fields.
+    need('Mobile number', b.phone)
+    need('Nearest city', b.city)
     need('Coaching role', b.coaching_role)
     need('Coaching level', b.coaching_level)
     need('Current club', b.club)
@@ -127,13 +130,16 @@ export async function POST(req: NextRequest) {
     role,
     full_name: body.full_name ?? null,
     city: body.city ?? null,
-    location: body.location ?? null,
     // approved stays true — a fan was already vetted; conversion is instant.
     approved: true,
     approval_status: 'approved',
   }
-  if (body.phone) {
-    payload.phone = normalizePhone(body.phone) ?? null
+  if (body.phone?.trim()) {
+    const phone = normalizePhone(body.phone)
+    if (!phone) {
+      return NextResponse.json({ error: 'Enter a valid UK mobile number, e.g. 07700 900000' }, { status: 400 })
+    }
+    payload.phone = phone
     payload.sms_opt_in = true
   }
 

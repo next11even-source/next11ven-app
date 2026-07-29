@@ -6,7 +6,7 @@ export type PostAuthor = {
   avatar_url: string | null
   role: string | null
   position: string | null
-  location: string | null
+  city: string | null
   is_agent: boolean | null
 }
 

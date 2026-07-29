@@ -79,7 +79,6 @@ export default function BecomePage() {
   const [phone, setPhone] = useState('')
   const [dob, setDob] = useState('')
   const [city, setCity] = useState('')
-  const [location, setLocation] = useState('')
 
   // Player
   const [playingLevel, setPlayingLevel] = useState('')
@@ -104,7 +103,7 @@ export default function BecomePage() {
       if (!user) { setChecking(false); return }
       const { data: p } = await supabase
         .from('profiles')
-        .select('role, full_name, phone, city, location, club')
+        .select('role, full_name, phone, city, club')
         .eq('id', user.id)
         .single()
       if (p && p.role !== 'fan') { setNotFan(true); setChecking(false); return }
@@ -112,7 +111,6 @@ export default function BecomePage() {
         setFullName(p.full_name ?? '')
         setPhone(p.phone ?? '')
         setCity(p.city ?? '')
-        setLocation(p.location ?? '')
         setClub(p.club ?? '')
       }
       setChecking(false)
@@ -130,7 +128,6 @@ export default function BecomePage() {
       full_name: fullName,
       phone: phone || null,
       city: city || null,
-      location: location || null,
     }
     if (role === 'player') {
       Object.assign(payload, {
@@ -245,14 +242,9 @@ export default function BecomePage() {
                   <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
                 </Field>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Nearest City" required={role === 'player'}>
-                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
-                </Field>
-                <Field label="Town / City Based In">
-                  <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Salford" />
-                </Field>
-              </div>
+              <Field label="Nearest City" required>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+              </Field>
             </Section>
 
             {role === 'player' && (

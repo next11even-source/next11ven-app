@@ -328,8 +328,8 @@ export default function PostCard({
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               {post.author.position && <span className="text-xs" style={{ color: '#8892aa' }}>{post.author.position}</span>}
-              {post.author.position && post.author.location && <span style={{ color: '#4b5563' }}>·</span>}
-              {post.author.location && <span className="text-xs" style={{ color: '#8892aa' }}>{post.author.location}</span>}
+              {post.author.position && post.author.city && <span style={{ color: '#4b5563' }}>·</span>}
+              {post.author.city && <span className="text-xs" style={{ color: '#8892aa' }}>{post.author.city}</span>}
               <span style={{ color: '#374151' }}>·</span>
               <span className="text-xs" style={{ color: '#4b5563' }}>{timeAgo(post.created_at)}</span>
             </div>

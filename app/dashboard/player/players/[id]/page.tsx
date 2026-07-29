@@ -23,7 +23,6 @@ type PublicProfile = {
   secondary_position: string | null
   club: string | null
   city: string | null
-  location: string | null
   playing_level: string | null
   foot: string | null
   height: string | null
@@ -218,7 +217,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, location, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -600,7 +599,7 @@ export default function PlayerPublicProfile() {
             <Row label="Playing Level" value={player.playing_level} />
             <Row label="Strongest Foot" value={player.foot} />
             <Row label="Height" value={player.height} />
-            <Row label="Location" value={[player.city, player.location].filter(Boolean).join(', ') || null} />
+            <Row label="Location" value={player.city} />
           </div>
         </div>
 

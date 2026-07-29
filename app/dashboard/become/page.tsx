@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { toTitleCase } from '@/lib/utils'
+import { dobBounds, DOB_HELP } from '@/lib/dob'
+
+const { min: DOB_MIN, max: DOB_MAX } = dobBounds()
 
 const COACHING_ROLES = [
   'Head Coach / Manager', 'Assistant Manager', 'Goalkeeper Coach',
@@ -239,7 +242,8 @@ export default function BecomePage() {
               </Field>
               {role === 'player' && (
                 <Field label="Date of Birth" required>
-                  <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                  <Input type="date" value={dob} min={DOB_MIN} max={DOB_MAX} onChange={(e) => setDob(e.target.value)} />
+                  <p className="text-xs mt-1" style={{ color: '#8892aa' }}>{DOB_HELP}</p>
                 </Field>
               )}
               <Field label="Nearest City" required>

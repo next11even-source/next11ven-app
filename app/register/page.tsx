@@ -7,9 +7,12 @@ import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
+import { dobBounds, validateDob, DOB_HELP } from '@/lib/dob'
 
 const PLAYING_LEVELS = LEVELS
 const COACHING_LEVELS = LEVELS
+
+const { min: DOB_MIN, max: DOB_MAX } = dobBounds()
 
 const COACHING_ROLES = [
   'Head Coach / Manager', 'Assistant Manager', 'Goalkeeper Coach',
@@ -74,6 +77,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('')
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [dob, setDob] = useState('')
+  const [dobError, setDobError] = useState<string | null>(null)
   const [city, setCity] = useState('')
   const [referral, setReferral] = useState('')
   const [gdpr, setGdpr] = useState(false)
@@ -104,6 +108,13 @@ export default function RegisterPage() {
     const normalisedPhone = normalizePhone(phone)
     if (phone.trim() && !normalisedPhone) {
       setPhoneError('Enter a valid UK mobile number, e.g. 07700 900000')
+      setError('Check the highlighted field and try again.')
+      return
+    }
+
+    const dobProblem = validateDob(dob)
+    if (dobProblem) {
+      setDobError(dobProblem)
       setError('Check the highlighted field and try again.')
       return
     }
@@ -289,7 +300,17 @@ export default function RegisterPage() {
               {role !== 'fan' && (
                 <>
                   <Field label="Date of Birth">
-                    <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                    <Input
+                      type="date"
+                      value={dob}
+                      min={DOB_MIN}
+                      max={DOB_MAX}
+                      onChange={(e) => { setDob(e.target.value); if (dobError) setDobError(null) }}
+                      onBlur={() => setDobError(validateDob(dob))}
+                    />
+                    <p className="text-xs mt-1" style={{ color: dobError ? '#f87171' : '#8892aa' }}>
+                      {dobError ?? DOB_HELP}
+                    </p>
                   </Field>
                   <Field label="Nearest City">
                     <Input required={role === 'coach'} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />

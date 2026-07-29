@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/utils'
+import { validateDob } from '@/lib/dob'
 import { enforceRateLimit } from '@/lib/ratelimit'
 import { z } from 'zod'
 
@@ -108,6 +109,13 @@ export async function POST(req: NextRequest) {
   const phone = normalizePhone(body.phone as string | null)
   if (body.phone?.trim() && !phone) {
     return NextResponse.json({ error: 'Enter a valid UK mobile number, e.g. 07700 900000' }, { status: 400 })
+  }
+
+  // Age floor + typo guard. Server-side because the input's min/max is trivially
+  // bypassed, and because the audit found live under-16s and DOBs in year 0008.
+  const dobProblem = validateDob(body.date_of_birth)
+  if (dobProblem) {
+    return NextResponse.json({ error: dobProblem }, { status: 400 })
   }
 
   if (role === 'coach') {

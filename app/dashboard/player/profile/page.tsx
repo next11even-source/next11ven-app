@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
+import { dobBounds } from '@/lib/dob'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
@@ -41,6 +42,8 @@ type Profile = {
   premium: boolean
 }
 
+
+const { min: DOB_MIN, max: DOB_MAX } = dobBounds()
 
 const STATUS_COLORS: Record<string, string> = {
   free_agent:    '#60a5fa',
@@ -489,7 +492,7 @@ export default function PlayerProfilePage() {
             <div className="space-y-3">
               <Field label="Full Name"><Input value={fullName} onChange={e => setFullName(toTitleCase(e.target.value))} placeholder="Your full name" /></Field>
               <Field label="Phone"><Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+447700900000" /></Field>
-              <Field label="Date of Birth"><Input type="date" value={dob} onChange={e => setDob(e.target.value)} /></Field>
+              <Field label="Date of Birth"><Input type="date" value={dob} min={DOB_MIN} max={DOB_MAX} onChange={e => setDob(e.target.value)} /></Field>
               <Field label="Nearest City"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Manchester" /></Field>
             </div>
           ) : (

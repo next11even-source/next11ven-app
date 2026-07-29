@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/utils'
+import { validateDob } from '@/lib/dob'
 import { enforceRateLimit } from '@/lib/ratelimit'
 import { onUserApproved } from '@/lib/mailerlite'
 import { z } from 'zod'
@@ -116,6 +117,12 @@ export async function POST(req: NextRequest) {
       { error: 'INCOMPLETE', message: `Please complete: ${missing.join(', ')}`, missing },
       { status: 400 }
     )
+  }
+
+  // Age floor + typo guard — kept in step with /api/register/complete.
+  const dobProblem = validateDob(body.date_of_birth)
+  if (dobProblem) {
+    return NextResponse.json({ error: 'INVALID_DOB', message: dobProblem }, { status: 400 })
   }
 
   // Level validation

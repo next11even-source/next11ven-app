@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import { seasonLabel, seasonStartYear } from '@/lib/performance'
+import { LEVELS } from '@/lib/levels'
 
 const surface = { backgroundColor: '#13172a', border: '1px solid #1e2235' }
 
@@ -25,6 +26,7 @@ type Legacy = {
 export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }) {
   const [legacy, setLegacy] = useState<Legacy | null>(null)
   const [year, setYear] = useState<number | ''>('')
+  const [level, setLevel] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState(false)
@@ -33,7 +35,14 @@ export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }
   useEffect(() => {
     fetch('/api/performance/career-stats')
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d?.legacy) setLegacy(d.legacy) })
+      .then(d => {
+        if (d?.legacy) {
+          setLegacy(d.legacy)
+          // Prefill from the old profile's playing level, but the player still
+          // has to confirm it — that confirmation is the point.
+          if (d.legacy.level) setLevel(d.legacy.level)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -44,7 +53,7 @@ export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }
   const years = Array.from({ length: 16 }, (_, i) => current - i)
 
   async function place() {
-    if (year === '' || busy) return
+    if (year === '' || !level || busy) return
     setBusy(true)
     setError(null)
     try {
@@ -54,7 +63,7 @@ export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }
         body: JSON.stringify({
           season_start_year: year,
           club_name: legacy!.club_name,
-          level: legacy!.level,
+          level,
           position: legacy!.position,
           apps: legacy!.appearances,
           goals: legacy!.goals,
@@ -85,7 +94,7 @@ export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }
           <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Add your past season to your profile</p>
           <p className="text-xs mt-1 leading-relaxed" style={{ color: '#8892aa' }}>
             You&apos;ve got stats that aren&apos;t showing to coaches yet — <span style={{ color: '#e8dece', fontWeight: 600 }}>{line}</span>
-            {legacy.club_name ? <> at {legacy.club_name}</> : null}. Which season was this?
+            {legacy.club_name ? <> at {legacy.club_name}</> : null}. Which season, and what level was most of it played at?
           </p>
         </div>
         <button type="button" onClick={() => setDismissed(true)} className="flex-shrink-0" style={{ color: '#8892aa' }} aria-label="Dismiss">
@@ -102,12 +111,18 @@ export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }
           <option value="">Select season…</option>
           {years.map(y => <option key={y} value={y}>{seasonLabel(y)}</option>)}
         </select>
-        <button type="button" onClick={place} disabled={year === '' || busy}
-          className="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap"
-          style={{ backgroundColor: year === '' || busy ? '#1e2a4a' : '#2d5fc4', color: '#fff', cursor: year === '' || busy ? 'not-allowed' : 'pointer' }}>
-          {busy ? 'Saving…' : 'Add to profile'}
-        </button>
+        <select value={level} onChange={e => setLevel(e.target.value)}
+          className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
+          style={{ backgroundColor: '#0d1020', border: '1px solid #1e2235', color: '#e8dece' }}>
+          <option value="">Select level…</option>
+          {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
       </div>
+      <button type="button" onClick={place} disabled={year === '' || !level || busy}
+        className="w-full px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap"
+        style={{ backgroundColor: year === '' || !level || busy ? '#1e2a4a' : '#2d5fc4', color: '#fff', cursor: year === '' || !level || busy ? 'not-allowed' : 'pointer' }}>
+        {busy ? 'Saving…' : 'Add to profile'}
+      </button>
 
       {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
     </div>

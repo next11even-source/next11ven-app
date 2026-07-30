@@ -8,7 +8,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 const StintSchema = z.object({
   club_name: z.string().trim().min(1).max(60),
-  level: z.enum(LEVELS).nullable().optional(),
+  level: z.enum(LEVELS),
   stint_type: z.enum(STINT_TYPES).default('contracted'),
   start_date: z.string().regex(DATE, 'Invalid date'),
   end_date: z.string().regex(DATE, 'Invalid date').nullable().optional(),

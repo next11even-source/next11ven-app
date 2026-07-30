@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import PerformanceSummaryCard from '@/app/components/PerformanceSummaryCard'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
 import Sidebar from '@/app/dashboard/player/_components/Sidebar'
@@ -361,64 +362,6 @@ function PlayerDetailsEditor({ profile, onSave, onCancel }: {
       </Field>
       <SaveCancel saving={saving} onCancel={onCancel}
         onSave={async () => { setSaving(true); await onSave({ position: position || null, club: club || null, city: city || null, status: status || null }); setSaving(false) }} />
-    </div>
-  )
-}
-
-function StatsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
-  const [editing, setEditing] = useState(false)
-  const [goals, setGoals] = useState(profile.goals ?? 0)
-  const [assists, setAssists] = useState(profile.assists ?? 0)
-  const [appearances, setAppearances] = useState(profile.appearances ?? 0)
-  const [season, setSeason] = useState(profile.season ?? '2024/25')
-  const [saving, setSaving] = useState(false)
-
-  return (
-    <div className="rounded-xl p-5 space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Season Stats</h3>
-          {!editing && <p className="text-xs" style={{ color: '#8892aa' }}>{season}</p>}
-        </div>
-        {!editing
-          ? <button onClick={() => setEditing(true)}
-              className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
-              style={{ border: '1px solid #1e2235', color: '#8892aa' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2235')}>Update</button>
-          : <div className="flex gap-2">
-              <button onClick={() => setEditing(false)} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full" style={{ border: '1px solid #1e2235', color: '#8892aa' }}>Cancel</button>
-              <button onClick={async () => { setSaving(true); await onSave({ goals, assists, appearances, season }); setSaving(false); setEditing(false) }}
-                disabled={saving} className="text-xs uppercase tracking-wider px-3 py-1.5 rounded-full disabled:opacity-50"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>{saving ? 'Saving…' : 'Save'}</button>
-            </div>}
-      </div>
-      {editing ? (
-        <div className="space-y-3">
-          <Field label="Season"><Inp value={season} onChange={e => setSeason(e.target.value)} placeholder="2024/25" /></Field>
-          <div className="grid grid-cols-3 gap-3">
-            {[{ label: 'Goals', val: goals, set: setGoals }, { label: 'Assists', val: assists, set: setAssists }, { label: 'Apps', val: appearances, set: setAppearances }].map(f => (
-              <div key={f.label} className="space-y-1">
-                <Lbl>{f.label}</Lbl>
-                <input type="number" min={0} value={f.val} onChange={e => f.set(Number(e.target.value))}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm text-center outline-none"
-                  style={iStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')} />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          {[{ label: 'Goals', val: profile.goals ?? 0 }, { label: 'Assists', val: profile.assists ?? 0 }, { label: 'Apps', val: profile.appearances ?? 0 }].map(s => (
-            <div key={s.label} className="rounded-lg p-3 text-center" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-              <p className="text-2xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{s.val}</p>
-              <p className="text-xs uppercase tracking-wider mt-0.5" style={{ color: '#8892aa' }}>{s.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -779,7 +722,7 @@ export default function ProfilePage() {
         ) : (
           <>
             <PlayerDetailsCard profile={profile} onSave={saveProfile} />
-            <StatsCard profile={profile} onSave={saveProfile} />
+            <PerformanceSummaryCard legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }} />
             <HighlightsCard profile={profile} onSave={saveProfile} />
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />

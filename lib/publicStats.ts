@@ -140,7 +140,7 @@ export type PublicPerformance = {
   visible: boolean
   hasAny: boolean
   focus: 'defensive' | 'attacking'
-  level: string | null           // current level/step context (most recent logged club level)
+  level: string | null           // level most of the newest season's appearances were played at
   versatility: string[]          // distinct positions played this season
   // Current-season headline, competitive (league+cup) only, from the live log.
   currentSeason: { startYear: number; label: string; summary: MatchSummary } | null
@@ -197,6 +197,23 @@ function summaryToRow(
 
 function uniq(xs: (string | null)[]): string[] {
   return [...new Set(xs.filter((x): x is string => !!x))]
+}
+
+// The level most of a season's logged appearances were actually played at —
+// not just the most recent. A mid-season drop to a lower level shouldn't erase
+// the higher level the player spent most of the season at.
+function dominantLevel(ms: { club_level: string | null }[]): string | null {
+  const counts = new Map<string, number>()
+  for (const m of ms) {
+    if (!m.club_level) continue
+    counts.set(m.club_level, (counts.get(m.club_level) ?? 0) + 1)
+  }
+  let best: string | null = null
+  let bestCount = 0
+  for (const [level, count] of counts) {
+    if (count > bestCount) { best = level; bestCount = count }
+  }
+  return best
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -300,7 +317,7 @@ export function buildPublicPerformance(
     seasons.push(summaryToRow(
       yr, 'log', false,
       uniq(ms.map(m => m.club_name)),
-      uniq(ms.map(m => m.club_level))[0] ?? null,
+      dominantLevel(ms),
       s, { yellowCards, redCards },
     ))
   }
@@ -351,11 +368,10 @@ export function buildPublicPerformance(
       }
     : null
 
-  // Step/level context: the most recent logged club level, else newest season.
-  const level = currentLog.find(m => m.club_level)?.club_level
-    ?? matches.find(m => m.club_level)?.club_level
-    ?? seasons.find(s => s.level)?.level
-    ?? null
+  // Step/level context: the level most of the newest season's appearances were
+  // played at (seasons is already sorted newest-first, and each row's level is
+  // already the apps-weighted dominant level for that season).
+  const level = seasons.find(s => s.level)?.level ?? null
 
   // Versatility: distinct positions played this season (falls back to all-time
   // when the player hasn't logged a competitive game yet).

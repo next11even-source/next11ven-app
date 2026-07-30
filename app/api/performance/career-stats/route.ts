@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireTrackerPlayer } from '@/lib/performanceApi'
 import { seasonStartYear } from '@/lib/performance'
 import { POSITIONS } from '@/lib/positions'
+import { LEVELS } from '@/lib/levels'
 
 // Career stats = pre-platform history the player enters themselves (per-season
 // summaries), distinct from the live match log. Owner-only via RLS; entry is
@@ -19,7 +20,7 @@ const CAP = 150
 const CareerStatSchema = z.object({
   season_start_year: z.number().int().min(1980).max(seasonStartYear() + 1),
   club_name: z.string().trim().max(60).nullable().optional(),
-  level: z.string().trim().max(40).nullable().optional(),
+  level: z.enum(LEVELS),
   position: z.enum(POSITIONS).nullable().optional(),
   apps: z.number().int().min(0).max(CAP).nullable().optional(),
   goals: z.number().int().min(0).max(CAP).nullable().optional(),

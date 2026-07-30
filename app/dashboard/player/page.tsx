@@ -42,6 +42,7 @@ type Profile = {
   goals: number
   assists: number
   appearances: number
+  hasPerformanceLog?: boolean
 }
 
 type FeaturedPlayer = {
@@ -843,7 +844,7 @@ export default function PlayerHome() {
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
       const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
 
-      const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
+      const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes, matchesCountRes, careerCountRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, role, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
@@ -859,9 +860,16 @@ export default function PlayerHome() {
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('is_active', true),
         // Feed preview — show enough cards to scroll through
         supabase.from('posts').select('id, post_type, caption, image_url, created_at, author:profiles!author_id(full_name, avatar_url, role, position)').eq('is_deleted', false).order('created_at', { ascending: false }).limit(15),
+        // Tracker presence — the "Season stats" completion check is satisfied
+        // by real tracker data too, not just the legacy flat columns.
+        supabase.from('performance_matches').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
+        supabase.from('career_stats').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
       ])
 
-      const profileData = profileRes.data as Profile
+      const profileData = {
+        ...(profileRes.data as Profile),
+        hasPerformanceLog: (matchesCountRes.count ?? 0) > 0 || (careerCountRes.count ?? 0) > 0,
+      }
       setProfile(profileData)
       setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5).slice(0, 10))
       setActiveUsers(((activeRes.data as ActiveUser[]) ?? []).filter(u => u.id !== user.id))

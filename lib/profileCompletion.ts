@@ -25,6 +25,10 @@ export type CompletionProfile = {
   goals?: number
   assists?: number
   appearances?: number
+  /** Has any Game Performance Tracker data (logged matches or career rows) —
+   *  the tracker is the source of truth now, so this satisfies the "Season
+   *  stats" check on its own, independent of the legacy flat columns. */
+  hasPerformanceLog?: boolean
 }
 
 /** `why` is shown to the player as the reason to bother. Keep it concrete. */
@@ -42,7 +46,7 @@ export const COMPLETION_CHECKS: CompletionCheck[] = [
   { label: 'Location',       why: 'Coaches search by area to find players nearby.',        done: p => !!p.city },
   { label: 'Availability',   why: 'Tells coaches whether you can actually be signed.',     done: p => !!p.status },
   { label: 'Club',           why: 'Shows where you\'re playing now.',                      done: p => !!p.club },
-  { label: 'Season stats',   why: 'Numbers back up everything else on your profile.',      done: p => (p.goals ?? 0) > 0 || (p.assists ?? 0) > 0 || (p.appearances ?? 0) > 0 },
+  { label: 'Season stats',   why: 'Numbers back up everything else on your profile.',      done: p => !!p.hasPerformanceLog || (p.goals ?? 0) > 0 || (p.assists ?? 0) > 0 || (p.appearances ?? 0) > 0 },
   { label: 'Strongest foot', why: 'A detail coaches ask about constantly.',                done: p => !!p.foot },
   { label: 'Height',         why: 'Relevant for some positions and set pieces.',           done: p => !!p.height },
   { label: 'Date of birth',  why: 'Confirms your age bracket for age-group sides.',        done: p => !!p.date_of_birth },

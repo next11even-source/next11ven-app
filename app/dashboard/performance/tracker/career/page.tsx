@@ -100,6 +100,7 @@ export default function CareerEditorPage() {
   async function save() {
     if (busy) return
     if (form.season_start_year === '') { setError('Pick a season'); return }
+    if (!form.level) { setError('Select the level you played at'); return }
     setBusy(true)
     setError(null)
     const payload = {
@@ -269,7 +270,7 @@ function CareerForm({
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Level">
+        <Field label="Level (required)">
           <select value={form.level} onChange={e => setF('level', e.target.value)}
             className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer" style={input}>
             <option value="">Select…</option>

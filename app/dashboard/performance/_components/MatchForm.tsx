@@ -139,6 +139,7 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
     setLocalError(null)
     if (!v.opponent.trim()) { setLocalError('Add the opponent name'); return }
     if (stintChoice === NEW_STINT && !newStint.club_name.trim()) { setLocalError('Add the club name for your new club'); return }
+    if (stintChoice === NEW_STINT && !newStint.level) { setLocalError('Select the level for your new club'); return }
     onSubmit(
       { ...v, opponent: v.opponent.trim(), stint_id: stintChoice && stintChoice !== NEW_STINT ? stintChoice : null },
       stintChoice === NEW_STINT ? { ...newStint, club_name: newStint.club_name.trim() } : null,
@@ -341,7 +342,7 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
                 onChange={e => setNewStint(prev => ({ ...prev, level: e.target.value || null }))}
                 className="rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
                 style={{ ...input, backgroundColor: '#13172a' }}>
-                <option value="">Level…</option>
+                <option value="">Level (required)…</option>
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
               <select value={newStint.stint_type}

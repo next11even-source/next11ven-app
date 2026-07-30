@@ -9,6 +9,7 @@ import { toTitleCase, normalizePhone } from '@/lib/utils'
 import { dobBounds } from '@/lib/dob'
 import { HEIGHT_OPTIONS, parseHeight, displayHeight } from '@/lib/height'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import PerformanceSummaryCard from '@/app/components/PerformanceSummaryCard'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
@@ -37,6 +38,7 @@ type Profile = {
   assists: number
   appearances: number
   season: string | null
+  hasPerformanceLog?: boolean
   highlight_urls: string[]
   streak_weeks: number
   last_active: string | null
@@ -334,7 +336,6 @@ export default function PlayerProfilePage() {
   // Section edit states
   const [editingPersonal, setEditingPersonal] = useState(false)
   const [editingFootball, setEditingFootball] = useState(false)
-  const [editingStats, setEditingStats] = useState(false)
   const [editingHighlights, setEditingHighlights] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -355,12 +356,6 @@ export default function PlayerProfilePage() {
   const [status, setStatus] = useState('')
   const [contractStatus, setContractStatus] = useState('')
 
-  // Stats fields
-  const [goals, setGoals] = useState(0)
-  const [assists, setAssists] = useState(0)
-  const [appearances, setAppearances] = useState(0)
-  const [season, setSeason] = useState('2024/25')
-
   // Highlights
   const [highlights, setHighlights] = useState<string[]>([''])
 
@@ -369,9 +364,17 @@ export default function PlayerProfilePage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const [{ data }, matchesCountRes, careerCountRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('performance_matches').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
+        supabase.from('career_stats').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
+      ])
       if (!data) return
-      const p = { ...data, highlight_urls: data.highlight_urls ?? [] } as Profile
+      const p = {
+        ...data,
+        highlight_urls: data.highlight_urls ?? [],
+        hasPerformanceLog: (matchesCountRes.count ?? 0) > 0 || (careerCountRes.count ?? 0) > 0,
+      } as Profile
       setProfile(p)
       syncFields(p)
       setLoading(false)
@@ -395,10 +398,6 @@ export default function PlayerProfilePage() {
     setHeight(parseHeight(p.height) ?? '')
     setStatus(p.status ?? '')
     setContractStatus(p.contract_status ?? '')
-    setGoals(p.goals ?? 0)
-    setAssists(p.assists ?? 0)
-    setAppearances(p.appearances ?? 0)
-    setSeason(p.season ?? '2024/25')
     setHighlights(p.highlight_urls?.length ? p.highlight_urls : [''])
   }
 
@@ -406,14 +405,12 @@ export default function PlayerProfilePage() {
     if (profile) syncFields(profile)
     if (section === 'personal') setEditingPersonal(false)
     if (section === 'football') setEditingFootball(false)
-    if (section === 'stats') setEditingStats(false)
     if (section === 'highlights') setEditingHighlights(false)
   }
 
   function closeSection(section: string) {
     if (section === 'personal') setEditingPersonal(false)
     if (section === 'football') setEditingFootball(false)
-    if (section === 'stats') setEditingStats(false)
     if (section === 'highlights') setEditingHighlights(false)
   }
 
@@ -586,39 +583,11 @@ export default function PlayerProfilePage() {
           )}
         </SectionCard>
 
-        {/* ── Season Stats ── */}
-        <SectionCard
-          title="Season Stats"
-          action={
-            <EditButton editing={editingStats} saving={saving}
-              onEdit={() => setEditingStats(e => !e)}
-              onSave={() => save({ goals, assists, appearances, season: season || null }, 'stats')} />
-          }>
-          {editingStats ? (
-            <div className="space-y-3">
-              <Field label="Season"><Input value={season} onChange={e => setSeason(e.target.value)} placeholder="2024/25" /></Field>
-              <div className="grid grid-cols-3 gap-3">
-                {[{ label: 'Goals', val: goals, set: setGoals }, { label: 'Assists', val: assists, set: setAssists }, { label: 'Apps', val: appearances, set: setAppearances }].map(f => (
-                  <Field key={f.label} label={f.label}>
-                    <Input type="number" min={0} value={f.val} onChange={e => f.set(parseInt(e.target.value) || 0)} />
-                  </Field>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-xs mb-3" style={{ color: '#8892aa' }}>{profile.season ?? '2024/25'}</p>
-              <div className="grid grid-cols-3 gap-3">
-                {[{ label: 'Goals', val: profile.goals }, { label: 'Assists', val: profile.assists }, { label: 'Apps', val: profile.appearances }].map(s => (
-                  <div key={s.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                    <p className="text-2xl font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{s.val ?? 0}</p>
-                    <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>{s.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </SectionCard>
+        {/* ── Performance — read-only, sourced from the Game Performance
+            Tracker (the single place stats are entered now). Legacy
+            goals/assists/appearances/season columns are shown as a frozen
+            fallback only, never edited from here again. ── */}
+        <PerformanceSummaryCard legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }} />
 
         {/* ── Add past seasons — on-ramp to the self-reported career editor.
             The intent ("my profile looks thin") lives here on the edit page, so

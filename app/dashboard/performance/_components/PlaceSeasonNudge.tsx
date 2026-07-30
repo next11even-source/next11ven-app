@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import { seasonLabel, seasonStartYear } from '@/lib/performance'
-import { LEVELS } from '@/lib/levels'
+import { TRACKER_LEVELS } from '@/lib/levels'
 
 const surface = { backgroundColor: '#13172a', border: '1px solid #1e2235' }
 
@@ -115,7 +115,7 @@ export default function PlaceSeasonNudge({ onPlaced }: { onPlaced?: () => void }
           className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
           style={{ backgroundColor: '#0d1020', border: '1px solid #1e2235', color: '#e8dece' }}>
           <option value="">Select level…</option>
-          {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          {TRACKER_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>
       <button type="button" onClick={place} disabled={year === '' || !level || busy}

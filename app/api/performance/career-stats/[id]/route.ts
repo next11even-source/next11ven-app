@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { requireTrackerPlayer } from '@/lib/performanceApi'
 import { seasonStartYear } from '@/lib/performance'
 import { POSITIONS } from '@/lib/positions'
-import { LEVELS } from '@/lib/levels'
+import { TRACKER_LEVELS } from '@/lib/levels'
 
 // Edit / delete a single career_stats row. Owner-only via RLS; entry is free
 // (the player's own history). Pairs with the collection route's GET/POST.
@@ -13,7 +13,7 @@ const CAP = 150
 const CareerStatPatchSchema = z.object({
   season_start_year: z.number().int().min(1980).max(seasonStartYear() + 1),
   club_name: z.string().trim().max(60).nullable(),
-  level: z.enum(LEVELS),
+  level: z.enum(TRACKER_LEVELS),
   position: z.enum(POSITIONS).nullable(),
   apps: z.number().int().min(0).max(CAP).nullable(),
   goals: z.number().int().min(0).max(CAP).nullable(),

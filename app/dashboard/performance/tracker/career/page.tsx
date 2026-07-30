@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { seasonLabel, seasonStartYear, type CareerStat } from '@/lib/performance'
-import { LEVELS } from '@/lib/levels'
+import { TRACKER_LEVELS } from '@/lib/levels'
 import { POSITIONS } from '@/lib/positions'
 
 const surface = { backgroundColor: '#13172a', border: '1px solid #1e2235' }
@@ -274,7 +274,7 @@ function CareerForm({
           <select value={form.level} onChange={e => setF('level', e.target.value)}
             className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer" style={input}>
             <option value="">Select…</option>
-            {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+            {TRACKER_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </Field>
         <Field label="Position">

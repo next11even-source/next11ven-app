@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { POSITIONS } from '@/lib/positions'
-import { LEVELS } from '@/lib/levels'
+import { TRACKER_LEVELS } from '@/lib/levels'
 import {
   COMPETITION_TYPES,
   COMPETITION_TYPE_LABELS,
@@ -343,7 +343,7 @@ export default function MatchForm({ initial, stints, submitLabel, busy, error, o
                 className="rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
                 style={{ ...input, backgroundColor: '#13172a' }}>
                 <option value="">Level (required)…</option>
-                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                {TRACKER_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
               <select value={newStint.stint_type}
                 onChange={e => setNewStint(prev => ({ ...prev, stint_type: e.target.value as StintType }))}

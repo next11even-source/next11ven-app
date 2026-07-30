@@ -5,6 +5,18 @@ export const LEVELS = [
 
 export type Level = typeof LEVELS[number]
 
+// Broader ladder for logging PAST history in the tracker (club stints and
+// career/season rows) — a player's pedigree can include professional football
+// before they dropped into the non-league pyramid. The platform's core
+// "Playing Level" field (current level, used for matching/filtering) stays on
+// LEVELS only; this is additive and scoped to tracker history.
+export const TRACKER_LEVELS = [
+  'Premier League', 'Championship', 'League 1', 'League 2',
+  ...LEVELS,
+] as const
+
+export type TrackerLevel = typeof TRACKER_LEVELS[number]
+
 // Sorts arbitrary level strings (e.g. distinct values pulled from live data)
 // into the canonical LEVELS order — Step 1 first, Other last. Values outside
 // LEVELS (legacy/off-list) sort after everything else.

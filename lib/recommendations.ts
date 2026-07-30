@@ -51,7 +51,6 @@ export type RecommendationResult = {
 
 type CandidateRow = RecommendedPlayer & {
   last_active: string | null
-  bio: string | null
   highlight_urls: string[] | null
   phone: string | null
   date_of_birth: string | null
@@ -148,7 +147,7 @@ export async function getRecommendedPlayers(
   const { data: candidates, error: candidatesError } = await supabase
     .from('profiles')
     .select(
-      'id, full_name, avatar_url, bio, position, secondary_position, playing_level, status, city, club, last_active, highlight_urls, phone, date_of_birth, foot, height, goals, assists, appearances'
+      'id, full_name, avatar_url, position, secondary_position, playing_level, status, city, club, last_active, highlight_urls, phone, date_of_birth, foot, height, goals, assists, appearances'
     )
     .in('role', ['player', 'admin'])
     .eq('approved', true)
@@ -193,7 +192,6 @@ export async function getRecommendedPlayers(
     // Profile completeness (0–15).
     const { pct } = calcCompletion({
       avatar_url: raw.avatar_url,
-      bio: raw.bio,
       position: raw.position,
       club: raw.club,
       city: raw.city,

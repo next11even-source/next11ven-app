@@ -7,14 +7,11 @@
 // which is not the same as what's cheapest to fill in:
 //   - Photo first. 52% of players have none, and a profile without a face is
 //     the one a coach scrolls past. Biggest single gap on the platform.
-//   - Bio second. Literally 0 of 889 profiles had one — it's the only field
-//     where a player speaks for themselves, and nobody knows it exists.
 //   - Then the fields coaches filter and search on.
 //   - Phone/DOB/height last: admin detail, invisible to the people recruiting.
 
 export type CompletionProfile = {
   avatar_url?: string | null
-  bio?: string | null
   position?: string | null
   club?: string | null
   city?: string | null
@@ -39,7 +36,6 @@ export type CompletionCheck = {
 
 export const COMPLETION_CHECKS: CompletionCheck[] = [
   { label: 'Profile photo',  why: 'Profiles with a photo get looked at first.',            done: p => !!p.avatar_url },
-  { label: 'Bio',            why: 'Your one chance to speak for yourself.',                done: p => !!p.bio },
   { label: 'Highlight reel', why: 'Coaches want to see you play before they message.',     done: p => Array.isArray(p.highlight_urls) && p.highlight_urls.length > 0 },
   { label: 'Position',       why: 'Coaches filter by position — you\'re invisible without it.', done: p => !!p.position },
   { label: 'Playing level',  why: 'Matches you to roles at the right step.',               done: p => !!p.playing_level },
@@ -78,15 +74,14 @@ export type CoachCompletionProfile = {
   club?: string | null
   city?: string | null
   phone?: string | null
-  bio?: string | null
   coaching_role?: string | null
   coaching_level?: string | null
   coaching_history?: string | null
 }
 
-// Same ranking principle as the player list. 76% of coaches have no photo and
-// none have a bio, so those lead — a faceless coach is one players hesitate to
-// reply to, and replies are the whole point of the account.
+// Same ranking principle as the player list. 76% of coaches have no photo, so
+// that leads — a faceless coach is one players hesitate to reply to, and
+// replies are the whole point of the account.
 export type CoachCompletionCheck = {
   label: string
   why: string
@@ -95,7 +90,6 @@ export type CoachCompletionCheck = {
 
 export const COACH_COMPLETION_CHECKS: CoachCompletionCheck[] = [
   { label: 'Profile photo',       why: 'Players reply to a coach they can see.',              done: p => !!p.avatar_url },
-  { label: 'Bio',                 why: 'Tell players what you look for in a signing.',        done: p => !!p.bio },
   { label: 'Club / Organisation', why: 'Players want to know who they\'d be joining.',        done: p => !!p.club },
   { label: 'Coaching role',       why: 'Shows players who they\'re dealing with.',            done: p => !!p.coaching_role },
   { label: 'Coaching level',      why: 'Sets expectations about the standard you work at.',   done: p => !!p.coaching_level },

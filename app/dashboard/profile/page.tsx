@@ -21,7 +21,6 @@ type Profile = {
   role: string | null
   full_name: string | null
   avatar_url: string | null
-  bio: string | null
   club: string | null
   city: string | null
   premium: boolean
@@ -644,47 +643,6 @@ function NotificationsCard({ profile, onSave }: { profile: Profile; onSave: (u: 
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>New messages and key account activity</p>
         </div>
         <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0" style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>Always On</span>
-      </div>
-    </div>
-  )
-}
-
-// ─── Bio (shared) ─────────────────────────────────────────────────────────────
-
-function BioCard({ profile, isCoach, onSave }: { profile: Profile; isCoach: boolean; onSave: (u: Partial<Profile>) => Promise<void> }) {
-  return (
-    <EditableCard title="About" editContent={(cancel) => (
-      <BioEditor profile={profile} isCoach={isCoach} onSave={async (bio) => { await onSave({ bio }); cancel() }} onCancel={cancel} />
-    )}>
-      {profile.bio
-        ? <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>{profile.bio}</p>
-        : <p className="text-sm italic" style={{ color: '#3a4055' }}>
-            {isCoach ? 'Add a bio — tell players about your coaching philosophy and what you look for.' : 'No bio yet — tell coaches about yourself.'}
-          </p>}
-    </EditableCard>
-  )
-}
-
-function BioEditor({ profile, isCoach, onSave, onCancel }: {
-  profile: Profile; isCoach: boolean; onSave: (bio: string) => Promise<void>; onCancel: () => void
-}) {
-  const [bio, setBio] = useState(profile.bio ?? '')
-  const [saving, setSaving] = useState(false)
-
-  return (
-    <div className="space-y-3">
-      <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} maxLength={300}
-        className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none"
-        style={iStyle}
-        onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-        onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
-        placeholder={isCoach
-          ? 'Describe your coaching philosophy, what you look for in players, and your background…'
-          : 'Tell coaches about your playing style, experience, and what you\'re looking for…'} />
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: '#8892aa' }}>{bio.length}/300</span>
-        <SaveCancel saving={saving} onCancel={onCancel}
-          onSave={async () => { setSaving(true); await onSave(bio); setSaving(false) }} />
       </div>
     </div>
   )

@@ -19,7 +19,6 @@ type Coach = {
   coaching_level: string | null
   club: string | null
   city: string | null
-  bio: string | null
   last_active: string | null
   created_at: string | null
   is_agent: boolean | null
@@ -416,7 +415,7 @@ export default function CoachesPage() {
       const [coachRes, profileRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, bio, last_active, created_at, is_agent')
+          .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, last_active, created_at, is_agent')
           .eq('role', 'coach')
           .eq('approved', true),
         supabase.from('profiles').select('role, premium').eq('id', user.id).single(),

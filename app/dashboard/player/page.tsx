@@ -39,7 +39,6 @@ type Profile = {
   height: string | null
   playing_level: string | null
   highlight_urls: string[] | null
-  bio: string | null
   goals: number
   assists: number
   appearances: number
@@ -845,7 +844,7 @@ export default function PlayerHome() {
       const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
 
       const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, bio, goals, assists, appearances').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, role, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),

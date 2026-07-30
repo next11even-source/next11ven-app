@@ -34,7 +34,6 @@ type PublicProfile = {
   appearances: number
   season: string | null
   highlight_urls: string[]
-  bio: string | null
   premium: boolean
   actively_looking: boolean
   streak_weeks: number
@@ -218,7 +217,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, bio, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -603,14 +602,6 @@ export default function PlayerPublicProfile() {
             <Row label="Location" value={player.city} />
           </div>
         </div>
-
-        {/* Bio */}
-        {player.bio && (
-          <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-            <h2 className="text-base font-bold uppercase mb-3" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>About</h2>
-            <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>{player.bio}</p>
-          </div>
-        )}
 
         {/* Highlights */}
         {player.highlight_urls.length > 0 && (

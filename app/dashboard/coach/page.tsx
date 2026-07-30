@@ -750,7 +750,7 @@ export default function CoachDashboard() {
         activeRes,
       ] = await Promise.all([
         supabase.from('profiles')
-          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, bio, role')
+          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, role')
           .eq('id', user.id).single(),
 
         // Last 5 roles posted across the platform (own + other clubs)
@@ -805,7 +805,6 @@ export default function CoachDashboard() {
         club: profile?.club ?? null,
         city: profile?.city ?? null,
         phone: profile?.phone ?? null,
-        bio: profile?.bio ?? null,
         coaching_role: profile?.coaching_role ?? null,
         coaching_level: profile?.coaching_level ?? null,
         coaching_history: profile?.coaching_history ?? null,

@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
   const { data: players, error: playersError } = await supabase
     .from('profiles')
     .select(
-      'id, email, full_name, premium, position, email_marketing_opt_out, is_active, password_set_at, avatar_url, bio, club, city, status, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances'
+      'id, email, full_name, premium, position, email_marketing_opt_out, is_active, password_set_at, avatar_url, club, city, status, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances'
     )
     .in('role', ['player', 'admin'])
     .eq('approved', true)

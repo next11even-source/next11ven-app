@@ -15,7 +15,6 @@ type CoachProfile = {
   id: string
   full_name: string | null
   avatar_url: string | null
-  bio: string | null
   club: string | null
   city: string | null
   coaching_role: string | null
@@ -97,7 +96,7 @@ export default function CoachPublicProfile() {
         const [coachRes, viewerRes, oppsRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('id, full_name, avatar_url, bio, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent')
+            .select('id, full_name, avatar_url, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent')
             .eq('id', id)
             .eq('role', 'coach')
             .single(),
@@ -505,15 +504,6 @@ export default function CoachPublicProfile() {
             <Row label="Location" value={coach.city} />
           </div>
         </div>
-
-        {/* Bio */}
-        {coach.bio && (
-          <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-            <h2 className="text-base font-bold uppercase mb-3"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>About</h2>
-            <p className="text-sm leading-relaxed" style={{ color: '#8892aa' }}>{coach.bio}</p>
-          </div>
-        )}
 
         {/* Coaching History */}
         {coach.coaching_history && (

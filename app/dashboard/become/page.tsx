@@ -238,8 +238,8 @@ export default function BecomePage() {
               <Field label="Full Name" required>
                 <Input required value={fullName} onChange={(e) => setFullName(toTitleCase(e.target.value))} placeholder="e.g. Marcus Johnson" />
               </Field>
-              <Field label="Phone (+44 format)">
-                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+447700900000" />
+              <Field label="Mobile Number" required>
+                <Input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07700 900000" />
               </Field>
               {role === 'player' && (
                 <Field label="Date of Birth" required>

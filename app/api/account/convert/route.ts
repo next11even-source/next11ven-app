@@ -44,6 +44,9 @@ function missingFields(role: 'player' | 'coach', b: z.infer<typeof ConvertSchema
     if (!value || (typeof value === 'string' && !value.trim())) missing.push(label)
   }
   need('Full name', b.full_name)
+  // Mobile number required for both roles, kept in step with /api/register/complete
+  // — otherwise a player or coach could sign up as a fan and convert to dodge it.
+  need('Mobile number', b.phone)
   if (role === 'player') {
     need('Date of birth', b.date_of_birth)
     need('Nearest city', b.city)
@@ -51,9 +54,6 @@ function missingFields(role: 'player' | 'coach', b: z.infer<typeof ConvertSchema
     need('Best position', b.position)
     need('Current club (or status)', b.club)
   } else {
-    // Kept in step with the coach gate in /api/register/complete — otherwise a
-    // coach could sign up as a fan and convert to dodge the required fields.
-    need('Mobile number', b.phone)
     need('Nearest city', b.city)
     need('Coaching role', b.coaching_role)
     need('Coaching level', b.coaching_level)

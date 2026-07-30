@@ -281,9 +281,9 @@ export default function RegisterPage() {
               <Field label="Password">
                 <Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" minLength={6} />
               </Field>
-              <Field label={role === 'coach' ? 'Mobile Number' : 'Mobile Number (Optional)'}>
+              <Field label={role === 'fan' ? 'Mobile Number (Optional)' : 'Mobile Number'}>
                 <Input
-                  required={role === 'coach'}
+                  required={role !== 'fan'}
                   type="tel"
                   value={phone}
                   placeholder="07700 900000"

@@ -35,12 +35,14 @@ const RegisterSchema = z.object({
 })
 
 // Core-fields gate — server-enforced so the client can't wave through a profile
-// that nobody can find. Coaches only: an audit of live data showed coaches
-// signing up on this form were arriving emptier than the ones migrated off the
-// old site (27% no coaching role, 24% no level, 27% no city), while player
-// fields were already at ~99% without enforcement. Adding friction to the
-// player form would cost signups and buy nothing, so it stays optional there.
-// DOB is deliberately NOT required for coaches — nothing filters coaches by age.
+// that nobody can find. Coach-specific fields are enforced here because an audit
+// of live data showed coaches signing up on this form arriving emptier than the
+// ones migrated off the old site (27% no coaching role, 24% no level, 27% no
+// city). Mobile number is required for both players and coaches (fans exempt) —
+// player fields were already at ~99% without enforcement, but phone specifically
+// is required platform-wide so coaches/players can always be reached once
+// matched. DOB is deliberately NOT required for coaches — nothing filters
+// coaches by age.
 function missingCoachFields(b: z.infer<typeof RegisterSchema>): string[] {
   const missing: string[] = []
   const need = (label: string, value: unknown) => {
@@ -109,6 +111,10 @@ export async function POST(req: NextRequest) {
   const phone = normalizePhone(body.phone as string | null)
   if (body.phone?.trim() && !phone) {
     return NextResponse.json({ error: 'Enter a valid UK mobile number, e.g. 07700 900000' }, { status: 400 })
+  }
+  // Required for players and coaches — fans stay minimal.
+  if (role !== 'fan' && !phone) {
+    return NextResponse.json({ error: 'Please add a mobile number.' }, { status: 400 })
   }
 
   // Age floor + typo guard. Server-side because the input's min/max is trivially

@@ -35,14 +35,10 @@ const RegisterSchema = z.object({
 })
 
 // Core-fields gate — server-enforced so the client can't wave through a profile
-// that nobody can find. Coach-specific fields are enforced here because an audit
-// of live data showed coaches signing up on this form arriving emptier than the
-// ones migrated off the old site (27% no coaching role, 24% no level, 27% no
-// city). Mobile number is required for both players and coaches (fans exempt) —
-// player fields were already at ~99% without enforcement, but phone specifically
-// is required platform-wide so coaches/players can always be reached once
-// matched. DOB is deliberately NOT required for coaches — nothing filters
-// coaches by age.
+// that nobody can find. Mobile number is required platform-wide, including fans,
+// so any account can always be reached. DOB is deliberately NOT required for
+// coaches — nothing filters coaches by age — but IS required for players since
+// it drives the 16+ floor and age-relevant discovery.
 function missingCoachFields(b: z.infer<typeof RegisterSchema>): string[] {
   const missing: string[] = []
   const need = (label: string, value: unknown) => {
@@ -53,6 +49,21 @@ function missingCoachFields(b: z.infer<typeof RegisterSchema>): string[] {
   need('Nearest city', b.city)
   need('Coaching role', b.coaching_role)
   need('Coaching level', b.coaching_level)
+  need('Current club', b.club)
+  return missing
+}
+
+function missingPlayerFields(b: z.infer<typeof RegisterSchema>): string[] {
+  const missing: string[] = []
+  const need = (label: string, value: unknown) => {
+    if (!value || (typeof value === 'string' && !value.trim())) missing.push(label)
+  }
+  need('Full name', b.full_name)
+  need('Mobile number', b.phone)
+  need('Date of birth', b.date_of_birth)
+  need('Nearest city', b.city)
+  need('Most recent playing level', b.playing_level)
+  need('Best position', b.position)
   need('Current club', b.club)
   return missing
 }
@@ -112,8 +123,8 @@ export async function POST(req: NextRequest) {
   if (body.phone?.trim() && !phone) {
     return NextResponse.json({ error: 'Enter a valid UK mobile number, e.g. 07700 900000' }, { status: 400 })
   }
-  // Required for players and coaches — fans stay minimal.
-  if (role !== 'fan' && !phone) {
+  // Required for every role, including fans — an account must always be reachable.
+  if (!phone) {
     return NextResponse.json({ error: 'Please add a mobile number.' }, { status: 400 })
   }
 
@@ -126,6 +137,11 @@ export async function POST(req: NextRequest) {
 
   if (role === 'coach') {
     const missing = missingCoachFields(body)
+    if (missing.length) {
+      return NextResponse.json({ error: `Please complete: ${missing.join(', ')}` }, { status: 400 })
+    }
+  } else if (role === 'player') {
+    const missing = missingPlayerFields(body)
     if (missing.length) {
       return NextResponse.json({ error: `Please complete: ${missing.join(', ')}` }, { status: 400 })
     }

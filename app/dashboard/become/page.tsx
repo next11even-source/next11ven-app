@@ -243,29 +243,29 @@ export default function BecomePage() {
               </Field>
               {role === 'player' && (
                 <Field label="Date of Birth" required>
-                  <Input type="date" value={dob} min={DOB_MIN} max={DOB_MAX} onChange={(e) => setDob(e.target.value)} />
+                  <Input required type="date" value={dob} min={DOB_MIN} max={DOB_MAX} onChange={(e) => setDob(e.target.value)} />
                   <p className="text-xs mt-1" style={{ color: '#8892aa' }}>{DOB_HELP}</p>
                 </Field>
               )}
               <Field label="Nearest City" required>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+                <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
               </Field>
             </Section>
 
             {role === 'player' && (
               <Section title="Player Details">
                 <Field label="Most Recent Playing Level" required>
-                  <Select value={playingLevel} onChange={(e) => setPlayingLevel(e.target.value)}>
+                  <Select required value={playingLevel} onChange={(e) => setPlayingLevel(e.target.value)}>
                     <option value="">Select level…</option>
                     {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                   </Select>
                 </Field>
                 <Field label="Current Club (or Free Agent)" required>
-                  <Input value={club} onChange={(e) => setClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
+                  <Input required value={club} onChange={(e) => setClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Best Position" required>
-                    <Select value={position} onChange={(e) => setPosition(e.target.value)}>
+                    <Select required value={position} onChange={(e) => setPosition(e.target.value)}>
                       <option value="">Select…</option>
                       {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                     </Select>
@@ -310,19 +310,19 @@ export default function BecomePage() {
             {role === 'coach' && (
               <Section title="Coaching Details">
                 <Field label="Your Role" required>
-                  <Select value={coachingRole} onChange={(e) => setCoachingRole(e.target.value)}>
+                  <Select required value={coachingRole} onChange={(e) => setCoachingRole(e.target.value)}>
                     <option value="">Select role…</option>
                     {COACHING_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </Select>
                 </Field>
                 <Field label="Most Recent Level Managed / Coached" required>
-                  <Select value={coachingLevel} onChange={(e) => setCoachingLevel(e.target.value)}>
+                  <Select required value={coachingLevel} onChange={(e) => setCoachingLevel(e.target.value)}>
                     <option value="">Select level…</option>
                     {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                   </Select>
                 </Field>
                 <Field label="Current Club (or No Club)" required>
-                  <Input value={club} onChange={(e) => setClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
+                  <Input required value={club} onChange={(e) => setClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
                 </Field>
                 <Field label="Coaching History (Previous Clubs)">
                   <textarea

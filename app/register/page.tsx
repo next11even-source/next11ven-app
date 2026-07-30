@@ -281,9 +281,9 @@ export default function RegisterPage() {
               <Field label="Password">
                 <Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" minLength={6} />
               </Field>
-              <Field label={role === 'fan' ? 'Mobile Number (Optional)' : 'Mobile Number'}>
+              <Field label="Mobile Number">
                 <Input
-                  required={role !== 'fan'}
+                  required
                   type="tel"
                   value={phone}
                   placeholder="07700 900000"
@@ -302,6 +302,7 @@ export default function RegisterPage() {
                 <>
                   <Field label="Date of Birth">
                     <Input
+                      required={role === 'player'}
                       type="date"
                       value={dob}
                       min={DOB_MIN}
@@ -314,7 +315,7 @@ export default function RegisterPage() {
                     </p>
                   </Field>
                   <Field label="Nearest City">
-                    <Input required={role === 'coach'} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+                    <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
                   </Field>
                 </>
               )}
@@ -324,17 +325,17 @@ export default function RegisterPage() {
             {role === 'player' && (
               <Section title="Player Details">
                 <Field label="Most Recent Playing Level">
-                  <Select value={playingLevel} onChange={(e) => setPlayingLevel(e.target.value)}>
+                  <Select required value={playingLevel} onChange={(e) => setPlayingLevel(e.target.value)}>
                     <option value="">Select level…</option>
                     {PLAYING_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                   </Select>
                 </Field>
                 <Field label="Current Club (or Free Agent)">
-                  <Input value={club} onChange={(e) => setClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
+                  <Input required value={club} onChange={(e) => setClub(e.target.value)} placeholder="e.g. Abbey Hey FC" />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Best Position">
-                    <Select value={position} onChange={(e) => setPosition(e.target.value)}>
+                    <Select required value={position} onChange={(e) => setPosition(e.target.value)}>
                       <option value="">Select…</option>
                       {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                     </Select>

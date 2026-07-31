@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
@@ -93,9 +92,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="space-y-1"><Label>{label}</Label>{children}</div>
 }
 
-function SectionCard({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+// `incomplete` gives a section the same accent-border treatment as the
+// completion bar's missing chips — a section with a required field still
+// blank should look visibly different from one that's done, not just say so
+// in text. Applied consistently across every card, not just new features.
+function SectionCard({ title, children, action, incomplete }: { title: string; children: React.ReactNode; action?: React.ReactNode; incomplete?: boolean }) {
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+    <div className="rounded-2xl overflow-hidden" style={incomplete
+      ? { border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.1) 0%, rgba(45,95,196,0.03) 100%)' }
+      : { backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
       <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: '1px solid #1e2235' }}>
         <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{title}</h3>
         {action}
@@ -450,6 +455,13 @@ export default function PlayerProfilePage() {
 
   const urls = highlights.filter(u => u.trim())
 
+  // Which section each still-missing completion check lives in, so the right
+  // card gets the accent treatment instead of the player having to hunt.
+  const { missing } = calcCompletion(profile)
+  const personalIncomplete = missing.some(m => ['Location', 'Date of birth', 'Phone number'].includes(m))
+  const footballIncomplete = missing.some(m => ['Position', 'Playing level', 'Availability', 'Club', 'Strongest foot', 'Height'].includes(m))
+  const highlightsIncomplete = missing.includes('Highlight reel')
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
 
@@ -485,6 +497,7 @@ export default function PlayerProfilePage() {
         {/* ── Personal Details ── */}
         <SectionCard
           title="Personal Details"
+          incomplete={personalIncomplete}
           action={
             <EditButton editing={editingPersonal} saving={saving}
               onEdit={() => setEditingPersonal(e => !e)}
@@ -510,6 +523,7 @@ export default function PlayerProfilePage() {
         {/* ── Football Info ── */}
         <SectionCard
           title="Football Info"
+          incomplete={footballIncomplete}
           action={
             <EditButton editing={editingFootball} saving={saving}
               onEdit={() => setEditingFootball(e => !e)}
@@ -589,35 +603,15 @@ export default function PlayerProfilePage() {
             Tracker (the single place stats are entered now). Legacy
             goals/assists/appearances/season columns are shown as a frozen
             fallback only, never edited from here again. ── */}
-        <PerformanceSummaryCard legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }} />
-
-        {/* ── Playing history — on-ramp to the self-reported career editor.
-            The intent ("my profile looks thin") lives here on the edit page, so
-            this is where the CTA belongs — the editor itself is otherwise buried
-            inside the tracker. No other non-league platform shows a player's
-            full career, so this pulls double duty as the pedigree pitch, not
-            just a completion checkbox. Copy backs off once it's filled in. ── */}
-        <Link href="/dashboard/performance/tracker/career"
-          className="flex items-center justify-between rounded-2xl px-4 py-3.5"
-          style={profile.hasCareerHistory
-            ? { backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }
-            : { border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)', textDecoration: 'none' }}>
-          <div className="min-w-0">
-            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>
-              {profile.hasCareerHistory ? 'Add another season' : 'Add your playing history'}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-              {profile.hasCareerHistory
-                ? 'Every club and level you\'ve played, not just this season.'
-                : 'Your full career, visible on your profile — no other non-league platform shows this.'}
-            </p>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 ml-3"><polyline points="9 18 15 12 9 6" /></svg>
-        </Link>
+        <PerformanceSummaryCard
+          legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }}
+          hasCareerHistory={profile.hasCareerHistory}
+        />
 
         {/* ── Highlight Videos ── */}
         <SectionCard
           title="Highlight Videos"
+          incomplete={highlightsIncomplete}
           action={
             <EditButton editing={editingHighlights} saving={saving}
               onEdit={() => setEditingHighlights(e => !e)}

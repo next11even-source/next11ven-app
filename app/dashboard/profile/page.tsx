@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
@@ -15,6 +14,7 @@ import BottomNav from '@/app/dashboard/player/_components/BottomNav'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { normalizePhone } from '@/lib/utils'
+import { calcCompletion, calcCoachCompletion } from '@/lib/profileCompletion'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +40,13 @@ type Profile = {
   season: string | null
   highlight_urls: string[]
   hasCareerHistory?: boolean
+  hasPerformanceLog?: boolean
+  // Fields not editable on this page (full editor is /dashboard/player/profile)
+  // but still needed so the completion bar's percentage is accurate.
+  date_of_birth?: string | null
+  foot?: string | null
+  height?: string | null
+  playing_level?: string | null
   // Coach fields
   coaching_role: string | null
   coaching_level: string | null
@@ -239,12 +246,17 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
   )
 }
 
-function EditableCard({ title, children, editContent }: {
-  title: string; children: React.ReactNode; editContent: (cancel: () => void) => React.ReactNode
+// `incomplete` gives a card the same accent-border treatment as the
+// completion bar's missing chips, applied consistently across every section
+// with a required field still blank — not just whichever one was built last.
+function EditableCard({ title, children, editContent, incomplete }: {
+  title: string; children: React.ReactNode; editContent: (cancel: () => void) => React.ReactNode; incomplete?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   return (
-    <div className="rounded-xl p-5 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+    <div className="rounded-xl p-4 space-y-3" style={incomplete
+      ? { border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.1) 0%, rgba(45,95,196,0.03) 100%)' }
+      : { backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold uppercase"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{title}</h3>
@@ -265,7 +277,7 @@ function EditableCard({ title, children, editContent }: {
 
 // ─── Player-specific sections ─────────────────────────────────────────────────
 
-function PlayerDetailsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+function PlayerDetailsCard({ profile, onSave, incomplete }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; incomplete?: boolean }) {
   const [savingLooking, setSavingLooking] = useState(false)
   const [showPaywall, setShowPaywall] = useState(false)
   const [localLooking, setLocalLooking] = useState(profile.actively_looking)
@@ -289,7 +301,7 @@ function PlayerDetailsCard({ profile, onSave }: { profile: Profile; onSave: (u: 
 
   return (
     <>
-      <EditableCard title="Details" editContent={(cancel) => (
+      <EditableCard title="Details" incomplete={incomplete} editContent={(cancel) => (
         <PlayerDetailsEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
       )}>
         <div className="space-y-2">
@@ -368,9 +380,9 @@ function PlayerDetailsEditor({ profile, onSave, onCancel }: {
   )
 }
 
-function HighlightsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+function HighlightsCard({ profile, onSave, incomplete }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; incomplete?: boolean }) {
   return (
-    <EditableCard title="Highlight Videos" editContent={(cancel) => (
+    <EditableCard title="Highlight Videos" incomplete={incomplete} editContent={(cancel) => (
       <HighlightsEditor urls={profile.highlight_urls} premium={profile.premium}
         onSave={async (urls) => { await onSave({ highlight_urls: urls }); cancel() }} onCancel={cancel} />
     )}>
@@ -411,9 +423,9 @@ function HighlightsEditor({ urls, premium, onSave, onCancel }: { urls: string[];
 
 // ─── Coach-specific sections ──────────────────────────────────────────────────
 
-function CoachDetailsCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+function CoachDetailsCard({ profile, onSave, incomplete }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; incomplete?: boolean }) {
   return (
-    <EditableCard title="Coaching Info" editContent={(cancel) => (
+    <EditableCard title="Coaching Info" incomplete={incomplete} editContent={(cancel) => (
       <CoachDetailsEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
     )}>
       <div className="space-y-2">
@@ -472,9 +484,9 @@ function CoachDetailsEditor({ profile, onSave, onCancel }: {
   )
 }
 
-function CoachingHistoryCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+function CoachingHistoryCard({ profile, onSave, incomplete }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; incomplete?: boolean }) {
   return (
-    <EditableCard title="Coaching History" editContent={(cancel) => (
+    <EditableCard title="Coaching History" incomplete={incomplete} editContent={(cancel) => (
       <CoachingHistoryEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
     )}>
       {profile.coaching_history
@@ -509,9 +521,9 @@ function CoachingHistoryEditor({ profile, onSave, onCancel }: {
 
 // ─── Coach Contact (phone only) ───────────────────────────────────────────────
 
-function CoachContactCard({ profile, onSave }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void> }) {
+function CoachContactCard({ profile, onSave, incomplete }: { profile: Profile; onSave: (u: Partial<Profile>) => Promise<void>; incomplete?: boolean }) {
   return (
-    <EditableCard title="Contact" editContent={(cancel) => (
+    <EditableCard title="Contact" incomplete={incomplete} editContent={(cancel) => (
       <CoachContactEditor profile={profile} onSave={async (u) => { await onSave(u); cancel() }} onCancel={cancel} />
     )}>
       <div className="flex items-center justify-between">
@@ -593,6 +605,66 @@ function NotificationsCard({ profile, onSave }: { profile: Profile; onSave: (u: 
   )
 }
 
+// ─── Completion Bar ───────────────────────────────────────────────────────────
+// Same component/logic as /dashboard/player/profile — this page previously had
+// no completion signal at all, which was the biggest reason nothing on it
+// stood out as more or less urgent than anything else.
+
+function CompletionBar({ profile, isCoach }: { profile: Profile; isCoach: boolean }) {
+  const { pct, missing } = isCoach ? calcCoachCompletion(profile) : calcCompletion(profile)
+  const barColor = pct < 40 ? '#f59e0b' : pct < 75 ? '#2d5fc4' : pct < 100 ? '#34d399' : '#a78bfa'
+
+  if (pct === 100) {
+    return (
+      <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: 'rgba(167,139,250,0.15)' }}>
+            <span style={{ fontSize: 16 }}>✓</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Profile Complete</p>
+            <p className="text-xs" style={{ color: '#8892aa' }}>{isCoach ? 'Your profile is fully filled in' : "You're maximising your visibility to coaches"}</p>
+          </div>
+          <span className="ml-auto text-sm font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>100%</span>
+        </div>
+      </div>
+    )
+  }
+
+  const showMissing = missing.slice(0, 3)
+
+  return (
+    <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
+          Profile Completion
+        </p>
+        <span className="text-xs font-bold" style={{ color: barColor }}>{pct}%</span>
+      </div>
+      <div className="w-full rounded-full h-1.5" style={{ backgroundColor: '#1e2235' }}>
+        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+      </div>
+      {showMissing.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {showMissing.map(label => (
+            <span key={label} className="text-xs px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'rgba(232,222,206,0.06)', color: '#8892aa', border: '1px solid #1e2235' }}>
+              + {label}
+            </span>
+          ))}
+          {missing.length > 3 && (
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'rgba(232,222,206,0.06)', color: '#8892aa', border: '1px solid #1e2235' }}>
+              +{missing.length - 3} more
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -605,13 +677,19 @@ export default function ProfilePage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const [{ data }, careerCountRes] = await Promise.all([
+      const [{ data }, matchesCountRes, careerCountRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('performance_matches').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
         supabase.from('career_stats').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
       ])
       if (!data) return
       await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id)
-      setProfile({ ...data, highlight_urls: data.highlight_urls ?? [], hasCareerHistory: (careerCountRes.count ?? 0) > 0 })
+      setProfile({
+        ...data,
+        highlight_urls: data.highlight_urls ?? [],
+        hasCareerHistory: (careerCountRes.count ?? 0) > 0,
+        hasPerformanceLog: (matchesCountRes.count ?? 0) > 0 || (careerCountRes.count ?? 0) > 0,
+      })
     }
     load()
   }, [])
@@ -659,6 +737,17 @@ export default function ProfilePage() {
     ? [profile.coaching_role, profile.club].filter(Boolean).join(' · ') || 'Add your role and club'
     : [profile.position, profile.club].filter(Boolean).join(' · ') || 'Add your position and club'
 
+  // Which card each still-missing completion check belongs to, so the right
+  // section gets the accent treatment instead of the player/coach having to
+  // hunt for what's outstanding.
+  const { missing } = isCoach ? calcCoachCompletion(profile) : calcCompletion(profile)
+  const detailsIncomplete = isCoach
+    ? missing.some(m => ['Coaching role', 'Coaching level', 'Club / Organisation', 'Location'].includes(m))
+    : missing.some(m => ['Position', 'Club', 'Availability'].includes(m))
+  const highlightsIncomplete = missing.includes('Highlight reel')
+  const coachingHistoryIncomplete = missing.includes('Coaching history')
+  const contactIncomplete = missing.includes('Phone number')
+
   const coachSidebarProfile = { full_name: profile.full_name, avatar_url: profile.avatar_url, coaching_role: profile.coaching_role }
   const playerSidebarProfile = { full_name: profile.full_name, avatar_url: profile.avatar_url, position: profile.position }
 
@@ -682,7 +771,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-8 space-y-6" style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom) + 32px)' }}>
+      <main className="max-w-2xl mx-auto px-6 py-8 space-y-4" style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom) + 32px)' }}>
 
         {/* Hero Card */}
         <div className="rounded-xl p-6" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -712,13 +801,17 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Completion — the single "here's what's missing" signal this page
+            didn't have before. */}
+        <CompletionBar profile={profile} isCoach={isCoach} />
+
         {/* Bio (shared) */}
         {/* Role-specific sections */}
         {isCoach ? (
           <>
-            <CoachDetailsCard profile={profile} onSave={saveProfile} />
-            <CoachingHistoryCard profile={profile} onSave={saveProfile} />
-            <CoachContactCard profile={profile} onSave={saveProfile} />
+            <CoachDetailsCard profile={profile} onSave={saveProfile} incomplete={detailsIncomplete} />
+            <CoachingHistoryCard profile={profile} onSave={saveProfile} incomplete={coachingHistoryIncomplete} />
+            <CoachContactCard profile={profile} onSave={saveProfile} incomplete={contactIncomplete} />
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>
@@ -726,29 +819,12 @@ export default function ProfilePage() {
           </>
         ) : (
           <>
-            <PlayerDetailsCard profile={profile} onSave={saveProfile} />
-            <PerformanceSummaryCard legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }} />
-            {/* Playing history CTA — same on-ramp as /dashboard/player/profile.
-                This page is also where the homepage completion bar deep-links
-                for the "Playing history" check, so the CTA has to live here too. */}
-            <Link href="/dashboard/performance/tracker/career"
-              className="flex items-center justify-between rounded-2xl px-4 py-3.5"
-              style={profile.hasCareerHistory
-                ? { backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }
-                : { border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)', textDecoration: 'none' }}>
-              <div className="min-w-0">
-                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>
-                  {profile.hasCareerHistory ? 'Add another season' : 'Add your playing history'}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-                  {profile.hasCareerHistory
-                    ? 'Every club and level you\'ve played, not just this season.'
-                    : 'Your full career, visible on your profile — no other non-league platform shows this.'}
-                </p>
-              </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 ml-3"><polyline points="9 18 15 12 9 6" /></svg>
-            </Link>
-            <HighlightsCard profile={profile} onSave={saveProfile} />
+            <PlayerDetailsCard profile={profile} onSave={saveProfile} incomplete={detailsIncomplete} />
+            <PerformanceSummaryCard
+              legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }}
+              hasCareerHistory={profile.hasCareerHistory}
+            />
+            <HighlightsCard profile={profile} onSave={saveProfile} incomplete={highlightsIncomplete} />
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />
             </div>

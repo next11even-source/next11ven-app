@@ -7,6 +7,9 @@
 // which is not the same as what's cheapest to fill in:
 //   - Photo first. 52% of players have none, and a profile without a face is
 //     the one a coach scrolls past. Biggest single gap on the platform.
+//   - Playing history second, deliberately ahead of fields coaches filter on.
+//     It's the platform's core differentiator — no other non-league product
+//     shows a player's full career — so it's asked for early, not earned.
 //   - Then the fields coaches filter and search on.
 //   - Phone/DOB/height last: admin detail, invisible to the people recruiting.
 
@@ -46,6 +49,7 @@ export type CompletionCheck = {
 
 export const COMPLETION_CHECKS: CompletionCheck[] = [
   { label: 'Profile photo',  why: 'Profiles with a photo get looked at first.',            done: p => !!p.avatar_url },
+  { label: 'Playing history', why: 'Your career record — clubs and levels you\'ve played, shown nowhere else in non-league.', done: p => !!p.hasCareerHistory },
   { label: 'Highlight reel', why: 'Coaches want to see you play before they message.',     done: p => Array.isArray(p.highlight_urls) && p.highlight_urls.length > 0 },
   { label: 'Position',       why: 'Coaches filter by position — you\'re invisible without it.', done: p => !!p.position },
   { label: 'Playing level',  why: 'Matches you to roles at the right step.',               done: p => !!p.playing_level },
@@ -53,7 +57,6 @@ export const COMPLETION_CHECKS: CompletionCheck[] = [
   { label: 'Availability',   why: 'Tells coaches whether you can actually be signed.',     done: p => !!p.status },
   { label: 'Club',           why: 'Shows where you\'re playing now.',                      done: p => !!p.club },
   { label: 'Season stats',   why: 'Numbers back up everything else on your profile.',      done: p => !!p.hasPerformanceLog || (p.goals ?? 0) > 0 || (p.assists ?? 0) > 0 || (p.appearances ?? 0) > 0 },
-  { label: 'Playing history', why: 'Your career record — clubs and levels you\'ve played, shown nowhere else in non-league.', done: p => !!p.hasCareerHistory },
   { label: 'Strongest foot', why: 'A detail coaches ask about constantly.',                done: p => !!p.foot },
   { label: 'Height',         why: 'Relevant for some positions and set pieces.',           done: p => !!p.height },
   { label: 'Date of birth',  why: 'Confirms your age bracket for age-group sides.',        done: p => !!p.date_of_birth },

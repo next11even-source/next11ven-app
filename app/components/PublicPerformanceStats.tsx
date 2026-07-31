@@ -72,10 +72,7 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
   const cd = perf.currentDetail
   const hasSelfReported = perf.seasons.some(s => s.selfReported)
 
-  // Current-season log row (all competition types) — lets us show a positive
-  // pre-season line when there's no competitive data yet.
   const currentYear = seasonStartYear()
-  const currentLog = perf.seasons.find(s => s.source === 'log' && s.seasonStartYear === currentYear) ?? null
   const seasonsCount = perf.seasons.length
 
   // Adaptive, honest header — never overclaim "Career" from thin data.
@@ -96,10 +93,14 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
     : perf.seasons[0]?.seasonLabel ?? seasonLabel(currentYear)
 
   // Season picker — a coach flicks the hero between individual seasons instead of
-  // reading one blended career aggregate. selectedIdx = -1 keeps the "All seasons"
-  // aggregate as the default (it always reads strong); an index picks one season.
+  // reading one blended career aggregate. Defaults to the current season when
+  // it's obviously underway (real competitive data logged this year); otherwise
+  // falls back to the "All seasons" aggregate, which reads strong even when the
+  // current season is thin (pre-season, no games yet). An index picks one season.
   // Only offered when there are 2+ seasons — one season has nothing to flick.
-  const [selectedIdx, setSelectedIdx] = useState(-1)
+  const [selectedIdx, setSelectedIdx] = useState<number>(() =>
+    cs && cs.summary.apps > 0 ? perf.seasons.findIndex(s => s.seasonStartYear === currentYear) : -1
+  )
   const showPicker = seasonsCount >= 2
 
   // Season-by-season is the coach's at-a-glance scan + the only per-season
@@ -116,14 +117,16 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
         cleanSheets: active.cleanSheets, minutes: active.minutes, motm: active.motm,
         selfReported: active.selfReported,
         avgMinutes: active.apps > 0 && active.minutes > 0 ? Math.round(active.minutes / active.apps) : null,
+        starts: active.starts, startsApps: active.apps,
       }
     : {
         goals: t.goals, assists: t.assists, apps: t.apps,
         cleanSheets: t.cleanSheets, minutes: t.minutes, motm: t.motm,
         selfReported: allSelfReported, avgMinutes: perf.avgMinutes,
+        starts: perf.startsContext?.starts ?? null, startsApps: perf.startsContext?.apps ?? null,
       }
   const viewInvolvements = view.goals + view.assists
-  const heroTitle = active ? 'Season' : trackTitle
+  const heroTitle = active ? (active.seasonStartYear === currentYear ? 'New season' : 'Season') : trackTitle
 
   // Big hero cards — position-aware. Always populated, so the section always
   // leads with something that reads well whichever season is selected.
@@ -147,7 +150,11 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
         Performance
       </h2>
 
-      {/* ── Career hero — big standout cards ─────────────────────────────── */}
+      {/* ── Career hero — big standout cards. Hidden entirely when there's no
+          real (competitive or self-reported) season yet — e.g. a player who's
+          only logged pre-season so far gets the reassurance line below
+          instead of a hero full of zeros. ─────────────────────────────── */}
+      {seasonsCount > 0 && (
       <div className="space-y-2.5">
         <SectionLabel right={
           <span className="flex items-center gap-2">
@@ -195,6 +202,9 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
           <p className="text-xs px-1 flex items-center gap-1.5" style={{ color: '#8892aa' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
             <span style={{ color: '#e8dece', fontWeight: 600 }}>{view.avgMinutes}&apos;</span> avg minutes / game
+            {view.starts != null && (
+              <span>&nbsp;— <span style={{ color: '#e8dece', fontWeight: 600 }}>{view.starts}/{view.startsApps}</span> starts</span>
+            )}
           </p>
         )}
         {view.motm > 0 && (
@@ -204,8 +214,11 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
           </p>
         )}
       </div>
+      )}
 
-      {/* Career milestones */}
+      {/* Career milestones — always shown regardless of which season is
+          selected in the hero. Even when the hero is scoped to a season with
+          0 apps, "200+ career appearances" is still worth showing off. */}
       {perf.milestones.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {perf.milestones.map(m => (
@@ -269,10 +282,10 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
             </div>
           )}
         </div>
-      ) : currentLog && currentLog.apps > 0 ? (
+      ) : perf.preseasonGamesLogged > 0 ? (
         <p className="text-xs px-1 flex items-center gap-1.5" style={{ color: '#8892aa' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
-          <span><span style={{ color: '#e8dece', fontWeight: 600 }}>{seasonLabel(currentYear)} pre-season</span> — {plural(currentLog.apps, 'game')} logged. League games build the record.</span>
+          <span><span style={{ color: '#e8dece', fontWeight: 600 }}>{seasonLabel(currentYear)} pre-season</span> — {plural(perf.preseasonGamesLogged, 'game')} logged. League games build the record.</span>
         </p>
       ) : null}
 
@@ -327,8 +340,13 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
                         </span>
                       )}
                     </div>
-                    {/* No per-season club/level line — season-long club
-                        attribution isn't verified and can be misleading. */}
+                    {/* Club omitted — season-long club attribution isn't
+                        verified and can be misleading. Level is now
+                        competitive-only for logged seasons (pre-season/
+                        friendlies excluded), so it's a trustworthy signal. */}
+                    {s.level && (
+                      <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{s.level}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="text-right">

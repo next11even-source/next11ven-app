@@ -12,6 +12,7 @@ import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
 import { displayHeight } from '@/lib/height'
+import { trackerLevelRank } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ type PublicProfile = {
   foot: string | null
   height: string | null
   status: string | null
-  contract_status: string | null
+  date_of_birth: string | null
   goals: number
   assists: number
   appearances: number
@@ -36,7 +37,6 @@ type PublicProfile = {
   highlight_urls: string[]
   premium: boolean
   actively_looking: boolean
-  streak_weeks: number
   last_active: string | null
   created_at: string | null
 }
@@ -53,6 +53,17 @@ const STATUS_LABELS: Record<string, string> = {
   signed: 'Signed',
   loan_dual_reg: 'Loan / dual-reg',
   just_exploring: 'Just exploring',
+}
+
+function computeAge(dateOfBirth: string | null): number | null {
+  if (!dateOfBirth) return null
+  const dob = new Date(dateOfBirth)
+  if (Number.isNaN(dob.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - dob.getFullYear()
+  const hasHadBirthdayThisYear = now.getMonth() > dob.getMonth() || (now.getMonth() === dob.getMonth() && now.getDate() >= dob.getDate())
+  if (!hasHadBirthdayThisYear) age--
+  return age
 }
 
 function isActiveThisWeek(lastActive: string | null) {
@@ -217,7 +228,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, contract_status, actively_looking, goals, assists, appearances, season, highlight_urls, premium, streak_weeks, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, date_of_birth, actively_looking, goals, assists, appearances, season, highlight_urls, premium, last_active, created_at').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -380,10 +391,24 @@ export default function PlayerPublicProfile() {
   const isOwnProfile = viewer?.id === player.id
   const viewerIsCoach = viewer?.role === 'coach'
   const firstName = player.full_name?.split(' ')[0] ?? 'this player'
-  const statusLabel = player.status ? STATUS_LABELS[player.status] ?? null : null
+  const availabilityLabel = player.status ? STATUS_LABELS[player.status] ?? null : null
   // "Free Agent" often lives in the club field for migrated profiles — that's a
   // status, not a club, so don't render it as one.
   const realClub = player.club && player.club.trim().toLowerCase() !== 'free agent' ? player.club.trim() : null
+
+  const age = computeAge(player.date_of_birth)
+
+  // Pedigree — derived purely from performance data + self-reported past
+  // seasons (no extra input from the player). Peak level only surfaces when
+  // it's genuinely above their current level; academy background is the
+  // fallback trajectory note when there's no higher peak to show.
+  const peakLevel = perf?.pedigree.peakLevel ?? null
+  const currentLevelRank = trackerLevelRank(player.playing_level)
+  const peakLevelRank = trackerLevelRank(peakLevel)
+  const showPeak = !!peakLevel && currentLevelRank != null && peakLevelRank != null && peakLevelRank < currentLevelRank
+  const trajectoryParts: string[] = showPeak
+    ? [`Peak ${peakLevel}`]
+    : perf?.pedigree.academyBackground ? ['Academy background'] : []
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -461,7 +486,12 @@ export default function PlayerPublicProfile() {
               <NewBadge createdAt={player.created_at} />
             </div>
             <p className="text-sm mt-1 truncate" style={{ color: '#8892aa' }}>
-              {[[player.position, player.secondary_position].filter(Boolean).join(' / '), player.playing_level].filter(Boolean).join(' · ') || 'Player'}
+              {[
+                age != null ? String(age) : null,
+                [player.position, player.secondary_position].filter(Boolean).join(' / '),
+                player.playing_level,
+                ...trajectoryParts,
+              ].filter(Boolean).join(' · ') || 'Player'}
             </p>
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               {player.actively_looking && (
@@ -471,9 +501,9 @@ export default function PlayerPublicProfile() {
                   Actively Looking
                 </span>
               )}
-              {statusLabel && (
+              {availabilityLabel && (
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
-                  style={{ color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.1)', border: '1px solid #1e2235' }}>{statusLabel}</span>
+                  style={{ color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.1)', border: '1px solid #1e2235' }}>{availabilityLabel}</span>
               )}
               {realClub && (
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
@@ -588,22 +618,8 @@ export default function PlayerPublicProfile() {
           </div>
         ) : null}
 
-        {/* Football Info */}
-        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
-            <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Football Info</h2>
-          </div>
-          <div className="px-4">
-            <Row label="Position" value={[player.position, player.secondary_position].filter(Boolean).join(' / ') || null} />
-            <Row label="Contract" value={player.contract_status ? { non_contract: 'Non-contract', contracted: 'Contracted', out_of_contract: 'Out of contract' }[player.contract_status] ?? null : null} />
-            <Row label="Playing Level" value={player.playing_level} />
-            <Row label="Strongest Foot" value={player.foot} />
-            <Row label="Height" value={displayHeight(player.height)} />
-            <Row label="Location" value={player.city} />
-          </div>
-        </div>
-
-        {/* Highlights */}
+        {/* Highlights — video is the most persuasive artefact on the page,
+            surfaced right after the stats that make someone want to press play. */}
         {player.highlight_urls.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Highlights</h2>
@@ -611,15 +627,19 @@ export default function PlayerPublicProfile() {
           </div>
         )}
 
-        {/* Streak */}
-        {player.streak_weeks > 0 && (
-          <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-            <span className="text-xl">🔥</span>
-            <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>
-              {player.streak_weeks}-week active streak
-            </p>
+        {/* Football Info */}
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
+            <h2 className="text-base font-bold uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>Football Info</h2>
           </div>
-        )}
+          <div className="px-4">
+            {/* Position and Playing Level already live in the header subtitle
+                — no need to repeat them here. */}
+            <Row label="Strongest Foot" value={player.foot} />
+            <Row label="Height" value={displayHeight(player.height)} />
+            <Row label="Location" value={player.city} />
+          </div>
+        </div>
 
         {/* Privacy note — visible to all non-owners */}
         {!isOwnProfile && (

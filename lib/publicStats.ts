@@ -19,6 +19,7 @@ import {
   type MatchSummary,
   type AggregatableMatch,
 } from './performance'
+import { trackerLevelRank } from './levels'
 
 // ── Shapes returned by the RPC (objective only — no notes/tags/rating) ────────
 export type PublicMatch = {
@@ -91,6 +92,7 @@ export type PublicSeasonRow = {
   clubs: string[]
   level: string | null
   apps: number
+  starts: number | null   // null = career/self-reported row, starts vs sub not tracked
   goals: number
   assists: number
   minutes: number
@@ -148,7 +150,10 @@ export type PublicPerformance = {
   seasons: PublicSeasonRow[]     // full history, newest first
   totals: { apps: number; goals: number; assists: number; minutes: number; cleanSheets: number; motm: number }
   avgMinutes: number | null      // career avg minutes/game over seasons that recorded minutes
+  startsContext: { starts: number; apps: number } | null  // starts/apps over seasons with a known starts count only
+  preseasonGamesLogged: number    // pre-season/friendly matches logged this year — not counted in seasons/totals
   milestones: string[]           // career milestones crossed (e.g. "100 career appearances")
+  pedigree: { peakLevel: string | null; academyBackground: boolean }  // derived from seasons[].level — no extra player input
 }
 
 // Map an allowlisted PublicMatch onto the structural shape summariseMatches
@@ -185,6 +190,7 @@ function summaryToRow(
     clubs,
     level,
     apps: s.apps,
+    starts: s.starts,
     goals: s.goals,
     assists: s.assists,
     minutes: s.minutes,
@@ -286,7 +292,10 @@ export function buildPublicPerformance(
     seasons: [],
     totals: { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
     avgMinutes: null,
+    startsContext: null,
+    preseasonGamesLogged: 0,
     milestones: [],
+    pedigree: { peakLevel: null, academyBackground: false },
   }
   if (!payload.visible) return empty
 
@@ -296,9 +305,17 @@ export function buildPublicPerformance(
 
   const focus = trackerFocus(dominantCategory(profilePosition, matches))
 
+  // Coach-facing numbers are competitive only (league + cup) — pre-season and
+  // friendlies are logged and get a separate reassurance line (below) so a
+  // profile doesn't look blank before competitive games start, but they never
+  // feed season totals, career totals, milestones or the level shown per
+  // season. Mirrors the same competitive-only standard the private tracker
+  // dashboard already applies to its own headline number.
+  const competitiveMatches = matches.filter(m => isCompetitive(m.competition_type))
+
   // ── Group the live log by season ────────────────────────────────────────────
   const logBySeason = new Map<number, PublicMatch[]>()
-  for (const m of matches) {
+  for (const m of competitiveMatches) {
     const yr = seasonOfMatch(m.match_date)
     const arr = logBySeason.get(yr)
     if (arr) arr.push(m)
@@ -308,8 +325,7 @@ export function buildPublicPerformance(
 
   const seasons: PublicSeasonRow[] = []
 
-  // Log-sourced season rows (all competition types folded in, so history is a
-  // complete record; the competitive-only cut is reserved for the headline).
+  // Log-sourced season rows — competitive matches only (see above).
   for (const [yr, ms] of logBySeason) {
     const s = summariseMatches(ms.map(toAggregatable))
     const yellowCards = ms.reduce((n, m) => n + (m.yellow_cards ?? 0), 0)
@@ -334,6 +350,7 @@ export function buildPublicPerformance(
       clubs: c.club_name ? [c.club_name] : [],
       level: c.level,
       apps: c.apps ?? 0,
+      starts: null,
       goals: c.goals ?? 0,
       assists: c.assists ?? 0,
       minutes: c.minutes ?? 0,
@@ -348,8 +365,7 @@ export function buildPublicPerformance(
 
   // ── Current-season headline + detail: competitive only, from the log ─────────
   const currentYear = seasonStartYear()
-  const currentLog = logBySeason.get(currentYear) ?? []           // newest-first
-  const currentCompetitive = currentLog.filter(m => isCompetitive(m.competition_type))
+  const currentCompetitive = logBySeason.get(currentYear) ?? []   // newest-first, already competitive-only
   const currentSummary = currentCompetitive.length > 0 ? summariseMatches(currentCompetitive.map(toAggregatable)) : null
   const currentSeason = currentSummary
     ? { startYear: currentYear, label: seasonLabel(currentYear), summary: currentSummary }
@@ -400,9 +416,41 @@ export function buildPublicPerformance(
     ? Math.round(minutesSeasons.reduce((n, s) => n + s.minutes, 0) / minutesApps)
     : null
 
+  // Starts context for the avg-minutes line — only over seasons where starts
+  // vs. sub appearances is actually tracked (log rows), so self-reported
+  // seasons with no starts data don't silently zero out the ratio.
+  const knownStartsSeasons = seasons.filter((s): s is PublicSeasonRow & { starts: number } => s.starts != null)
+  const startsContext = knownStartsSeasons.length > 0
+    ? {
+        starts: knownStartsSeasons.reduce((n, s) => n + s.starts, 0),
+        apps: knownStartsSeasons.reduce((n, s) => n + s.apps, 0),
+      }
+    : null
+
+  // Pedigree — derived entirely from tracked/self-reported season levels, no
+  // extra player input. Peak level only counts when it's actually on the
+  // TRACKER_LEVELS ladder (off-list values are never claimed as a "peak").
+  const rankedLevels = seasons
+    .map(s => ({ level: s.level, rank: trackerLevelRank(s.level) }))
+    .filter((x): x is { level: string; rank: number } => x.rank != null)
+  const peakLevel = rankedLevels.length > 0
+    ? rankedLevels.reduce((best, cur) => (cur.rank < best.rank ? cur : best)).level
+    : null
+  const academyBackground = seasons.some(s => s.level === 'U18s/Academy')
+
+  // Pre-season games logged this year, from the raw (unfiltered) log — kept
+  // separate from `seasons`/`totals` so a player who's only logged warm-up
+  // fixtures so far still gets an honest "games logged" line instead of a
+  // blank profile, without those fixtures counting as season/career stats.
+  const preseasonGamesLogged = matches.filter(m => seasonOfMatch(m.match_date) === currentYear && !isCompetitive(m.competition_type)).length
+
   return {
-    visible: true, hasAny: true, focus, level, versatility,
-    currentSeason, currentDetail, seasons, totals, avgMinutes,
+    // hasAny gates whether the Performance section renders at all — true when
+    // there's at least one real (competitive or self-reported) season, OR
+    // pre-season activity to show the reassurance line for.
+    visible: true, hasAny: seasons.length > 0 || preseasonGamesLogged > 0, focus, level, versatility,
+    currentSeason, currentDetail, seasons, totals, avgMinutes, startsContext, preseasonGamesLogged,
     milestones: careerMilestones(totals),
+    pedigree: { peakLevel, academyBackground },
   }
 }

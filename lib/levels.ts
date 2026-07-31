@@ -41,6 +41,18 @@ export function stepNumber(level: string | null | undefined): number | null {
 }
 
 /**
+ * Ranks any TRACKER_LEVELS value (pro tiers, Step 1-7, academy, Wales, Other)
+ * for pedigree/trajectory comparisons — e.g. "peak level reached" vs a
+ * player's current playing level. Lower rank = higher level. null for values
+ * outside TRACKER_LEVELS (never claimed as a peak).
+ */
+export function trackerLevelRank(level: string | null | undefined): number | null {
+  if (!level) return null
+  const i = TRACKER_LEVELS.indexOf(level as TrackerLevel)
+  return i === -1 ? null : i
+}
+
+/**
  * For the locked-message trigger: reveal the coach's club step ONLY when it's a
  * strong signal — i.e. the coach's club is at or above the player's own level.
  * Returns the coach's step label (e.g. "Step 2") to display, or null to stay

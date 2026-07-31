@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
   // Consent gate: open to recruitment AND stats shown.
   const { data: players, error: pErr } = await service
     .from('profiles')
-    .select('id, full_name, avatar_url, position, secondary_position, playing_level, contract_status, city')
+    .select('id, full_name, avatar_url, position, secondary_position, playing_level, city')
     .in('role', ['player', 'admin'])
     .eq('approved', true)
     .eq('actively_looking', true)
@@ -105,7 +105,6 @@ export async function GET(req: NextRequest) {
       position: p.position,
       secondary_position: p.secondary_position,
       level: perf.level ?? p.playing_level ?? null,
-      contract_status: p.contract_status,
       city: p.city,
       versatility: perf.versatility,
       current: cs ? {

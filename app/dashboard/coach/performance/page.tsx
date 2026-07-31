@@ -22,7 +22,6 @@ type Player = {
   position: string | null
   secondary_position: string | null
   level: string | null
-  contract_status: string | null
   city: string | null
   versatility: string[]
   current: { apps: number; goals: number; assists: number; involvements: number; minutes: number; avgMinutes: number | null; cleanSheets: number; motm: number } | null
@@ -41,10 +40,6 @@ const SORTS: { key: string; label: string }[] = [
   { key: 'apps', label: 'Appearances' },
   { key: 'minutes', label: 'Minutes' },
 ]
-
-const CONTRACT_LABEL: Record<string, string> = {
-  non_contract: 'Non-contract', contracted: 'Contracted', out_of_contract: 'Out of contract',
-}
 
 function FormPills({ results }: { results: ('W' | 'D' | 'L')[] }) {
   const ordered = [...results].reverse()
@@ -171,9 +166,6 @@ export default function CoachPerformancePage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
                           {p.level && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.35)' }}>{p.level}</span>}
-                          {p.contract_status && CONTRACT_LABEL[p.contract_status] && (
-                            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa', border: '1px solid #1e2235' }}>{CONTRACT_LABEL[p.contract_status]}</span>
-                          )}
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
                           {[p.position, p.secondary_position].filter(Boolean).join(' / ') || '—'}{p.city ? ` · ${p.city}` : ''}

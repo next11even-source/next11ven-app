@@ -39,6 +39,7 @@ type Profile = {
   appearances: number
   season: string | null
   hasPerformanceLog?: boolean
+  hasCareerHistory?: boolean
   highlight_urls: string[]
   streak_weeks: number
   last_active: string | null
@@ -374,6 +375,7 @@ export default function PlayerProfilePage() {
         ...data,
         highlight_urls: data.highlight_urls ?? [],
         hasPerformanceLog: (matchesCountRes.count ?? 0) > 0 || (careerCountRes.count ?? 0) > 0,
+        hasCareerHistory: (careerCountRes.count ?? 0) > 0,
       } as Profile
       setProfile(p)
       syncFields(p)
@@ -589,16 +591,26 @@ export default function PlayerProfilePage() {
             fallback only, never edited from here again. ── */}
         <PerformanceSummaryCard legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }} />
 
-        {/* ── Add past seasons — on-ramp to the self-reported career editor.
+        {/* ── Playing history — on-ramp to the self-reported career editor.
             The intent ("my profile looks thin") lives here on the edit page, so
             this is where the CTA belongs — the editor itself is otherwise buried
-            inside the tracker. ── */}
+            inside the tracker. No other non-league platform shows a player's
+            full career, so this pulls double duty as the pedigree pitch, not
+            just a completion checkbox. Copy backs off once it's filled in. ── */}
         <Link href="/dashboard/performance/tracker/career"
           className="flex items-center justify-between rounded-2xl px-4 py-3.5"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}>
+          style={profile.hasCareerHistory
+            ? { backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }
+            : { border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)', textDecoration: 'none' }}>
           <div className="min-w-0">
-            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Played before you joined?</p>
-            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Add past seasons so coaches see a full record, not a blank one.</p>
+            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>
+              {profile.hasCareerHistory ? 'Add another season' : 'Add your playing history'}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+              {profile.hasCareerHistory
+                ? 'Every club and level you\'ve played, not just this season.'
+                : 'Your full career, visible on your profile — no other non-league platform shows this.'}
+            </p>
           </div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 ml-3"><polyline points="9 18 15 12 9 6" /></svg>
         </Link>

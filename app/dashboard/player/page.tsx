@@ -43,6 +43,7 @@ type Profile = {
   assists: number
   appearances: number
   hasPerformanceLog?: boolean
+  hasCareerHistory?: boolean
 }
 
 type FeaturedPlayer = {
@@ -869,6 +870,7 @@ export default function PlayerHome() {
       const profileData = {
         ...(profileRes.data as Profile),
         hasPerformanceLog: (matchesCountRes.count ?? 0) > 0 || (careerCountRes.count ?? 0) > 0,
+        hasCareerHistory: (careerCountRes.count ?? 0) > 0,
       }
       setProfile(profileData)
       setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5).slice(0, 10))

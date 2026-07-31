@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
@@ -38,6 +39,7 @@ type Profile = {
   appearances: number
   season: string | null
   highlight_urls: string[]
+  hasCareerHistory?: boolean
   // Coach fields
   coaching_role: string | null
   coaching_level: string | null
@@ -603,10 +605,13 @@ export default function ProfilePage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const [{ data }, careerCountRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('career_stats').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
+      ])
       if (!data) return
       await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id)
-      setProfile({ ...data, highlight_urls: data.highlight_urls ?? [] })
+      setProfile({ ...data, highlight_urls: data.highlight_urls ?? [], hasCareerHistory: (careerCountRes.count ?? 0) > 0 })
     }
     load()
   }, [])
@@ -723,6 +728,26 @@ export default function ProfilePage() {
           <>
             <PlayerDetailsCard profile={profile} onSave={saveProfile} />
             <PerformanceSummaryCard legacy={{ goals: profile.goals, assists: profile.assists, appearances: profile.appearances, season: profile.season }} />
+            {/* Playing history CTA — same on-ramp as /dashboard/player/profile.
+                This page is also where the homepage completion bar deep-links
+                for the "Playing history" check, so the CTA has to live here too. */}
+            <Link href="/dashboard/performance/tracker/career"
+              className="flex items-center justify-between rounded-2xl px-4 py-3.5"
+              style={profile.hasCareerHistory
+                ? { backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }
+                : { border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)', textDecoration: 'none' }}>
+              <div className="min-w-0">
+                <p className="text-sm font-bold" style={{ color: '#e8dece' }}>
+                  {profile.hasCareerHistory ? 'Add another season' : 'Add your playing history'}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+                  {profile.hasCareerHistory
+                    ? 'Every club and level you\'ve played, not just this season.'
+                    : 'Your full career, visible on your profile — no other non-league platform shows this.'}
+                </p>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3a6fda" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 ml-3"><polyline points="9 18 15 12 9 6" /></svg>
+            </Link>
             <HighlightsCard profile={profile} onSave={saveProfile} />
             <div id="notifications">
               <NotificationsCard profile={profile} onSave={saveProfile} />

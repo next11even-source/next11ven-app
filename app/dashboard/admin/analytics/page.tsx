@@ -82,6 +82,12 @@ type TrackerStats = {
   repeat_loggers: number
   motm_logged: number
   daily_trend: { label: string; value: number }[]
+  searchable_pool: number
+  stats_public_count: number
+  career_rows_total: number
+  career_players_total: number
+  career_rows_7d: number
+  career_multi_season_players: number
 }
 
 type DayPoint = { label: string; value: number }
@@ -521,6 +527,82 @@ export default function AnalyticsPage() {
             ) : (
               <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
                 <p className="text-sm" style={{ color: '#8892aa' }}>Could not load tracker data.</p>
+              </div>
+            )}
+          </section>
+
+          {/* ── Recruitment Intelligence — is the data being used? ─────────────── */}
+          <section>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Recruitment Intelligence</p>
+              <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                style={{ backgroundColor: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
+                Matching + Coach Pro
+              </span>
+            </div>
+
+            {trackerLoading ? (
+              <div className="rounded-xl p-6 flex items-center justify-center"
+                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: '#a78bfa', borderTopColor: 'transparent' }} />
+              </div>
+            ) : trackerStats ? (
+              <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Coach-searchable pool</p>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>Actively Looking + stats public — what Coach Pro search actually returns</p>
+                  </div>
+                  <span className="text-2xl font-black leading-none flex-shrink-0"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
+                    {trackerStats.searchable_pool}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs" style={{ color: '#8892aa' }}>Stats made public (opt-in, default on)</p>
+                    <p className="text-xs font-bold" style={{ color: '#a78bfa' }}>
+                      {trackerStats.eligible_players > 0
+                        ? Math.round((trackerStats.stats_public_count / trackerStats.eligible_players) * 100)
+                        : 0}%
+                    </p>
+                  </div>
+                  <div className="w-full rounded-full h-2" style={{ backgroundColor: '#1e2235' }}>
+                    <div className="h-2 rounded-full transition-all" style={{
+                      width: `${trackerStats.eligible_players > 0 ? Math.round((trackerStats.stats_public_count / trackerStats.eligible_players) * 100) : 0}%`,
+                      backgroundColor: '#a78bfa',
+                    }} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <StatCard label="Career History Rows" value={trackerStats.career_rows_total} color="#a78bfa"
+                    sub={`+${trackerStats.career_rows_7d} this week`} />
+                  <StatCard label="Players With Career Data" value={trackerStats.career_players_total} color="#a78bfa" />
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg px-3 py-2.5"
+                  style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: '#e8dece' }}>Multi-season history (2+ seasons)</p>
+                    <p className="text-xs" style={{ color: '#8892aa' }}>
+                      Adoption from the past — players who've placed more than one season
+                      {trackerStats.career_players_total > 0 && (
+                        <span> · {Math.round((trackerStats.career_multi_season_players / trackerStats.career_players_total) * 100)}% of those with career data</span>
+                      )}
+                    </p>
+                  </div>
+                  <span className="text-xl font-black leading-none flex-shrink-0 ml-3"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
+                    {trackerStats.career_multi_season_players}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                <p className="text-sm" style={{ color: '#8892aa' }}>Could not load intelligence data.</p>
               </div>
             )}
           </section>

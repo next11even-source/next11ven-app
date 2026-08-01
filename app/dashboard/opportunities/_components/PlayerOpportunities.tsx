@@ -8,7 +8,8 @@ import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { LevelBadge, StepBadge, MatchChip, SignalChip } from '@/app/components/OpportunityBadges'
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { getPrimarySignal } from '@/lib/opportunitySignal'
-import { sortLevels } from '@/lib/levels'
+import { LEVELS, sortLevels } from '@/lib/levels'
+import { POSITIONS } from '@/lib/positions'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -123,12 +124,109 @@ function PinIcon() {
   )
 }
 
+// ─── Admin moderation edit ────────────────────────────────────────────────────
+// Founder-only. Lets an amber-flagged coach post be corrected in place — e.g.
+// rewriting "apply via email/DM" instructions to point back to NEXT11VEN, or
+// scrubbing a third-party promo mention — without waiting on the coach.
+const adminFieldStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }
+
+function AdminEditForm({ opp, onCancel, onSaved }: {
+  opp: Opportunity
+  onCancel: () => void
+  onSaved: (updated: Partial<Opportunity> & { id: string }) => void
+}) {
+  const [title, setTitle] = useState(opp.title)
+  const [club, setClub] = useState(opp.club ?? '')
+  const [location, setLocation] = useState(opp.location ?? '')
+  const [position, setPosition] = useState(opp.position ?? '')
+  const [level, setLevel] = useState(opp.level ?? '')
+  const [description, setDescription] = useState(opp.description ?? '')
+  const [deadline, setDeadline] = useState(opp.deadline ?? '')
+  const [urgent, setUrgent] = useState(opp.urgent)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSave() {
+    if (!title.trim()) { setError('Title is required.'); return }
+    setSaving(true)
+    setError(null)
+    const res = await fetch(`/api/admin/opportunities/${opp.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: title.trim(),
+        club: club.trim() || null,
+        location: location.trim() || null,
+        position: position || null,
+        level: level || null,
+        description: description.trim() || null,
+        deadline: deadline || null,
+        urgent,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error ?? 'Failed to save changes'); setSaving(false); return }
+    onSaved(data.opportunity)
+  }
+
+  return (
+    <div className="mt-3 space-y-2.5 rounded-xl p-3" style={{ border: '1px solid rgba(245,158,11,0.4)', backgroundColor: 'rgba(245,158,11,0.05)' }}>
+      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#fbbf24' }}>Admin edit</p>
+      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title"
+        className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle} />
+      <div className="grid grid-cols-2 gap-2">
+        <input value={club} onChange={e => setClub(e.target.value)} placeholder="Club"
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle} />
+        <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Area"
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <select value={position} onChange={e => setPosition(e.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle}>
+          <option value="">Any position</option>
+          {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={level} onChange={e => setLevel(e.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle}>
+          <option value="">No level</option>
+          {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+      </div>
+      <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4}
+        className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none" style={adminFieldStyle}
+        placeholder="Description" />
+      <div className="flex items-center gap-3">
+        <input type="date" value={deadline ?? ''} onChange={e => setDeadline(e.target.value)}
+          className="rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle} />
+        <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: urgent ? '#f59e0b' : '#8892aa' }}>
+          <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} className="accent-amber-500" />
+          Urgent
+        </label>
+      </div>
+      {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel} disabled={saving}
+          className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider disabled:opacity-50"
+          style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+          Cancel
+        </button>
+        <button type="button" onClick={handleSave} disabled={saving}
+          className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider disabled:opacity-50"
+          style={{ backgroundColor: '#f59e0b', color: '#0a0a0a' }}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Opportunity card ─────────────────────────────────────────────────────────
 // Two paths only: apply now, or go Premium then apply. The filled blue Apply
 // button is the single strongest element; the match chip is the premium hook.
 function PlayerOpportunityCard({
   opp, isPremium, applied, isApplying, highlighted, message,
   onMessageChange, onApplyClick, onCancel, onConfirm, onLockedMatch, anchorId = true, hero = false,
+  isAdmin = false, onAdminSave,
 }: {
   opp: Opportunity
   isPremium: boolean
@@ -147,6 +245,9 @@ function PlayerOpportunityCard({
   // Best-matches treatment: a subtle amber ring + glow on the card itself (no
   // wrapper box, so an odd match count never leaves a dead glowing cell).
   hero?: boolean
+  // Founder-only moderation edit (see AdminEditForm above).
+  isAdmin?: boolean
+  onAdminSave?: (updated: Partial<Opportunity> & { id: string }) => void
 }) {
   const signal = getPrimarySignal(opp)
   const title = toSentenceCase(opp.title)
@@ -167,6 +268,9 @@ function PlayerOpportunityCard({
     : isPremium
       ? `Apply to ${title}${meta ? ` at ${meta}` : ''}`
       : `Upgrade to Premium to apply to ${title}`
+
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   return (
     <article id={anchorId ? 'opp-' + opp.id : undefined}
@@ -205,11 +309,51 @@ function PlayerOpportunityCard({
           </div>
         </div>
 
+        {/* View details — collapsed by default, reveals the coach's full
+            description when the card only shows the bare essentials. Admins
+            get an extra "Edit" trigger alongside it for moderation. */}
+        {(opp.description || isAdmin) && !editing && (
+          <div className="mt-1.5">
+            <div className="flex items-center gap-3">
+              {opp.description && (
+                <button type="button" onClick={() => setDetailsOpen(v => !v)}
+                  aria-expanded={detailsOpen}
+                  className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8] rounded"
+                  style={{ color: '#6ea0f0' }}>
+                  {detailsOpen ? 'Hide details' : 'View details'}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: detailsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+              )}
+              {isAdmin && (
+                <button type="button" onClick={() => setEditing(true)}
+                  className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
+                  style={{ color: '#fbbf24' }}>
+                  ✎ Edit
+                </button>
+              )}
+            </div>
+            {detailsOpen && opp.description && (
+              <p className="mt-1.5 text-sm whitespace-pre-wrap" style={{ color: '#c3cbdb' }}>
+                {opp.description}
+              </p>
+            )}
+          </div>
+        )}
+
+        {editing && (
+          <AdminEditForm opp={opp}
+            onCancel={() => setEditing(false)}
+            onSaved={(updated) => { onAdminSave?.(updated); setEditing(false) }} />
+        )}
+
         {/* Action row — supporting chips (position / applicant / deadline signal)
             fill the space to the LEFT of the Apply button rather than taking
             their own row, so the card stays compact. Apply is a soft, compact,
             right-aligned pill. */}
-        {!isApplying && (
+        {!isApplying && !editing && (
           <div className="mt-2.5 flex items-center gap-2">
             {(showPos || signal) && (
               <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
@@ -255,10 +399,11 @@ function PlayerOpportunityCard({
 
 // ─── Opportunities Tab ────────────────────────────────────────────────────────
 
-function OpportunitiesTab({ playerId, focusOppId, onFocused }: {
+function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: {
   playerId: string
   focusOppId: string | null
   onFocused: () => void
+  isAdmin?: boolean
 }) {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
@@ -308,6 +453,12 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused }: {
       setApplying(null)
       setMessage('')
     }
+  }
+
+  // Admin moderation save — merge the patched fields into local state so the
+  // card reflects the edit immediately without a full refetch.
+  function handleAdminSave(updated: Partial<Opportunity> & { id: string }) {
+    setOpportunities(prev => prev.map(o => o.id === updated.id ? { ...o, ...updated } : o))
   }
 
   // "Best matches for you" — the server-flagged close matches (position fit +
@@ -376,6 +527,8 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused }: {
     onCancel: () => { setApplying(null); setMessage('') },
     onConfirm: () => handleApply(opp),
     onLockedMatch: () => setPaywall('match'),
+    isAdmin,
+    onAdminSave: handleAdminSave,
   })
 
   if (loading) return (
@@ -606,7 +759,7 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function PlayerOpportunities({ playerId }: { playerId: string }) {
+export default function PlayerOpportunities({ playerId, isAdmin = false }: { playerId: string; isAdmin?: boolean }) {
   const { openSidebar } = useSidebar()
   const [activeTab, setActiveTab] = useState<'opportunities' | 'applications'>('opportunities')
   const [focusOppId, setFocusOppId] = useState<string | null>(null)
@@ -658,7 +811,7 @@ export default function PlayerOpportunities({ playerId }: { playerId: string }) 
       </div>
 
       {activeTab === 'opportunities'
-        ? <OpportunitiesTab playerId={playerId} focusOppId={focusOppId} onFocused={() => setFocusOppId(null)} />
+        ? <OpportunitiesTab playerId={playerId} focusOppId={focusOppId} onFocused={() => setFocusOppId(null)} isAdmin={isAdmin} />
         : <ApplicationsTab playerId={playerId} onView={viewOpportunity} onBrowse={() => setActiveTab('opportunities')} />}
     </div>
   )

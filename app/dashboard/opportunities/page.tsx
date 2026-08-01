@@ -39,5 +39,5 @@ export default function OpportunitiesPage() {
 
   return role === 'coach'
     ? <CoachOpportunities coachId={userId} />
-    : <PlayerOpportunities playerId={userId} />
+    : <PlayerOpportunities playerId={userId} isAdmin={role === 'admin'} />
 }

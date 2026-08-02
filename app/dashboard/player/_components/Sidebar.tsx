@@ -300,6 +300,17 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
                 </svg>
                 <p className="text-sm font-semibold">Analytics</p>
               </Link>
+              <Link href="/dashboard/coach/performance" onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                style={{ textDecoration: 'none', color: '#f59e0b' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3v18h18" />
+                  <path d="M18 17V9" />
+                  <path d="M13 17V5" />
+                  <path d="M8 17v-3" />
+                </svg>
+                <p className="text-sm font-semibold">Coach Pro Dashboard</p>
+              </Link>
             </>
           )}
         </nav>

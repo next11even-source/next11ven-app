@@ -8,6 +8,7 @@ import { NarrativeBanner, HeroMetricCard, ProgressToGoalCard } from './_componen
 import { MarketplaceHealthRow } from './_components/MarketplaceHealth'
 import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { RevenueSection } from './_components/RevenueSection'
+import { MonthByMonth } from './_components/MonthByMonth'
 import { ContextStrip } from './_components/ContextStrip'
 import { OpsTab } from './_components/OpsTab'
 import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
@@ -261,6 +262,7 @@ function HealthTab({ platformStats, revenueStats, trackerStats, trackerLoading }
       <MarketplaceHealthRow platformStats={platformStats} />
       <LeadingIndicatorsRow platformStats={platformStats} trackerStats={trackerLoading ? null : trackerStats} />
       <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
+      <MonthByMonth monthly={monthly} />
 
       <ContextStrip platformStats={platformStats} revenueStats={revenueStats} />
     </div>

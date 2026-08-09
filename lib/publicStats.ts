@@ -138,6 +138,22 @@ export type PublicCurrentDetail = {
   involvementStreak: number      // consecutive most-recent games with a goal or assist
 }
 
+// Career output split by the level it was actually achieved at. `totals` blends
+// every season into one number, which is honest on the player's own profile
+// (the season table sits right underneath it, each row level-labelled) but
+// actively misleading anywhere a single career line stands alone — a coach
+// reads "75 apps · 60G · 34A" as senior output when it's an academy season.
+// Any surface that shows career output WITHOUT the season table must render
+// this breakdown instead of `totals`. Highest level first; unranked last.
+export type PublicLevelTotals = {
+  level: string | null
+  apps: number
+  goals: number
+  assists: number
+  minutes: number
+  seasons: number
+}
+
 export type PublicPerformance = {
   visible: boolean
   hasAny: boolean
@@ -149,6 +165,7 @@ export type PublicPerformance = {
   currentDetail: PublicCurrentDetail | null
   seasons: PublicSeasonRow[]     // full history, newest first
   totals: { apps: number; goals: number; assists: number; minutes: number; cleanSheets: number; motm: number }
+  careerByLevel: PublicLevelTotals[]  // `totals` split by level — see PublicLevelTotals
   avgMinutes: number | null      // career avg minutes/game over seasons that recorded minutes
   startsContext: { starts: number; apps: number } | null  // starts/apps over seasons with a known starts count only
   preseasonGamesLogged: number    // pre-season/friendly matches logged this year — not counted in seasons/totals
@@ -291,6 +308,7 @@ export function buildPublicPerformance(
     currentDetail: null,
     seasons: [],
     totals: { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
+    careerByLevel: [],
     avgMinutes: null,
     startsContext: null,
     preseasonGamesLogged: 0,
@@ -407,6 +425,27 @@ export function buildPublicPerformance(
     { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
   )
 
+  // Same output as `totals`, split by the level it was played at. Seasons with
+  // no level group under a single null bucket rather than being dropped, so the
+  // segments always add back up to `totals`.
+  const levelBuckets = new Map<string, PublicLevelTotals>()
+  for (const s of seasons) {
+    const key = s.level ?? ''
+    const b = levelBuckets.get(key) ?? { level: s.level, apps: 0, goals: 0, assists: 0, minutes: 0, seasons: 0 }
+    b.apps += s.apps
+    b.goals += s.goals
+    b.assists += s.assists
+    b.minutes += s.minutes
+    b.seasons += 1
+    levelBuckets.set(key, b)
+  }
+  // Highest level first (off-ladder values last), then most appearances.
+  const careerByLevel = [...levelBuckets.values()].sort((a, b) => {
+    const ra = trackerLevelRank(a.level) ?? Number.MAX_SAFE_INTEGER
+    const rb = trackerLevelRank(b.level) ?? Number.MAX_SAFE_INTEGER
+    return ra - rb || b.apps - a.apps
+  })
+
   // Career avg minutes/game — averaged only over seasons that actually recorded
   // minutes, so seasons with no minutes data don't drag it down. Applies to
   // every position, and isn't surfaced anywhere else.
@@ -449,7 +488,7 @@ export function buildPublicPerformance(
     // there's at least one real (competitive or self-reported) season, OR
     // pre-season activity to show the reassurance line for.
     visible: true, hasAny: seasons.length > 0 || preseasonGamesLogged > 0, focus, level, versatility,
-    currentSeason, currentDetail, seasons, totals, avgMinutes, startsContext, preseasonGamesLogged,
+    currentSeason, currentDetail, seasons, totals, careerByLevel, avgMinutes, startsContext, preseasonGamesLogged,
     milestones: careerMilestones(totals),
     pedigree: { peakLevel, academyBackground },
   }

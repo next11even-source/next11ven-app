@@ -218,3 +218,61 @@ describe('buildPublicPerformance — headline', () => {
     expect(out.currentSeason!.summary.goals).toBe(1)
   })
 })
+
+describe('buildPublicPerformance — careerByLevel (level-split career output)', () => {
+  it('splits academy output away from senior output', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [],
+      career: [
+        career({ season_start_year: 2023, level: 'U18s/Academy', club_name: 'Academy', apps: 75, goals: 60, assists: 34, minutes: 6000 }),
+        career({ season_start_year: 2024, level: 'Step 5', club_name: 'Senior FC', apps: 20, goals: 2, assists: 1, minutes: 1500 }),
+      ],
+    }, 'ST')
+
+    // The blended total a bare career line would have shown.
+    expect(out.totals.goals).toBe(62)
+
+    // Split, highest level first — Step 5 outranks U18s/Academy.
+    expect(out.careerByLevel.map(r => r.level)).toEqual(['Step 5', 'U18s/Academy'])
+    expect(out.careerByLevel[0]).toMatchObject({ level: 'Step 5', apps: 20, goals: 2, assists: 1 })
+    expect(out.careerByLevel[1]).toMatchObject({ level: 'U18s/Academy', apps: 75, goals: 60, assists: 34 })
+  })
+
+  it('segments always add back up to totals', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [match({ match_date: '2026-08-10', goals: 3, assists: 1, club_level: 'Step 4' })],
+      career: [
+        career({ season_start_year: 2023, level: 'Step 6', apps: 30, goals: 4, assists: 2 }),
+        career({ season_start_year: 2022, level: 'Step 6', apps: 12, goals: 1, assists: 0 }),
+      ],
+    }, 'ST')
+
+    const sum = (k: 'apps' | 'goals' | 'assists') => out.careerByLevel.reduce((n, r) => n + r[k], 0)
+    expect(sum('apps')).toBe(out.totals.apps)
+    expect(sum('goals')).toBe(out.totals.goals)
+    expect(sum('assists')).toBe(out.totals.assists)
+
+    // Same level across two seasons collapses into one segment.
+    const step6 = out.careerByLevel.find(r => r.level === 'Step 6')
+    expect(step6).toMatchObject({ apps: 42, goals: 5, seasons: 2 })
+  })
+
+  it('keeps level-less seasons as their own bucket rather than dropping them', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [],
+      career: [
+        career({ season_start_year: 2024, level: null, apps: 12, goals: 0, assists: 0 }),
+        career({ season_start_year: 2023, level: 'Step 2', apps: 20, goals: 0, assists: 0 }),
+      ],
+    }, 'CB')
+
+    expect(out.careerByLevel).toHaveLength(2)
+    // Off-ladder / unset sorts last, never claimed as the headline level.
+    expect(out.careerByLevel[0].level).toBe('Step 2')
+    expect(out.careerByLevel[1].level).toBeNull()
+    expect(out.careerByLevel.reduce((n, r) => n + r.apps, 0)).toBe(out.totals.apps)
+  })
+})

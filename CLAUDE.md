@@ -214,6 +214,7 @@ GET  /api/admin/revenue-stats — calls revenue_stats DB function
 GET  /api/admin/recent-applications — recent application activity
 GET  /api/admin/recent-logins — recent login activity
 GET  /api/admin/orphaned-users — auth users without profiles
+GET  /api/admin/coach-leaderboard — calls analytics_coach_leaderboard DB function; ranks coaches by proof of value (accepted applications + player replies weighted above raw activity) for testimonial/outreach targeting. Hidden seed profiles filtered in the route via HIDDEN_PROFILE_IDS
 GET  /api/admin/showcase-stats — showcase event stats
 GET/POST /api/admin/showcase-payers — showcase payment tracking
 GET/POST /api/admin/showcase-waitlist — showcase waitlist tracking
@@ -295,7 +296,11 @@ Route                         Status
 /dashboard/showcase           Showcase Day registration page ✅
 /dashboard/become             Fan → player/coach conversion (fan-only; role picker + gated fields) ✅
 /dashboard/admin              Approve/decline pending registrations ✅
-/dashboard/admin/analytics    Full analytics dashboard (revenue, platform, messages) ✅
+/dashboard/admin/analytics    Full analytics dashboard — 3 tabs: Health, Coaches, Ops ✅
+                              Coaches tab = coach leaderboard for testimonial/outreach targeting.
+                              Ranked by proof of value (accepted applications ×15, player replies ×10)
+                              NOT raw activity — profile views capped so browsers can't out-rank
+                              coaches who got replies. Lazy-loaded on first tab open.
 
 Coaches (unified route)
 One page at /dashboard/coaches serves both roles (layout wraps PlayerShell, same pattern

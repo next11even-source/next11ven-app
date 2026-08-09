@@ -10,13 +10,21 @@ import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { RevenueSection } from './_components/RevenueSection'
 import { ContextStrip } from './_components/ContextStrip'
 import { OpsTab } from './_components/OpsTab'
+import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
   MessageEntry, RecentApplication, ShowcaseWaitlist, MessageStats,
+  CoachLeaderboard,
 } from './_components/types'
 
-type Tab = 'health' | 'ops'
+type Tab = 'health' | 'coaches' | 'ops'
+
+const TAB_LABELS: Record<Tab, string> = {
+  health: 'Health',
+  coaches: 'Coaches',
+  ops: 'Ops',
+}
 
 export default function AnalyticsPage() {
   const router = useRouter()
@@ -41,6 +49,9 @@ export default function AnalyticsPage() {
   const [showcaseLoading, setShowcaseLoading] = useState(true)
   const [messageStats, setMessageStats] = useState<MessageStats | null>(null)
   const [messageStatsLoading, setMessageStatsLoading] = useState(true)
+  const [coachBoard, setCoachBoard] = useState<CoachLeaderboard | null>(null)
+  const [coachBoardLoading, setCoachBoardLoading] = useState(false)
+  const [coachBoardRequested, setCoachBoardRequested] = useState(false)
 
   // ── Admin gate ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -107,6 +118,18 @@ export default function AnalyticsPage() {
       .catch(() => setAppsLoading(false))
   }, [])
 
+  // Coach leaderboard is the heaviest aggregate on the page and only matters
+  // when the tab is open — fetch it on first visit, then keep it.
+  useEffect(() => {
+    if (tab !== 'coaches' || coachBoardRequested) return
+    setCoachBoardRequested(true)
+    setCoachBoardLoading(true)
+    fetch('/api/admin/coach-leaderboard')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setCoachBoard(d); setCoachBoardLoading(false) })
+      .catch(() => setCoachBoardLoading(false))
+  }, [tab, coachBoardRequested])
+
   useEffect(() => {
     fetch('/api/admin/showcase-waitlist')
       .then(r => r.json())
@@ -136,7 +159,7 @@ export default function AnalyticsPage() {
           </h1>
         </div>
         <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          {(['health', 'ops'] as Tab[]).map(t => (
+          {(['health', 'coaches', 'ops'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -145,7 +168,7 @@ export default function AnalyticsPage() {
                 backgroundColor: tab === t ? '#2d5fc4' : 'transparent',
                 color: tab === t ? '#fff' : '#8892aa',
               }}>
-              {t === 'health' ? 'Health' : 'Ops'}
+              {TAB_LABELS[t]}
             </button>
           ))}
         </div>
@@ -155,6 +178,8 @@ export default function AnalyticsPage() {
         <div className="flex items-center justify-center py-24">
           <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
         </div>
+      ) : tab === 'coaches' ? (
+        <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !coachBoardRequested} />
       ) : tab === 'ops' ? (
         <OpsTab
           msgLog={msgLog} msgLoading={msgLoading} msgTotal={msgTotal}

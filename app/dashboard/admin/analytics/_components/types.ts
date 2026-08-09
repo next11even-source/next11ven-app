@@ -141,3 +141,42 @@ export type Funnel = {
   active_30d: number
   premium: number
 }
+
+export type CoachLeaderboardEntry = {
+  id: string
+  full_name: string | null
+  club: string | null
+  email: string | null
+  phone: string | null
+  avatar_url: string | null
+  is_agent: boolean | null
+  premium: boolean | null
+  coaching_role: string | null
+  coaching_level: string | null
+  created_at: string
+  last_sign_in_at: string | null
+  last_message_at: string | null
+  score: number
+  conversations: number
+  conversations_with_reply: number
+  players_contacted: number
+  messages_sent: number
+  messages_sent_30d: number
+  shortlisted: number
+  shortlisted_30d: number
+  opportunities_posted: number
+  opportunities_active: number
+  applications_received: number
+  applications_accepted: number
+  applications_actioned: number
+  player_views: number
+  player_views_30d: number
+}
+
+export type CoachLeaderboard = {
+  total_coaches: number
+  engaged_coaches: number
+  proof_of_value_coaches: number
+  active_30d: number
+  coaches: CoachLeaderboardEntry[]
+}

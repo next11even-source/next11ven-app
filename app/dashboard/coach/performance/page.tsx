@@ -47,9 +47,16 @@ const SORTS: { key: string; label: string }[] = [
   { key: 'per90Goals', label: 'Goals / 90' },
   { key: 'perGameInvolvements', label: 'G+A / game' },
   { key: 'apps', label: 'Appearances' },
-  // Average, not total — total minutes ranks the longest career, not the
-  // player who actually plays. See the SortKey note in the API route.
-  { key: 'avgMinutes', label: 'Avg mins / game' },
+  // NO MINUTES SORT. Not an oversight — there is no minutes data to rank on.
+  // career_stats.minutes has never been populated (176/176 rows null, across
+  // 3,670 appearances and 135 players) because no form collects it; the only
+  // minutes on the platform come from performance_matches, currently 30 games
+  // across 8 players. With SEASON_STATS_VISIBLE false this dashboard ranks on
+  // CAREER metrics, so a minutes sort scores every player 0 and returns them
+  // in arbitrary order — a dropdown option promising a ranking it can't make.
+  // The API still honours sort=avgMinutes (correctly: average, never total —
+  // total ranks the longest career, not the player who actually plays), so
+  // restoring this is a one-line change once minutes are being captured.
 ]
 
 function FormPills({ results }: { results: ('W' | 'D' | 'L')[] }) {

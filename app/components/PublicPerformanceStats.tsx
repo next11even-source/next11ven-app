@@ -16,7 +16,7 @@
 // span, and tags the block self-reported when nothing is platform-logged yet.
 
 import { useState } from 'react'
-import type { PublicPerformance } from '@/lib/publicStats'
+import { RATE_MIN_MINUTES, type PublicPerformance } from '@/lib/publicStats'
 import { seasonStartYear, seasonLabel } from '@/lib/performance'
 
 const surface = { backgroundColor: '#13172a', border: '1px solid #1e2235' }
@@ -93,14 +93,15 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
     : perf.seasons[0]?.seasonLabel ?? seasonLabel(currentYear)
 
   // Season picker — a coach flicks the hero between individual seasons instead of
-  // reading one blended career aggregate. Defaults to the current season when
-  // it's obviously underway (real competitive data logged this year); otherwise
-  // falls back to the "All seasons" aggregate, which reads strong even when the
-  // current season is thin (pre-season, no games yet). An index picks one season.
-  // Only offered when there are 2+ seasons — one season has nothing to flick.
-  const [selectedIdx, setSelectedIdx] = useState<number>(() =>
-    cs && cs.summary.apps > 0 ? perf.seasons.findIndex(s => s.seasonStartYear === currentYear) : -1
-  )
+  // reading one blended career aggregate. ALWAYS defaults to the aggregate.
+  //
+  // It used to auto-select the current season whenever `cs.summary.apps > 0` —
+  // the exact same condition that renders the "This season" block below, so one
+  // logged game turned the hero into a carbon copy of the block beneath it AND
+  // replaced a strong career record with an empty new season. A player two sub
+  // appearances into a campaign opened their profile on three zeros. The
+  // aggregate always reads strong; picking a season stays a deliberate choice.
+  const [selectedIdx, setSelectedIdx] = useState<number>(-1)
   const showPicker = seasonsCount >= 2
 
   // Season-by-season is the coach's at-a-glance scan + the only per-season
@@ -117,24 +118,56 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
         cleanSheets: active.cleanSheets, minutes: active.minutes, motm: active.motm,
         selfReported: active.selfReported,
         avgMinutes: active.apps > 0 && active.minutes > 0 ? Math.round(active.minutes / active.apps) : null,
+        avgMinutesApps: active.apps,
         starts: active.starts, startsApps: active.apps,
       }
     : {
         goals: t.goals, assists: t.assists, apps: t.apps,
         cleanSheets: t.cleanSheets, minutes: t.minutes, motm: t.motm,
-        selfReported: allSelfReported, avgMinutes: perf.avgMinutes,
+        selfReported: allSelfReported, avgMinutes: perf.avgMinutes, avgMinutesApps: perf.avgMinutesApps,
         starts: perf.startsContext?.starts ?? null, startsApps: perf.startsContext?.apps ?? null,
       }
   const viewInvolvements = view.goals + view.assists
   const heroTitle = active ? (active.seasonStartYear === currentYear ? 'New season' : 'Season') : trackTitle
 
+  // Does the hero already show the current season? True when it's been picked
+  // explicitly, and also when it's the only season on record (the "aggregate"
+  // is then just that one season). Either way the "This season" headline stat
+  // below would print the same figures a second time, so it's suppressed.
+  const heroShowsCurrent =
+    (active != null && active.seasonStartYear === currentYear) ||
+    (active == null && seasonsCount === 1 && perf.seasons[0]?.seasonStartYear === currentYear)
+
+  // Too little football this season to state anything as fact. Below the floor
+  // every derived figure is noise, so the block drops to a neutral progress
+  // read rather than printing zeros a squad player hasn't earned.
+  const lowSample = cs != null && cs.summary.minutes < RATE_MIN_MINUTES
+
+  // A derived figure is only honest next to the apps figure it was drawn from.
+  // Both of these span logged seasons only, so a player with one logged season
+  // behind a long self-reported career would otherwise read "206 APPS" above
+  // "15' avg minutes / game — 0/2 starts": a 2-game sample captioning a
+  // 206-game career. Shown only when the sample covers what's displayed.
+  const showStarts = view.starts != null && view.startsApps === view.apps
+  const showAvgMinutes = view.avgMinutes != null && view.avgMinutesApps === view.apps
+
+  // Brand-new player: their only season is this thin one, so the hero has no
+  // career to fall back on and would open on "0 Goals · 0 Assists · 0 G+A".
+  // Drop it and let the "Season underway" block carry the story — a first
+  // appearance is a start, not a failure. Only when the aggregate landed here
+  // by default; an explicit season pick keeps the hero so the picker stays
+  // reachable (and a deliberate choice is allowed to show what it shows).
+  const heroIsBareNewSeason = active == null && seasonsCount === 1 && heroShowsCurrent && lowSample
+
   // Big hero cards — position-aware. Always populated, so the section always
   // leads with something that reads well whichever season is selected.
+  // Minutes are shown as an average, never a total: "1,234 minutes" tells a
+  // coach nothing, "67' a game" tells them whether the player finishes games.
   const heroCards = defensive
     ? [
         { label: 'Clean sheets', value: view.cleanSheets, primary: true },
         { label: 'Apps', value: view.apps },
-        { label: 'Minutes', value: view.minutes > 0 ? view.minutes.toLocaleString('en-GB') : '—' },
+        { label: 'Avg mins', value: showAvgMinutes ? `${view.avgMinutes}'` : '—' },
         { label: 'G + A', value: viewInvolvements },
       ]
     : [
@@ -154,7 +187,7 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
           real (competitive or self-reported) season yet — e.g. a player who's
           only logged pre-season so far gets the reassurance line below
           instead of a hero full of zeros. ─────────────────────────────── */}
-      {seasonsCount > 0 && (
+      {seasonsCount > 0 && !heroIsBareNewSeason && (
       <div className="space-y-2.5">
         <SectionLabel right={
           <span className="flex items-center gap-2">
@@ -198,12 +231,22 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
             </div>
           ))}
         </div>
-        {view.avgMinutes != null && (
+        {/* Defensive players already carry avg mins as a hero card, so only the
+            starts context is added here — never print the same figure twice.
+
+            Starts only render when the ratio covers the SAME appearances the
+            hero is showing. startsContext spans logged seasons only, so a
+            player with one logged season behind a long self-reported career
+            would otherwise read "214 APPS" with "0/2 starts" under it — which
+            says he has never started a game in his life. */}
+        {((!defensive && showAvgMinutes) || showStarts) && (
           <p className="text-xs px-1 flex items-center gap-1.5" style={{ color: '#8892aa' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-            <span style={{ color: '#e8dece', fontWeight: 600 }}>{view.avgMinutes}&apos;</span> avg minutes / game
-            {view.starts != null && (
-              <span>&nbsp;— <span style={{ color: '#e8dece', fontWeight: 600 }}>{view.starts}/{view.startsApps}</span> starts</span>
+            {!defensive && showAvgMinutes && (
+              <span><span style={{ color: '#e8dece', fontWeight: 600 }}>{view.avgMinutes}&apos;</span> avg minutes / game</span>
+            )}
+            {showStarts && (
+              <span>{!defensive && showAvgMinutes ? <>&nbsp;— </> : null}<span style={{ color: '#e8dece', fontWeight: 600 }}>{view.starts}/{view.startsApps}</span> starts</span>
             )}
           </p>
         )}
@@ -231,44 +274,80 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
         </div>
       )}
 
-      {/* ── This season — detail when competitive, positive line otherwise ── */}
+      {/* ── This season — detail when competitive, positive line otherwise ──
+          Two things are deliberately withheld early in a campaign:
+           • the headline counter, when the hero already shows this same season
+             (otherwise the figures print twice — see heroShowsCurrent)
+           • every stat that can render 0, below the sample floor. A player a
+             couple of sub appearances in gets a neutral "season underway" read
+             instead of a 5xl zero they didn't earn. ─────────────────────── */}
       {cs && cs.summary.apps > 0 ? (
         <div className="space-y-2.5">
           <SectionLabel right={<span className="text-xs" style={{ color: '#8892aa' }}>{cs.label}</span>}>This season</SectionLabel>
-          <div className="rounded-2xl px-5 py-5" style={surface}>
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
-                  {defensive ? 'Clean sheets' : 'Goal involvements'}
-                </p>
-                <div className="flex items-end gap-3 mt-1">
-                  <span className="text-5xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                    {defensive ? cs.summary.cleanSheets : cs.summary.involvements}
-                  </span>
-                  <p className="text-xs pb-1.5" style={{ color: '#8892aa' }}>
-                    {defensive
-                      ? `${plural(cs.summary.apps, 'game')}`
-                      : `${plural(cs.summary.goals, 'goal')} · ${plural(cs.summary.assists, 'assist')}`}
+
+          {lowSample ? (
+            <div className="rounded-2xl px-5 py-4" style={surface}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
+                    Season underway
+                  </p>
+                  <p className="text-base font-bold mt-1" style={{ color: '#e8dece' }}>
+                    {plural(cs.summary.apps, 'appearance')}
+                    {cs.summary.avgMinutes != null && (
+                      <span style={{ color: '#8892aa', fontWeight: 500 }}> · {cs.summary.avgMinutes}&apos; a game</span>
+                    )}
                   </p>
                 </div>
+                {cd && cd.form.results.length > 0 && <FormPills results={cd.form.results} />}
               </div>
-              {cd && cd.form.results.length > 0 && <FormPills results={cd.form.results} />}
+              <p className="text-xs mt-2" style={{ color: '#8892aa' }}>
+                Early in the campaign — season figures build as the games do.
+              </p>
             </div>
-          </div>
+          ) : !heroShowsCurrent ? (
+            <div className="rounded-2xl px-5 py-5" style={surface}>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
+                    {defensive ? 'Clean sheets' : 'Goal involvements'}
+                  </p>
+                  <div className="flex items-end gap-3 mt-1">
+                    <span className="text-5xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                      {defensive ? cs.summary.cleanSheets : cs.summary.involvements}
+                    </span>
+                    <p className="text-xs pb-1.5" style={{ color: '#8892aa' }}>
+                      {defensive
+                        ? `${plural(cs.summary.apps, 'game')}`
+                        : `${plural(cs.summary.goals, 'goal')} · ${plural(cs.summary.assists, 'assist')}`}
+                    </p>
+                  </div>
+                </div>
+                {cd && cd.form.results.length > 0 && <FormPills results={cd.form.results} />}
+              </div>
+            </div>
+          ) : cd && cd.form.results.length > 0 ? (
+            <div className="rounded-2xl px-5 py-3.5 flex items-center justify-between gap-3" style={surface}>
+              <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>Recent form</p>
+              <FormPills results={cd.form.results} />
+            </div>
+          ) : null}
 
-          {/* Rates + durability */}
-          {cd && (
+          {/* Rates + durability. Per-90s are withheld below the sample floor —
+              "0.00 goals / 90" off 30 minutes reads as a verdict, not a sample
+              size. Minutes show as an average, never a meaningless total. */}
+          {cd && !lowSample && (
             <div className="flex gap-2">
-              {cs.summary.minutes > 0 && !defensive && (
+              {!defensive && cd.rates.per90Goals != null && (
                 <>
                   <MiniTile label="Goals / 90" value={fmtRate(cd.rates.per90Goals)} accent />
                   <MiniTile label="G+A / 90" value={fmtRate(cd.rates.per90Involvements)} accent />
                 </>
               )}
-              {defensive && <MiniTile label="Avg mins" value={cs.summary.avgMinutes ?? '—'} accent />}
+              {defensive && <MiniTile label="Avg mins" value={cs.summary.avgMinutes != null ? `${cs.summary.avgMinutes}'` : '—'} accent />}
               <MiniTile label="Apps" value={cs.summary.apps} />
               <MiniTile label="Starts" value={`${cd.durability.starts}/${cd.durability.apps}`} />
-              <MiniTile label="Mins" value={cs.summary.minutes.toLocaleString('en-GB')} />
+              {!defensive && <MiniTile label="Avg mins" value={cs.summary.avgMinutes != null ? `${cs.summary.avgMinutes}'` : '—'} />}
             </div>
           )}
 

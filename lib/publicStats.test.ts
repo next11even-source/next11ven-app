@@ -124,13 +124,83 @@ describe('buildPublicPerformance — richer metrics (stage 6)', () => {
       matches: [
         match({ match_date: '2026-08-10', minutes_played: 90, goals: 2, assists: 1 }),
         match({ match_date: '2026-08-03', minutes_played: 90, goals: 2, assists: 1 }),
+        match({ match_date: '2026-07-27', minutes_played: 90, goals: 2, assists: 1 }),
       ],
       career: [],
     }, 'ST')
     expect(out.currentDetail).not.toBeNull()
-    expect(out.currentDetail!.rates.per90Goals).toBe(2)        // 4 goals / 180 mins * 90
-    expect(out.currentDetail!.rates.perGameGoals).toBe(2)      // 4 / 2 apps
-    expect(out.currentDetail!.rates.per90Involvements).toBe(3) // 6 / 180 * 90
+    expect(out.currentDetail!.rates.per90Goals).toBe(2)        // 6 goals / 270 mins * 90
+    expect(out.currentDetail!.rates.perGameGoals).toBe(2)      // 6 / 3 apps
+    expect(out.currentDetail!.rates.per90Involvements).toBe(3) // 9 / 270 * 90
+  })
+
+  // Per-90s off a handful of minutes are noise, and the damage is asymmetric:
+  // a squad player two sub appearances in renders "0.00 goals / 90", which a
+  // coach reads as a verdict rather than a sample size. Withheld below the
+  // floor; per-GAME rates are unaffected (they divide by apps, not minutes).
+  it('withholds per-90 rates below the minutes floor, keeps per-game', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-08-10', minutes_played: 15, goals: 0, assists: 0 }),
+        match({ match_date: '2026-08-03', minutes_played: 15, goals: 0, assists: 0 }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(out.currentDetail).not.toBeNull()
+    expect(out.currentDetail!.rates.per90Goals).toBeNull()
+    expect(out.currentDetail!.rates.per90Involvements).toBeNull()
+    expect(out.currentDetail!.rates.perGameGoals).toBe(0)
+    // The durability read a bench player SHOULD get: 30 mins over 2 apps.
+    expect(out.currentDetail!.durability.avgMinutes).toBe(15)
+  })
+
+  // avgMinutes averages only over seasons that recorded minutes. A player with
+  // one logged season behind a long self-reported career therefore gets an
+  // average drawn from a handful of games — which the profile must NOT print
+  // under a career appearance count. avgMinutesApps carries that coverage so
+  // the caller can compare it against totals.apps before rendering.
+  it('reports how many apps the career avg minutes was drawn from', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-08-10', minutes_played: 15 }),
+        match({ match_date: '2026-08-03', minutes_played: 15 }),
+      ],
+      career: [
+        career({ season_start_year: 2022, apps: 40, goals: 5, assists: 12, minutes: null }),
+        career({ season_start_year: 2021, apps: 38, goals: 3, assists: 9, minutes: null }),
+      ],
+    }, 'ST')
+    expect(out.totals.apps).toBe(80)        // 40 + 38 + 2
+    expect(out.avgMinutes).toBe(15)         // drawn from the 2 logged games only
+    expect(out.avgMinutesApps).toBe(2)      // ...and says so — 2 ≠ 80, so don't render it
+  })
+
+  it('avg minutes covers every app when the whole history is logged', () => {
+    const out = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-08-10', minutes_played: 90 }),
+        match({ match_date: '2026-08-03', minutes_played: 90 }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(out.avgMinutesApps).toBe(out.totals.apps)  // safe to render
+    expect(out.avgMinutes).toBe(90)
+  })
+
+  it('releases per-90 rates exactly at the floor', () => {
+    const at = buildPublicPerformance({
+      visible: true,
+      matches: [
+        match({ match_date: '2026-08-10', minutes_played: 90, goals: 1, assists: 0 }),
+        match({ match_date: '2026-08-03', minutes_played: 90, goals: 0, assists: 0 }),
+        match({ match_date: '2026-07-27', minutes_played: 90, goals: 0, assists: 0 }),
+      ],
+      career: [],
+    }, 'ST')
+    expect(at.currentDetail!.rates.per90Goals).toBe(0.33)  // 270 mins — released
   })
 
   it('form = last-5 results (newest first) + involvements', () => {

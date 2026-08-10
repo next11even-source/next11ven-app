@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { buildPublicPerformance, toPublicMatches, type PublicCareerRow } from '@/lib/publicStats'
+import { buildPublicPerformance, toPublicMatches, RATE_MIN_MINUTES, type PublicCareerRow } from '@/lib/publicStats'
 import { performanceTrackerEnabled } from '@/lib/performance'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import { trackerLevelRank } from '@/lib/levels'
@@ -35,8 +35,12 @@ export const runtime = 'nodejs'
 // code paths below stay intact so it's a one-line change.
 const SEASON_STATS_VISIBLE = false
 
-type SortKey = 'involvements' | 'goals' | 'assists' | 'apps' | 'minutes' | 'per90Goals' | 'perGameInvolvements'
-const SORT_KEYS: SortKey[] = ['involvements', 'goals', 'assists', 'apps', 'minutes', 'per90Goals', 'perGameInvolvements']
+// Ranks on AVERAGE minutes, never total. Sorting a recruitment search by total
+// minutes ranks whoever has the longest history, not whoever plays the most
+// football — an 11-season veteran buries a teenager playing every minute.
+// Average answers the question a coach is actually asking: does he finish games?
+type SortKey = 'involvements' | 'goals' | 'assists' | 'apps' | 'avgMinutes' | 'per90Goals' | 'perGameInvolvements'
+const SORT_KEYS: SortKey[] = ['involvements', 'goals', 'assists', 'apps', 'avgMinutes', 'per90Goals', 'perGameInvolvements']
 
 // Which body of work the sort ranks on. 'career' is the default because
 // pre-platform history is where the data currently is — ranking on
@@ -50,6 +54,7 @@ type Metrics = {
   assists: number
   involvements: number
   minutes: number
+  avgMinutes: number | null
   per90Goals: number | null
   perGameInvolvements: number | null
 }
@@ -59,7 +64,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 function metricsFrom(apps: number, goals: number, assists: number, minutes: number): Metrics {
   return {
     apps, goals, assists, involvements: goals + assists, minutes,
-    per90Goals: minutes > 0 ? round2((goals / minutes) * 90) : null,
+    avgMinutes: apps > 0 && minutes > 0 ? Math.round(minutes / apps) : null,
+    // Withheld below the sample floor — see RATE_MIN_MINUTES. A player two sub
+    // appearances in must not be ranked on a rate computed off 30 minutes.
+    per90Goals: minutes >= RATE_MIN_MINUTES ? round2((goals / minutes) * 90) : null,
     perGameInvolvements: apps > 0 ? round2((goals + assists) / apps) : null,
   }
 }
@@ -228,7 +236,7 @@ export async function GET(req: NextRequest) {
       case 'goals': return m.goals
       case 'assists': return m.assists
       case 'apps': return m.apps
-      case 'minutes': return m.minutes
+      case 'avgMinutes': return m.avgMinutes ?? 0
       case 'per90Goals': return m.per90Goals ?? 0
       case 'perGameInvolvements': return m.perGameInvolvements ?? 0
       default: return m.involvements

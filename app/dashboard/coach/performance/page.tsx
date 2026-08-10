@@ -47,7 +47,9 @@ const SORTS: { key: string; label: string }[] = [
   { key: 'per90Goals', label: 'Goals / 90' },
   { key: 'perGameInvolvements', label: 'G+A / game' },
   { key: 'apps', label: 'Appearances' },
-  { key: 'minutes', label: 'Minutes' },
+  // Average, not total — total minutes ranks the longest career, not the
+  // player who actually plays. See the SortKey note in the API route.
+  { key: 'avgMinutes', label: 'Avg mins / game' },
 ]
 
 function FormPills({ results }: { results: ('W' | 'D' | 'L')[] }) {
@@ -274,7 +276,7 @@ export default function CoachPerformancePage() {
                         <Fact label="A" value={p.current.assists} />
                         <Fact label="G+A" value={p.current.involvements} />
                         {p.rates?.per90Goals != null && <Fact label="G/90" value={p.rates.per90Goals.toFixed(2)} />}
-                        {p.current.avgMinutes != null && <Fact label="Avg min" value={p.current.avgMinutes} />}
+                        {p.current.avgMinutes != null && <Fact label="Avg mins" value={`${p.current.avgMinutes}'`} />}
                         {p.current.cleanSheets > 0 && <Fact label="CS" value={p.current.cleanSheets} />}
                         {p.current.motm > 0 && <Fact label="MOTM" value={p.current.motm} />}
                       </div>

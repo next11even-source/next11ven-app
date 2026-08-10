@@ -102,8 +102,16 @@ export type PublicSeasonRow = {
   redCards: number
 }
 
+// Minimum minutes before a per-90 rate is shown as fact — 3 full games.
+// Below this the sample is noise: a squad player two sub appearances into a
+// season renders "0.00 goals / 90" off 30 minutes, which a coach reads as
+// "doesn't score" rather than "hasn't played". Withhold rather than mislead.
+// Single source of truth — used by the public profile and Coach Pro search.
+export const RATE_MIN_MINUTES = 270
+
 // Per-90 / per-game normalisation — the numbers that make a 22-game season
-// comparable to a 40-game one. null when there's nothing to divide by.
+// comparable to a 40-game one. null when there's nothing to divide by, and
+// null below RATE_MIN_MINUTES regardless of what the arithmetic would give.
 export type PublicRates = {
   per90Goals: number | null
   per90Assists: number | null
@@ -167,6 +175,9 @@ export type PublicPerformance = {
   totals: { apps: number; goals: number; assists: number; minutes: number; cleanSheets: number; motm: number }
   careerByLevel: PublicLevelTotals[]  // `totals` split by level — see PublicLevelTotals
   avgMinutes: number | null      // career avg minutes/game over seasons that recorded minutes
+  avgMinutesApps: number         // appearances that average was drawn from — compare against
+                                 // totals.apps before showing it, or a 2-game average ends up
+                                 // captioning a 206-game career
   startsContext: { starts: number; apps: number } | null  // starts/apps over seasons with a known starts count only
   preseasonGamesLogged: number    // pre-season/friendly matches logged this year — not counted in seasons/totals
   milestones: string[]           // career milestones crossed (e.g. "100 career appearances")
@@ -243,7 +254,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 
 function computeRates(s: MatchSummary): PublicRates {
   const inv = s.goals + s.assists
-  const per90 = (v: number) => (s.minutes > 0 ? round2((v / s.minutes) * 90) : null)
+  const per90 = (v: number) => (s.minutes >= RATE_MIN_MINUTES ? round2((v / s.minutes) * 90) : null)
   const perGame = (v: number) => (s.apps > 0 ? round2(v / s.apps) : null)
   return {
     per90Goals: per90(s.goals),
@@ -310,6 +321,7 @@ export function buildPublicPerformance(
     totals: { apps: 0, goals: 0, assists: 0, minutes: 0, cleanSheets: 0, motm: 0 },
     careerByLevel: [],
     avgMinutes: null,
+    avgMinutesApps: 0,
     startsContext: null,
     preseasonGamesLogged: 0,
     milestones: [],
@@ -488,7 +500,7 @@ export function buildPublicPerformance(
     // there's at least one real (competitive or self-reported) season, OR
     // pre-season activity to show the reassurance line for.
     visible: true, hasAny: seasons.length > 0 || preseasonGamesLogged > 0, focus, level, versatility,
-    currentSeason, currentDetail, seasons, totals, careerByLevel, avgMinutes, startsContext, preseasonGamesLogged,
+    currentSeason, currentDetail, seasons, totals, careerByLevel, avgMinutes, avgMinutesApps: minutesApps, startsContext, preseasonGamesLogged,
     milestones: careerMilestones(totals),
     pedigree: { peakLevel, academyBackground },
   }

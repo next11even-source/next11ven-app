@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
+import ActivityChip from '@/app/components/ActivityChip'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,11 +49,6 @@ type QuotaData = {
   hasExisting: boolean
   cooldownUntil: string | null
   coachInitiated: boolean
-}
-
-function isActiveThisWeek(lastActive: string | null) {
-  if (!lastActive) return false
-  return Date.now() - new Date(lastActive).getTime() < 7 * 86400000
 }
 
 function daysUntil(iso: string) {
@@ -262,7 +258,6 @@ export default function CoachPublicProfile() {
     )
   }
 
-  const active = isActiveThisWeek(coach.last_active)
   const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const subtitle = [coach.coaching_role, coach.club].filter(Boolean).join(' · ') || 'Coach'
   const isOwnProfile = viewer?.id === coach.id
@@ -296,13 +291,7 @@ export default function CoachPublicProfile() {
           { label: 'Home', href: backHref },
           { label: coach.full_name ?? 'Coach' },
         ]} />
-        {active && (
-          <span className="ml-auto flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#60a5fa' }} />
-            Active
-          </span>
-        )}
+        <ActivityChip lastActive={coach.last_active} className="ml-auto" />
       </div>
 
       {/* Hero */}

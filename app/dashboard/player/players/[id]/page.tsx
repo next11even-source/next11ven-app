@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import ActivityChip from '@/app/components/ActivityChip'
 import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
@@ -64,11 +65,6 @@ function computeAge(dateOfBirth: string | null): number | null {
   const hasHadBirthdayThisYear = now.getMonth() > dob.getMonth() || (now.getMonth() === dob.getMonth() && now.getDate() >= dob.getDate())
   if (!hasHadBirthdayThisYear) age--
   return age
-}
-
-function isActiveThisWeek(lastActive: string | null) {
-  if (!lastActive) return false
-  return Date.now() - new Date(lastActive).getTime() < 7 * 86400000
 }
 
 function StatTile({ label, value }: { label: string; value: number }) {
@@ -398,7 +394,6 @@ export default function PlayerPublicProfile() {
 
   if (!player) return null
 
-  const active = isActiveThisWeek(player.last_active)
   const initials = player.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const isOwnProfile = viewer?.id === player.id
   const viewerIsCoach = viewer?.role === 'coach'
@@ -458,12 +453,7 @@ export default function PlayerPublicProfile() {
           {player.premium && (
             <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.9)', color: '#fff' }}>PRO</span>
           )}
-          {active && (
-            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#60a5fa' }} />
-              Active
-            </span>
-          )}
+          <ActivityChip lastActive={player.last_active} mode="binary" />
         </div>
       </div>
 

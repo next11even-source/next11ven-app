@@ -15,6 +15,7 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { normalizePhone } from '@/lib/utils'
 import { calcCompletion, calcCoachCompletion } from '@/lib/profileCompletion'
+import ActivityChip from '@/app/components/ActivityChip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,11 +111,6 @@ function calcStreak(current: number, lastWeek: string | null): { streak: number;
   if (lastWeek === thisWeek) return { streak: current, lastWeek }
   if (lastWeek === getPrevISOWeek()) return { streak: current + 1, lastWeek: thisWeek }
   return { streak: 1, lastWeek: thisWeek }
-}
-
-function isActiveThisWeek(lastActive: string | null): boolean {
-  if (!lastActive) return false
-  return Date.now() - new Date(lastActive).getTime() < 7 * 24 * 60 * 60 * 1000
 }
 
 const iStyle = { backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' as const }
@@ -731,7 +727,6 @@ export default function ProfilePage() {
   }
 
   const isCoach = profile.role === 'coach'
-  const active = isActiveThisWeek(profile.last_active)
   const homeHref = isCoach ? '/dashboard/coach' : '/dashboard/player'
   const subtitle = isCoach
     ? [profile.coaching_role, profile.club].filter(Boolean).join(' · ') || 'Add your role and club'
@@ -783,11 +778,7 @@ export default function ProfilePage() {
                   style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
                   {profile.full_name ?? 'Your Name'}
                 </h1>
-                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: active ? 'rgba(74,222,128,0.1)' : 'rgba(136,146,170,0.1)', color: active ? '#4ade80' : '#8892aa' }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active ? '#4ade80' : '#8892aa' }} />
-                  {active ? 'Active this week' : 'Inactive'}
-                </span>
+                <ActivityChip lastActive={profile.last_active} mode={isCoach ? 'granular' : 'binary'} />
               </div>
               <p className="text-sm" style={{ color: '#8892aa' }}>{subtitle}</p>
               {!isCoach && profile.streak_weeks > 0 && (

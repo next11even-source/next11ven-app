@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Bookmark, Briefcase, Check, ChevronRight, CircleSlash, ClipboardCheck, Eye, Heart, MessageCircle, Star } from 'lucide-react'
+import { Bell, Bookmark, Briefcase, Check, ChevronRight, CircleSlash, ClipboardCheck, Eye, Heart, MessageCircle, RotateCcw, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '../_components/SidebarContext'
@@ -52,6 +52,9 @@ function getRoute(type: string, entityId: string | null, isPremium: boolean): st
     // than on the card they can no longer do anything with.
     case 'application_declined':
     case 'application_closed': return '/dashboard/opportunities'
+    // A credit back is only worth anything if they spend it — land them on the
+    // coaches they can spend it on, not on a balance screen.
+    case 'message_credit_refunded': return '/dashboard/coaches'
     case 'shortlisted':
       return isPremium && entityId
         ? `/dashboard/coach/${entityId}`
@@ -176,6 +179,9 @@ function TypeIcon({ type }: { type: string }) {
     application_decision: { icon: <ClipboardCheck size={14} />, bg: '#2d5fc420', color: '#4d8ae8' },
     application_declined: { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
     application_closed:   { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
+    // Blue, like an acceptance — a credit coming back is something gained, not
+    // an outcome to mourn. Not green: green is availability only.
+    message_credit_refunded: { icon: <RotateCcw size={14} />,   bg: '#2d5fc420', color: '#4d8ae8' },
   }
   const c = cfg[type] ?? { icon: <Bell size={14} />, bg: '#1e2235', color: '#8892aa' }
   return (
@@ -236,8 +242,12 @@ function NotifRow({ group, isPremium, onRead }: { group: NotifGroup; isPremium: 
   }
 
   const isMulti = group.count > 1
+  // No actor on a refund either — naming the coach who ignored them turns a
+  // credit back into a callout, and we're not in the business of shaming
+  // volunteers to make a player feel better.
   const hideActor = group.type === 'post_interest' || group.type === 'new_opportunity' ||
     group.type === 'application_declined' || group.type === 'application_closed' ||
+    group.type === 'message_credit_refunded' ||
     (group.type === 'shortlisted' && !isPremium)
   const lead = group.actors[0]
 

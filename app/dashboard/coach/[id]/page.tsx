@@ -10,6 +10,7 @@ import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import ActivityChip from '@/app/components/ActivityChip'
 import { getActivityTier } from '@/lib/activityRecency'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
+import { REFUND_AFTER_DAYS, REFUND_PROMISE } from '@/lib/messageCredits'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,10 @@ type QuotaData = {
   hasExisting: boolean
   cooldownUntil: string | null
   coachInitiated: boolean
+  /** Set once the no-reply guarantee has paid out on this thread. */
+  creditRefundedAt: string | null
+  /** When the refund is due, if it hasn't landed yet. */
+  refundDueAt: string | null
 }
 
 function daysUntil(iso: string) {
@@ -154,7 +159,7 @@ export default function CoachPublicProfile() {
             fetch('/api/messages/quota').then(r => r.json()),
             supabase
               .from('conversations')
-              .select('id, initiated_by, coach_replied_at, created_at')
+              .select('id, initiated_by, coach_replied_at, credit_refunded_at, created_at')
               .eq('coach_id', id)
               .eq('player_id', user.id)
               .maybeSingle(),
@@ -164,11 +169,14 @@ export default function CoachPublicProfile() {
             id: string
             initiated_by: string | null
             coach_replied_at: string | null
+            credit_refunded_at: string | null
             created_at: string
           } | null
 
           let cooldownUntil: string | null = null
           let coachInitiated = false
+          let creditRefundedAt: string | null = null
+          let refundDueAt: string | null = null
 
           if (conv) {
             if (conv.initiated_by === id) {
@@ -179,6 +187,12 @@ export default function CoachPublicProfile() {
               if (cooldownEnd > new Date()) {
                 cooldownUntil = cooldownEnd.toISOString()
               }
+              // Two clocks on the same silence: the credit comes back in days,
+              // the door to this coach reopens in months.
+              creditRefundedAt = conv.credit_refunded_at
+              refundDueAt = conv.credit_refunded_at
+                ? null
+                : new Date(new Date(conv.created_at).getTime() + REFUND_AFTER_DAYS * 86400000).toISOString()
             }
           }
 
@@ -190,6 +204,8 @@ export default function CoachPublicProfile() {
             hasExisting: !!conv,
             cooldownUntil,
             coachInitiated,
+            creditRefundedAt,
+            refundDueAt,
           })
           setQuotaLoading(false)
         } else {
@@ -401,12 +417,35 @@ export default function CoachPublicProfile() {
                     <div className="rounded-xl px-4 py-3 text-left space-y-1"
                       style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
                       <p className="text-xs font-semibold" style={{ color: '#e8dece' }}>
-                        Awaiting {firstName}'s reply
+                        {quotaData.creditRefundedAt
+                          ? 'Your credit is back'
+                          : `Awaiting ${firstName}'s reply`}
                       </p>
+                      {/* The credit is the part the player actually cares about
+                          while they wait, so it leads. The cooldown on this
+                          particular coach is a footnote underneath it. */}
                       <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
-                        You've already reached out. If {firstName} hasn't replied in{' '}
-                        {daysUntil(quotaData.cooldownUntil)} more day{daysUntil(quotaData.cooldownUntil) !== 1 ? 's' : ''},
-                        this slot will free up and you can try a different approach.
+                        {quotaData.creditRefundedAt ? (
+                          <>
+                            {firstName} didn&apos;t reply within {REFUND_AFTER_DAYS} days, so we&apos;ve put
+                            your message credit back in your account — spend it on another club.
+                          </>
+                        ) : quotaData.refundDueAt && daysUntil(quotaData.refundDueAt) > 0 ? (
+                          <>
+                            You&apos;ve already reached out. If {firstName} hasn&apos;t replied in{' '}
+                            {daysUntil(quotaData.refundDueAt)} more day{daysUntil(quotaData.refundDueAt) !== 1 ? 's' : ''},
+                            we&apos;ll put your message credit back so you can spend it elsewhere.
+                          </>
+                        ) : (
+                          <>
+                            You&apos;ve already reached out. {firstName} hasn&apos;t replied — your message
+                            credit is on its way back to your account.
+                          </>
+                        )}
+                      </p>
+                      <p className="text-xs leading-relaxed pt-1" style={{ color: '#4b5563' }}>
+                        You can approach {firstName} again in {daysUntil(quotaData.cooldownUntil)} day
+                        {daysUntil(quotaData.cooldownUntil) !== 1 ? 's' : ''}.
                       </p>
                     </div>
                   </div>
@@ -422,7 +461,8 @@ export default function CoachPublicProfile() {
                           {firstName} hasn&apos;t been active in the last month
                         </p>
                         <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
-                          They may not see this, and it still uses one of your messages.
+                          They may not see this. It uses one of your messages now — and comes
+                          back in {REFUND_AFTER_DAYS} days if they don&apos;t reply.
                           Tap again to send it anyway.
                         </p>
                       </div>
@@ -463,6 +503,21 @@ export default function CoachPublicProfile() {
                         + {quotaData.purchasedCredits} Extra Message{quotaData.purchasedCredits !== 1 ? 's' : ''} in reserve
                       </p>
                     )}
+
+                    {/* The guarantee, at the exact moment the credit is at risk.
+                        This is the point where a player hesitates — "what if he
+                        never answers" — and it's the honest answer. */}
+                    <div className="flex items-start justify-center gap-2 pt-1">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4d8ae8"
+                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        className="flex-shrink-0 mt-0.5">
+                        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                        <path d="M3 3v5h5" />
+                      </svg>
+                      <p className="text-xs leading-relaxed text-center" style={{ color: '#8892aa' }}>
+                        {REFUND_PROMISE}
+                      </p>
+                    </div>
                   </div>
                 )}
 

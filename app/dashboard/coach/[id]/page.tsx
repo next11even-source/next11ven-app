@@ -96,7 +96,7 @@ export default function CoachPublicProfile() {
         const [coachRes, viewerRes, oppsRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('id, full_name, avatar_url, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent')
+            .select('id, full_name, avatar_url, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent, approved')
             .eq('id', id)
             .eq('role', 'coach')
             .single(),
@@ -121,6 +121,20 @@ export default function CoachPublicProfile() {
         }
 
         const viewerProfile = viewerRes.data as ViewerProfile
+
+        // Revoked (declined) coaches are hidden from everyone except admins and
+        // themselves — otherwise a saved link keeps the profile (and its message
+        // button) live after access was pulled.
+        if (
+          coachRes.data.approved === false &&
+          viewerProfile?.role !== 'admin' &&
+          user.id !== id
+        ) {
+          setLoadError('Coach profile not found.')
+          setLoading(false)
+          return
+        }
+
         setCoach(coachRes.data as CoachProfile)
         setViewer(viewerProfile)
         setOpportunities((oppsRes.data ?? []) as Opportunity[])

@@ -228,7 +228,7 @@ export default function PlayerPublicProfile() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, date_of_birth, actively_looking, goals, assists, appearances, season, highlight_urls, premium, last_active, created_at').eq('id', id).single(),
+          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, date_of_birth, actively_looking, goals, assists, appearances, season, highlight_urls, premium, last_active, created_at, approved').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -243,6 +243,18 @@ export default function PlayerPublicProfile() {
           return
         }
         if (!playerRes.data) { router.push('/dashboard/player/players'); return }
+
+        // Revoked (declined) accounts stay reachable by saved links otherwise —
+        // browse already filters on approved, so this closes the direct-URL hole.
+        // Admins and the account owner can still open it.
+        if (
+          playerRes.data.approved === false &&
+          viewerRes.data?.role !== 'admin' &&
+          user.id !== id
+        ) {
+          router.push('/dashboard/player/players')
+          return
+        }
 
         setPlayer({ ...playerRes.data, highlight_urls: playerRes.data.highlight_urls ?? [] } as PublicProfile)
         setViewer(viewerRes.data as ViewerProfile)

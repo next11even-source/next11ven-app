@@ -102,6 +102,10 @@ export default function AdminPage() {
   const [rescuedIds, setRescuedIds] = useState<Set<string>>(new Set())
   const [rescueErrors, setRescueErrors] = useState<Record<string, string>>({})
   const [lookupQuery, setLookupQuery] = useState('')
+  const [meId, setMeId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [profileDeletingId, setProfileDeletingId] = useState<string | null>(null)
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     load()
@@ -119,6 +123,7 @@ export default function AdminPage() {
       .single()
 
     if (me?.role !== 'admin') { router.push('/dashboard/player'); return }
+    setMeId(user.id)
 
     const res = await fetch('/api/admin/profiles')
     if (!res.ok) { setLoading(false); return }
@@ -159,6 +164,32 @@ export default function AdminPage() {
       })
     }
     setProcessing(null)
+  }
+
+  // Hard delete — GDPR erasure only. Revoking (decline) is the reversible option.
+  async function deleteProfileUser(profileId: string) {
+    setProfileDeletingId(profileId)
+    setProfileErrors(prev => { const next = { ...prev }; delete next[profileId]; return next })
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profileId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setProfileErrors(prev => ({ ...prev, [profileId]: json.error ?? `Error ${res.status}` }))
+      } else {
+        const removed = profiles.find(p => p.id === profileId)
+        const status = (removed?.approval_status ?? 'pending') as TabFilter
+        setProfiles(prev => prev.filter(p => p.id !== profileId))
+        setCounts(prev => ({ ...prev, [status]: Math.max(0, prev[status] - 1) }))
+        setConfirmDeleteId(null)
+      }
+    } catch {
+      setProfileErrors(prev => ({ ...prev, [profileId]: 'Network error — try again' }))
+    }
+    setProfileDeletingId(null)
   }
 
   async function toggleAgent(profileId: string, isAgent: boolean) {
@@ -766,6 +797,67 @@ export default function AdminPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Access controls — hidden for your own account and other admins */}
+                  {p.id !== meId && p.role !== 'admin' && (
+                    <div className="mt-3">
+                      {confirmDeleteId === p.id ? (
+                        <div className="rounded-lg px-3 py-2.5"
+                          style={{ backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                          <p className="text-xs mb-2" style={{ color: '#e8dece' }}>
+                            Permanently delete <span className="font-bold">{p.full_name ?? p.email}</span>? This wipes
+                            their profile, messages, applications and login. It cannot be undone.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => deleteProfileUser(p.id)}
+                              disabled={profileDeletingId === p.id}
+                              className="flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                              style={{ backgroundColor: '#ef4444', color: '#fff' }}>
+                              {profileDeletingId === p.id ? 'Deleting…' : 'Yes, delete permanently'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              disabled={profileDeletingId === p.id}
+                              className="flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                              style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          {p.approval_status === 'declined' ? (
+                            <button
+                              onClick={() => review(p.id, 'approve')}
+                              disabled={processing === p.id}
+                              className="flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                              style={{ backgroundColor: '#1e2235', border: '1px solid #22c55e', color: '#22c55e' }}>
+                              {processing === p.id ? '…' : 'Restore access'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => review(p.id, 'decline')}
+                              disabled={processing === p.id}
+                              className="flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                              style={{ backgroundColor: '#1e2235', border: '1px solid #1e2235', color: '#8892aa' }}>
+                              {processing === p.id ? '…' : 'Revoke access'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setConfirmDeleteId(p.id)}
+                            disabled={processing === p.id}
+                            className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                            style={{ backgroundColor: '#1e2235', border: '1px solid #ef4444', color: '#ef4444' }}>
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                      {profileErrors[p.id] && (
+                        <p className="text-xs mt-1.5" style={{ color: '#ef4444' }}>{profileErrors[p.id]}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -51,8 +51,78 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Delete profile row first (foreign key safety)
-  await admin.from('profiles').delete().eq('id', userId)
+  const { data: target } = await admin
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+
+  // Never delete another admin from the UI — too easy to lock the platform out
+  if (target?.role === 'admin') {
+    return NextResponse.json({ error: 'Cannot delete an admin account' }, { status: 400 })
+  }
+
+  // Purge everything that points at this user. The legacy (Glide-era) tables were
+  // created outside migrations and have no ON DELETE CASCADE, so their rows would
+  // otherwise survive the profile delete with a dangling id. Best-effort: a table
+  // that doesn't exist or doesn't have that column is logged, not fatal.
+  async function purge(table: string, column: string, value: string) {
+    const { error } = await admin.from(table).delete().eq(column, value)
+    if (error) console.warn(`[Admin] delete-user purge ${table}.${column}:`, error.message)
+  }
+
+  // Messages first — they hang off conversations, not off the profile
+  const { data: convs } = await admin
+    .from('conversations')
+    .select('id')
+    .or(`coach_id.eq.${userId},player_id.eq.${userId}`)
+
+  for (const c of convs ?? []) {
+    await purge('messages', 'conversation_id', c.id)
+  }
+  await purge('messages', 'sender_id', userId)
+
+  // Their posted roles, and any applications sitting on those roles
+  const { data: opps } = await admin
+    .from('opportunities')
+    .select('id')
+    .eq('coach_id', userId)
+
+  for (const o of opps ?? []) {
+    await purge('applications', 'opportunity_id', o.id)
+  }
+
+  const purges: [string, string][] = [
+    ['conversations', 'coach_id'],
+    ['conversations', 'player_id'],
+    ['applications', 'player_id'],
+    ['applications', 'coach_id'],
+    ['opportunities', 'coach_id'],
+    ['player_views', 'player_id'],
+    ['player_views', 'viewer_id'],
+    ['shortlist_alerts', 'player_id'],
+    ['shortlist_alerts', 'coach_id'],
+    ['coach_saved_players', 'player_id'],
+    ['coach_saved_players', 'coach_id'],
+    ['subscriptions', 'user_id'],
+    ['player_message_quota', 'player_id'],
+    ['drip_jobs', 'recipient_id'],
+    ['notifications', 'recipient_id'],
+  ]
+  for (const [table, column] of purges) {
+    await purge(table, column, userId)
+  }
+
+  // Delete profile row before the auth user so a blocked FK surfaces as an error
+  // instead of leaving a profile behind with no auth account attached to it.
+  const { error: profileErr } = await admin.from('profiles').delete().eq('id', userId)
+  if (profileErr) {
+    console.error('[Admin] delete-user profile delete error:', profileErr)
+    return NextResponse.json(
+      { error: 'Failed to delete profile: ' + profileErr.message },
+      { status: 500 }
+    )
+  }
 
   // Delete the auth user
   const { error } = await admin.auth.admin.deleteUser(userId)

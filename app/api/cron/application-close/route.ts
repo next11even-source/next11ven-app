@@ -12,8 +12,15 @@ export const runtime = 'nodejs'
 export const maxDuration = 120
 
 // Application closure — the player-side half of the response-rate work.
-// Runs daily 11:00 UTC, an hour after the coach nudge, so a coach who acts on
-// this morning's nudge always beats the closure that would have followed it.
+//
+// Runs WEEKLY, Monday 11:00 UTC — an hour after that morning's coach nudge, so
+// a coach who acts on the nudge always beats the closure that would have
+// followed it. Weekly rather than daily on purpose: closure is bad news, and
+// bad news should arrive rarely rather than steadily. A daily run meant a
+// player with a deep backlog woke to a closure notification every morning.
+//
+// SENDS NO EMAIL AND NO SMS. In-app only, one notification per player per run
+// however many it closed. Nobody should be texted that they've been ignored.
 //
 // WHY: an application that is never answered used to sit on the player's
 // dashboard as "Pending" forever. Silence and a rejection are the same outcome

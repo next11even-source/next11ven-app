@@ -68,10 +68,46 @@ export async function PATCH(
     return NextResponse.json({ error: updateErr.message }, { status: 500 })
   }
 
-  // Email player on accepted/rejected decisions
+  // ─── Notify the player ──────────────────────────────────────────────────────
+  //
+  // Accepts and declines are deliberately NOT symmetrical.
+  //
+  // An accept is the best thing that happens to a player here. It always emails
+  // and always lands as its own in-app row — never batched, never suppressed.
+  //
+  // A decline is bad news, and the nudge cron now pushes coaches to clear whole
+  // backlogs in one sitting. Unthrottled that meant a player who applied to four
+  // of a club's roles got four emails and four rows in a row. So: in-app always
+  // (they're entitled to know), but the EMAIL is capped at one per player per
+  // 24h — same pattern as shortlist_availability in /api/player/status-change.
+  // In-app declines then collapse into a single daily row on the activity page.
   if (status === 'accepted' || status === 'rejected') {
     const player = app.player as unknown as { email: string; full_name: string | null } | null
-    if (player?.email) {
+    const accepted = status === 'accepted'
+    const role = [opp?.title, opp?.club].filter(Boolean).join(' at ') || 'a role'
+
+    // Service-role client: RLS allows no client inserts on notifications.
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    let shouldEmail = true
+    if (!accepted) {
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const { data: recentDeclines } = await admin
+        .from('notifications')
+        .select('id')
+        .eq('recipient_id', app.player_id)
+        .eq('type', 'application_declined')
+        .gte('created_at', dayAgo)
+        .limit(1)
+      // Already told them today. One "no" a day is enough — the rest are
+      // waiting in the app whenever they're ready to look.
+      if (recentDeclines && recentDeclines.length > 0) shouldEmail = false
+    }
+
+    if (player?.email && shouldEmail) {
       await sendApplicationDecisionEmail({
         to: player.email,
         playerName: player.full_name,
@@ -81,23 +117,18 @@ export async function PATCH(
       })
     }
 
-    // In-app notification too. Email alone meant a player who doesn't open
-    // email never learned they'd been accepted — the single highest-value
-    // event on the platform was landing in a channel we don't control.
     // Best-effort: a decision must never fail because a notification did.
     try {
-      const admin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
-      const role = [opp?.title, opp?.club].filter(Boolean).join(' at ') || 'a role'
       await admin.from('notifications').insert({
         recipient_id: app.player_id,
-        actor_id: user.id,
-        type: 'application_decision',
+        // Declines carry no actor. A grouped row reading "3 applications
+        // weren't taken forward" should not be fronted by one coach's face,
+        // and a single decline doesn't need a portrait of who said no.
+        actor_id: accepted ? user.id : null,
+        type: accepted ? 'application_decision' : 'application_declined',
         entity_type: 'opportunity',
         entity_id: app.opportunity_id,
-        message: status === 'accepted'
+        message: accepted
           ? `Your application for ${role} was accepted. Check your messages.`
           : `Your application for ${role} wasn't taken forward this time.`,
       })

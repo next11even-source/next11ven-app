@@ -45,10 +45,12 @@ function getRoute(type: string, entityId: string | null, isPremium: boolean): st
     case 'post_comment':
     case 'post_interest': return '/dashboard/feed'
     case 'new_opportunity': return '/dashboard/opportunities'
-    // A coach answered — send them to the card that carries the answer.
+    // Accepted — send them to the card that carries the answer.
     case 'application_decision': return '/dashboard/opportunities?tab=applications'
-    // The platform closed one on their behalf. The point of the notification is
-    // to move them on, so land them in Open Roles, not on the closed card.
+    // Declined, or closed by the platform. Both are dead ends, and the point of
+    // the notification is to move them on, so land them in Open Roles rather
+    // than on the card they can no longer do anything with.
+    case 'application_declined':
     case 'application_closed': return '/dashboard/opportunities'
     case 'shortlisted':
       return isPremium && entityId
@@ -73,6 +75,19 @@ function bucketByDate<T extends { created_at: string }>(items: T[]) {
 // Only likes and comments flood the feed — group those by post. Everything else
 // (shortlists, opportunities, interest) stays as its own row.
 const GROUPABLE = new Set(['post_like', 'post_comment'])
+
+// Declines group by DAY instead of by entity — each one is a different role, so
+// there's no shared entity to collapse on, and the thing worth collapsing is
+// "how much bad news arrived at once". A coach clearing a twelve-deep backlog
+// should cost a player one row, not twelve. Grouping by day rather than
+// wholesale keeps a decline from six weeks ago out of today's row.
+const DAY_GROUPABLE = new Set(['application_declined'])
+
+function groupKey(n: Notification): string | null {
+  if (GROUPABLE.has(n.type) && n.entity_id) return `${n.type}:${n.entity_id}`
+  if (DAY_GROUPABLE.has(n.type)) return `${n.type}:${n.created_at.slice(0, 10)}`
+  return null
+}
 
 type Actor = { full_name: string | null; avatar_url: string | null }
 
@@ -106,11 +121,11 @@ function buildGroups(notifs: Notification[]): NotifGroup[] {
 
   // notifs arrive newest-first, so first-seen actor is the most recent
   for (const n of notifs) {
-    if (!(GROUPABLE.has(n.type) && n.entity_id)) {
+    const key = groupKey(n)
+    if (!key) {
       singles.push(asGroup(n, n.id))
       continue
     }
-    const key = `${n.type}:${n.entity_id}`
     const ex = map.get(key)
     if (!ex) { map.set(key, asGroup(n, key)); continue }
     ex.ids.push(n.id)
@@ -128,6 +143,11 @@ function buildGroups(notifs: Notification[]): NotifGroup[] {
 
 function groupMessage(g: NotifGroup): string {
   if (g.count === 1) return g.message
+  // Stated once, plainly, and pointed forward. Naming the clubs that said no
+  // would just be a list of rejections to read.
+  if (g.type === 'application_declined') {
+    return `${g.count} of your applications weren't taken forward. There are roles open now.`
+  }
   const verb = g.type === 'post_comment' ? 'commented on your post' : 'liked your post'
   const names = g.actors.filter(a => a.full_name).map(a => a.full_name as string)
   if (names.length === 0) return `${g.count} people ${verb}`
@@ -151,10 +171,10 @@ function TypeIcon({ type }: { type: string }) {
     profile_view:   { icon: <Eye size={14} />,                          bg: '#a78bfa20', color: '#a78bfa' },
     new_opportunity:{ icon: <Briefcase size={14} />,                    bg: '#f59e0b20', color: '#f59e0b' },
     shortlisted:    { icon: <Bookmark size={14} fill="currentColor" />, bg: '#a78bfa20', color: '#a78bfa' },
-    // Blue for a real answer, muted for a platform closure. Neither icon
-    // states the outcome — a decision notification covers accept AND reject,
-    // and a tick on a rejection would be a slap.
+    // Blue tick for an acceptance — it only ever means yes now. Declines and
+    // platform closures are both muted: they're information, not events.
     application_decision: { icon: <ClipboardCheck size={14} />, bg: '#2d5fc420', color: '#4d8ae8' },
+    application_declined: { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
     application_closed:   { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
   }
   const c = cfg[type] ?? { icon: <Bell size={14} />, bg: '#1e2235', color: '#8892aa' }
@@ -217,6 +237,7 @@ function NotifRow({ group, isPremium, onRead }: { group: NotifGroup; isPremium: 
 
   const isMulti = group.count > 1
   const hideActor = group.type === 'post_interest' || group.type === 'new_opportunity' ||
+    group.type === 'application_declined' || group.type === 'application_closed' ||
     (group.type === 'shortlisted' && !isPremium)
   const lead = group.actors[0]
 

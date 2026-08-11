@@ -133,6 +133,78 @@ Page view tracking injected globally
 
 Vercel Analytics ✅ LIVE
 
+
+Notification Triggers — FULL INVENTORY
+Every outbound thing the platform can send. Keep this table in sync — if you add
+a send site and don't list it here, the next person cannot answer "what does this
+user actually receive?" without re-reading the whole codebase.
+
+⚠️ THE RULE: before adding any send, ask what a user receives when the triggering
+action happens TEN TIMES AT ONCE. If the answer is ten sends, it needs a cap, a
+grouping, or a digest before it ships.
+
+⚠️ THE DATABASE NEVER SENDS ANYTHING. No pg_net, no http extension, no webhooks
+on any table. Triggers only INSERT into `notifications` (in-app only). Every
+email and SMS is an explicit call in an API route. A notifications insert can
+never fan out to email or SMS — do not introduce a DB-level sender.
+
+EMAIL (Resend — all via lib/email.ts, RESEND_ENABLED flag)
+Function                              Fired from                             Cap / guard
+sendMessageNotificationEmail          /api/messages/send                     —
+sendDripDay0Email                     /api/messages/send                     drip: aborts if read/premium/opt-out
+sendDripDay3Email                     /api/cron/drip-reminders               as above
+sendDripDay7Email                     /api/cron/drip-reminders               as above
+sendApplicationReceivedEmail          /api/applications/apply                — (coach-facing)
+sendApplicationDecisionEmail          /api/applications/[id]                 ACCEPT: always. DECLINE: 1 per player per 24h
+sendApplicationNudgeEmail             /api/cron/application-nudge            1 per coach per 5 days
+sendLogNudgeEmail                     /api/cron/log-nudge                    SMS-first, email only as fallback
+sendWeeklyDigestEmail                 /api/cron/weekly-digest                weekly, 1 per player
+sendCoachRecommendationsEmail         /api/cron/coach-recommendations        weekly, 1 per coach
+sendShortlistAvailableEmail           /api/player/status-change              1 per coach per player per week
+sendPaymentFailedEmail                /api/stripe/webhook                    transactional
+sendPaymentFailedFollowUpEmail        /api/cron/drip-reminders               transactional
+sendSubscriptionCancelledWinBackEmail /api/cron/drip-reminders               once per cancellation
+sendExtraMessagesPurchaseEmail        /api/stripe/webhook                    transactional
+Marketing sends respect email_marketing_opt_out. Transactional (payment failed,
+application decisions) must NEVER be suppressed by it.
+
+SMS (Twilio — inlined per route, no shared helper. TWILIO_ENABLED flag)
+Six send sites, ALL gated on sms_opt_in AND the 1-per-recipient-per-day
+last_sms_at cap:
+  /api/messages/send             new message received
+  /api/admin/review              approval decision
+  /api/cron/application-nudge    coach sitting on unanswered applications
+  /api/cron/drip-reminders       drip step 3 (Day 7) only
+  /api/cron/log-nudge            post-match "log your game"
+  /api/stripe/webhook            payment failed (handlePaymentFailedNotifications)
+⚠️ NOTHING ELSE SENDS SMS. In particular application closure and application
+declines are in-app only — deliberately. Nobody gets texted that they were
+rejected, or that a coach ignored them. Do not add SMS to either.
+
+IN-APP (notifications table — inserted by DB trigger or service-role API call)
+Type                          Written by                                Recipient
+post_like                     trigger trg_notify_post_like              post author
+post_comment                  trigger trg_notify_post_comment           post author
+post_interest                 trigger trg_notify_post_interest          post author
+new_opportunity_application   trigger trg_notify_new_application        coach
+shortlist_post                trigger trg_notify_shortlist_post         coach
+shortlist_availability        triggers trg_notify_shortlist_availability
+                              + trg_notify_viewed_player_free_agent     coach
+shortlisted                   /api/coach/shortlist POST                 player
+application_decision          /api/applications/[id]                    player — ACCEPTED ONLY
+application_declined          /api/applications/[id]                    player — declined; grouped by day in UI
+application_closed            /api/cron/application-close               player — 1 per player per run
+Enum also allows profile_view and new_opportunity: nothing writes either. Legacy.
+
+⚠️ Accepts and declines are deliberately asymmetric and must stay that way. An
+accept is the best thing that happens to a player here — individual row, always
+emails, actor avatar shown. A decline is information, not an event — no actor,
+muted icon, collapsed into one row per day, email capped at one a day. Adding a
+new player-facing notification? Decide which of those two it behaves like.
+Renderers: app/dashboard/player/activity/page.tsx (getRoute + TypeIcon +
+groupKey/groupMessage) and app/dashboard/coach/notifications/page.tsx. A type
+with no case in getRoute routes users back to the page they're already on.
+
 Live Automations
 - Drip sequence: /api/cron/drip-reminders — daily 09:00 UTC
   Targets free players with unread coach messages.
@@ -172,15 +244,17 @@ Live Automations
   WHY: 66% of applications were unanswered as of 9 Aug 2026 and every other signal
   (banner, bell, role cards) only reaches coaches who open the app. This one has reach.
 
-- Application closure: /api/cron/application-close — daily 11:00 UTC (one hour AFTER
-  the nudge, deliberately: a coach who acts on this morning's nudge always beats the
-  closure that would have followed it).
+- Application closure: /api/cron/application-close — WEEKLY, Monday 11:00 UTC (one
+  hour AFTER that morning's nudge, deliberately: a coach who acts on the nudge always
+  beats the closure that would have followed it). Weekly not daily because closure is
+  bad news, and bad news should arrive rarely rather than steadily.
   Closes applications still awaiting a reply after CLOSE_AFTER_DAYS (21) by setting
   applications.closed_at + close_reason ('no_response', or 'role_closed' if the coach
-  took the role down). Max 2 per player per run (MAX_CLOSURES_PER_PLAYER_PER_RUN) so a
+  took the role down). Max 4 per player per run (MAX_CLOSURES_PER_PLAYER_PER_RUN) so a
   backlog drips rather than landing as a wall of rejection. One 'application_closed'
-  notification per player per run, never one per application. Supports ?dryRun=1 and
-  ?minDays=N (for easing the first run into the historic backlog).
+  notification per player per run, never one per application. NO EMAIL, NO SMS —
+  in-app only. Supports ?dryRun=1 and ?minDays=N (for easing the first run into the
+  historic backlog).
   ⚠️ closure is NOT a status value. `status` records what the COACH decided; closed_at
   records that the PLATFORM resolved it because the coach decided nothing. Never
   conflate them — a system action must not masquerade as a rejection in any count.

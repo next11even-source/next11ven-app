@@ -105,9 +105,16 @@ export const CLOSE_AFTER_DAYS = 21
  * Max applications closed per player per cron run. Without this the first run
  * would resolve a player's entire backlog at once — one player in the 9 Aug
  * data had eight outstanding — and eight "closed" cards landing together reads
- * as a mass rejection no matter how the copy is worded. Drip it instead.
+ * as a mass rejection no matter how the copy is worded.
+ *
+ * Four, not two, because the cron is WEEKLY: bad news should arrive rarely
+ * rather than steadily, and a daily run at two-a-day meant a player with a
+ * deep backlog got a closure notification every morning for a week. One row a
+ * week saying "4 closed" is a single piece of news; seven mornings of "2
+ * closed" is a drumbeat. The run still emits exactly one notification per
+ * player regardless of how many it closed.
  */
-export const MAX_CLOSURES_PER_PLAYER_PER_RUN = 2
+export const MAX_CLOSURES_PER_PLAYER_PER_RUN = 4
 
 export type PlayerApplicationState =
   | 'waiting'

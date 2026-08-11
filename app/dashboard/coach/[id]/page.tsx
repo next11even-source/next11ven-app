@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import ActivityChip from '@/app/components/ActivityChip'
+import { getActivityTier } from '@/lib/activityRecency'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ export default function CoachPublicProfile() {
   const [quotaData, setQuotaData] = useState<QuotaData | null>(null)
   const [quotaLoading, setQuotaLoading] = useState(true)
   const [initiating, setInitiating] = useState(false)
+  const [dormantAcknowledged, setDormantAcknowledged] = useState(false)
 
   const [toast, setToast] = useState('')
 
@@ -203,8 +205,18 @@ export default function CoachPublicProfile() {
     load()
   }, [id])
 
+  // Messages cost the player — a monthly allowance or a purchased credit. If a
+  // coach hasn't been near the app in a month, spending one on them is the most
+  // likely way to feel ripped off by the product. Warn once, then get out of
+  // the way: it's their credit and some approaches are worth the long shot.
+  const coachDormant = coach ? getActivityTier(coach.last_active) === null : false
+
   async function handleInitiate() {
     if (initiating) return
+    if (coachDormant && !dormantAcknowledged) {
+      setDormantAcknowledged(true)
+      return
+    }
     setInitiating(true)
     try {
       const res = await fetch('/api/messages/initiate', {
@@ -403,12 +415,28 @@ export default function CoachPublicProfile() {
                 {/* State D: no existing conversation, has period or purchased credits */}
                 {!quotaData.hasExisting && canMessage && (
                   <div className="space-y-2">
+                    {coachDormant && dormantAcknowledged && (
+                      <div className="rounded-xl px-4 py-3 text-left space-y-1"
+                        style={{ backgroundColor: '#13172a', border: '1px solid rgba(245,158,11,0.35)' }}>
+                        <p className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
+                          {firstName} hasn&apos;t been active in the last month
+                        </p>
+                        <p className="text-xs leading-relaxed" style={{ color: '#8892aa' }}>
+                          They may not see this, and it still uses one of your messages.
+                          Tap again to send it anyway.
+                        </p>
+                      </div>
+                    )}
                     <button
                       onClick={handleInitiate}
                       disabled={initiating}
                       className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-colors"
                       style={{ backgroundColor: initiating ? '#1e2a4a' : '#2d5fc4', color: '#fff' }}>
-                      {initiating ? 'Opening…' : `Message ${firstName}`}
+                      {initiating
+                        ? 'Opening…'
+                        : coachDormant && dormantAcknowledged
+                          ? 'Send anyway'
+                          : `Message ${firstName}`}
                     </button>
 
                     {/* Credit status pill */}

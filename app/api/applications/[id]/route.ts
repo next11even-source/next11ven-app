@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sendApplicationDecisionEmail } from '@/lib/email'
@@ -44,8 +45,8 @@ export async function PATCH(
   const { data: app, error: fetchErr } = await supabase
     .from('applications')
     .select(`
-      id, status,
-      opportunity:opportunity_id ( title, coach_id ),
+      id, status, player_id, opportunity_id,
+      opportunity:opportunity_id ( title, club, coach_id ),
       player:player_id ( email, full_name )
     `)
     .eq('id', id)
@@ -53,7 +54,7 @@ export async function PATCH(
 
   if (fetchErr || !app) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const opp = app.opportunity as unknown as { title: string; coach_id: string } | null
+  const opp = app.opportunity as unknown as { title: string; club: string | null; coach_id: string } | null
   if (opp?.coach_id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Update status
@@ -78,6 +79,30 @@ export async function PATCH(
         status,
         message: message ?? null,
       })
+    }
+
+    // In-app notification too. Email alone meant a player who doesn't open
+    // email never learned they'd been accepted — the single highest-value
+    // event on the platform was landing in a channel we don't control.
+    // Best-effort: a decision must never fail because a notification did.
+    try {
+      const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const role = [opp?.title, opp?.club].filter(Boolean).join(' at ') || 'a role'
+      await admin.from('notifications').insert({
+        recipient_id: app.player_id,
+        actor_id: user.id,
+        type: 'application_decision',
+        entity_type: 'opportunity',
+        entity_id: app.opportunity_id,
+        message: status === 'accepted'
+          ? `Your application for ${role} was accepted. Check your messages.`
+          : `Your application for ${role} wasn't taken forward this time.`,
+      })
+    } catch (err) {
+      reportError('/api/applications/[id]', err, `decision notification failed for application ${id}`)
     }
   }
 

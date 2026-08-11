@@ -77,6 +77,10 @@ export async function GET(req: NextRequest) {
     .select('id, opportunity_id, created_at, status')
     .in('opportunity_id', [...oppOwner.keys()])
     .in('status', AWAITING_REPLY_STATUSES)
+    // Applications the platform has already closed on the player's behalf are
+    // settled. Chasing a coach about them would be nagging over something the
+    // player has stopped waiting for.
+    .is('closed_at', null)
 
   if (appErr) {
     reportError('/api/cron/application-nudge', appErr, 'failed to load applications')

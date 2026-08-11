@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/application-nudge",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/application-close",
+      "schedule": "0 11 * * *"
     }
   ]
 }

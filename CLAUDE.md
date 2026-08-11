@@ -172,7 +172,22 @@ Live Automations
   WHY: 66% of applications were unanswered as of 9 Aug 2026 and every other signal
   (banner, bell, role cards) only reaches coaches who open the app. This one has reach.
 
-All 6 crons are registered in vercel.json. Keep that file and this list in sync.
+- Application closure: /api/cron/application-close — daily 11:00 UTC (one hour AFTER
+  the nudge, deliberately: a coach who acts on this morning's nudge always beats the
+  closure that would have followed it).
+  Closes applications still awaiting a reply after CLOSE_AFTER_DAYS (21) by setting
+  applications.closed_at + close_reason ('no_response', or 'role_closed' if the coach
+  took the role down). Max 2 per player per run (MAX_CLOSURES_PER_PLAYER_PER_RUN) so a
+  backlog drips rather than landing as a wall of rejection. One 'application_closed'
+  notification per player per run, never one per application. Supports ?dryRun=1 and
+  ?minDays=N (for easing the first run into the historic backlog).
+  ⚠️ closure is NOT a status value. `status` records what the COACH decided; closed_at
+  records that the PLATFORM resolved it because the coach decided nothing. Never
+  conflate them — a system action must not masquerade as a rejection in any count.
+  Everything that counts "awaiting reply" must filter .is('closed_at', null), and
+  isAwaitingReply(status, closedAt) in lib/applicationResponse.ts is the single rule.
+
+All 7 crons are registered in vercel.json. Keep that file and this list in sync.
 
 APIs
 
@@ -251,6 +266,7 @@ GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
 GET /api/cron/weekly-digest — sends the weekly player digest to all approved players (Thursday)
 GET /api/cron/log-nudge — post-match "log your game" nudge to active-stint players (daily)
 GET /api/cron/application-nudge — nudges coaches sitting on unanswered applications (daily)
+GET /api/cron/application-close — closes unanswered applications on the player's behalf (daily)
 GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
 GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
 

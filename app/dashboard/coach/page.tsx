@@ -894,6 +894,10 @@ export default function CoachDashboard() {
           .select('id, created_at, status')
           .in('opportunity_id', allMyOppIds)
           .in('status', AWAITING_REPLY_STATUSES)
+          // Once the platform has closed an application on the player's behalf
+          // the coach no longer owes an answer on it — leaving it in the count
+          // would mean a backlog that can never reach zero.
+          .is('closed_at', null)
         const rows = openApps ?? []
         setAwaitingReply({
           total: rows.length,
@@ -909,11 +913,11 @@ export default function CoachDashboard() {
       if (myOppIds.length) {
         const { data: appData } = await supabase
           .from('applications')
-          .select('opportunity_id, status')
+          .select('opportunity_id, status, closed_at')
           .in('opportunity_id', myOppIds)
         for (const a of appData ?? []) {
           countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
-          if (isAwaitingReply(a.status)) {
+          if (isAwaitingReply(a.status, a.closed_at)) {
             awaitingMap[a.opportunity_id] = (awaitingMap[a.opportunity_id] ?? 0) + 1
           }
         }

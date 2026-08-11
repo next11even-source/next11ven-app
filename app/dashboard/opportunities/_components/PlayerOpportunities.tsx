@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
@@ -11,6 +12,11 @@ import { getPrimarySignal } from '@/lib/opportunitySignal'
 import { LEVELS, sortLevels } from '@/lib/levels'
 import { POSITIONS } from '@/lib/positions'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
+import {
+  getPlayerApplicationState,
+  PLAYER_APPLICATION_COPY,
+  isDeadEnd,
+} from '@/lib/applicationResponse'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +44,8 @@ type Application = {
   id: string
   status: string
   created_at: string
+  closed_at: string | null
+  close_reason: string | null
   opportunity: {
     id: string
     title: string
@@ -94,13 +102,9 @@ function Chip({ children, color, bg }: { children: React.ReactNode; color: strin
   )
 }
 
-const APP_STATUS: Record<string, { color: string; bg: string; label: string }> = {
-  pending:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  label: 'Pending' },
-  viewed:      { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  label: 'Viewed' },
-  shortlisted: { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: 'Shortlisted' },
-  accepted:    { color: '#2d5fc4', bg: 'rgba(45,95,196,0.15)',   label: '✓ Accepted' },
-  rejected:    { color: '#8892aa', bg: 'rgba(136,146,170,0.1)',  label: 'Not Progressed' },
-}
+// Status copy now lives in lib/applicationResponse.ts (PLAYER_APPLICATION_COPY)
+// so the cron that closes applications and the UI that renders them can never
+// disagree about what a player is being told.
 
 function SkeletonRow() {
   return (
@@ -681,7 +685,7 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
   useEffect(() => {
     const supabase = createClient()
     supabase.from('applications')
-      .select('id, status, created_at, opportunity:opportunity_id(id, title, club, location, position, level, is_active)')
+      .select('id, status, created_at, closed_at, close_reason, opportunity:opportunity_id(id, title, club, location, position, level, is_active)')
       .eq('player_id', playerId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -696,6 +700,14 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
     </div>
   )
 
+  // Live applications first, resolved ones beneath, each newest-first. The
+  // query already sorts by date; this is a stable partition on top of it, so a
+  // player opening the tab sees what's still in play before their history.
+  const ordered = [
+    ...applications.filter(a => !isDeadEnd(getPlayerApplicationState(a.status, a.closed_at, a.close_reason))),
+    ...applications.filter(a => isDeadEnd(getPlayerApplicationState(a.status, a.closed_at, a.close_reason))),
+  ]
+
   return (
     <div className="px-4 py-4 max-w-5xl mx-auto">
       {applications.length === 0 ? (
@@ -709,14 +721,23 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {applications.map(app => {
-            const cfg = APP_STATUS[app.status] ?? APP_STATUS.pending
+          {ordered.map(app => {
+            const state = getPlayerApplicationState(app.status, app.closed_at, app.close_reason)
+            const cfg = PLAYER_APPLICATION_COPY[state]
+            const done = isDeadEnd(state)
             const opp = app.opportunity
             const showPos = opp?.position && !opp.title?.toLowerCase().includes(opp.position.toLowerCase())
             const meta = [opp?.club, opp?.location, showPos ? opp?.position : null].filter(Boolean).join(' · ')
             return (
               <div key={app.id} className="rounded-2xl overflow-hidden"
-                style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                style={{
+                  backgroundColor: '#13172a',
+                  border: '1px solid #1e2235',
+                  // Resolved applications recede. They stay readable — a player
+                  // should be able to see their own history — but they stop
+                  // competing with the ones still live.
+                  opacity: done ? 0.72 : 1,
+                }}>
                 <div className="p-4 lg:p-5">
                   <div className="flex gap-3.5">
                     <LevelBadge level={opp?.level ?? null} size={44} />
@@ -727,14 +748,28 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
                           {opp?.title ?? 'Opportunity'}
                         </h3>
                         <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
-                          style={{ color: cfg.color, backgroundColor: cfg.bg }}>
+                          style={{ color: cfg.colour, backgroundColor: cfg.bg }}>
                           {cfg.label}
                         </span>
                       </div>
                       <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || '—'}</p>
                       <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>Applied {timeAgo(app.created_at)}</p>
 
-                      {opp && opp.is_active ? (
+                      {/* The line that replaces the old dead-end "Pending" chip:
+                          every state says what it means and what happens next. */}
+                      {cfg.detail && (
+                        <p className="text-xs mt-2 leading-relaxed" style={{ color: '#8892aa' }}>{cfg.detail}</p>
+                      )}
+
+                      {done ? (
+                        // A closed application is a prompt to move, not an
+                        // epitaph. Always hand them somewhere to go.
+                        <button onClick={onBrowse}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
+                          style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#2d5fc4' }}>
+                          See open roles →
+                        </button>
+                      ) : opp && opp.is_active ? (
                         <button onClick={() => onView(opp.id)}
                           className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
                           style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#2d5fc4' }}>
@@ -761,7 +796,12 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
 
 export default function PlayerOpportunities({ playerId, isAdmin = false }: { playerId: string; isAdmin?: boolean }) {
   const { openSidebar } = useSidebar()
-  const [activeTab, setActiveTab] = useState<'opportunities' | 'applications'>('opportunities')
+  // ?tab=applications lets the application-decision notification land on the
+  // card that carries the answer instead of the generic Open Roles list.
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'opportunities' | 'applications'>(
+    searchParams.get('tab') === 'applications' ? 'applications' : 'opportunities'
+  )
   const [focusOppId, setFocusOppId] = useState<string | null>(null)
 
   // Jump from a "My Applications" card to the exact role in "Open Roles"

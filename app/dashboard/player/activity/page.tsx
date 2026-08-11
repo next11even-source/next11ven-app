@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Bookmark, Briefcase, Check, ChevronRight, Eye, Heart, MessageCircle, Star } from 'lucide-react'
+import { Bell, Bookmark, Briefcase, Check, ChevronRight, CircleSlash, ClipboardCheck, Eye, Heart, MessageCircle, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '../_components/SidebarContext'
@@ -45,6 +45,11 @@ function getRoute(type: string, entityId: string | null, isPremium: boolean): st
     case 'post_comment':
     case 'post_interest': return '/dashboard/feed'
     case 'new_opportunity': return '/dashboard/opportunities'
+    // A coach answered — send them to the card that carries the answer.
+    case 'application_decision': return '/dashboard/opportunities?tab=applications'
+    // The platform closed one on their behalf. The point of the notification is
+    // to move them on, so land them in Open Roles, not on the closed card.
+    case 'application_closed': return '/dashboard/opportunities'
     case 'shortlisted':
       return isPremium && entityId
         ? `/dashboard/coach/${entityId}`
@@ -146,6 +151,11 @@ function TypeIcon({ type }: { type: string }) {
     profile_view:   { icon: <Eye size={14} />,                          bg: '#a78bfa20', color: '#a78bfa' },
     new_opportunity:{ icon: <Briefcase size={14} />,                    bg: '#f59e0b20', color: '#f59e0b' },
     shortlisted:    { icon: <Bookmark size={14} fill="currentColor" />, bg: '#a78bfa20', color: '#a78bfa' },
+    // Blue for a real answer, muted for a platform closure. Neither icon
+    // states the outcome — a decision notification covers accept AND reject,
+    // and a tick on a rejection would be a slap.
+    application_decision: { icon: <ClipboardCheck size={14} />, bg: '#2d5fc420', color: '#4d8ae8' },
+    application_closed:   { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
   }
   const c = cfg[type] ?? { icon: <Bell size={14} />, bg: '#1e2235', color: '#8892aa' }
   return (

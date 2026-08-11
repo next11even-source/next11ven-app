@@ -36,6 +36,7 @@ type Applicant = {
   message: string | null
   status: string
   created_at: string
+  closed_at: string | null
   player: {
     id: string
     full_name: string | null
@@ -272,7 +273,7 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
       const { data } = await supabase
         .from('applications')
         .select(`
-          id, message, status, created_at,
+          id, message, status, created_at, closed_at,
           player:player_id (id, full_name, position, club, avatar_url, city, playing_level, status)
         `)
         .eq('opportunity_id', opportunity.id)
@@ -281,8 +282,8 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
       // never have to scroll past people they've already dealt with to find the
       // ones still hanging.
       const rows = ((data as unknown as Applicant[]) ?? []).slice().sort((a, b) => {
-        const aOpen = isAwaitingReply(a.status)
-        const bOpen = isAwaitingReply(b.status)
+        const aOpen = isAwaitingReply(a.status, a.closed_at)
+        const bOpen = isAwaitingReply(b.status, b.closed_at)
         if (aOpen !== bOpen) return aOpen ? -1 : 1
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       })
@@ -334,7 +335,7 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
           </h3>
           {(() => {
             if (loading) return <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>…</p>
-            const open = applicants.filter(a => isAwaitingReply(a.status)).length
+            const open = applicants.filter(a => isAwaitingReply(a.status, a.closed_at)).length
             return (
               <p className="text-xs mt-0.5" style={{ color: open > 0 ? '#f59e0b' : '#8892aa' }}>
                 {`${applicants.length} application${applicants.length !== 1 ? 's' : ''}`}
@@ -364,14 +365,19 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>{a.player?.full_name ?? 'Player'}</p>
-                    {isAwaitingReply(a.status) ? (() => {
+                    {isAwaitingReply(a.status, a.closed_at) ? (() => {
                       const days = waitingDays(a.created_at)
                       return (
                         <span className="text-xs font-semibold" style={{ color: WAITING_TIER_COLOUR[getWaitingTier(days)] }}>
                           {waitingLabel(days)}
                         </span>
                       )
-                    })() : (
+                    })() : a.closed_at && a.status !== 'accepted' && a.status !== 'rejected' ? (
+                      // Says why this one stopped counting. The coach can still
+                      // answer it — the buttons stay — but they're no longer on
+                      // the hook for it, and the player has already been told.
+                      <span className="text-xs" style={{ color: '#8892aa' }}>Closed — no reply given</span>
+                    ) : (
                       <span className="text-xs" style={{ color: '#8892aa' }}>{timeAgo(a.created_at)}</span>
                     )}
                   </div>
@@ -555,11 +561,11 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
       if (own.length) {
         const { data: appRows } = await supabase
           .from('applications')
-          .select('opportunity_id, status')
+          .select('opportunity_id, status, closed_at')
           .in('opportunity_id', own.map(o => o.id))
         for (const a of appRows ?? []) {
           countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
-          if (isAwaitingReply(a.status)) {
+          if (isAwaitingReply(a.status, a.closed_at)) {
             awaitingMap[a.opportunity_id] = (awaitingMap[a.opportunity_id] ?? 0) + 1
           }
         }

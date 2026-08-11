@@ -17,7 +17,17 @@ export const FINAL_STATUSES = ['accepted', 'rejected'] as const
 /** Statuses to filter on in a Supabase `.in()` — keep in sync with the above. */
 export const AWAITING_REPLY_STATUSES = ['pending', 'viewed', 'shortlisted'] as const
 
-export function isAwaitingReply(status: string | null | undefined): boolean {
+/**
+ * A coach still owes an answer only while the application is open. Once the
+ * platform has closed it (see CLOSE_AFTER_DAYS) we stop counting it and stop
+ * nudging — chasing a coach about a 90-day-old application they were already
+ * chased about a dozen times is how a nudge becomes noise they filter out.
+ */
+export function isAwaitingReply(
+  status: string | null | undefined,
+  closedAt?: string | null
+): boolean {
+  if (closedAt) return false
   if (!status) return true
   return !(FINAL_STATUSES as readonly string[]).includes(status)
 }
@@ -69,4 +79,108 @@ export function buildAwaitingReplySummary(total: number, overdue: number): { hea
     ? `${overdue} ${overdue === 1 ? 'has' : 'have'} been waiting over a week. A no is still an answer — it takes one tap.`
     : 'Accept or pass — either way they know where they stand.'
   return { headline, sub }
+}
+
+/* ─── Player-side closure ─────────────────────────────────────────────────────
+ *
+ * The coach's view of an application is "have I answered it". The player's view
+ * is "do I know where I stand". Those diverge, and the player's side is the one
+ * that was broken — a bare "Pending" chip that never resolved.
+ *
+ * Closure never claims the coach rejected them. It says the application is over
+ * and points at what's open now. Silence and a no are the same outcome, but
+ * they are NOT the same message, and dressing silence up as a rejection would
+ * be putting words in a coach's mouth.
+ */
+
+/**
+ * Days an application waits before the platform closes it on the player's
+ * behalf. Three weeks is past the point any honest coach is still deciding, and
+ * comfortably past several rounds of the nudge cron (first at 3 days, then
+ * every 5) — so the coach always gets a real chance to answer first.
+ */
+export const CLOSE_AFTER_DAYS = 21
+
+/**
+ * Max applications closed per player per cron run. Without this the first run
+ * would resolve a player's entire backlog at once — one player in the 9 Aug
+ * data had eight outstanding — and eight "closed" cards landing together reads
+ * as a mass rejection no matter how the copy is worded. Drip it instead.
+ */
+export const MAX_CLOSURES_PER_PLAYER_PER_RUN = 2
+
+export type PlayerApplicationState =
+  | 'waiting'
+  | 'shortlisted'
+  | 'accepted'
+  | 'rejected'
+  | 'closed_no_response'
+  | 'closed_role_gone'
+
+export function getPlayerApplicationState(
+  status: string | null | undefined,
+  closedAt?: string | null,
+  closeReason?: string | null
+): PlayerApplicationState {
+  // A real coach decision always wins over a platform closure — if a coach
+  // answered late, after we'd already closed it, the player sees the answer.
+  if (status === 'accepted') return 'accepted'
+  if (status === 'rejected') return 'rejected'
+  if (closedAt) return closeReason === 'role_closed' ? 'closed_role_gone' : 'closed_no_response'
+  if (status === 'shortlisted') return 'shortlisted'
+  return 'waiting'
+}
+
+/**
+ * Player-facing copy. Note what's absent: no "Pending", no "Viewed", and no
+ * read-receipt equivalent. "Viewed" was the worst of the old labels — it told
+ * a player they'd been looked at and passed over without anyone saying so.
+ */
+export const PLAYER_APPLICATION_COPY: Record<
+  PlayerApplicationState,
+  { label: string; colour: string; bg: string; detail?: string }
+> = {
+  waiting: {
+    label: 'With the club',
+    colour: '#f59e0b',
+    bg: 'rgba(245,158,11,0.12)',
+    detail: "We'll chase them for an answer.",
+  },
+  shortlisted: {
+    label: 'Shortlisted',
+    colour: '#a78bfa',
+    bg: 'rgba(167,139,250,0.12)',
+    detail: "You're on their list — they haven't made a final call yet.",
+  },
+  accepted: {
+    // Blue, not green. Green is reserved for availability signals; the existing
+    // accepted chip was already blue and there's no reason to churn it.
+    label: '✓ Accepted',
+    colour: '#2d5fc4',
+    bg: 'rgba(45,95,196,0.15)',
+    detail: 'Check your messages — the club wants to speak to you.',
+  },
+  rejected: {
+    label: 'Not this time',
+    colour: '#8892aa',
+    bg: 'rgba(136,146,170,0.1)',
+    detail: 'They went another way. Plenty more open.',
+  },
+  closed_no_response: {
+    label: 'Closed — no reply',
+    colour: '#8892aa',
+    bg: 'rgba(136,146,170,0.1)',
+    detail: "This one went quiet, so we've closed it rather than leave you waiting.",
+  },
+  closed_role_gone: {
+    label: 'Role withdrawn',
+    colour: '#8892aa',
+    bg: 'rgba(136,146,170,0.1)',
+    detail: 'The club took this role down before deciding.',
+  },
+}
+
+/** True where the player has nothing left to wait for and should be redirected. */
+export function isDeadEnd(state: PlayerApplicationState): boolean {
+  return state === 'rejected' || state === 'closed_no_response' || state === 'closed_role_gone'
 }

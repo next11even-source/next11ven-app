@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import PlayerOpportunities from './_components/PlayerOpportunities'
@@ -37,7 +37,13 @@ export default function OpportunitiesPage() {
     )
   }
 
+  // PlayerOpportunities reads ?tab= to deep-link into My Applications, so it
+  // needs a Suspense boundary (same pattern as messages / extra-messages).
   return role === 'coach'
     ? <CoachOpportunities coachId={userId} />
-    : <PlayerOpportunities playerId={userId} isAdmin={role === 'admin'} />
+    : (
+      <Suspense>
+        <PlayerOpportunities playerId={userId} isAdmin={role === 'admin'} />
+      </Suspense>
+    )
 }

@@ -274,6 +274,50 @@ export async function sendLogNudgeEmail({
   await send({ to, subject: 'Played this weekend? Log it in 20 seconds', html })
 }
 
+// ─── Application nudge (coach owes players an answer) ────────────────────────
+// Operational, not promotional: these are applications to a role THIS coach
+// posted. Still respects email_marketing_opt_out at the call site — see the
+// cron for that decision.
+
+export async function sendApplicationNudgeEmail({
+  to,
+  coachName,
+  total,
+  overdue,
+  oldestDays,
+}: {
+  to: string
+  coachName: string | null
+  total: number
+  overdue: number
+  oldestDays: number
+}) {
+  const url = `${SITE}/dashboard/opportunities?tab=mine`
+  const plural = total === 1 ? 'player is' : 'players are'
+  // Lead with the players, never with the coach's failure — these are unpaid
+  // volunteers at non-league clubs, and shaming them just loses the coach.
+  const overdueLine = overdue > 0
+    ? `<p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">${overdue === 1 ? 'One has' : `${overdue} have`} been waiting over a week${oldestDays >= 30 ? `, and the longest has been waiting ${Math.floor(oldestDays / 30)} month${oldestDays >= 60 ? 's' : ''}` : ''}.</p>`
+    : ''
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${coachName?.split(' ')[0] ?? 'there'},</p>
+    <p style="color:#e8dece;margin:0 0 16px;line-height:1.6;font-size:16px;">
+      <strong>${total} ${plural} waiting to hear back from you.</strong>
+    </p>
+    ${overdueLine}
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      A no is still an answer, and it takes one tap. Players who never hear back
+      assume nobody read it — the ones you pass on today will remember that you replied.
+    </p>
+    <a href="${url}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Review your applicants</a>
+  `)
+  await send({
+    to,
+    subject: total === 1 ? '1 player is waiting on your answer' : `${total} players are waiting on your answer`,
+    html,
+  })
+}
+
 // ─── Weekly digest (marketing — suppressible via email_marketing_opt_out) ────
 // Body is built + validated in lib/weeklyDigest.ts. This wrapper only frames it
 // in the base template and sends. Keep the transport thin.

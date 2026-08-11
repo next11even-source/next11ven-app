@@ -6,6 +6,9 @@ import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS, sortLevels } from '@/lib/levels'
 import { LevelBadge } from '@/app/components/OpportunityBadges'
+import {
+  isAwaitingReply, waitingDays, waitingLabel, getWaitingTier, WAITING_TIER_COLOUR,
+} from '@/lib/applicationResponse'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +28,7 @@ type Opp = {
   created_at: string
   isOwn: boolean
   application_count: number
+  awaiting_count: number
 }
 
 type Applicant = {
@@ -273,7 +277,16 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
         `)
         .eq('opportunity_id', opportunity.id)
         .order('created_at', { ascending: false })
-      setApplicants((data as unknown as Applicant[]) ?? [])
+      // Unanswered first, longest-waiting first within that — the coach should
+      // never have to scroll past people they've already dealt with to find the
+      // ones still hanging.
+      const rows = ((data as unknown as Applicant[]) ?? []).slice().sort((a, b) => {
+        const aOpen = isAwaitingReply(a.status)
+        const bOpen = isAwaitingReply(b.status)
+        if (aOpen !== bOpen) return aOpen ? -1 : 1
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      })
+      setApplicants(rows)
       setLoading(false)
     }
     load()
@@ -319,9 +332,16 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
             style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             Applicants — {opportunity.title}
           </h3>
-          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-            {loading ? '…' : `${applicants.length} application${applicants.length !== 1 ? 's' : ''}`}
-          </p>
+          {(() => {
+            if (loading) return <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>…</p>
+            const open = applicants.filter(a => isAwaitingReply(a.status)).length
+            return (
+              <p className="text-xs mt-0.5" style={{ color: open > 0 ? '#f59e0b' : '#8892aa' }}>
+                {`${applicants.length} application${applicants.length !== 1 ? 's' : ''}`}
+                {open > 0 && ` · ${open} awaiting your reply`}
+              </p>
+            )
+          })()}
         </div>
         <button onClick={onClose} className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Close</button>
       </div>
@@ -344,7 +364,16 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>{a.player?.full_name ?? 'Player'}</p>
-                    <span className="text-xs" style={{ color: '#8892aa' }}>{timeAgo(a.created_at)}</span>
+                    {isAwaitingReply(a.status) ? (() => {
+                      const days = waitingDays(a.created_at)
+                      return (
+                        <span className="text-xs font-semibold" style={{ color: WAITING_TIER_COLOUR[getWaitingTier(days)] }}>
+                          {waitingLabel(days)}
+                        </span>
+                      )
+                    })() : (
+                      <span className="text-xs" style={{ color: '#8892aa' }}>{timeAgo(a.created_at)}</span>
+                    )}
                   </div>
                   <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
                     {[a.player?.position, a.player?.city].filter(Boolean).join(' · ') || '—'}
@@ -390,7 +419,10 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
                         style={{ backgroundColor: 'transparent', color: '#8892aa', border: '1px solid #1e2235' }}
                         onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
                         onMouseLeave={e => (e.currentTarget.style.color = '#8892aa')}>
-                        {actioning === a.id ? '…' : '✕ Reject'}
+                        {/* "Reject" made coaches hesitate, so they answered nothing
+                            at all. A softer verb is the cheapest lever on the
+                            silence problem — the player still gets a clear no. */}
+                        {actioning === a.id ? '…' : '✕ Not this time'}
                       </button>
                     )}
                     {(a.status === 'accepted' || a.status === 'rejected') && acceptingId !== a.id && (
@@ -484,6 +516,11 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
       setActiveTab('mine')
       setShowForm(true)
       window.history.replaceState(null, '', window.location.pathname)
+    } else if (params.get('tab') === 'mine') {
+      // Deep-link from the dashboard "awaiting reply" banner — landing on All
+      // Roles would leave the coach one more tap from the thing we nudged them about.
+      setActiveTab('mine')
+      window.history.replaceState(null, '', window.location.pathname)
     }
   }, [])
 
@@ -507,24 +544,30 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
       setMonthlyCount(monthlyRes.count ?? 0)
       setAppliedIds(new Set((appsRes.data ?? []).map((a: { opportunity_id: string }) => a.opportunity_id)))
 
-      const own = (ownRes.data ?? []) as Omit<Opp, 'isOwn' | 'application_count'>[]
-      const others = (othersRes.data ?? []) as Omit<Opp, 'isOwn' | 'application_count'>[]
+      const own = (ownRes.data ?? []) as Omit<Opp, 'isOwn' | 'application_count' | 'awaiting_count'>[]
+      const others = (othersRes.data ?? []) as Omit<Opp, 'isOwn' | 'application_count' | 'awaiting_count'>[]
 
-      // Application counts for the coach's own roles
-      const counts = await Promise.all(
-        own.map(async (o) => {
-          const { count } = await supabase
-            .from('applications')
-            .select('*', { count: 'exact', head: true })
-            .eq('opportunity_id', o.id)
-          return { id: o.id, count: count ?? 0 }
-        })
-      )
-      const countMap = Object.fromEntries(counts.map(c => [c.id, c.count]))
+      // Application counts for the coach's own roles — one query for every role
+      // (was N+1 head-counts), and it carries status so we can also surface how
+      // many applicants are still waiting on an answer.
+      const countMap: Record<string, number> = {}
+      const awaitingMap: Record<string, number> = {}
+      if (own.length) {
+        const { data: appRows } = await supabase
+          .from('applications')
+          .select('opportunity_id, status')
+          .in('opportunity_id', own.map(o => o.id))
+        for (const a of appRows ?? []) {
+          countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
+          if (isAwaitingReply(a.status)) {
+            awaitingMap[a.opportunity_id] = (awaitingMap[a.opportunity_id] ?? 0) + 1
+          }
+        }
+      }
 
       const merged: Opp[] = [
-        ...own.map(o => ({ ...o, isOwn: true, application_count: countMap[o.id] ?? 0 })),
-        ...others.map(o => ({ ...o, isOwn: false, application_count: 0 })),
+        ...own.map(o => ({ ...o, isOwn: true, application_count: countMap[o.id] ?? 0, awaiting_count: awaitingMap[o.id] ?? 0 })),
+        ...others.map(o => ({ ...o, isOwn: false, application_count: 0, awaiting_count: 0 })),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
       setOpps(merged)
@@ -534,7 +577,7 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
   }, [coachId])
 
   function handlePosted(opp: Opp) {
-    setOpps(prev => [{ ...opp, isOwn: true, application_count: 0, is_active: true }, ...prev])
+    setOpps(prev => [{ ...opp, isOwn: true, application_count: 0, awaiting_count: 0, is_active: true }, ...prev])
     setMonthlyCount(prev => prev + 1)
     setShowForm(false)
   }
@@ -567,7 +610,9 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
 
   const canPost = isPremium || monthlyCount < FREE_TIER_LIMIT
   const ownOpps = opps.filter(o => o.isOwn)
-  const totalApplicants = ownOpps.reduce((sum, o) => sum + o.application_count, 0)
+  // Badge the OUTSTANDING count, not the lifetime total. A badge that can never
+  // reach zero is decoration; one that clears when you answer people is a to-do list.
+  const totalAwaiting = ownOpps.reduce((sum, o) => sum + o.awaiting_count, 0)
   const tabbed = activeTab === 'mine' ? ownOpps : opps
 
   // Filter options derived from the current tab's roles
@@ -621,10 +666,10 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                 border: activeTab === t.key ? 'none' : '1px solid #1e2235',
               }}>
               {t.label}
-              {t.key === 'mine' && totalApplicants > 0 && (
+              {t.key === 'mine' && totalAwaiting > 0 && (
                 <span className="min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
-                  style={{ backgroundColor: activeTab === 'mine' ? '#fff' : '#2d5fc4', color: activeTab === 'mine' ? '#2d5fc4' : '#fff', fontSize: 10 }}>
-                  {totalApplicants > 9 ? '9+' : totalApplicants}
+                  style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10 }}>
+                  {totalAwaiting > 9 ? '9+' : totalAwaiting}
                 </span>
               )}
             </button>
@@ -826,17 +871,23 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                             {justPosted && opp.is_active && <Chip color="#4d8ae8" bg="rgba(45,95,196,0.12)">⚡ Just posted</Chip>}
                           </div>
 
-                          {opp.isOwn ? (
-                            <button onClick={() => setViewingApplicants(isViewing ? null : opp)}
-                              className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
-                              style={{
-                                backgroundColor: opp.application_count > 0 ? '#2d5fc4' : 'transparent',
-                                color: opp.application_count > 0 ? '#fff' : '#8892aa',
-                                border: `1px solid ${opp.application_count > 0 ? '#2d5fc4' : '#1e2235'}`,
-                              }}>
-                              👥 {opp.application_count} {isViewing ? '✕' : '→'}
-                            </button>
-                          ) : canApply && !isApplying && (
+                          {opp.isOwn ? (() => {
+                            // Amber whenever someone's still waiting, so an
+                            // unanswered role never looks the same as a cleared one.
+                            const owed = opp.awaiting_count > 0
+                            const bg = owed ? '#f59e0b' : opp.application_count > 0 ? '#2d5fc4' : 'transparent'
+                            return (
+                              <button onClick={() => setViewingApplicants(isViewing ? null : opp)}
+                                className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                                style={{
+                                  backgroundColor: bg,
+                                  color: bg === 'transparent' ? '#8892aa' : '#fff',
+                                  border: `1px solid ${bg === 'transparent' ? '#1e2235' : bg}`,
+                                }}>
+                                {owed ? `${opp.awaiting_count} waiting` : `👥 ${opp.application_count}`} {isViewing ? '✕' : '→'}
+                              </button>
+                            )
+                          })() : canApply && !isApplying && (
                             applied ? (
                               <span className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
                                 style={{ color: '#2d5fc4', border: '1px solid #2d5fc4' }}>

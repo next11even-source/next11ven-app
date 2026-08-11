@@ -10,6 +10,9 @@ import { LevelBadge } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
+import {
+  AWAITING_REPLY_STATUSES, isAwaitingReply, waitingDays, getWaitingTier, buildAwaitingReplySummary,
+} from '@/lib/applicationResponse'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +71,7 @@ type RecentOpportunity = {
   created_at: string
   isMine: boolean
   applicationCount: number
+  awaitingCount: number
 }
 
 type ShortlistPlayer = {
@@ -149,6 +153,47 @@ function CoachProfileCompletionBar({ profile }: { profile: CoachCompletionProfil
             <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
           </div>
           <span className="text-xs font-bold flex-shrink-0" style={{ color: barColor }}>{pct}%</span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// ─── Awaiting Reply Banner ────────────────────────────────────────────────────
+
+/**
+ * The single most important thing on a coach's dashboard when it renders: every
+ * player who applied and hasn't been told yes or no. Sits above everything else
+ * and disappears entirely at zero, so it stays a real signal rather than
+ * furniture the coach learns to scroll past.
+ */
+function AwaitingReplyBanner({ total, overdue }: { total: number; overdue: number }) {
+  const summary = buildAwaitingReplySummary(total, overdue)
+  if (!summary) return null
+
+  const urgent = overdue > 0
+  const accent = urgent ? '#f87171' : '#f59e0b'
+
+  return (
+    <Link href="/dashboard/opportunities?tab=mine" className="block" style={{ textDecoration: 'none' }}>
+      <div className="rounded-2xl p-4 flex items-start gap-3"
+        style={{ backgroundColor: `${accent}12`, border: `1.5px solid ${accent}59` }}>
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ backgroundColor: `${accent}26` }}>
+          <span className="text-base font-black leading-none"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: accent }}>
+            {total > 99 ? '99+' : total}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black uppercase leading-tight"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            {summary.headline}
+          </p>
+          <p className="text-xs mt-1" style={{ color: '#8892aa' }}>{summary.sub}</p>
+          <span className="inline-block text-xs font-bold uppercase tracking-wider mt-2" style={{ color: accent }}>
+            Review applications →
+          </span>
         </div>
       </div>
     </Link>
@@ -381,11 +426,16 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
                   </div>
                   <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
                   {opp.isMine ? (
+                    // Lead with what's outstanding, not the total — a role with
+                    // "5 applications" all answered reads the same as one with
+                    // 5 people still waiting, which is how backlogs go unseen.
                     <p className="text-xs mt-0.5 font-semibold"
-                      style={{ color: opp.applicationCount > 0 ? '#2d5fc4' : '#4b5563' }}>
-                      {opp.applicationCount === 0
-                        ? 'No applications yet'
-                        : `👥 ${opp.applicationCount} application${opp.applicationCount === 1 ? '' : 's'}`}
+                      style={{ color: opp.awaitingCount > 0 ? '#f59e0b' : opp.applicationCount > 0 ? '#2d5fc4' : '#4b5563' }}>
+                      {opp.awaitingCount > 0
+                        ? `${opp.awaitingCount} awaiting your reply`
+                        : opp.applicationCount === 0
+                          ? 'No applications yet'
+                          : `✓ All ${opp.applicationCount} answered`}
                     </p>
                   ) : (
                     <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</p>
@@ -731,6 +781,7 @@ export default function CoachDashboard() {
   const [recentOpportunities, setRecentOpportunities] = useState<RecentOpportunity[]>([])
   const [premiumPlayers, setPremiumPlayers] = useState<PremiumPlayer[]>([])
   const [myShortlist, setMyShortlist] = useState<ShortlistPlayer[]>([])
+  const [awaitingReply, setAwaitingReply] = useState<{ total: number; overdue: number }>({ total: 0, overdue: 0 })
 
   useEffect(() => {
     async function load() {
@@ -829,17 +880,42 @@ export default function CoachDashboard() {
 
       // ── Phase 2: queries that depend on phase 1 results ───────────────────
 
+      // Applications still awaiting a reply, across ALL of this coach's roles —
+      // not just the 5 recent ones above. This is the backlog the banner calls
+      // out: a player who applied and heard nothing assumes the platform's dead.
+      const { data: myOppRows } = await supabase
+        .from('opportunities')
+        .select('id')
+        .eq('coach_id', user.id)
+      const allMyOppIds = (myOppRows ?? []).map(o => o.id)
+      if (allMyOppIds.length) {
+        const { data: openApps } = await supabase
+          .from('applications')
+          .select('id, created_at, status')
+          .in('opportunity_id', allMyOppIds)
+          .in('status', AWAITING_REPLY_STATUSES)
+        const rows = openApps ?? []
+        setAwaitingReply({
+          total: rows.length,
+          overdue: rows.filter(a => getWaitingTier(waitingDays(a.created_at)) === 'overdue').length,
+        })
+      }
+
       // Last 5 roles posted — flag the coach's own roles + count their applications
       const recentRows = (recentOppsRes.data ?? []) as Array<{ id: string; coach_id: string; title: string; club: string | null; position: string | null; level: string | null; location: string | null; is_active: boolean; created_at: string }>
       const myOppIds = recentRows.filter(o => o.coach_id === user.id).map(o => o.id)
       const countMap: Record<string, number> = {}
+      const awaitingMap: Record<string, number> = {}
       if (myOppIds.length) {
         const { data: appData } = await supabase
           .from('applications')
-          .select('opportunity_id')
+          .select('opportunity_id, status')
           .in('opportunity_id', myOppIds)
         for (const a of appData ?? []) {
           countMap[a.opportunity_id] = (countMap[a.opportunity_id] ?? 0) + 1
+          if (isAwaitingReply(a.status)) {
+            awaitingMap[a.opportunity_id] = (awaitingMap[a.opportunity_id] ?? 0) + 1
+          }
         }
       }
       setRecentOpportunities(recentRows.map(o => ({
@@ -853,6 +929,7 @@ export default function CoachDashboard() {
         created_at: o.created_at,
         isMine: o.coach_id === user.id,
         applicationCount: countMap[o.id] ?? 0,
+        awaitingCount: awaitingMap[o.id] ?? 0,
       })))
 
       // Shortlist player profiles
@@ -919,6 +996,9 @@ export default function CoachDashboard() {
             <span className="font-semibold" style={{ color: '#e8dece' }}>{fullName ? fullName.split(' ')[0] : 'Coach'}</span>
           </p>
         </div>
+
+        {/* Players still owed an answer — above everything else on purpose */}
+        {!loading && <AwaitingReplyBanner total={awaitingReply.total} overdue={awaitingReply.overdue} />}
 
         {/* Recently Active — players + coaches */}
         {!loading && <RecentlyActiveSection users={activeUsers} />}

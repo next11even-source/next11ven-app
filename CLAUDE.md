@@ -101,6 +101,7 @@ Functions in lib/email.ts:
   sendShortlistAvailableEmail — player notified a coach shortlisted them
   sendCoachRecommendationsEmail — weekly coach recommendation digest (recommendation engine)
   sendLogNudgeEmail — post-match "log your game" nudge (tracker flywheel intake; email fallback to SMS)
+  sendApplicationNudgeEmail — coach nudge: players still awaiting an accept/reject
 Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
 
 MailerLite ✅ LIVE
@@ -162,7 +163,16 @@ Live Automations
 - Unsubscribe: /api/unsubscribe — sets email_marketing_opt_out = true on profiles
   Note: transactional emails (failed payment, application decisions) must NEVER be suppressed by this flag
 
-All 5 crons are registered in vercel.json. Keep that file and this list in sync.
+- Coach application nudge: /api/cron/application-nudge — daily 10:00 UTC
+  Targets coaches with applications still awaiting a reply (pending/viewed/shortlisted)
+  on roles that are STILL ACTIVE, oldest ≥3 days. SMS-first (sms_opt_in + 1/day
+  last_sms_at cap), email otherwise (sendApplicationNudgeEmail, respects
+  email_marketing_opt_out). One nudge per coach per 5 days regardless of backlog size,
+  tracked via profiles.last_application_nudge_at. Supports ?dryRun=1 and ?to=<email>.
+  WHY: 66% of applications were unanswered as of 9 Aug 2026 and every other signal
+  (banner, bell, role cards) only reaches coaches who open the app. This one has reach.
+
+All 6 crons are registered in vercel.json. Keep that file and this list in sync.
 
 APIs
 
@@ -240,6 +250,7 @@ Cron
 GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
 GET /api/cron/weekly-digest — sends the weekly player digest to all approved players (Thursday)
 GET /api/cron/log-nudge — post-match "log your game" nudge to active-stint players (daily)
+GET /api/cron/application-nudge — nudges coaches sitting on unanswered applications (daily)
 GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
 GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
 

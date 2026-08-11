@@ -36,10 +36,33 @@
 export const REFUND_AFTER_DAYS = 14
 
 /**
- * Hard bound on rows touched in a single cron run. The steady state is a
- * handful a day; this only bites on the first sweep of the historic backlog,
- * where it turns one enormous run into a few ordinary ones. The route reports
- * whether it hit the cap so a truncated sweep is never silent.
+ * The guarantee starts here. Conversations opened BEFORE this date are never
+ * refunded, no matter how long they've gone unanswered.
+ *
+ * WHY: this is a promise about how the product behaves from now on, not a
+ * rebate on everything that ever went wrong. Backdating it would hand out
+ * hundreds of credits — including to accounts that churned a year ago — for
+ * messages sent under terms that never included a refund. Nobody was short-
+ * changed: they got exactly what they paid for at the time.
+ *
+ * This is a FLOOR, deliberately not a query param. ?minDays can widen the
+ * window and can't cross it, so no hand-typed sweep can ever accidentally
+ * backfill the whole of history.
+ */
+export const REFUND_ELIGIBLE_FROM = '2026-08-01T00:00:00.000Z'
+
+/** Whether a conversation falls under the guarantee at all. */
+export function isRefundEligible(conversationCreatedAt: string): boolean {
+  const t = new Date(conversationCreatedAt).getTime()
+  if (Number.isNaN(t)) return false
+  return t >= new Date(REFUND_ELIGIBLE_FROM).getTime()
+}
+
+/**
+ * Hard bound on rows touched in a single cron run. With REFUND_ELIGIBLE_FROM in
+ * place the steady state is a handful a day and this should never bite — it's a
+ * blast radius limit, not a pacing mechanism. The route reports whether it hit
+ * the cap, so if this ever does fire it isn't silent.
  */
 export const MAX_REFUNDS_PER_RUN = 500
 

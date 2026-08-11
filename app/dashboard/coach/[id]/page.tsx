@@ -10,7 +10,7 @@ import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import ActivityChip from '@/app/components/ActivityChip'
 import { getActivityTier } from '@/lib/activityRecency'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
-import { REFUND_AFTER_DAYS, REFUND_PROMISE } from '@/lib/messageCredits'
+import { REFUND_AFTER_DAYS, REFUND_PROMISE, isRefundEligible } from '@/lib/messageCredits'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,11 +188,15 @@ export default function CoachPublicProfile() {
                 cooldownUntil = cooldownEnd.toISOString()
               }
               // Two clocks on the same silence: the credit comes back in days,
-              // the door to this coach reopens in months.
-              creditRefundedAt = conv.credit_refunded_at
-              refundDueAt = conv.credit_refunded_at
-                ? null
-                : new Date(new Date(conv.created_at).getTime() + REFUND_AFTER_DAYS * 86400000).toISOString()
+              // the door to this coach reopens in months. Both stay null for
+              // conversations opened before the guarantee started — promising a
+              // refund we won't pay is worse than not mentioning one.
+              if (isRefundEligible(conv.created_at)) {
+                creditRefundedAt = conv.credit_refunded_at
+                refundDueAt = conv.credit_refunded_at
+                  ? null
+                  : new Date(new Date(conv.created_at).getTime() + REFUND_AFTER_DAYS * 86400000).toISOString()
+              }
             }
           }
 
@@ -436,17 +440,27 @@ export default function CoachPublicProfile() {
                             {daysUntil(quotaData.refundDueAt)} more day{daysUntil(quotaData.refundDueAt) !== 1 ? 's' : ''},
                             we&apos;ll put your message credit back so you can spend it elsewhere.
                           </>
-                        ) : (
+                        ) : quotaData.refundDueAt ? (
                           <>
                             You&apos;ve already reached out. {firstName} hasn&apos;t replied — your message
                             credit is on its way back to your account.
                           </>
+                        ) : (
+                          // Opened before the guarantee started. Say nothing about
+                          // a refund rather than imply one that isn't coming.
+                          <>
+                            You&apos;ve already reached out. If {firstName} hasn&apos;t replied in{' '}
+                            {daysUntil(quotaData.cooldownUntil)} more day{daysUntil(quotaData.cooldownUntil) !== 1 ? 's' : ''},
+                            this slot will free up and you can try a different approach.
+                          </>
                         )}
                       </p>
-                      <p className="text-xs leading-relaxed pt-1" style={{ color: '#4b5563' }}>
-                        You can approach {firstName} again in {daysUntil(quotaData.cooldownUntil)} day
-                        {daysUntil(quotaData.cooldownUntil) !== 1 ? 's' : ''}.
-                      </p>
+                      {(quotaData.creditRefundedAt || quotaData.refundDueAt) && (
+                        <p className="text-xs leading-relaxed pt-1" style={{ color: '#4b5563' }}>
+                          You can approach {firstName} again in {daysUntil(quotaData.cooldownUntil)} day
+                          {daysUntil(quotaData.cooldownUntil) !== 1 ? 's' : ''}.
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

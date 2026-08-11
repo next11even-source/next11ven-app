@@ -4,6 +4,7 @@ import { reportError } from '@/lib/alert'
 import {
   MAX_REFUNDS_PER_RUN,
   REFUND_AFTER_DAYS,
+  REFUND_ELIGIBLE_FROM,
   refundNotificationMessage,
 } from '@/lib/messageCredits'
 
@@ -25,6 +26,12 @@ export const maxDuration = 120
 // however many credits came back. "A coach ignored you" is not worth a text,
 // and the credit itself is the thing that matters; they'll see it when they
 // next go to spend one.
+//
+// NOT RETROACTIVE: REFUND_ELIGIBLE_FROM is a hard floor. This is a promise
+// about how the product behaves from now on, not a rebate on every message
+// ever sent — nobody was short-changed by getting what they paid for under the
+// old terms. The floor is applied in the query, above the overridable window,
+// so no hand-typed ?minDays can reach past it into history.
 //
 // IDEMPOTENCY: conversations.credit_refunded_at is the ledger. The update is
 // guarded on it being null, so the rows this run actually claims are exactly
@@ -58,10 +65,10 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const dryRun = url.searchParams.get('dryRun') === '1'
 
-  // Overrides exist for the first sweep of the historic backlog — run it dry
-  // first, because that sweep hands out real credits and the founder should
-  // see the bill before it lands. Parsed defensively: a NaN here would
-  // otherwise become an Invalid Date cutoff that silently matches nothing.
+  // Widens the window by hand when needed. It cannot reach past
+  // REFUND_ELIGIBLE_FROM — that floor is applied separately below. Parsed
+  // defensively: a NaN here would otherwise become an Invalid Date cutoff that
+  // silently matches nothing.
   const minDays = positiveIntParam(url, 'minDays', REFUND_AFTER_DAYS)
   const maxRefunds = positiveIntParam(url, 'max', MAX_REFUNDS_PER_RUN)
 
@@ -79,6 +86,7 @@ export async function GET(req: NextRequest) {
     .select('id, player_id, coach_id, initiated_by, created_at')
     .is('coach_replied_at', null)
     .is('credit_refunded_at', null)
+    .gte('created_at', REFUND_ELIGIBLE_FROM)   // the floor — never retroactive
     .lt('created_at', cutoff)
     .order('created_at', { ascending: true })
     .limit(maxRefunds + 1)
@@ -110,6 +118,7 @@ export async function GET(req: NextRequest) {
       // output instead of silently falling back to the default.
       minDays,
       maxRefunds,
+      eligibleFrom: REFUND_ELIGIBLE_FROM,
       scanned: rows?.length ?? 0,
       wouldRefund: eligible.length,
       players: byPlayer.size,

@@ -299,10 +299,17 @@ Live Automations
   refund. One 'message_credit_refunded' notification per player per run.
   NO EMAIL, NO SMS ever — in-app only. Leads with the credit, never with "a coach
   ignored you"; the coach is never named on any refund surface.
-  Params (for the one-off historic-backlog sweep): ?dryRun=1, ?minDays=N, ?max=N
+  ⚠️ NOT RETROACTIVE. REFUND_ELIGIBLE_FROM (1 Aug 2026) is a hard floor applied in
+  the query: conversations opened before it are never refunded however long they've
+  gone unanswered. This is a promise about how the product behaves from now on, not
+  a rebate on every message ever sent — backdating it meant 85 credits to 34 players
+  (median 39 days old, oldest 512) for messages sent under terms that never included
+  a refund. The floor is deliberately NOT a query param, so no hand-typed ?minDays
+  can reach past it into history. The coach-profile copy is gated on
+  isRefundEligible() for the same reason — never promise a refund that isn't coming.
+  Params: ?dryRun=1, ?minDays=N (widens the window, cannot cross the floor), ?max=N
   (per-run row cap, default MAX_REFUNDS_PER_RUN 500; `truncated` in the response
-  says whether the sweep was cut short). ⚠️ Run it dry first — the first sweep
-  hands out real credits against real revenue.
+  says whether the run was cut short). Run it dry first — it spends real credits.
   ⚠️ TWO CLOCKS, don't merge them: the credit returns at 14 days so it can be spent
   on someone ELSE, while the 3-month cooldown in initiate_coach_conversation keeps
   the door to THAT coach shut. Shortening the cooldown to match would turn the

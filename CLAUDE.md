@@ -253,8 +253,15 @@ Live Automations
   took the role down). Max 4 per player per run (MAX_CLOSURES_PER_PLAYER_PER_RUN) so a
   backlog drips rather than landing as a wall of rejection. One 'application_closed'
   notification per player per run, never one per application. NO EMAIL, NO SMS —
-  in-app only. Supports ?dryRun=1 and ?minDays=N (for easing the first run into the
-  historic backlog).
+  in-app only.
+  Params (all for the one-off historic-backlog sweep, not scheduled runs):
+    ?dryRun=1        — report what it would do, write nothing
+    ?minDays=N       — override the 21-day window
+    ?maxPerPlayer=N  — override the per-player cap; raise it for the first sweep so a
+                       player with a deep history gets one notification instead of the
+                       same bad news over consecutive Mondays
+  Both numeric params fall back to their default on anything unparseable, and the
+  effective values are echoed in the response — check them when overriding by hand.
   ⚠️ closure is NOT a status value. `status` records what the COACH decided; closed_at
   records that the PLATFORM resolved it because the coach decided nothing. Never
   conflate them — a system action must not masquerade as a rejection in any count.

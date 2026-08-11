@@ -33,6 +33,14 @@ export const maxDuration = 120
 
 const DAY = 86_400_000
 
+/** Query param as a whole number ≥ 1, falling back on anything else. */
+function positiveIntParam(url: URL, name: string, fallback: number): number {
+  const raw = url.searchParams.get(name)
+  if (raw === null) return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback
+}
+
 type OpenApp = {
   id: string
   player_id: string
@@ -49,9 +57,21 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const dryRun = url.searchParams.get('dryRun') === '1'
-  // Lets the first production run be eased in on the 3-month backlog rather
-  // than resolving all of it the moment this deploys.
-  const minDays = Number(url.searchParams.get('minDays') ?? CLOSE_AFTER_DAYS)
+
+  // Both overrides exist for one job: the first sweep of the historic backlog.
+  // The scheduled defaults are tuned for steady state, where a handful of
+  // applications cross the window in any given week. Clearing three months of
+  // history is a different problem.
+  //
+  // Parsed defensively — these get typed by hand into a URL, and a NaN would
+  // otherwise sail through into an Invalid Date cutoff or a cap that silently
+  // closes nothing while reporting success.
+  const minDays = positiveIntParam(url, 'minDays', CLOSE_AFTER_DAYS)
+
+  // Raise this for the one-off backlog run so a player with a deep history gets
+  // their closures in a single notification instead of the same bad news spread
+  // over consecutive Mondays. Leave it alone for scheduled runs.
+  const maxPerPlayer = positiveIntParam(url, 'maxPerPlayer', MAX_CLOSURES_PER_PLAYER_PER_RUN)
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -100,7 +120,7 @@ export async function GET(req: NextRequest) {
 
   for (const a of apps as OpenApp[]) {
     const used = perPlayer.get(a.player_id) ?? 0
-    if (used >= MAX_CLOSURES_PER_PLAYER_PER_RUN) continue
+    if (used >= maxPerPlayer) continue
     const opp = oppById.get(a.opportunity_id)
     if (!opp) continue
     perPlayer.set(a.player_id, used + 1)
@@ -110,9 +130,14 @@ export async function GET(req: NextRequest) {
   if (dryRun) {
     return NextResponse.json({
       dryRun: true,
+      // Echoed back so a hand-typed override that failed to parse is obvious
+      // in the output rather than silently falling back to the default.
+      minDays,
+      maxPerPlayer,
       scanned: apps.length,
       wouldClose: toClose.length,
       players: perPlayer.size,
+      notifications: perPlayer.size,
       preview: toClose.slice(0, 10).map(t => ({
         role: oppById.get(t.app.opportunity_id)?.title ?? null,
         waitedDays: waitingDays(t.app.created_at),
@@ -171,5 +196,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ scanned: apps.length, closed, failed, notified })
+  return NextResponse.json({ minDays, maxPerPlayer, scanned: apps.length, closed, failed, notified })
 }

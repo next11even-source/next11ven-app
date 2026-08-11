@@ -177,9 +177,10 @@ last_sms_at cap:
   /api/cron/drip-reminders       drip step 3 (Day 7) only
   /api/cron/log-nudge            post-match "log your game"
   /api/stripe/webhook            payment failed (handlePaymentFailedNotifications)
-⚠️ NOTHING ELSE SENDS SMS. In particular application closure and application
-declines are in-app only — deliberately. Nobody gets texted that they were
-rejected, or that a coach ignored them. Do not add SMS to either.
+⚠️ NOTHING ELSE SENDS SMS. In particular application closure, application
+declines and message credit refunds are in-app only — deliberately. Nobody gets
+texted that they were rejected, or that a coach ignored them. Do not add SMS to
+any of them.
 
 IN-APP (notifications table — inserted by DB trigger or service-role API call)
 Type                          Written by                                Recipient
@@ -194,6 +195,7 @@ shortlisted                   /api/coach/shortlist POST                 player
 application_decision          /api/applications/[id]                    player — ACCEPTED ONLY
 application_declined          /api/applications/[id]                    player — declined; grouped by day in UI
 application_closed            /api/cron/application-close               player — 1 per player per run
+message_credit_refunded       /api/cron/message-credit-refund           player — 1 per player per run
 Enum also allows profile_view and new_opportunity: nothing writes either. Legacy.
 
 ⚠️ Accepts and declines are deliberately asymmetric and must stay that way. An
@@ -281,7 +283,42 @@ Live Automations
   Everything that counts "awaiting reply" must filter .is('closed_at', null), and
   isAwaitingReply(status, closedAt) in lib/applicationResponse.ts is the single rule.
 
-All 7 crons are registered in vercel.json. Keep that file and this list in sync.
+- Message credit refund: /api/cron/message-credit-refund — DAILY, 12:00 UTC.
+  Daily, not weekly: this is the one piece of good news in the response-rate family,
+  and good news arrives promptly.
+  Returns the outreach credit when a coach never replies. Any PLAYER-INITIATED
+  conversation with coach_replied_at IS NULL older than REFUND_AFTER_DAYS (14,
+  lib/messageCredits.ts) gets +1 to profiles.purchased_message_credits — the
+  never-expiring balance, NOT the monthly quota row, because a monthly credit
+  refunded mid-period would be worth nothing once the period rolled. So a refunded
+  monthly message reappears as an Extra Message; the extra-messages page says so.
+  conversations.credit_refunded_at is the idempotency ledger — the update is
+  guarded on it being null, and if the credit write then fails the claim is rolled
+  back so the next run retries rather than the player silently losing it. The RPC
+  nulls it again on a post-cooldown re-approach: a second silence earns a second
+  refund. One 'message_credit_refunded' notification per player per run.
+  NO EMAIL, NO SMS ever — in-app only. Leads with the credit, never with "a coach
+  ignored you"; the coach is never named on any refund surface.
+  ⚠️ NOT RETROACTIVE. REFUND_ELIGIBLE_FROM (1 Aug 2026) is a hard floor applied in
+  the query: conversations opened before it are never refunded however long they've
+  gone unanswered. This is a promise about how the product behaves from now on, not
+  a rebate on every message ever sent — backdating it meant 85 credits to 34 players
+  (median 39 days old, oldest 512) for messages sent under terms that never included
+  a refund. The floor is deliberately NOT a query param, so no hand-typed ?minDays
+  can reach past it into history. The coach-profile copy is gated on
+  isRefundEligible() for the same reason — never promise a refund that isn't coming.
+  Params: ?dryRun=1, ?minDays=N (widens the window, cannot cross the floor), ?max=N
+  (per-run row cap, default MAX_REFUNDS_PER_RUN 500; `truncated` in the response
+  says whether the run was cut short). Run it dry first — it spends real credits.
+  ⚠️ TWO CLOCKS, don't merge them: the credit returns at 14 days so it can be spent
+  on someone ELSE, while the 3-month cooldown in initiate_coach_conversation keeps
+  the door to THAT coach shut. Shortening the cooldown to match would turn the
+  refund into a spam engine pointed at the least responsive coaches.
+  The guarantee is sold, not buried: /lib/messageCredits.ts owns the copy
+  (REFUND_PROMISE), used on the coach profile at the moment of spend, the
+  extra-messages page, and lib/premiumContent.ts (messages feature + comparison row).
+
+All 8 crons are registered in vercel.json. Keep that file and this list in sync.
 
 APIs
 
@@ -360,7 +397,8 @@ GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
 GET /api/cron/weekly-digest — sends the weekly player digest to all approved players (Thursday)
 GET /api/cron/log-nudge — post-match "log your game" nudge to active-stint players (daily)
 GET /api/cron/application-nudge — nudges coaches sitting on unanswered applications (daily)
-GET /api/cron/application-close — closes unanswered applications on the player's behalf (daily)
+GET /api/cron/application-close — closes unanswered applications on the player's behalf (weekly)
+GET /api/cron/message-credit-refund — returns the message credit when a coach never replies (daily)
 GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
 GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
 

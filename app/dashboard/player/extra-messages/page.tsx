@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
+import { REFUND_AFTER_DAYS } from '@/lib/messageCredits'
 
 type QuotaState = {
   messagesUsed: number
@@ -159,6 +160,7 @@ function ExtraMessagesInner() {
                 'Credits stack — buy multiple packs',
                 'Never expire, never reset',
                 'Used only when your monthly allowance runs out',
+                `Refunded if a coach doesn't reply within ${REFUND_AFTER_DAYS} days`,
               ].map(item => (
                 <div key={item} className="flex items-start gap-2.5">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
@@ -207,6 +209,11 @@ function ExtraMessagesInner() {
               { n: '2', text: 'When your monthly allowance runs out, Extra Messages kick in automatically.' },
               { n: '3', text: 'Each coach you first contact uses 1 credit. Replies within that thread are always free.' },
               { n: '4', text: 'Credits from multiple packs stack and never expire.' },
+              // Stated here rather than buried in terms: this is the reason to
+              // trust spending a credit at all, and a refunded monthly message
+              // lands in the Extra Messages balance, so this page has to explain
+              // where it came from.
+              { n: '5', text: `If a coach doesn't reply within ${REFUND_AFTER_DAYS} days, we return the credit automatically — it lands here as an Extra Message and never expires.` },
             ].map(({ n, text }) => (
               <div key={n} className="flex items-start gap-3">
                 <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"

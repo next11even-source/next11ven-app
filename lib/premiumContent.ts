@@ -8,6 +8,7 @@
 // the EXACT figures here. Do not invent numbers. Do not reorder per-surface.
 
 import { positionCategory } from '@/lib/positions'
+import { REFUND_AFTER_DAYS } from '@/lib/messageCredits'
 
 export const PREMIUM_PRICE = '£6.99'
 export const PREMIUM_PRICE_PER_MONTH = '£6.99/mo'
@@ -61,7 +62,9 @@ export const PREMIUM_FEATURES: PremiumFeature[] = [
     id: 'messages',
     // Resolves the read-vs-initiate contradiction (§7): the true dual model.
     title: 'Read & reply to coach messages',
-    copy: 'Read & reply to coach messages, plus 3 direct intros to coaches a month — and because intros are limited, coaches actually read them.',
+    // The refund is part of the pitch, not the small print: the objection to
+    // paying for intros is "what if nobody replies", and this is the answer.
+    copy: `Read & reply to coach messages, plus 3 direct intros to coaches a month — and because intros are limited, coaches actually read them. No reply in ${REFUND_AFTER_DAYS} days? You get the intro back.`,
   },
   {
     id: 'trials',
@@ -101,7 +104,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
   { label: 'Appear in searches coaches see first', free: "Coaches can't find you in search", premium: 'In the Actively Looking carousel + free-agent searches' },
   { label: 'Messages from coaches', free: "Locked — you can't read them", premium: 'Read & reply to every coach message instantly' },
   { label: 'See who viewed & shortlisted you', free: 'Hidden', premium: 'Full list of who viewed and saved you' },
-  { label: 'Message coaches directly', free: '—', premium: '3 direct intros a month coaches actually read' },
+  { label: 'Message coaches directly', free: '—', premium: `3 direct intros a month — refunded if a coach doesn't reply in ${REFUND_AFTER_DAYS} days` },
   { label: 'Trials & showcases', free: 'Wait for general release', premium: 'First access before general release' },
   { label: 'Search ranking', free: 'Bottom of the pile', premium: 'Rank above free players when coaches browse' },
 ]

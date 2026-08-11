@@ -5,6 +5,7 @@ import {
   AWAITING_REPLY_STATUSES,
   CLOSE_AFTER_DAYS,
   MAX_CLOSURES_PER_PLAYER_PER_RUN,
+  NOTIFY_RESOLUTION_WITHIN_DAYS,
   waitingDays,
 } from '@/lib/applicationResponse'
 
@@ -128,20 +129,25 @@ export async function GET(req: NextRequest) {
   }
 
   if (dryRun) {
+    const recent = toClose.filter(t => waitingDays(t.app.created_at) <= NOTIFY_RESOLUTION_WITHIN_DAYS)
     return NextResponse.json({
       dryRun: true,
       // Echoed back so a hand-typed override that failed to parse is obvious
       // in the output rather than silently falling back to the default.
       minDays,
       maxPerPlayer,
+      notifyWithinDays: NOTIFY_RESOLUTION_WITHIN_DAYS,
       scanned: apps.length,
       wouldClose: toClose.length,
       players: perPlayer.size,
-      notifications: perPlayer.size,
+      // Only recent closures are announced; the rest resolve quietly.
+      wouldNotify: new Set(recent.map(t => t.app.player_id)).size,
+      wouldCloseSilently: toClose.length - recent.length,
       preview: toClose.slice(0, 10).map(t => ({
         role: oppById.get(t.app.opportunity_id)?.title ?? null,
         waitedDays: waitingDays(t.app.created_at),
         reason: t.reason,
+        announced: waitingDays(t.app.created_at) <= NOTIFY_RESOLUTION_WITHIN_DAYS,
       })),
     })
   }
@@ -168,9 +174,17 @@ export async function GET(req: NextRequest) {
   // One notification per player per run, never one per application. A player
   // whose two oldest applications close on the same morning should get a single
   // "here's where you stand" — not two separate pieces of bad news.
+  //
+  // And only RECENT applications are announced at all. Closing something a
+  // player sent five months ago is right — it stops the card lying and stops it
+  // counting against the coach — but notifying them about it is an excavation,
+  // not information. Those close silently; the card tells the story if they
+  // ever look. See NOTIFY_RESOLUTION_WITHIN_DAYS.
   let notified = 0
   const byPlayer = new Map<string, number>()
+  let silent = 0
   for (const { app } of toClose) {
+    if (waitingDays(app.created_at) > NOTIFY_RESOLUTION_WITHIN_DAYS) { silent++; continue }
     byPlayer.set(app.player_id, (byPlayer.get(app.player_id) ?? 0) + 1)
   }
 
@@ -196,5 +210,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ minDays, maxPerPlayer, scanned: apps.length, closed, failed, notified })
+  return NextResponse.json({
+    minDays, maxPerPlayer, scanned: apps.length, closed, failed, notified,
+    closedSilently: silent,
+  })
 }

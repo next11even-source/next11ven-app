@@ -155,7 +155,7 @@ sendDripDay0Email                     /api/messages/send                     dri
 sendDripDay3Email                     /api/cron/drip-reminders               as above
 sendDripDay7Email                     /api/cron/drip-reminders               as above
 sendApplicationReceivedEmail          /api/applications/apply                — (coach-facing)
-sendApplicationDecisionEmail          /api/applications/[id]                 ACCEPT: always. DECLINE: 1 per player per 24h
+sendApplicationDecisionEmail          /api/applications/[id]                 ACCEPT: always. DECLINE: 1/player/24h AND only if applied <42d ago
 sendApplicationNudgeEmail             /api/cron/application-nudge            1 per coach per 5 days
 sendLogNudgeEmail                     /api/cron/log-nudge                    SMS-first, email only as fallback
 sendWeeklyDigestEmail                 /api/cron/weekly-digest                weekly, 1 per player
@@ -198,9 +198,20 @@ Enum also allows profile_view and new_opportunity: nothing writes either. Legacy
 
 ⚠️ Accepts and declines are deliberately asymmetric and must stay that way. An
 accept is the best thing that happens to a player here — individual row, always
-emails, actor avatar shown. A decline is information, not an event — no actor,
-muted icon, collapsed into one row per day, email capped at one a day. Adding a
-new player-facing notification? Decide which of those two it behaves like.
+emails, actor avatar shown, no matter how old the application. A decline is
+information, not an event — no actor, muted icon, collapsed into one row per
+day, email capped at one a day. Adding a new player-facing notification? Decide
+which of those two it behaves like.
+
+⚠️ STALE RESOLUTIONS RESOLVE QUIETLY. NOTIFY_RESOLUTION_WITHIN_DAYS (42) in
+lib/applicationResponse.ts: a player who applied more than 6 weeks ago has moved
+on, so a decline or a closure on it is not information — it's an excavation, and
+it makes the platform the bearer of stale bad news. Those still resolve (card
+updates, coach's backlog clears, history stays honest) but send NO email and NO
+in-app notification. Nothing is hidden; it just isn't announced. Applies to
+platform closure and to a coach's late decline. NOT to an acceptance — good news
+never goes stale. As of 11 Aug 2026 this is the majority case, not the edge:
+56 of 82 pending closures are past the window.
 Renderers: app/dashboard/player/activity/page.tsx (getRoute + TypeIcon +
 groupKey/groupMessage) and app/dashboard/coach/notifications/page.tsx. A type
 with no case in getRoute routes users back to the page they're already on.
@@ -252,7 +263,9 @@ Live Automations
   applications.closed_at + close_reason ('no_response', or 'role_closed' if the coach
   took the role down). Max 4 per player per run (MAX_CLOSURES_PER_PLAYER_PER_RUN) so a
   backlog drips rather than landing as a wall of rejection. One 'application_closed'
-  notification per player per run, never one per application. NO EMAIL, NO SMS —
+  notification per player per run, never one per application — and ONLY for
+  applications sent within NOTIFY_RESOLUTION_WITHIN_DAYS (42). Anything older
+  closes silently: the card updates, nobody is pinged. NO EMAIL, NO SMS ever —
   in-app only.
   Params (all for the one-off historic-backlog sweep, not scheduled runs):
     ?dryRun=1        — report what it would do, write nothing

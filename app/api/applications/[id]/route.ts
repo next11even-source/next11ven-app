@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sendApplicationDecisionEmail } from '@/lib/email'
 import { reportError } from '@/lib/alert'
+import { NOTIFY_RESOLUTION_WITHIN_DAYS, waitingDays } from '@/lib/applicationResponse'
 import { z } from 'zod'
 
 const DecisionSchema = z.object({
@@ -45,7 +46,7 @@ export async function PATCH(
   const { data: app, error: fetchErr } = await supabase
     .from('applications')
     .select(`
-      id, status, player_id, opportunity_id,
+      id, status, player_id, opportunity_id, created_at,
       opportunity:opportunity_id ( title, club, coach_id ),
       player:player_id ( email, full_name )
     `)
@@ -94,17 +95,26 @@ export async function PATCH(
 
     let shouldEmail = true
     if (!accepted) {
-      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const { data: recentDeclines } = await admin
-        .from('notifications')
-        .select('id')
-        .eq('recipient_id', app.player_id)
-        .eq('type', 'application_declined')
-        .gte('created_at', dayAgo)
-        .limit(1)
-      // Already told them today. One "no" a day is enough — the rest are
-      // waiting in the app whenever they're ready to look.
-      if (recentDeclines && recentDeclines.length > 0) shouldEmail = false
+      // A decline on something they sent months ago doesn't need to reach into
+      // their inbox. They've moved on; the app will show it if they look. The
+      // 66% backlog means coaches clearing it are answering applications that
+      // are, by definition, old — this is the common case, not the edge one.
+      // Acceptances are exempt: good news never goes stale.
+      if (waitingDays(app.created_at) > NOTIFY_RESOLUTION_WITHIN_DAYS) shouldEmail = false
+
+      if (shouldEmail) {
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        const { data: recentDeclines } = await admin
+          .from('notifications')
+          .select('id')
+          .eq('recipient_id', app.player_id)
+          .eq('type', 'application_declined')
+          .gte('created_at', dayAgo)
+          .limit(1)
+        // Already told them today. One "no" a day is enough — the rest are
+        // waiting in the app whenever they're ready to look.
+        if (recentDeclines && recentDeclines.length > 0) shouldEmail = false
+      }
     }
 
     if (player?.email && shouldEmail) {

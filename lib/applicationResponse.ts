@@ -116,6 +116,26 @@ export const CLOSE_AFTER_DAYS = 21
  */
 export const MAX_CLOSURES_PER_PLAYER_PER_RUN = 4
 
+/**
+ * How recently a player must have applied for a resolution to be worth actively
+ * telling them about (6 weeks).
+ *
+ * WHY: past this point the player has moved on, and a notification is no longer
+ * information — it's an excavation. Telling someone in August that a club they
+ * approached in March isn't interested doesn't help them do anything; it just
+ * re-opens something they'd already closed themselves, and makes the platform
+ * the bearer of stale bad news.
+ *
+ * Older applications still resolve — the card updates, the history is honest,
+ * and it stops counting against the coach. They resolve QUIETLY: no push, no
+ * email. Nothing is hidden, it's just not announced.
+ *
+ * Applies to platform closure AND to a coach's late decline. It does NOT apply
+ * to an acceptance — good news never goes stale, and a club that finally says
+ * yes after five months is exactly the message worth chasing someone down for.
+ */
+export const NOTIFY_RESOLUTION_WITHIN_DAYS = 42
+
 export type PlayerApplicationState =
   | 'waiting'
   | 'shortlisted'

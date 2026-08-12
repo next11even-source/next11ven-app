@@ -38,6 +38,20 @@ Status values: free_agent | signed | loan_dual_reg | just_exploring
 Key columns:
 id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, actively_looking, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at, is_agent
 
+⚠️ conversations has COLUMN-LEVEL select grants, not a blanket table grant
+(20260812000003). A newly added column is NOT readable by clients until it is
+granted — symptom is a PostgREST 403 "permission denied for column" and an inbox
+that won't load. Any migration adding a column here MUST follow it with:
+    grant select (new_column) on public.conversations to anon, authenticated;
+WHY it's like this: last_message_content caches a message body, and the earlier
+attempt to withhold it (`revoke select (col)`, 20260628000001) silently did
+nothing — Postgres sums privileges, so a column REVOKE can't subtract from
+Supabase's table-level GRANT. A non-premium player could read the newest message
+in every thread straight from PostgREST, defeating the read paywall. Dropping the
+table grant and re-granting an explicit column list is the only mechanism Postgres
+honours. Body reads go through conversation_previews() (security definer, enforces
+the premium check), so they're unaffected. Never re-add a blanket grant here.
+
 Active tables
 profiles, conversations, messages, player_views, shortlist_alerts,
 coach_saved_players, subscriptions, opportunities, applications, bookmarks,

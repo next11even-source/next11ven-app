@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { revealCoachStep } from '@/lib/levels'
 import LockedMessageTrigger from '@/app/components/LockedMessageTrigger'
+import { getThreadRefundState, type ThreadRefundState } from '@/lib/messageCredits'
 import { useSidebar } from '../_components/SidebarContext'
 
 type Conversation = {
@@ -24,6 +25,8 @@ type Conversation = {
   revealedStep?: string | null
   last_message?: string
   unread?: number
+  /** Where this thread stands with the no-reply credit guarantee. */
+  refund?: ThreadRefundState
 }
 
 type Message = {
@@ -286,7 +289,10 @@ function MessagesInner() {
 
     // NB: select strings are built at runtime, so supabase-js can't infer row
     // types — cast to explicit shapes below.
-    type ConvoRow = { id: string; coach_id: string; last_message_at: string; initiated_by: string | null }
+    type ConvoRow = {
+      id: string; coach_id: string; last_message_at: string; initiated_by: string | null
+      coach_replied_at: string | null; credit_refunded_at: string | null; created_at: string
+    }
     type CoachRow = { id: string; full_name?: string | null; avatar_url?: string | null; coaching_role: string | null; club?: string | null; coaching_level: string | null }
 
     // last_message_content is no longer column-readable by clients (it duplicates
@@ -294,7 +300,7 @@ function MessagesInner() {
     // RPC, which only returns it to coaches / premium players.
     const convoRes = await supabase
       .from('conversations')
-      .select('id, coach_id, last_message_at, initiated_by')
+      .select('id, coach_id, last_message_at, initiated_by, coach_replied_at, credit_refunded_at, created_at')
       .eq('player_id', user.id)
       .order('last_message_at', { ascending: false })
     const data = (convoRes.data ?? []) as unknown as ConvoRow[]
@@ -358,6 +364,13 @@ function MessagesInner() {
         revealedStep: revealCoachStep(playerLevel, coach?.coaching_level),
         last_message: previewMap[c.id],
         unread: unreadMap[c.id] ?? 0,
+        refund: getThreadRefundState({
+          playerId: user.id,
+          initiatedBy: c.initiated_by,
+          coachRepliedAt: c.coach_replied_at,
+          creditRefundedAt: c.credit_refunded_at,
+          createdAt: c.created_at,
+        }),
       }
     })
     setConversations(convs)
@@ -571,6 +584,25 @@ function MessagesInner() {
                           {conv.last_message}
                         </p>
                       )}
+                      {/* The dead thread is where a player decides the product
+                          doesn't work. Say what happened and what they got back,
+                          rather than leaving the row to sit there unexplained.
+                          Pending threads stay quiet until the credit is close —
+                          counting down from day one would just draw attention to
+                          a silence that might still end in a reply. */}
+                      {conv.refund?.kind === 'refunded' ? (
+                        <p className="text-xs mt-1 font-semibold" style={{ color: '#4d8ae8' }}>
+                          No reply — credit returned
+                        </p>
+                      ) : conv.refund?.kind === 'pending' && conv.refund.daysLeft === 0 ? (
+                        <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
+                          No reply — your credit is on its way back
+                        </p>
+                      ) : conv.refund?.kind === 'pending' && conv.refund.daysLeft <= 5 ? (
+                        <p className="text-xs mt-1" style={{ color: '#8892aa' }}>
+                          Credit back in {conv.refund.daysLeft} day{conv.refund.daysLeft !== 1 ? 's' : ''} if they don&apos;t reply
+                        </p>
+                      ) : null}
                     </>
                   )}
                 </div>

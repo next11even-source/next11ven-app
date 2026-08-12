@@ -73,6 +73,37 @@ export const REFUND_PROMISE = `If they don't reply within ${REFUND_AFTER_DAYS} d
 export const REFUND_PROMISE_SHORT = `No reply in ${REFUND_AFTER_DAYS} days? Credit back.`
 
 /**
+ * Where a single thread stands with the guarantee. The cron owns the actual
+ * refund; this is the read-only view of the same rule for UI, so no surface
+ * has to re-derive "does this thread qualify" and get it subtly wrong.
+ *
+ * 'none' covers everything the guarantee doesn't touch: coach-initiated
+ * threads (no credit was spent), threads the coach replied to (it worked),
+ * and anything opened before REFUND_ELIGIBLE_FROM.
+ */
+export type ThreadRefundState =
+  | { kind: 'none' }
+  | { kind: 'refunded' }
+  /** Not yet refunded. daysLeft 0 means it's due and the next run will take it. */
+  | { kind: 'pending'; daysLeft: number }
+
+export function getThreadRefundState(input: {
+  playerId: string
+  initiatedBy: string | null
+  coachRepliedAt: string | null
+  creditRefundedAt: string | null
+  createdAt: string
+}): ThreadRefundState {
+  const { playerId, initiatedBy, coachRepliedAt, creditRefundedAt, createdAt } = input
+  if (!initiatedBy || initiatedBy !== playerId) return { kind: 'none' }
+  if (coachRepliedAt) return { kind: 'none' }
+  if (creditRefundedAt) return { kind: 'refunded' }
+  if (!isRefundEligible(createdAt)) return { kind: 'none' }
+  const due = new Date(createdAt).getTime() + REFUND_AFTER_DAYS * 86_400_000
+  return { kind: 'pending', daysLeft: Math.max(0, Math.ceil((due - Date.now()) / 86_400_000)) }
+}
+
+/**
  * In-app notification copy.
  *
  * Leads with the credit, not with the silence. The player already knows nobody

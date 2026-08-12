@@ -76,6 +76,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only coaches and players can send messages' }, { status: 403 })
   }
 
+  // Player messaging is premium, full stop — including replies into a thread
+  // that already exists. Players can only ever reply (new conversations are
+  // refused below), so this one check covers every player send.
+  //
+  // The read gate has always been enforced in RLS, but sending was left to the
+  // UI hiding the composer. That made "Upgrade to read and reply" a promise the
+  // API didn't keep: a lapsed subscriber could still POST a blind reply into a
+  // thread they can no longer read. Admin is exempt — it doubles as the founder
+  // account and is never a paying subscriber.
+  if (senderIsPlayer && sender.role !== 'admin' && !sender.premium) {
+    return NextResponse.json({ error: 'NOT_PREMIUM' }, { status: 403 })
+  }
+
   // Recipient ID: accept either param name
   const recipientId = senderIsCoach ? (player_id ?? coach_id) : coach_id
   if (!recipientId) {

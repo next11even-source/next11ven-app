@@ -323,7 +323,13 @@ All 8 crons are registered in vercel.json. Keep that file and this list in sync.
 APIs
 
 Messages
-POST /api/messages/send — bidirectional, SMS + email notifications, drip trigger
+POST /api/messages/send — bidirectional, SMS + email notifications, drip trigger.
+  Player sends are premium-gated (403 NOT_PREMIUM) — replies included, admin exempt.
+  Players can never create a conversation here; /api/messages/initiate is the only
+  path to a new coach and is premium + quota gated. So a lapsed subscriber can
+  reach nobody new AND cannot reply into existing threads. ⚠️ RLS enforces the READ
+  gate only (20260628000000 leaves INSERT open deliberately) — the send gate lives
+  in this route, so don't assume the database is backstopping it.
 POST /api/messages/initiate — atomic quota check + conversation creation (calls initiate_coach_conversation RPC)
 GET  /api/messages/quota — returns player's current period message quota
 

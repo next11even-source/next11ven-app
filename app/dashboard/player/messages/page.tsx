@@ -112,6 +112,11 @@ function ChatView({
       const data = await res.json()
       if (data.message) {
         setMessages(prev => [...prev, data.message as Message])
+      } else if (data.error === 'NOT_PREMIUM') {
+        // Reachable when a subscription lapses with the chat still open.
+        // "Please try again" would be a lie — trying again never works.
+        setInput(text)
+        setSendError('Your Premium has ended — renew to keep replying.')
       } else {
         setInput(text)
         setSendError('Failed to send. Please try again.')

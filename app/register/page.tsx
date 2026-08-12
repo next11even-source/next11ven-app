@@ -67,7 +67,9 @@ function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEle
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [role, setRole] = useState<'player' | 'coach' | 'fan' | null>(null)
+  // Fan/supporter signup was removed — existing fans keep their accounts and can
+  // still convert via /dashboard/become, but nobody new can join as one.
+  const [role, setRole] = useState<'player' | 'coach' | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -173,8 +175,6 @@ export default function RegisterPage() {
       profilePayload.coaching_level = coachingLevel || null
       profilePayload.club = coachClub || null
       profilePayload.coaching_history = coachingHistory || null
-    } else if (role === 'fan') {
-      profilePayload.status = 'just_exploring'
     }
 
     // 3. Save profile via server-side API (uses service role to bypass RLS)
@@ -237,17 +237,6 @@ export default function RegisterPage() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setRole('fan')}
-              className="w-full rounded-xl py-3 text-center transition-all"
-              style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#8892aa')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
-            >
-              <span className="text-sm uppercase tracking-wider" style={{ color: '#8892aa' }}>
-                👀 Just browsing / Supporter
-              </span>
-            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -258,7 +247,7 @@ export default function RegisterPage() {
                 className="text-xs uppercase tracking-wider px-3 py-1 rounded-full"
                 style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#2d5fc4' }}
               >
-                {role === 'player' ? 'Player' : role === 'coach' ? 'Coach / Manager' : 'Supporter'}
+                {role === 'player' ? 'Player' : 'Coach / Manager'}
               </span>
               <button
                 type="button"
@@ -298,27 +287,23 @@ export default function RegisterPage() {
                   <p className="text-xs mt-1" style={{ color: '#f87171' }}>{phoneError}</p>
                 )}
               </Field>
-              {role !== 'fan' && (
-                <>
-                  <Field label="Date of Birth">
-                    <Input
-                      required={role === 'player'}
-                      type="date"
-                      value={dob}
-                      min={DOB_MIN}
-                      max={DOB_MAX}
-                      onChange={(e) => { setDob(e.target.value); if (dobError) setDobError(null) }}
-                      onBlur={() => setDobError(validateDob(dob))}
-                    />
-                    <p className="text-xs mt-1" style={{ color: dobError ? '#f87171' : '#8892aa' }}>
-                      {dobError ?? DOB_HELP}
-                    </p>
-                  </Field>
-                  <Field label="Nearest City">
-                    <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
-                  </Field>
-                </>
-              )}
+              <Field label="Date of Birth">
+                <Input
+                  required={role === 'player'}
+                  type="date"
+                  value={dob}
+                  min={DOB_MIN}
+                  max={DOB_MAX}
+                  onChange={(e) => { setDob(e.target.value); if (dobError) setDobError(null) }}
+                  onBlur={() => setDobError(validateDob(dob))}
+                />
+                <p className="text-xs mt-1" style={{ color: dobError ? '#f87171' : '#8892aa' }}>
+                  {dobError ?? DOB_HELP}
+                </p>
+              </Field>
+              <Field label="Nearest City">
+                <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+              </Field>
             </Section>
 
             {/* Player fields */}
@@ -410,13 +395,11 @@ export default function RegisterPage() {
               </Section>
             )}
 
-            {role !== 'fan' && (
-              <Section title="Referral (Optional)">
-                <Field label="Referred by (full name)">
-                  <Input value={referral} onChange={(e) => setReferral(e.target.value)} placeholder="Friend's full name" />
-                </Field>
-              </Section>
-            )}
+            <Section title="Referral (Optional)">
+              <Field label="Referred by (full name)">
+                <Input value={referral} onChange={(e) => setReferral(e.target.value)} placeholder="Friend's full name" />
+              </Field>
+            </Section>
 
             {/* GDPR */}
             <div

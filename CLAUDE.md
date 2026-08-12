@@ -26,6 +26,7 @@ Single source of truth: profiles table.
 
 Role: 'player' | 'coach' | 'admin' | 'fan'
 Fan accounts = browse-only. No posting, no messaging. Fans see a "Become a Player or Coach" banner on the player homepage and can self-convert via /dashboard/become (→ /api/account/convert); conversion is instant (keeps approved=true, no re-approval).
+⚠️ FAN SIGNUP IS CLOSED (12 Aug 2026) — /register offers Player and Coach only, and /api/register/complete rejects role='fan' (allowedRoles = player, coach). Browse-only accounts earn nothing and cost bandwidth. Existing fans are untouched: they keep the role, keep browsing, and the /dashboard/become conversion path stays live. Do not re-add fan to the register role picker or to allowedRoles. 'fan' remains valid everywhere else (rescue-profile, admin role dropdown, set-password auto-approve, MailerLite labels) because existing fans still flow through those.
 admin role also counts as a player — use .in('role', ['player', 'admin']) for player queries
 Founder = the admin account (Jamal). isFounder(role) returns role === 'admin' — admin role doubles as the founder flag (app/components/FounderBadge.tsx is the single source of truth).
 Agent = a coach row with is_agent = true (admin-toggled). Keeps every coach ability EXCEPT initiating a conversation with another coach (enforced in /api/messages/send). isAgent() in app/components/AgentBadge.tsx is the single source of truth.
@@ -595,7 +596,7 @@ Club partnership + sponsor tooling
 
 Feature Depth
 
-Fan onboarding: MailerLite automation not yet built (same pattern as player/coach)
+~~Fan onboarding: MailerLite automation~~ — dropped, fan signup is closed
 Highlight reel improvements
 Push notifications (web push or in-app)
 

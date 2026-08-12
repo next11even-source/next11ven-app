@@ -110,8 +110,11 @@ export async function POST(req: NextRequest) {
 
   const VALID_LEVELS = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6', 'Step 7', 'U18s/Academy', 'Wales 1', 'Wales 2', 'Other']
 
-  // Only allow writing safe profile fields — never let the client set role to admin
-  const allowedRoles = ['player', 'coach', 'fan']
+  // Only allow writing safe profile fields — never let the client set role to admin.
+  // 'fan' is deliberately NOT here: fan signup was withdrawn (no product value, and
+  // browse-only accounts cost bandwidth). Existing fans keep their role and can
+  // still convert via /api/account/convert — this only closes the signup door.
+  const allowedRoles = ['player', 'coach']
   const role = body.role as string | undefined
   if (role && !allowedRoles.includes(role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
@@ -187,8 +190,6 @@ export async function POST(req: NextRequest) {
     profilePayload.club = body.club ?? null
     profilePayload.coaching_history = body.coaching_history ?? null
     // coaches must have a valid status to satisfy profiles_status_check
-    profilePayload.status = 'just_exploring'
-  } else if (role === 'fan') {
     profilePayload.status = 'just_exploring'
   }
 

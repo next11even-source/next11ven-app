@@ -27,13 +27,24 @@ export const runtime = 'nodejs'
 export const maxDuration = 120
 
 export async function GET(req: NextRequest) {
-  const supabaseUser = await createServerSupabase()
-  const { data: { user } } = await supabaseUser.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Two ways in: an admin's own session (dashboard/browser use), or the same
+  // CRON_SECRET the scheduled crons use (CLI/ops use — this route is operated
+  // the same way as the crons: dry-run, inspect, then run for real). Neither
+  // path is weaker than the other; CRON_SECRET is a server-only secret never
+  // exposed client-side.
+  const authHeader = req.headers.get('authorization')
+  const viaCronSecret = !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
 
   const supabase = createServiceSupabase()
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (me?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (!viaCronSecret) {
+    const supabaseUser = await createServerSupabase()
+    const { data: { user } } = await supabaseUser.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (me?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const dryRun = req.nextUrl.searchParams.get('dryRun') === '1'
 

@@ -83,18 +83,34 @@ export async function PATCH(
     ? { is_active: true, auto_closed_at: null, auto_close_reason: null }
     : { is_active: false }
 
-  const { error: updateErr } = await admin
+  // Guarded on the CURRENT state, same idiom as opportunity-close's own
+  // "don't overwrite a concurrent close" — a double-tap or a retried request
+  // only affects this row on the call that actually finds it in the state
+  // being transitioned FROM. Not what makes the cascade below safe (that
+  // guard lives in lib/opportunityClosure.ts, on the applications write
+  // itself) — this is the outer layer's own belt-and-suspenders, and it
+  // means a redundant call skips the cascade entirely rather than relying on
+  // the inner guard to no-op it.
+  const { data: updated, error: updateErr } = await admin
     .from('opportunities')
     .update(patch)
     .eq('id', id)
+    .eq('is_active', !is_active)
+    .select('id')
 
   if (updateErr) {
     reportError('/api/opportunities/[id]', updateErr, `toggle failed for opportunity ${id}`)
     return NextResponse.json({ error: 'Failed to update opportunity' }, { status: 500 })
   }
 
+  const changed = (updated ?? []).length > 0
+
   let applicationsClosed = 0
-  if (!is_active) {
+  // Only cascade on a transition THIS call actually made — a redundant close
+  // (already closed, nothing to transition) skips it outright. The inner
+  // guard in lib/opportunityClosure.ts would no-op it anyway, but there's no
+  // reason to pay for the read when the outer state already says nothing changed.
+  if (!is_active && changed) {
     try {
       const result = await closeApplicationsForOpportunity(admin, id)
       applicationsClosed = result.closed
@@ -103,5 +119,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ ...patch, applicationsClosed })
+  return NextResponse.json({ ...patch, changed, applicationsClosed })
 }

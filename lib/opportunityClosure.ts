@@ -30,21 +30,36 @@ export async function closeApplicationsForOpportunity(
     .eq('opportunity_id', opportunityId)
     .is('closed_at', null)
 
-  const open = (apps ?? []).filter((a: { status: string | null; closed_at: string | null }) =>
+  const candidates = (apps ?? []).filter((a: { status: string | null; closed_at: string | null }) =>
     isAwaitingReply(a.status, a.closed_at)
   )
-  if (open.length === 0) return { closed: 0, notified: 0 }
+  if (candidates.length === 0) return { closed: 0, notified: 0 }
 
   const now = new Date().toISOString()
-  await supabase
+  // Guard the WRITE itself, not just the read above — that read is a
+  // snapshot and can race a concurrent call for the same opportunity (a
+  // double-tap on "Close Role", a retried request, the cron and a manual
+  // close landing together). .is('closed_at', null) here means only rows
+  // STILL open at the moment this UPDATE actually executes get touched;
+  // Postgres row-level locking means a second concurrent call sees these
+  // rows as already closed and its own filtered update returns nothing for
+  // them. The notification list is built from what THIS update affected —
+  // never from the earlier read — so a race can close nobody twice and
+  // notify nobody twice.
+  const { data: justClosed } = await supabase
     .from('applications')
     .update({ closed_at: now, close_reason: 'role_closed' })
-    .in('id', open.map((a: { id: string }) => a.id))
+    .in('id', candidates.map((a: { id: string }) => a.id))
+    .is('closed_at', null)
+    .select('player_id, created_at')
+
+  const open = (justClosed ?? []) as Array<{ player_id: string; created_at: string }>
+  if (open.length === 0) return { closed: 0, notified: 0 }
 
   // Only recent applications are announced — see NOTIFY_RESOLUTION_WITHIN_DAYS.
   // One notification per player, never one per application.
   const byPlayer = new Map<string, number>()
-  for (const a of open as Array<{ player_id: string; created_at: string }>) {
+  for (const a of open) {
     if (waitingDays(a.created_at) > NOTIFY_RESOLUTION_WITHIN_DAYS) continue
     byPlayer.set(a.player_id, (byPlayer.get(a.player_id) ?? 0) + 1)
   }

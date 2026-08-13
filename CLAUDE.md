@@ -218,6 +218,9 @@ shortlisted                   /api/coach/shortlist POST                 player
 application_decision          /api/applications/[id]                    player — ACCEPTED ONLY
 application_declined          /api/applications/[id]                    player — declined; grouped by day in UI
 application_closed            /api/cron/application-close               player — 1 per player per run
+                              + lib/opportunityClosure.ts                same type, fires immediately (not
+                                                                          just the weekly sweep) the moment an
+                                                                          opportunity closes — auto or manual
 message_credit_refunded       /api/cron/message-credit-refund           player — 1 per player per run
 opportunity_auto_closed       /api/cron/opportunity-close               coach — 1 per coach per run, also emailed
 Enum also allows profile_view and new_opportunity: nothing writes either. Legacy.
@@ -228,6 +231,19 @@ emails, actor avatar shown, no matter how old the application. A decline is
 information, not an event — no actor, muted icon, collapsed into one row per
 day, email capped at one a day. Adding a new player-facing notification? Decide
 which of those two it behaves like.
+
+⚠️ COLOUR DOCTRINE for application outcomes (lib/applicationResponse.ts
+PLAYER_APPLICATION_COPY + app/dashboard/player/activity/page.tsx TypeIcon):
+grey (#8892aa) means a HUMAN made a call — `rejected` is the only state that
+gets it. Amber (#f59e0b) means nobody did — `closed_no_response` and
+`closed_role_gone` both use it, because a decline and a platform closure are
+NOT the same thing and must never look the same: giving a system-manufactured
+resolution the identical grey as a real rejection lets it masquerade as one,
+which is exactly what the closed_at / status split exists to prevent (see
+lib/applicationResponse.ts). Blue (#2d5fc4) stays exclusive to `accepted`.
+Reuses the existing amber rather than a new shade — it's already this app's
+"pending/attention" colour (see `waiting` above), and the label text carries
+the actual disambiguation.
 
 ⚠️ STALE RESOLUTIONS RESOLVE QUIETLY. NOTIFY_RESOLUTION_WITHIN_DAYS (42) in
 lib/applicationResponse.ts: a player who applied more than 6 weeks ago has moved
@@ -300,6 +316,13 @@ Live Automations
   applications sent within NOTIFY_RESOLUTION_WITHIN_DAYS (42). Anything older
   closes silently: the card updates, nobody is pinged. NO EMAIL, NO SMS ever —
   in-app only.
+  ⚠️ 'role_closed' is now MOSTLY set eagerly, not by this sweep — see
+  lib/opportunityClosure.ts, fired from opportunity-close and from a coach's
+  manual "Close Role" toggle (/api/opportunities/[id] PATCH), the instant the
+  role closes. This cron still exists for 'no_response' (an application aging
+  out on an otherwise-still-open role) and as a safety net for any 'role_closed'
+  the cascade missed — but a player no longer waits up to 21 days after their
+  role's actually gone to be told so.
   Params (all for the one-off historic-backlog sweep, not scheduled runs):
     ?dryRun=1        — report what it would do, write nothing
     ?minDays=N       — override the 21-day window
@@ -334,6 +357,13 @@ Live Automations
   Sets opportunities.auto_closed_at + auto_close_reason ('stale' | 'neglected'),
   distinct from a coach's own manual is_active toggle — the UI (CoachOpportunities)
   shows different chip copy for each, and reopening a role clears both fields.
+  ⚠️ Also cascades onto the role's own open applications the moment it closes —
+  see lib/opportunityClosure.ts. Resolves them immediately (close_reason
+  'role_closed') instead of leaving the player in "With the club" limbo until
+  application-close's separate 21-day age sweep would eventually catch up. The
+  SAME cascade fires from a coach's manual "Close Role" toggle
+  (PATCH /api/opportunities/[id]) — a role going away always resolves its
+  applicants right away, whether the platform or the coach closed it.
   One 'opportunity_auto_closed' in-app notification + one email
   (sendOpportunityAutoClosedEmail) per coach per run, listing every role closed
   that run — not one send per role. This one DOES email, unlike application_closed
@@ -405,8 +435,14 @@ POST   /api/coach/shortlist — add a player to the shortlist
 DELETE /api/coach/shortlist/[player_id] — remove a player from the shortlist
 
 Opportunities
-GET  /api/opportunities — list opportunities
-POST /api/opportunities — create an opportunity (coach)
+GET   /api/opportunities — list opportunities
+POST  /api/opportunities — create an opportunity (coach)
+PATCH /api/opportunities/[id] — coach-owned toggle (is_active). Closing cascades
+  onto the role's own open applications via lib/opportunityClosure.ts (see
+  Live Automations). Replaced the old direct client-side supabase write from
+  CoachOpportunities — that write can no longer touch notifications (service-role
+  only), so the toggle needed a server route once closing started resolving
+  applications too.
 GET  /api/opportunities/counts — per-opportunity application counts
 GET  /api/opportunities/feed — player Open Roles feed (gated). Returns active opps + application_count + appliedIds + matchedCount + per-opp { inRange, isCloseMatch }. GATED SERVER-SIDE: `club` is null for non-premium; `matchPercent` (60–99, lib/opportunityRelevance.ts getOpportunityMatchPercent) is computed ONLY for premium — absent from the free payload, never just blurred. Bounded single fetch (limit 200); has a TODO to move to server-side pagination once active-opps count grows.
 

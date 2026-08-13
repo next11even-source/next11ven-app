@@ -591,14 +591,22 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
   }
 
   async function toggleActive(opp: Opp) {
-    const supabase = createClient()
     const reactivating = !opp.is_active
-    // Reopening clears the auto-close flags — otherwise a role a coach
-    // brought back manually would still read as "auto-closed" in the chip.
+    // Server route, not a direct client write — closing a role now cascades
+    // onto its own open applications (resolves them immediately instead of
+    // leaving them to age out), which needs service-role access to the
+    // applications and notifications tables. Reopening clears the auto-close
+    // flags so a role a coach brought back manually stops reading as
+    // "auto-closed".
+    const res = await fetch(`/api/opportunities/${opp.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: reactivating }),
+    })
+    if (!res.ok) return
     const patch = reactivating
       ? { is_active: true, auto_closed_at: null, auto_close_reason: null }
       : { is_active: false }
-    await supabase.from('opportunities').update(patch).eq('id', opp.id)
     setOpps(prev => prev.map(o => o.id === opp.id ? { ...o, ...patch } : o))
   }
 

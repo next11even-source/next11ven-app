@@ -8,6 +8,7 @@ import {
   getOpportunityLifecycleStatus,
   OPP_NEGLECT_DAYS,
 } from '@/lib/opportunityLifecycle'
+import { closeApplicationsForOpportunity } from '@/lib/opportunityClosure'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -28,6 +29,13 @@ export const maxDuration = 120
 // volume; the pre-close warning rides the existing application-nudge send
 // instead, see that route). One email per coach per run listing every role
 // closed, not one per role.
+//
+// Also cascades onto the role's own open applications (see
+// lib/opportunityClosure.ts) — closes them immediately with close_reason
+// 'role_closed' rather than leaving the player stuck in "With the club" for
+// up to 21 more days until application-close's separate age-based sweep
+// would otherwise catch up to it. Same trigger fires from a coach's manual
+// "Close Role" toggle — see /api/opportunities/[id].
 
 type Opp = {
   id: string
@@ -114,6 +122,8 @@ export async function GET(req: NextRequest) {
   const now = new Date().toISOString()
   let closed = 0
   let failed = 0
+  let applicationsClosed = 0
+  let playersNotified = 0
   const closedByCoach = new Map<string, Array<{ title: string; reason: 'stale' | 'neglected' }>>()
 
   for (const { opp, reason } of toClose) {
@@ -132,6 +142,17 @@ export async function GET(req: NextRequest) {
     const list = closedByCoach.get(opp.coach_id) ?? []
     list.push({ title: opp.title, reason })
     closedByCoach.set(opp.coach_id, list)
+
+    // Don't leave the role's own applicants stuck in "With the club" — the
+    // role is confirmed dead as of this line, so resolve them now rather than
+    // waiting on application-close's separate 21-day age sweep to catch up.
+    try {
+      const result = await closeApplicationsForOpportunity(supabase, opp.id)
+      applicationsClosed += result.closed
+      playersNotified += result.notified
+    } catch (err) {
+      reportError('/api/cron/opportunity-close', err, `application cascade failed for opportunity ${opp.id}`)
+    }
   }
 
   let notified = 0
@@ -170,5 +191,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ scanned: opps.length, closed, failed, notified })
+  return NextResponse.json({
+    scanned: opps.length, closed, failed, notified,
+    applicationsClosed, playersNotified,
+  })
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Bookmark, Briefcase, Check, ChevronRight, CircleSlash, ClipboardCheck, Eye, Heart, MessageCircle, RotateCcw, Star } from 'lucide-react'
+import { Bell, Bookmark, Briefcase, Check, ChevronRight, CircleSlash, ClipboardCheck, Clock, Eye, Heart, MessageCircle, RotateCcw, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '../_components/SidebarContext'
@@ -174,11 +174,14 @@ function TypeIcon({ type }: { type: string }) {
     profile_view:   { icon: <Eye size={14} />,                          bg: '#a78bfa20', color: '#a78bfa' },
     new_opportunity:{ icon: <Briefcase size={14} />,                    bg: '#f59e0b20', color: '#f59e0b' },
     shortlisted:    { icon: <Bookmark size={14} fill="currentColor" />, bg: '#a78bfa20', color: '#a78bfa' },
-    // Blue tick for an acceptance — it only ever means yes now. Declines and
-    // platform closures are both muted: they're information, not events.
+    // Blue tick for an acceptance — it only ever means yes now. A decline is
+    // still muted: it's information, not an event, but it IS a real decision.
     application_decision: { icon: <ClipboardCheck size={14} />, bg: '#2d5fc420', color: '#4d8ae8' },
     application_declined: { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
-    application_closed:   { icon: <CircleSlash size={14} />,    bg: '#1e2235',   color: '#8892aa' },
+    // Amber, not grey — nobody decided this one, silence did. Same distinction
+    // as PLAYER_APPLICATION_COPY in lib/applicationResponse.ts: grey means a
+    // human made a call, amber means the platform closed it because nobody did.
+    application_closed:   { icon: <Clock size={14} />,          bg: '#f59e0b20', color: '#f59e0b' },
     // Blue, like an acceptance — a credit coming back is something gained, not
     // an outcome to mourn. Not green: green is availability only.
     message_credit_refunded: { icon: <RotateCcw size={14} />,   bg: '#2d5fc420', color: '#4d8ae8' },

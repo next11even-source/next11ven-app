@@ -187,22 +187,28 @@ export const PLAYER_APPLICATION_COPY: Record<
     bg: 'rgba(45,95,196,0.15)',
     detail: 'Check your messages — the club wants to speak to you.',
   },
+  // Grey, unchanged — the ONE state that means a human actually made a call.
   rejected: {
     label: 'Not this time',
     colour: '#8892aa',
     bg: 'rgba(136,146,170,0.1)',
     detail: 'They went another way. Plenty more open.',
   },
+  // Amber, not grey — same family as `waiting` above, deliberately. Nobody
+  // decided anything here; the platform closed it because silence never
+  // resolved into one. Grey is reserved for `rejected`, where a real decision
+  // was made — reusing it here would let a system action masquerade as a
+  // rejection, which is exactly what CLOSE_AFTER_DAYS exists to avoid.
   closed_no_response: {
     label: 'Closed — no reply',
-    colour: '#8892aa',
-    bg: 'rgba(136,146,170,0.1)',
+    colour: '#f59e0b',
+    bg: 'rgba(245,158,11,0.12)',
     detail: "This one went quiet, so we've closed it rather than leave you waiting.",
   },
   closed_role_gone: {
     label: 'Role withdrawn',
-    colour: '#8892aa',
-    bg: 'rgba(136,146,170,0.1)',
+    colour: '#f59e0b',
+    bg: 'rgba(245,158,11,0.12)',
     detail: 'The club took this role down before deciding.',
   },
 }

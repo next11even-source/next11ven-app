@@ -460,6 +460,10 @@ POST /api/stripe/webhook — handles Stripe events (subscription lifecycle + mes
 Admin
 POST /api/admin/review — approve/decline with MailerLite + Twilio
 POST /api/admin/stripe-reconcile — fixes out-of-sync premium states
+GET  /api/admin/reconcile-opportunity-applications — resolves applications stranded
+  in "waiting" on an already-closed opportunity (lib/opportunityClosure.ts cascade
+  missed it — e.g. closed before that code shipped). Should be a no-op in steady
+  state; exists as a safety net. ?dryRun=1 supported.
 POST /api/admin/delete-user — hard delete a user account
 POST /api/admin/set-agent — admin-only: toggle is_agent on a coach (marks/unmarks them as an agent)
 POST /api/admin/rescue-profile — repair orphaned/broken profile

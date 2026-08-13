@@ -205,12 +205,41 @@ export const PLAYER_APPLICATION_COPY: Record<
     bg: 'rgba(245,158,11,0.12)',
     detail: "This one went quiet, so we've closed it rather than leave you waiting.",
   },
+  // Label deliberately doesn't say "withdrawn" — that word implies the club
+  // made a call, and in the two most common cases (see getRoleClosedDetail
+  // below) they didn't. `detail` here is the fallback for a genuine manual
+  // close; render sites should call getRoleClosedDetail with the
+  // opportunity's own auto_close_reason to get the accurate one.
   closed_role_gone: {
-    label: 'Role withdrawn',
+    label: 'Role closed',
     colour: '#f59e0b',
     bg: 'rgba(245,158,11,0.12)',
-    detail: 'The club took this role down before deciding.',
+    detail: 'This role was closed before your application was actioned.',
   },
+}
+
+/**
+ * closed_role_gone's detail text varies by WHY the role closed — the entry
+ * above is only the fallback for a coach's own manual close. Pass the
+ * opportunity's own auto_close_reason (opportunities.auto_close_reason, see
+ * lib/opportunityLifecycle.ts) to get the accurate one instead.
+ *
+ * WHY THIS EXISTS: "The club took this role down before deciding" is simply
+ * false for a stale/neglected auto-close — the coach didn't act, the platform
+ * did, on their behalf, because THEY didn't act. Telling a player the club
+ * took action when nobody did misattributes exactly the kind of silence this
+ * whole closure system exists to be honest about.
+ */
+export function getRoleClosedDetail(autoCloseReason: 'stale' | 'neglected' | null | undefined): string {
+  if (autoCloseReason === 'neglected') {
+    // Same story as closed_no_response — applicants went unanswered — just
+    // resolved at the role level instead of the single application.
+    return "This role closed automatically — applicants didn't hear back in time, so we cleared it rather than leave you waiting."
+  }
+  if (autoCloseReason === 'stale') {
+    return 'This role closed automatically — it had been open a while with no update.'
+  }
+  return PLAYER_APPLICATION_COPY.closed_role_gone.detail!
 }
 
 /** True where the player has nothing left to wait for and should be redirected. */

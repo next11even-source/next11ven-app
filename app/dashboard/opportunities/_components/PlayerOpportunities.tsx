@@ -15,6 +15,7 @@ import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/Acti
 import {
   getPlayerApplicationState,
   PLAYER_APPLICATION_COPY,
+  getRoleClosedDetail,
   isDeadEnd,
 } from '@/lib/applicationResponse'
 
@@ -54,6 +55,7 @@ type Application = {
     position: string | null
     level: string | null
     is_active: boolean
+    auto_close_reason: string | null
   } | null
 }
 
@@ -685,7 +687,7 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
   useEffect(() => {
     const supabase = createClient()
     supabase.from('applications')
-      .select('id, status, created_at, closed_at, close_reason, opportunity:opportunity_id(id, title, club, location, position, level, is_active)')
+      .select('id, status, created_at, closed_at, close_reason, opportunity:opportunity_id(id, title, club, location, position, level, is_active, auto_close_reason)')
       .eq('player_id', playerId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -726,6 +728,11 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
             const cfg = PLAYER_APPLICATION_COPY[state]
             const done = isDeadEnd(state)
             const opp = app.opportunity
+            // closed_role_gone's detail varies by WHY the role closed — a
+            // stale/neglected auto-close must never read as if the coach acted.
+            const detail = state === 'closed_role_gone'
+              ? getRoleClosedDetail(opp?.auto_close_reason as 'stale' | 'neglected' | null)
+              : cfg.detail
             const showPos = opp?.position && !opp.title?.toLowerCase().includes(opp.position.toLowerCase())
             const meta = [opp?.club, opp?.location, showPos ? opp?.position : null].filter(Boolean).join(' · ')
             return (
@@ -757,8 +764,8 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
 
                       {/* The line that replaces the old dead-end "Pending" chip:
                           every state says what it means and what happens next. */}
-                      {cfg.detail && (
-                        <p className="text-xs mt-2 leading-relaxed" style={{ color: '#8892aa' }}>{cfg.detail}</p>
+                      {detail && (
+                        <p className="text-xs mt-2 leading-relaxed" style={{ color: '#8892aa' }}>{detail}</p>
                       )}
 
                       {done ? (

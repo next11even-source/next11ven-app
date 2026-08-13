@@ -491,7 +491,7 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
 
 const FREE_TIER_LIMIT = 2
 
-export default function CoachOpportunities({ coachId }: { coachId: string }) {
+export default function CoachOpportunities({ coachId, embedded = false }: { coachId: string; embedded?: boolean }) {
   const { openSidebar } = useSidebar()
   const [isPremium, setIsPremium] = useState(false)
   const [monthlyCount, setMonthlyCount] = useState(0)
@@ -499,7 +499,10 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [viewingApplicants, setViewingApplicants] = useState<Opp | null>(null)
-  const [activeTab, setActiveTab] = useState<'all' | 'mine'>('all')
+  // Embedded (founder-as-coach tab inside the player opportunities page)
+  // always shows just their own roles — "All Roles" is already the player's
+  // Open Roles tab one tap away, so there's no reason to duplicate it here.
+  const [activeTab, setActiveTab] = useState<'all' | 'mine'>(embedded ? 'mine' : 'all')
   const [search, setSearch] = useState('')
   const [levelFilter, setLevelFilter] = useState('')
   const [positionFilter, setPositionFilter] = useState('')
@@ -630,7 +633,9 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
     }
   }
 
-  const canPost = isPremium || monthlyCount < FREE_TIER_LIMIT
+  // The founder posting through the embedded tab isn't a paying coach account
+  // — never gate them behind the free-tier cap or the Coach Pro upsell.
+  const canPost = embedded || isPremium || monthlyCount < FREE_TIER_LIMIT
   const ownOpps = opps.filter(o => o.isOwn)
   // Badge the OUTSTANDING count, not the lifetime total. A badge that can never
   // reach zero is decoration; one that clears when you answer people is a to-do list.
@@ -657,55 +662,60 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
   const selectStyle = { backgroundColor: '#0d1020', border: '1px solid #1e2235', color: '#e8dece' }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
-      {/* Header */}
-      <div className="sticky top-0 z-10 px-4 pt-4 pb-0"
-        style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={openSidebar} className="flex flex-col gap-1.5" style={{ width: 20 }}>
-            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
-            <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
-            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
-          </button>
-          <h1 className="text-base font-black uppercase tracking-widest"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Opportunities
-          </h1>
-          <div style={{ width: 20 }} />
-        </div>
-
-        {/* Sub-tabs */}
-        <div className="flex gap-1 pb-3">
-          {([
-            { key: 'all',  label: 'All Roles' },
-            { key: 'mine', label: 'Your Roles' },
-          ] as const).map(t => (
-            <button key={t.key} onClick={() => { setActiveTab(t.key); setShowForm(false) }}
-              className="flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
-              style={{
-                backgroundColor: activeTab === t.key ? '#2d5fc4' : 'transparent',
-                color: activeTab === t.key ? '#fff' : '#8892aa',
-                border: activeTab === t.key ? 'none' : '1px solid #1e2235',
-              }}>
-              {t.label}
-              {t.key === 'mine' && totalAwaiting > 0 && (
-                <span className="min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
-                  style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10 }}>
-                  {totalAwaiting > 9 ? '9+' : totalAwaiting}
-                </span>
-              )}
+    <div className={embedded ? '' : 'min-h-screen'} style={embedded ? undefined : { backgroundColor: '#0a0a0a' }}>
+      {/* Header — hidden when embedded inside the player opportunities page,
+          which already renders its own title bar and hamburger. */}
+      {!embedded && (
+        <div className="sticky top-0 z-10 px-4 pt-4 pb-0"
+          style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={openSidebar} className="flex flex-col gap-1.5" style={{ width: 20 }}>
+              <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+              <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+              <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
             </button>
-          ))}
-        </div>
-      </div>
+            <h1 className="text-base font-black uppercase tracking-widest"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+              Opportunities
+            </h1>
+            <div style={{ width: 20 }} />
+          </div>
 
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+          {/* Sub-tabs */}
+          <div className="flex gap-1 pb-3">
+            {([
+              { key: 'all',  label: 'All Roles' },
+              { key: 'mine', label: 'Your Roles' },
+            ] as const).map(t => (
+              <button key={t.key} onClick={() => { setActiveTab(t.key); setShowForm(false) }}
+                className="flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                style={{
+                  backgroundColor: activeTab === t.key ? '#2d5fc4' : 'transparent',
+                  color: activeTab === t.key ? '#fff' : '#8892aa',
+                  border: activeTab === t.key ? 'none' : '1px solid #1e2235',
+                }}>
+                {t.label}
+                {t.key === 'mine' && totalAwaiting > 0 && (
+                  <span className="min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold"
+                    style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', fontSize: 10 }}>
+                    {totalAwaiting > 9 ? '9+' : totalAwaiting}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <main className={embedded ? 'px-4 py-4 space-y-5 max-w-5xl mx-auto' : 'max-w-3xl mx-auto px-4 py-6 space-y-5'}>
         {/* Add Opportunity */}
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm" style={{ color: '#8892aa' }}>
-            {activeTab === 'mine'
-              ? 'Your posted roles — tap a role to view and manage applicants.'
-              : 'Roles across the platform — post your own and manage applications.'}
+            {embedded
+              ? 'Roles you’ve posted — tap a role to view and manage applicants.'
+              : activeTab === 'mine'
+                ? 'Your posted roles — tap a role to view and manage applicants.'
+                : 'Roles across the platform — post your own and manage applications.'}
           </p>
           {!showForm && (
             canPost ? (

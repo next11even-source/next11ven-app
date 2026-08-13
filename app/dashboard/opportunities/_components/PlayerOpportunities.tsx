@@ -12,6 +12,7 @@ import { getPrimarySignal } from '@/lib/opportunitySignal'
 import { LEVELS, sortLevels } from '@/lib/levels'
 import { POSITIONS } from '@/lib/positions'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
+import CoachOpportunities from './CoachOpportunities'
 import {
   getPlayerApplicationState,
   PLAYER_APPLICATION_COPY,
@@ -805,9 +806,12 @@ export default function PlayerOpportunities({ playerId, isAdmin = false }: { pla
   const { openSidebar } = useSidebar()
   // ?tab=applications lets the application-decision notification land on the
   // card that carries the answer instead of the generic Open Roles list.
+  // ?tab=manage does the same for the founder-only "My Postings" tab.
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<'opportunities' | 'applications'>(
-    searchParams.get('tab') === 'applications' ? 'applications' : 'opportunities'
+  const [activeTab, setActiveTab] = useState<'opportunities' | 'applications' | 'manage'>(
+    searchParams.get('tab') === 'applications' ? 'applications'
+      : searchParams.get('tab') === 'manage' && isAdmin ? 'manage'
+      : 'opportunities'
   )
   const [focusOppId, setFocusOppId] = useState<string | null>(null)
 
@@ -837,12 +841,15 @@ export default function PlayerOpportunities({ playerId, isAdmin = false }: { pla
             <div style={{ width: 20 }} />
           </div>
 
-          {/* Sub-tabs */}
-          <div className="flex gap-1 pb-3">
+          {/* Sub-tabs — "My Postings" is founder-only: lets the admin post
+              opportunities and manage applicants like a coach would, without
+              turning their account into a coach anywhere else in the app. */}
+          <div className="flex gap-1 pb-3 overflow-x-auto">
             {([
               { key: 'opportunities', label: 'Open Roles' },
               { key: 'applications',  label: 'My Applications' },
-            ] as const).map(t => (
+              { key: 'manage',        label: 'My Postings' },
+            ] as const).filter(t => t.key !== 'manage' || isAdmin).map(t => (
               <button key={t.key} onClick={() => setActiveTab(t.key)}
                 className="flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
                 style={{
@@ -859,7 +866,9 @@ export default function PlayerOpportunities({ playerId, isAdmin = false }: { pla
 
       {activeTab === 'opportunities'
         ? <OpportunitiesTab playerId={playerId} focusOppId={focusOppId} onFocused={() => setFocusOppId(null)} isAdmin={isAdmin} />
-        : <ApplicationsTab playerId={playerId} onView={viewOpportunity} onBrowse={() => setActiveTab('opportunities')} />}
+        : activeTab === 'applications'
+          ? <ApplicationsTab playerId={playerId} onView={viewOpportunity} onBrowse={() => setActiveTab('opportunities')} />
+          : <CoachOpportunities coachId={playerId} embedded />}
     </div>
   )
 }

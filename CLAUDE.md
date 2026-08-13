@@ -180,6 +180,7 @@ sendPaymentFailedEmail                /api/stripe/webhook                    tra
 sendPaymentFailedFollowUpEmail        /api/cron/drip-reminders               transactional
 sendSubscriptionCancelledWinBackEmail /api/cron/drip-reminders               once per cancellation
 sendExtraMessagesPurchaseEmail        /api/stripe/webhook                    transactional
+sendOpportunityAutoClosedEmail        /api/cron/opportunity-close            1 per coach per run, lists every role closed
 Marketing sends respect email_marketing_opt_out. Transactional (payment failed,
 application decisions) must NEVER be suppressed by it.
 
@@ -193,9 +194,16 @@ last_sms_at cap:
   /api/cron/log-nudge            post-match "log your game"
   /api/stripe/webhook            payment failed (handlePaymentFailedNotifications)
 ⚠️ NOTHING ELSE SENDS SMS. In particular application closure, application
-declines and message credit refunds are in-app only — deliberately. Nobody gets
-texted that they were rejected, or that a coach ignored them. Do not add SMS to
-any of them.
+declines, message credit refunds AND opportunity auto-closure are in-app (+
+email for the last one) only — deliberately. Nobody gets texted that they were
+rejected, that a coach ignored them, or that their own role was taken down. Do
+not add SMS to any of them.
+⚠️ application-nudge also carries the opportunity-auto-close PRE-WARNING (a
+role nearing its 14-day neglect cutoff, see lib/opportunityLifecycle.ts) as an
+extra line on its EXISTING send, never a separate message — and caps itself at
+MAX_SMS_PER_RUN (40) total texts per run, falling back to email past the cap.
+Deliberate: SMS here is for reach, not volume, and every enhancement to this
+route should keep riding the one send rather than adding another.
 
 IN-APP (notifications table — inserted by DB trigger or service-role API call)
 Type                          Written by                                Recipient
@@ -211,6 +219,7 @@ application_decision          /api/applications/[id]                    player �
 application_declined          /api/applications/[id]                    player — declined; grouped by day in UI
 application_closed            /api/cron/application-close               player — 1 per player per run
 message_credit_refunded       /api/cron/message-credit-refund           player — 1 per player per run
+opportunity_auto_closed       /api/cron/opportunity-close               coach — 1 per coach per run, also emailed
 Enum also allows profile_view and new_opportunity: nothing writes either. Legacy.
 
 ⚠️ Accepts and declines are deliberately asymmetric and must stay that way. An
@@ -266,11 +275,18 @@ Live Automations
 - Coach application nudge: /api/cron/application-nudge — daily 10:00 UTC
   Targets coaches with applications still awaiting a reply (pending/viewed/shortlisted)
   on roles that are STILL ACTIVE, oldest ≥3 days. SMS-first (sms_opt_in + 1/day
-  last_sms_at cap), email otherwise (sendApplicationNudgeEmail, respects
-  email_marketing_opt_out). One nudge per coach per 5 days regardless of backlog size,
-  tracked via profiles.last_application_nudge_at. Supports ?dryRun=1 and ?to=<email>.
+  last_sms_at cap AND a per-run cap, MAX_SMS_PER_RUN = 40 — past it, the coach
+  still gets nudged, just by email), email otherwise (sendApplicationNudgeEmail,
+  respects email_marketing_opt_out). One nudge per coach per 5 days regardless of
+  backlog size, tracked via profiles.last_application_nudge_at. Supports ?dryRun=1
+  and ?to=<email>.
   WHY: 66% of applications were unanswered as of 9 Aug 2026 and every other signal
   (banner, bell, role cards) only reaches coaches who open the app. This one has reach.
+  ⚠️ ALSO carries the opportunity-auto-close pre-warning (see below) as an extra
+  line on this SAME send when one of the coach's roles is within
+  OPP_NEGLECT_WARNING_DAYS of auto-closing — never a separate message. Any future
+  addition to this route should ride the existing send rather than add a new one;
+  that's how the SMS volume stays bounded as the coach base grows.
 
 - Application closure: /api/cron/application-close — WEEKLY, Monday 11:00 UTC (one
   hour AFTER that morning's nudge, deliberately: a coach who acts on the nudge always
@@ -297,6 +313,34 @@ Live Automations
   conflate them — a system action must not masquerade as a rejection in any count.
   Everything that counts "awaiting reply" must filter .is('closed_at', null), and
   isAwaitingReply(status, closedAt) in lib/applicationResponse.ts is the single rule.
+
+- Stale opportunity auto-removal: /api/cron/opportunity-close — WEEKLY, Monday
+  11:30 UTC (30 min after that morning's application closure, so a role whose
+  stragglers just got auto-closed for no_response is evaluated for closure
+  itself in the same pass). HIDES roles (opportunities.is_active = false),
+  NEVER deletes. See lib/opportunityLifecycle.ts for the shared rule.
+  WHY: application-close's dry run found 81 of 85 stale applications sitting on
+  opportunities still marked active — the default coach behaviour is walking
+  away without taking the role down, so players (and coaches, on coaching-staff
+  roles) keep spending applications into a graveyard. This closes the hole from
+  the role's side instead of just the application's.
+  Two rules, either one triggers closure:
+    'stale'     — OPP_MAX_AGE_DAYS (28). Any active role this old comes down
+                  regardless of activity — nothing stays open forever.
+    'neglected' — OPP_NEGLECT_DAYS (14). Role has an application still awaiting
+                  reply AND the coach has never accepted or rejected anyone on
+                  it. A role with zero applications is exempt from this fast
+                  track — nothing to neglect yet, only the 28-day rule applies.
+  Sets opportunities.auto_closed_at + auto_close_reason ('stale' | 'neglected'),
+  distinct from a coach's own manual is_active toggle — the UI (CoachOpportunities)
+  shows different chip copy for each, and reopening a role clears both fields.
+  One 'opportunity_auto_closed' in-app notification + one email
+  (sendOpportunityAutoClosedEmail) per coach per run, listing every role closed
+  that run — not one send per role. This one DOES email, unlike application_closed
+  — it's actionable (one-tap reopen), where a player watching an application
+  close has nothing to do but move on. NO SMS — see the SMS section above for
+  why the pre-close warning rides application-nudge instead of sending its own.
+  Params: ?dryRun=1 — report what would close, write nothing.
 
 - Message credit refund: /api/cron/message-credit-refund — DAILY, 12:00 UTC.
   Daily, not weekly: this is the one piece of good news in the response-rate family,
@@ -333,7 +377,7 @@ Live Automations
   (REFUND_PROMISE), used on the coach profile at the moment of spend, the
   extra-messages page, and lib/premiumContent.ts (messages feature + comparison row).
 
-All 8 crons are registered in vercel.json. Keep that file and this list in sync.
+All 9 crons are registered in vercel.json. Keep that file and this list in sync.
 
 APIs
 
@@ -419,6 +463,7 @@ GET /api/cron/weekly-digest — sends the weekly player digest to all approved p
 GET /api/cron/log-nudge — post-match "log your game" nudge to active-stint players (daily)
 GET /api/cron/application-nudge — nudges coaches sitting on unanswered applications (daily)
 GET /api/cron/application-close — closes unanswered applications on the player's behalf (weekly)
+GET /api/cron/opportunity-close — hides stale/neglected opportunities on the coach's behalf (weekly)
 GET /api/cron/message-credit-refund — returns the message credit when a coach never replies (daily)
 GET /api/cron/coach-recommendations — emails each coach their weekly recommended players
 GET /api/cron/weekly-metrics-telegram — pushes weekly platform metrics to founder Telegram chat
@@ -590,7 +635,6 @@ Growth & Monetisation
 
 Premium conversion optimisation (paywall placement, coach activity as conversion trigger)
 Coach engagement tools (activity nudges, opportunity expiry reminders)
-3-month stale opportunity auto-removal
 Showcase Day event tooling
 Club partnership + sponsor tooling
 

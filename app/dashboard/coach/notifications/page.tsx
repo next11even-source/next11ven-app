@@ -59,6 +59,7 @@ function getRoute(type: string, entityId?: string | null): string {
     case 'post_comment':
     case 'shortlist_post':               return '/dashboard/feed'
     case 'new_opportunity_application':  return '/dashboard/opportunities'
+    case 'opportunity_auto_closed':      return '/dashboard/opportunities?tab=mine'
     case 'shortlist_availability':
       return entityId
         ? `/dashboard/player/players/${entityId}?compose=1`
@@ -91,6 +92,8 @@ function TypeIcon({ type }: { type: string }) {
     new_opportunity_application: { icon: <Briefcase size={14} />,               bg: '#f59e0b20', color: '#f59e0b' },
     shortlist_post:              { icon: <LayoutList size={14} />,               bg: '#2d5fc420', color: '#4d8ae8' },
     shortlist_availability:      { icon: <Bookmark size={14} />,                bg: '#a78bfa20', color: '#a78bfa' },
+    // Muted, no actor — same treatment as a decline: information, not an event.
+    opportunity_auto_closed:     { icon: <Briefcase size={14} />,               bg: '#8892aa20', color: '#8892aa' },
   }
   const c = cfg[type] ?? { icon: <Bell size={14} />, bg: '#1e2235', color: '#8892aa' }
   return (

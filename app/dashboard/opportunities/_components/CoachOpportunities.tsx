@@ -26,6 +26,8 @@ type Opp = {
   is_active: boolean
   opportunity_type: string | null
   created_at: string
+  auto_closed_at: string | null
+  auto_close_reason: string | null
   isOwn: boolean
   application_count: number
   awaiting_count: number
@@ -540,8 +542,8 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
 
       const [profileRes, ownRes, othersRes, monthlyRes, appsRes] = await Promise.all([
         supabase.from('profiles').select('premium').eq('id', coachId).single(),
-        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at').eq('coach_id', coachId).order('created_at', { ascending: false }),
-        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at').neq('coach_id', coachId).eq('is_active', true).order('created_at', { ascending: false }).limit(50),
+        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').eq('coach_id', coachId).order('created_at', { ascending: false }),
+        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').neq('coach_id', coachId).eq('is_active', true).order('created_at', { ascending: false }).limit(50),
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', coachId).gte('created_at', startOfMonth.toISOString()),
         supabase.from('applications').select('opportunity_id').eq('player_id', coachId),
       ])
@@ -583,15 +585,21 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
   }, [coachId])
 
   function handlePosted(opp: Opp) {
-    setOpps(prev => [{ ...opp, isOwn: true, application_count: 0, awaiting_count: 0, is_active: true }, ...prev])
+    setOpps(prev => [{ ...opp, isOwn: true, application_count: 0, awaiting_count: 0, is_active: true, auto_closed_at: null, auto_close_reason: null }, ...prev])
     setMonthlyCount(prev => prev + 1)
     setShowForm(false)
   }
 
   async function toggleActive(opp: Opp) {
     const supabase = createClient()
-    await supabase.from('opportunities').update({ is_active: !opp.is_active }).eq('id', opp.id)
-    setOpps(prev => prev.map(o => o.id === opp.id ? { ...o, is_active: !o.is_active } : o))
+    const reactivating = !opp.is_active
+    // Reopening clears the auto-close flags — otherwise a role a coach
+    // brought back manually would still read as "auto-closed" in the chip.
+    const patch = reactivating
+      ? { is_active: true, auto_closed_at: null, auto_close_reason: null }
+      : { is_active: false }
+    await supabase.from('opportunities').update(patch).eq('id', opp.id)
+    setOpps(prev => prev.map(o => o.id === opp.id ? { ...o, ...patch } : o))
   }
 
   async function deleteOpp(id: string) {
@@ -869,7 +877,13 @@ export default function CoachOpportunities({ coachId }: { coachId: string }) {
                           <div className="flex flex-wrap gap-1.5">
                             {opp.isOwn && <Chip color="#4d8ae8" bg="rgba(45,95,196,0.2)">★ Your role</Chip>}
                             {isCoachingRole && <Chip color="#a78bfa" bg="rgba(167,139,250,0.1)">Coaching Staff</Chip>}
-                            {!opp.is_active && <Chip color="#8892aa" bg="rgba(136,146,170,0.1)">Closed</Chip>}
+                            {!opp.is_active && (
+                              <Chip color="#8892aa" bg="rgba(136,146,170,0.1)">
+                                {opp.auto_close_reason === 'neglected' ? 'Auto-closed — no response'
+                                  : opp.auto_close_reason === 'stale' ? 'Auto-closed — expired'
+                                  : 'Closed'}
+                              </Chip>
+                            )}
                             {opp.urgent && <Chip color="#f87171" bg="rgba(239,68,68,0.12)">🔴 Urgent</Chip>}
                             {deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 7 && (
                               <Chip color="#fbbf24" bg="rgba(251,191,36,0.12)">⏳ {deadlineDays}d left</Chip>

@@ -2,7 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendApplicationNudgeEmail } from '@/lib/email'
 import { reportError } from '@/lib/alert'
-import { AWAITING_REPLY_STATUSES, waitingDays, getWaitingTier } from '@/lib/applicationResponse'
+import { isAwaitingReply, waitingDays, getWaitingTier } from '@/lib/applicationResponse'
+import { ageDays, getOpportunityLifecycleStatus, OPP_NEGLECT_DAYS } from '@/lib/opportunityLifecycle'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -18,6 +19,11 @@ export const maxDuration = 120
 //
 // SMS-first when opted in and inside the 1/day cap, email otherwise.
 // One nudge per coach per NUDGE_INTERVAL_DAYS regardless of backlog size.
+//
+// Also carries the pre-close warning for /api/cron/opportunity-close: when a
+// coach has a role nearing the 14-day neglect cutoff (see
+// lib/opportunityLifecycle.ts), this send gets one extra line rather than a
+// separate message — deliberately, to avoid adding SMS volume for it.
 
 const DAY = 86_400_000
 
@@ -25,6 +31,12 @@ const DAY = 86_400_000
 // window to answer on their own before we intervene.
 const MIN_AGE_DAYS = 3
 const NUDGE_INTERVAL_DAYS = 5
+
+// Hard ceiling on SMS sent by this run, however large the eligible pool gets.
+// Email is the default channel here on purpose — SMS is reserved for reach,
+// not volume. Once the cap is hit, remaining coaches still get nudged, just
+// by email instead of falling through to a text.
+const MAX_SMS_PER_RUN = 40
 
 type Coach = {
   id: string
@@ -61,7 +73,7 @@ export async function GET(req: NextRequest) {
   // a role they filled in May is how a nudge becomes noise.
   const { data: activeOpps, error: oppErr } = await supabase
     .from('opportunities')
-    .select('id, coach_id')
+    .select('id, coach_id, created_at')
     .eq('is_active', true)
 
   if (oppErr) {
@@ -74,23 +86,26 @@ export async function GET(req: NextRequest) {
 
   const { data: apps, error: appErr } = await supabase
     .from('applications')
-    .select('id, opportunity_id, created_at, status')
+    .select('id, opportunity_id, created_at, status, closed_at')
     .in('opportunity_id', [...oppOwner.keys()])
-    .in('status', AWAITING_REPLY_STATUSES)
-    // Applications the platform has already closed on the player's behalf are
-    // settled. Chasing a coach about them would be nagging over something the
-    // player has stopped waiting for.
-    .is('closed_at', null)
 
   if (appErr) {
     reportError('/api/cron/application-nudge', appErr, 'failed to load applications')
     return NextResponse.json({ error: 'Failed to load applications' }, { status: 500 })
   }
 
-  // Group the backlog per coach
+  // Group the backlog per coach, and separately track which roles have an
+  // awaiting application / a real accept-reject decision ever — the inputs
+  // opportunity-close uses to decide if a role is heading for auto-closure.
   type Backlog = { total: number; overdue: number; oldestDays: number }
   const backlog = new Map<string, Backlog>()
+  const hasAwaiting = new Set<string>()
+  const hasEverActioned = new Set<string>()
   for (const a of apps ?? []) {
+    if (isAwaitingReply(a.status, a.closed_at)) hasAwaiting.add(a.opportunity_id)
+    if (a.status === 'accepted' || a.status === 'rejected') hasEverActioned.add(a.opportunity_id)
+
+    if (!isAwaitingReply(a.status, a.closed_at)) continue
     const coachId = oppOwner.get(a.opportunity_id)
     if (!coachId) continue
     const days = waitingDays(a.created_at)
@@ -100,6 +115,20 @@ export async function GET(req: NextRequest) {
     if (getWaitingTier(days) === 'overdue') b.overdue++
     if (days > b.oldestDays) b.oldestDays = days
     backlog.set(coachId, b)
+  }
+
+  // Roles about to auto-close under the neglect rule, per coach — folded into
+  // whatever nudge that coach already gets rather than a new send.
+  type AtRisk = { count: number; minDaysLeft: number }
+  const atRiskByCoach = new Map<string, AtRisk>()
+  for (const o of activeOpps ?? []) {
+    const status = getOpportunityLifecycleStatus(ageDays(o.created_at), hasAwaiting.has(o.id), hasEverActioned.has(o.id))
+    if (status !== 'at_risk') continue
+    const daysLeft = Math.max(0, OPP_NEGLECT_DAYS - ageDays(o.created_at))
+    const cur = atRiskByCoach.get(o.coach_id) ?? { count: 0, minDaysLeft: daysLeft }
+    cur.count++
+    cur.minDaysLeft = Math.min(cur.minDaysLeft, daysLeft)
+    atRiskByCoach.set(o.coach_id, cur)
   }
 
   if (backlog.size === 0) return NextResponse.json({ candidates: 0, nudgedSms: 0, nudgedEmail: 0 })
@@ -127,13 +156,16 @@ export async function GET(req: NextRequest) {
     const lastNudge = c.last_application_nudge_at ? new Date(c.last_application_nudge_at).getTime() : 0
     if (lastNudge && Date.now() - lastNudge < NUDGE_INTERVAL_DAYS * DAY) { skipped++; continue }
 
+    const atRisk = atRiskByCoach.get(c.id)
+
     if (dryRun) {
       preview.push({ email: c.email, total: b.total, overdue: b.overdue, oldestDays: b.oldestDays })
       continue
     }
 
     try {
-      // ── SMS first (best-effort, respects opt-in + the global 1/day cap) ──
+      // ── SMS first (best-effort, respects opt-in + the global 1/day cap AND
+      // the per-run cap — see MAX_SMS_PER_RUN) ──
       const lastSms = c.last_sms_at ? new Date(c.last_sms_at) : null
       const smsAllowed = !lastSms || (Date.now() - lastSms.getTime()) > DAY
       let sentSms = false
@@ -141,6 +173,7 @@ export async function GET(req: NextRequest) {
       if (
         allowSms &&
         smsAllowed &&
+        nudgedSms < MAX_SMS_PER_RUN &&
         process.env.TWILIO_ENABLED !== 'false' &&
         c.phone &&
         c.sms_opt_in !== false &&
@@ -149,6 +182,9 @@ export async function GET(req: NextRequest) {
         process.env.TWILIO_FROM_NUMBER
       ) {
         const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
+        const atRiskClause = atRisk
+          ? ` ${atRisk.count} role${atRisk.count === 1 ? '' : 's'} auto-close${atRisk.count === 1 ? 's' : ''} in ${atRisk.minDaysLeft}d if unanswered.`
+          : ''
         const res = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
           {
@@ -160,7 +196,7 @@ export async function GET(req: NextRequest) {
             body: new URLSearchParams({
               From: process.env.TWILIO_FROM_NUMBER,
               To: c.phone,
-              Body: `NEXT11VEN: ${b.total} player${b.total === 1 ? '' : 's'} ${b.total === 1 ? 'is' : 'are'} waiting on your answer. A no is still an answer — one tap: ${appUrl}/dashboard/opportunities?tab=mine`,
+              Body: `NEXT11VEN: ${b.total} player${b.total === 1 ? '' : 's'} ${b.total === 1 ? 'is' : 'are'} waiting on your answer.${atRiskClause} A no is still an answer — one tap: ${appUrl}/dashboard/opportunities?tab=mine`,
             }),
           }
         )
@@ -171,7 +207,8 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // ── Email (when SMS didn't go) ──
+      // ── Email (when SMS didn't go — including when the per-run SMS cap was
+      // hit, so a coach past the cap still gets nudged, just by email) ──
       // Suppressed by email_marketing_opt_out. Arguable — these are applications
       // to a role the coach posted themselves, so it leans transactional — but a
       // nudge is still a nudge, and the bell + dashboard banner now cover the
@@ -183,6 +220,8 @@ export async function GET(req: NextRequest) {
           total: b.total,
           overdue: b.overdue,
           oldestDays: b.oldestDays,
+          atRiskCount: atRisk?.count,
+          atRiskDaysLeft: atRisk?.minDaysLeft,
         })
         nudgedEmail++
       } else if (!sentSms) {
@@ -206,6 +245,7 @@ export async function GET(req: NextRequest) {
     nudgedEmail,
     skipped,
     failed,
+    smsCapReached: nudgedSms >= MAX_SMS_PER_RUN,
     ...(dryRun ? { dryRun: true, preview } : {}),
   })
 }

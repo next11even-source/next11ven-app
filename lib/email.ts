@@ -285,12 +285,18 @@ export async function sendApplicationNudgeEmail({
   total,
   overdue,
   oldestDays,
+  atRiskCount,
+  atRiskDaysLeft,
 }: {
   to: string
   coachName: string | null
   total: number
   overdue: number
   oldestDays: number
+  /** Roles about to auto-close under the neglect rule — see lib/opportunityLifecycle.ts */
+  atRiskCount?: number
+  /** Days left on the soonest at-risk role before it auto-closes */
+  atRiskDaysLeft?: number
 }) {
   const url = `${SITE}/dashboard/opportunities?tab=mine`
   const plural = total === 1 ? 'player is' : 'players are'
@@ -299,12 +305,18 @@ export async function sendApplicationNudgeEmail({
   const overdueLine = overdue > 0
     ? `<p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">${overdue === 1 ? 'One has' : `${overdue} have`} been waiting over a week${oldestDays >= 30 ? `, and the longest has been waiting ${Math.floor(oldestDays / 30)} month${oldestDays >= 60 ? 's' : ''}` : ''}.</p>`
     : ''
+  // Rides the same send as the backlog nudge rather than a separate message —
+  // see /api/cron/application-nudge for why this is folded in instead of new.
+  const atRiskLine = atRiskCount && atRiskCount > 0
+    ? `<p style="color:#f59e0b;margin:0 0 16px;line-height:1.6;">${atRiskCount === 1 ? 'One role closes' : `${atRiskCount} roles close`} automatically in ${atRiskDaysLeft} day${atRiskDaysLeft === 1 ? '' : 's'} if nobody's answered — players shouldn't keep applying somewhere nobody's reading.</p>`
+    : ''
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${coachName?.split(' ')[0] ?? 'there'},</p>
     <p style="color:#e8dece;margin:0 0 16px;line-height:1.6;font-size:16px;">
       <strong>${total} ${plural} waiting to hear back from you.</strong>
     </p>
     ${overdueLine}
+    ${atRiskLine}
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
       A no is still an answer, and it takes one tap. Players who never hear back
       assume nobody read it — the ones you pass on today will remember that you replied.
@@ -314,6 +326,44 @@ export async function sendApplicationNudgeEmail({
   await send({
     to,
     subject: total === 1 ? '1 player is waiting on your answer' : `${total} players are waiting on your answer`,
+    html,
+  })
+}
+
+// ─── Opportunity auto-close (transactional — role deactivated on the coach's
+// behalf; see /api/cron/opportunity-close and lib/opportunityLifecycle.ts) ────
+
+export async function sendOpportunityAutoClosedEmail({
+  to,
+  coachName,
+  roles,
+}: {
+  to: string
+  coachName: string | null
+  roles: Array<{ title: string; reason: 'stale' | 'neglected' }>
+}) {
+  const url = `${SITE}/dashboard/opportunities?tab=mine`
+  const plural = roles.length === 1 ? 'role' : 'roles'
+  const reasonLine = (r: 'stale' | 'neglected') =>
+    r === 'neglected'
+      ? 'applicants were still waiting on an answer'
+      : 'it had been open a while with no update'
+  const list = roles.map(r => `<li style="color:#e8dece;margin-bottom:6px;">${r.title} <span style="color:#8892aa;">— ${reasonLine(r.reason)}</span></li>`).join('')
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${coachName?.split(' ')[0] ?? 'there'},</p>
+    <p style="color:#e8dece;margin:0 0 16px;line-height:1.6;font-size:16px;">
+      <strong>${roles.length === 1 ? 'A role' : `${roles.length} roles`} of yours came down automatically.</strong>
+    </p>
+    <ul style="margin:0 0 16px;padding-left:20px;">${list}</ul>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      We hide ${plural} that go quiet so players aren't applying somewhere nobody's
+      reading. Nothing's deleted — reopen ${roles.length === 1 ? 'it' : 'any of them'} in one tap if you're still recruiting.
+    </p>
+    <a href="${url}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Review your roles</a>
+  `)
+  await send({
+    to,
+    subject: roles.length === 1 ? 'A role of yours was closed automatically' : `${roles.length} roles of yours were closed automatically`,
     html,
   })
 }

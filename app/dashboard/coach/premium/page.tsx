@@ -8,7 +8,7 @@ import Breadcrumb from '@/app/components/Breadcrumb'
 
 const SCOUTING_POINTS = [
   { icon: '📊', text: 'Rank every player by goals, assists, minutes and the level they played at' },
-  { icon: '💎', text: 'Surface hidden gems — the ex-Step 2 player now grinding at Step 5, the academy product nobody’s spotted' },
+  { icon: '💎', text: 'Surface hidden gems — the ex-Step 2 player now grinding at Step 5' },
   { icon: '🔍', text: 'Filter and sort on real stats — no rival platform in non-league gives you this' },
 ]
 

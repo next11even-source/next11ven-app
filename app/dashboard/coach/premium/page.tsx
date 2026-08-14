@@ -6,13 +6,17 @@ import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import Breadcrumb from '@/app/components/Breadcrumb'
 
+const SCOUTING_POINTS = [
+  { icon: '📊', text: 'Rank every player by goals, assists, minutes and the level they played at' },
+  { icon: '💎', text: 'Surface hidden gems — the ex-Step 2 player now grinding at Step 5, the academy product nobody’s spotted' },
+  { icon: '🔍', text: 'Filter and sort on real stats — no rival platform in non-league gives you this' },
+]
+
 const COACH_FEATURES = [
-  { icon: '💬', text: 'Message any player — they receive it instantly' },
-  { icon: '∞',  text: 'Unlimited messages & enquiries' },
+  { icon: '💬', text: 'Unlimited messages — received instantly' },
   { icon: '📋', text: 'Post unlimited opportunities + receive applications faster' },
   { icon: '🔝', text: 'Priority visibility on the platform' },
-  { icon: '📁', text: 'Save players to folders & get alerted when they become available' },
-  { icon: '🏅', text: 'Verified Coach Pro badge on your profile' },
+  { icon: '⭐', text: 'Star badge next to your name everywhere you appear' },
 ]
 
 export default function CoachPremiumPage() {
@@ -131,11 +135,31 @@ export default function CoachPremiumPage() {
             )}
           </div>
 
+          {/* Scouting intelligence — the headline differentiator */}
+          <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#0d1428', border: '1px solid rgba(45,95,196,0.4)' }}>
+            <div className="px-5 pt-4 pb-3" style={{ borderBottom: '1px solid #1e2235' }}>
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#3a6fda' }}>
+                The scouting tool non-league never had
+              </p>
+              <p className="text-lg font-black leading-snug" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                Find players by what they&apos;ve actually done.
+              </p>
+            </div>
+            <ul className="divide-y" style={{ borderColor: '#1e2235' }}>
+              {SCOUTING_POINTS.map((f, i) => (
+                <li key={i} className="flex items-start gap-4 px-5 py-4">
+                  <span className="text-xl w-7 text-center flex-shrink-0">{f.icon}</span>
+                  <span className="text-sm font-medium leading-snug" style={{ color: '#e8dece' }}>{f.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Feature list */}
           <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
             <div className="px-5 py-3" style={{ borderBottom: '1px solid #1e2235' }}>
               <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#8892aa' }}>
-                What&apos;s included
+                Also included
               </p>
             </div>
             <ul className="divide-y" style={{ borderColor: '#1e2235' }}>

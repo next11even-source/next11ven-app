@@ -24,7 +24,15 @@ export const runtime = 'nodejs'
 // figures are the same ones public_player_performance() already serves on their
 // profile page to any logged-in user.
 //
-// Coach Pro feature: non-premium coaches get { locked: true } and an upsell.
+// Coach Pro feature: non-premium coaches get { locked: true } plus a dynamic
+// preview — up to 2 real players with pedigree (stepsAbove > 0), preferring
+// ones near the coach (coarse city text match, same weak-signal approach as
+// lib/recommendations.ts) and backfilling with the next-best pedigree players
+// elsewhere if the local pool can't fill 2. The teaser must never render
+// empty while ANY qualifying player exists — but a backfilled (non-local)
+// card is marked `nearby: false` so the client's "+X near you" copy never
+// claims a player is local when they aren't. remainingNearby / remainingCount
+// are both real counts against the qualifying pool — never fabricated.
 
 // Current-season figures are withheld from the coach dashboard for now. One
 // player has logged games this season, so the live view is "2 apps · 15 avg
@@ -61,6 +69,10 @@ type Metrics = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+function norm(s: string | null | undefined): string {
+  return (s ?? '').trim().toLowerCase()
+}
+
 function metricsFrom(apps: number, goals: number, assists: number, minutes: number): Metrics {
   return {
     apps, goals, assists, involvements: goals + assists, minutes,
@@ -91,14 +103,16 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const { data: me } = await supabase.from('profiles').select('role, premium').eq('id', user.id).single()
+  const { data: me } = await supabase.from('profiles').select('role, premium, city').eq('id', user.id).single()
   if (!me || (me.role !== 'coach' && me.role !== 'admin')) {
     return NextResponse.json({ error: 'Coach account required' }, { status: 403 })
   }
-  // Coach Pro gate — recruitment intelligence is the paid coach layer.
-  if (!me.premium && me.role !== 'admin') {
-    return NextResponse.json({ locked: true, players: [] })
-  }
+  // Coach Pro gate — recruitment intelligence is the paid coach layer. Locked
+  // coaches still fall through to the data build below so the preview (top 2
+  // by pedigree, location-aware) can be computed from real rows, not a
+  // second query path.
+  const isLocked = !me.premium && me.role !== 'admin'
+  const coachCity = norm(me.city)
 
   const params = req.nextUrl.searchParams
   const positionFilter = params.get('position')
@@ -126,7 +140,11 @@ export async function GET(req: NextRequest) {
     ...(matchRows ?? []).map(m => m.player_id as string),
     ...(careerRows ?? []).map(c => c.player_id as string),
   ])]
-  if (dataIds.length === 0) return NextResponse.json({ locked: false, scope, seasonStatsVisible: SEASON_STATS_VISIBLE, players: [] })
+  if (dataIds.length === 0) {
+    return NextResponse.json(isLocked
+      ? { locked: true, preview: [], remainingNearby: 0, remainingCount: 0, players: [] }
+      : { locked: false, scope, seasonStatsVisible: SEASON_STATS_VISIBLE, players: [] })
+  }
 
   // Consent + eligibility gate.
   const { data: players, error: pErr } = await service
@@ -139,7 +157,11 @@ export async function GET(req: NextRequest) {
     .not('id', 'in', HIDDEN_PROFILE_FILTER)
 
   if (pErr) return NextResponse.json({ error: 'Failed to load players' }, { status: 500 })
-  if (!players || players.length === 0) return NextResponse.json({ locked: false, scope, seasonStatsVisible: SEASON_STATS_VISIBLE, players: [] })
+  if (!players || players.length === 0) {
+    return NextResponse.json(isLocked
+      ? { locked: true, preview: [], remainingNearby: 0, remainingCount: 0, players: [] }
+      : { locked: false, scope, seasonStatsVisible: SEASON_STATS_VISIBLE, players: [] })
+  }
 
   const allowed = new Set(players.map(p => p.id))
 
@@ -214,6 +236,49 @@ export async function GET(req: NextRequest) {
     }
   })
   .filter(r => r.hasData)
+
+  // Locked coaches never reach filters/sort/full list — they get a dynamic,
+  // real, location-aware preview instead. Local pedigree players (coarse city
+  // text match against the coach's own city, same weak-signal approach as
+  // lib/recommendations.ts) fill the 2 slots first; if the local pool can't
+  // fill both, the next-best pedigree players elsewhere backfill the rest —
+  // the teaser must never render empty while any qualifying player exists.
+  // Backfilled cards are marked `nearby: false` so the client never claims a
+  // player is local when they aren't. Both counts are real against the
+  // qualifying pool (stepsAbove > 0) — never fabricated.
+  if (isLocked) {
+    const qualifying = rows
+      .filter(r => r.pedigree.stepsAbove > 0)
+      .sort((a, b) => b.pedigree.stepsAbove - a.pedigree.stepsAbove)
+
+    const local = coachCity ? qualifying.filter(r => {
+      const pc = norm(r.city)
+      return !!pc && (pc.includes(coachCity) || coachCity.includes(pc))
+    }) : []
+    const localIds = new Set(local.map(r => r.id))
+    const rest = qualifying.filter(r => !localIds.has(r.id))
+
+    const previewRows = local.slice(0, 2)
+    if (previewRows.length < 2) previewRows.push(...rest.slice(0, 2 - previewRows.length))
+
+    const preview = previewRows.map(p => ({
+      id: p.id,
+      full_name: p.full_name,
+      avatar_url: p.avatar_url,
+      position: p.position,
+      secondary_position: p.secondary_position,
+      level: p.level,
+      city: p.city,
+      actively_looking: p.actively_looking,
+      pedigree: p.pedigree,
+      career: { apps: p.career.apps, goals: p.career.goals, assists: p.career.assists },
+      nearby: localIds.has(p.id),
+    }))
+    const shownLocal = preview.filter(p => p.nearby).length
+    const remainingNearby = Math.max(0, local.length - shownLocal)
+    const remainingCount = Math.max(0, qualifying.length - preview.length)
+    return NextResponse.json({ locked: true, preview, remainingNearby, remainingCount, players: [] })
+  }
 
   // Filters.
   let filtered = rows

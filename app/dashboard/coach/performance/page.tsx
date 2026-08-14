@@ -21,6 +21,48 @@ const input = { backgroundColor: '#0d1020', border: '1px solid #1e2235', color: 
 
 type LevelTotals = { level: string | null; apps: number; goals: number; assists: number; minutes: number; seasons: number }
 
+// Reduced shape for the locked-state teaser — real data, but only what the
+// preview card renders (no career/season stats, no full pedigree object beyond
+// what's shown). Mirrors the `preview` payload built server-side when locked.
+type PreviewPlayer = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  position: string | null
+  secondary_position: string | null
+  level: string | null
+  city: string | null
+  actively_looking: boolean
+  pedigree: { peakLevel: string | null; academyBackground: boolean; stepsAbove: number }
+  career: { apps: number; goals: number; assists: number }
+  nearby: boolean
+}
+
+// Headline production number for the teaser — pedigree alone doesn't sell,
+// pedigree + output does. A creator with more assists than goals (e.g.
+// 14G/50A) must not get headlined by the weaker goals line — that undersells
+// exactly the player type that stat represents. So: if assists lead AND the
+// player has scored at all, combine into G+A (the same abbreviation already
+// used on this dashboard's season Fact cards) rather than leading with either
+// number alone. Otherwise goals leads (finisher framing, or a tie). Falls
+// back down the ladder (goals → assists → apps) so nobody shows a hollow
+// "0 goals" headline; every qualifying player has at least one of these > 0.
+function productionStat(career: { apps: number; goals: number; assists: number }): string | null {
+  const { goals, assists, apps } = career
+  if (assists > goals && goals > 0) return `${goals + assists} G+A`
+  if (goals > 0) return `${goals} goal${goals === 1 ? '' : 's'}`
+  if (assists > 0) return `${assists} assist${assists === 1 ? '' : 's'}`
+  if (apps > 0) return `${apps} app${apps === 1 ? '' : 's'}`
+  return null
+}
+
+// Dedupe primary/secondary when a player has the same value in both (e.g.
+// GK/GK) — showing it twice reads as a data error, not versatility.
+function formatPositions(primary: string | null, secondary: string | null): string {
+  const parts = [...new Set([primary, secondary].filter(Boolean) as string[])]
+  return parts.join(' / ') || '—'
+}
+
 type Player = {
   id: string
   full_name: string | null
@@ -75,22 +117,108 @@ function FormPills({ results }: { results: ('W' | 'D' | 'L')[] }) {
   )
 }
 
-function LockedState() {
+// Real, non-curated preview card — same visual language as the full list's
+// player card, but only the fields the locked payload actually sends (no
+// career/season stats: those stay behind the wall).
+function PreviewCard({ p }: { p: PreviewPlayer }) {
   return (
-    <div className="rounded-2xl overflow-hidden"
-      style={{ border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)' }}>
-      <div className="px-5 py-6">
-        <h2 className="text-xl font-black uppercase leading-tight mb-2" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-          Recruit by the numbers
-        </h2>
-        <p className="text-sm leading-relaxed mb-4" style={{ color: '#8892aa' }}>
-          Search players by real performance — goals, assists, minutes, form, and the level each figure was played at. Spot the players who&apos;ve competed above where they are now.
-        </p>
-        <Link href="/dashboard/coach/premium"
-          className="block w-full text-center py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
-          style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-          Unlock with Coach Pro · £9.99/mo
-        </Link>
+    <Link href={`/dashboard/player/players/${p.id}`}
+      className="block rounded-2xl p-4" style={{ ...surface, textDecoration: 'none' }}>
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+          {p.avatar_url
+            ? <Image src={p.avatar_url} alt="" width={44} height={44} className="w-full h-full object-cover" />
+            : <span className="text-sm font-black" style={{ color: '#8892aa' }}>{p.full_name?.[0]?.toUpperCase() ?? '?'}</span>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+            {p.level && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.35)' }}>{p.level}</span>}
+            {p.actively_looking && (
+              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.35)' }}>
+                Actively looking
+              </span>
+            )}
+            {p.nearby && (
+              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: 'rgba(232,222,206,0.1)', color: '#e8dece', border: '1px solid rgba(232,222,206,0.3)' }}>
+                Near you
+              </span>
+            )}
+          </div>
+          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
+            {formatPositions(p.position, p.secondary_position)}{p.city ? ` · ${p.city}` : ''}
+          </p>
+        </div>
+      </div>
+
+      {p.pedigree.stepsAbove > 0 && p.pedigree.peakLevel && (
+        <div className="mt-3 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 flex-wrap"
+          style={{ backgroundColor: 'rgba(232,222,206,0.06)', border: '1px solid rgba(232,222,206,0.2)' }}>
+          <span className="text-xs font-bold" style={{ color: '#e8dece' }}>
+            ↑ Played {p.pedigree.peakLevel}{productionStat(p.career) ? ` · ${productionStat(p.career)}` : ''}
+          </span>
+          <span className="text-[11px]" style={{ color: '#8892aa' }}>
+            · {p.pedigree.stepsAbove} level{p.pedigree.stepsAbove > 1 ? 's' : ''} above now
+          </span>
+        </div>
+      )}
+    </Link>
+  )
+}
+
+function LockedState({ preview, remainingNearby, remainingCount }: { preview: PreviewPlayer[]; remainingNearby: number; remainingCount: number }) {
+  const hasPreview = preview.length > 0
+  const totalQualifying = preview.length + remainingCount
+
+  // Copy is outcome-led ("pedigree matches near you"), not feature-led
+  // ("filter, sort, message") — and never a quality claim the data can't back:
+  // stepsAbove > 0 only proves a player played above their current level,
+  // not that they're good, so the copy says "pedigree match", never "gem".
+  // "Near you" is only ever said when remainingNearby backs it up — a coach
+  // with no local surplus gets the honest platform-wide count instead.
+  let heading = 'Recruit by the numbers'
+  let body = "Search players by real performance — goals, assists, and the level each figure was played at. Spot the players who've competed above where they are now."
+  if (hasPreview) {
+    if (remainingNearby > 0) {
+      heading = `+${remainingNearby} more pedigree match${remainingNearby > 1 ? 'es' : ''} near you`
+      body = "Real players who've stepped up a level, ranked and ready to message — unlock Coach Pro to see every one near you."
+    } else if (remainingCount > 0) {
+      heading = `+${remainingCount} more pedigree match${remainingCount > 1 ? 'es' : ''}`
+      body = "Real players who've stepped up a level, ranked and ready to message — unlock Coach Pro to see the full list."
+    } else {
+      heading = "That's the pool so far"
+      body = 'More join as your local pool grows. Unlock Coach Pro for full search, filters and messaging today.'
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {hasPreview && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-widest px-1" style={{ color: '#8892aa' }}>
+            Found by Coach Pro Dashboard — real pedigree matches
+          </p>
+          {preview.map(p => <PreviewCard key={p.id} p={p} />)}
+        </div>
+      )}
+
+      <div className="rounded-2xl overflow-hidden"
+        style={{ border: '1px solid rgba(45,95,196,0.4)', background: 'linear-gradient(160deg, rgba(45,95,196,0.12) 0%, rgba(45,95,196,0.04) 100%)' }}>
+        <div className="px-5 py-6">
+          <h2 className="text-xl font-black uppercase leading-tight mb-2" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+            {heading}
+          </h2>
+          <p className="text-sm leading-relaxed mb-4" style={{ color: '#8892aa' }}>
+            {body}
+          </p>
+          <Link href="/dashboard/coach/premium"
+            className="block w-full text-center py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
+            style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            {totalQualifying > preview.length
+              ? `Unlock Coach Pro to see all ${totalQualifying} · £9.99/mo`
+              : 'Unlock with Coach Pro · £9.99/mo'}
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -126,6 +254,9 @@ function CareerByLevel({ rows }: { rows: LevelTotals[] }) {
 export default function CoachPerformancePage() {
   const [players, setPlayers] = useState<Player[] | null>(null)
   const [locked, setLocked] = useState(false)
+  const [preview, setPreview] = useState<PreviewPlayer[]>([])
+  const [remainingNearby, setRemainingNearby] = useState(0)
+  const [remainingCount, setRemainingCount] = useState(0)
   const [position, setPosition] = useState('')
   const [level, setLevel] = useState('')
   const [sort, setSort] = useState('involvements')
@@ -150,6 +281,9 @@ export default function CoachPerformancePage() {
       .then(data => {
         if (!data) { setPlayers([]); return }
         setLocked(!!data.locked)
+        setPreview(data.preview ?? [])
+        setRemainingNearby(data.remainingNearby ?? 0)
+        setRemainingCount(data.remainingCount ?? 0)
         setSeasonStatsVisible(!!data.seasonStatsVisible)
         if (!data.seasonStatsVisible) setScope('career')
         setPlayers(data.players ?? [])
@@ -162,20 +296,22 @@ export default function CoachPerformancePage() {
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
       <div className="px-4 pt-3 pb-3" style={{ borderBottom: '1px solid #1e2235' }}>
-        <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Player stats' }]} />
+        <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Coach Pro Dashboard' }]} />
       </div>
 
       <div className="px-4 pt-6 max-w-2xl mx-auto space-y-4">
         <div>
           <h1 className="text-3xl font-black uppercase leading-tight" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Player stats
+            {locked ? 'Pedigree players near you' : 'Coach Pro Dashboard'}
           </h1>
           <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>
-            Players ranked by their career record, split by the level they played it at. Tap a player to view their profile and reach out.
+            {locked
+              ? "Real players ranked by pedigree and output — see who's stepped up a level before another coach does."
+              : 'Players ranked by their career record, split by the level they played it at. Tap a player to view their profile and reach out.'}
           </p>
         </div>
 
-        {locked ? <LockedState /> : (
+        {locked ? <LockedState preview={preview} remainingNearby={remainingNearby} remainingCount={remainingCount} /> : (
           <>
             {/* Scope — career history vs this season's logged games. Hidden
                 while the server withholds season figures, so there's no toggle
@@ -258,7 +394,7 @@ export default function CoachPerformancePage() {
                           )}
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-                          {[p.position, p.secondary_position].filter(Boolean).join(' / ') || '—'}{p.city ? ` · ${p.city}` : ''}
+                          {formatPositions(p.position, p.secondary_position)}{p.city ? ` · ${p.city}` : ''}
                         </p>
                       </div>
                       {p.form.length > 0 && <FormPills results={p.form} />}

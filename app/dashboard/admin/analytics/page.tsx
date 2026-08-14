@@ -7,6 +7,7 @@ import { HEALTH_COLORS, getCoachProAlarmState } from '@/lib/analyticsGoals'
 import { NarrativeBanner, HeroMetricCard, ProgressToGoalCard } from './_components/HeroMetrics'
 import { MarketplaceHealthRow } from './_components/MarketplaceHealth'
 import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
+import { TrackerAdoptionTrends } from './_components/TrackerAdoptionTrends'
 import { RevenueSection } from './_components/RevenueSection'
 import { MonthByMonth } from './_components/MonthByMonth'
 import { ContextStrip } from './_components/ContextStrip'
@@ -244,7 +245,7 @@ function HealthTab({ platformStats, revenueStats, trackerStats, trackerLoading }
             label="Coach-Searchable Pool"
             value={(trackerStats?.searchable_pool ?? 0).toLocaleString()}
             deltaLabel={trackerStats && trackerStats.adopters_7d > 0 ? `+${trackerStats.adopters_7d} loggers this week` : undefined}
-            footnote="Actively Looking + stats public"
+            footnote="Has stats + stats public"
             state={trackerStats && trackerStats.searchable_pool >= 10 ? 'good' : 'amber'}
           />
           <HeroMetricCard
@@ -261,6 +262,7 @@ function HealthTab({ platformStats, revenueStats, trackerStats, trackerLoading }
 
       <MarketplaceHealthRow platformStats={platformStats} />
       <LeadingIndicatorsRow platformStats={platformStats} trackerStats={trackerLoading ? null : trackerStats} />
+      <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
       <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
       <MonthByMonth monthly={monthly} />
 

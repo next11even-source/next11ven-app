@@ -782,6 +782,7 @@ export default function CoachDashboard() {
   const [premiumPlayers, setPremiumPlayers] = useState<PremiumPlayer[]>([])
   const [myShortlist, setMyShortlist] = useState<ShortlistPlayer[]>([])
   const [awaitingReply, setAwaitingReply] = useState<{ total: number; overdue: number }>({ total: 0, overdue: 0 })
+  const [isCoachPremium, setIsCoachPremium] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -845,6 +846,7 @@ export default function CoachDashboard() {
       // Profile
       const profile = profileRes.data
       setFullName(profile?.full_name ?? null)
+      setIsCoachPremium(profile?.premium ?? false)
       setCoachProfile({
         full_name: profile?.full_name ?? null,
         avatar_url: profile?.avatar_url ?? null,
@@ -1007,41 +1009,63 @@ export default function CoachDashboard() {
         {/* Recently Active — players + coaches */}
         {!loading && <RecentlyActiveSection users={activeUsers} />}
 
-        {/* Showcase + Profile Completion — side by side */}
+        {/* Coach Pro Dashboard teaser + Profile Completion — side by side */}
         {!loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
-            <Link href="/dashboard/showcase" className="block h-full" style={{ textDecoration: 'none' }}>
+            <Link href="/dashboard/coach/performance" className="block h-full relative" style={{ textDecoration: 'none' }}>
+              {/* "New Feature" ribbon — same yellow convention as the player
+                  homepage's tracker tile, distinct from the blue NewBadge
+                  (which marks new users, not new features). */}
+              <span className="absolute z-10 uppercase font-black whitespace-nowrap"
+                style={{
+                  top: -9, left: 16,
+                  fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, lineHeight: 1,
+                  letterSpacing: '0.06em', padding: '3px 8px', borderRadius: 999,
+                  color: '#0a0a0a', backgroundColor: '#facc15',
+                  boxShadow: '0 2px 6px rgba(250,204,21,0.35)',
+                }}>
+                New Feature
+              </span>
               <div className="rounded-2xl p-4 flex flex-col gap-3 h-full"
                 style={{ background: 'linear-gradient(135deg, #0d1a3a 0%, #13172a 100%)', border: '1px solid rgba(45,95,196,0.6)' }}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-base font-black uppercase leading-tight mb-1"
                       style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-                      Showcase Game 1 — Sold Out
+                      Coach Pro Dashboard
                     </p>
                     <p className="text-xs" style={{ color: '#8892aa' }}>
-                      28 players · Steps 3–7
+                      Recruit by real stats, not word of mouth
                     </p>
                   </div>
                   <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
                     style={{ backgroundColor: 'rgba(45,95,196,0.15)', border: '1px solid rgba(45,95,196,0.35)' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                      <path d="M4 22h16" />
-                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+                      <path d="M18 20V10" />
+                      <path d="M12 20V4" />
+                      <path d="M6 20v-6" />
                     </svg>
                   </div>
                 </div>
                 <div className="mt-auto">
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
                     style={{ backgroundColor: '#2d5fc4', color: '#e8dece' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                    View Full Game
+                    {isCoachPremium ? (
+                      <>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="#e8dece" stroke="none">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        Open Dashboard
+                      </>
+                    ) : (
+                      <>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#e8dece" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="4" y="10" width="16" height="10" rx="2" />
+                          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                        </svg>
+                        See What&apos;s Inside
+                      </>
+                    )}
                   </span>
                 </div>
               </div>

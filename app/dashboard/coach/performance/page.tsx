@@ -13,6 +13,8 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { TRACKER_LEVELS } from '@/lib/levels'
 
@@ -252,6 +254,8 @@ function CareerByLevel({ rows }: { rows: LevelTotals[] }) {
 }
 
 export default function CoachPerformancePage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [players, setPlayers] = useState<Player[] | null>(null)
   const [locked, setLocked] = useState(false)
   const [preview, setPreview] = useState<PreviewPlayer[]>([])
@@ -293,11 +297,29 @@ export default function CoachPerformancePage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('full_name, avatar_url, coaching_role').eq('id', user.id).single()
+        .then(({ data }) => {
+          if (data) setCoachProfile({ full_name: data.full_name, avatar_url: data.avatar_url, coaching_role: data.coaching_role })
+        })
+    })
+  }, [])
+
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
-      <div className="px-4 pt-3 pb-3" style={{ borderBottom: '1px solid #1e2235' }}>
-        <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Coach Pro Dashboard' }]} />
-      </div>
+    <>
+      <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
+      <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
+        <div className="px-2 pt-3 pb-3 flex items-center gap-3" style={{ borderBottom: '1px solid #1e2235' }}>
+          <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5 flex-shrink-0 ml-2" style={{ width: 20 }}>
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          </button>
+          <Breadcrumb crumbs={[{ label: 'Home', href: '/dashboard/coach' }, { label: 'Coach Pro Dashboard' }]} />
+        </div>
 
       <div className="px-4 pt-6 max-w-2xl mx-auto space-y-4">
         <div>
@@ -440,7 +462,8 @@ export default function CoachPerformancePage() {
           </>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

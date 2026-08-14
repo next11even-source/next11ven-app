@@ -9,6 +9,7 @@ import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import { Suspense } from 'react'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -916,6 +917,8 @@ function CoachMarketContent() {
   const [coachId, setCoachId] = useState<string | null>(null)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [unreadAlerts, setUnreadAlerts] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const activeTab = (searchParams.get('tab') as Tab) ?? 'messages'
 
   useEffect(() => {
@@ -923,6 +926,10 @@ function CoachMarketContent() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/'); return }
       setCoachId(user.id)
+      supabase.from('profiles').select('full_name, avatar_url, coaching_role').eq('id', user.id).single()
+        .then(({ data }) => {
+          if (data) setCoachProfile({ full_name: data.full_name, avatar_url: data.avatar_url, coaching_role: data.coaching_role })
+        })
       const { data: convs } = await supabase.from('conversations').select('id').eq('coach_id', user.id)
       if (convs?.length) {
         const { count } = await supabase.from('messages')
@@ -957,11 +964,19 @@ function CoachMarketContent() {
   const banner = BANNERS[activeTab]
 
   return (
+    <>
+    <CoachSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} profile={coachProfile} />
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       {/* Tab strip */}
       <div className="sticky top-0 z-10 px-4 pt-4 pb-0"
         style={{ backgroundColor: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
-        <div className="flex gap-1 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex items-center gap-3 pb-3">
+          <button onClick={() => setSidebarOpen(true)} className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: 20 }}>
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#8892aa', width: 14 }} />
+            <span className="block h-0.5 rounded" style={{ backgroundColor: '#e8dece', width: 20 }} />
+          </button>
+        <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {tabs.map(t => {
             const hasUnread = t.key === 'messages' && unreadMessages > 0 && activeTab !== 'messages'
             const hasAlerts = t.key === 'activity' && unreadAlerts > 0 && activeTab !== 'activity'
@@ -989,6 +1004,7 @@ function CoachMarketContent() {
               </button>
             )
           })}
+        </div>
         </div>
       </div>
 
@@ -1019,6 +1035,7 @@ function CoachMarketContent() {
         <LoadingSpinner />
       )}
     </div>
+    </>
   )
 }
 

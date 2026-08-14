@@ -76,6 +76,7 @@ export type TrackerStats = {
   career_multi_season_players: number
   career_players_7d: number
   career_daily_trend: { label: string; value: number }[]
+  weekly_adoption: { label: string; matches: number; loggers: number; history_rows: number; contributors: number }[]
 }
 
 export type RecentLogin = {

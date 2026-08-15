@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
-import { HEALTH_COLORS, getCoachProAlarmState } from '@/lib/analyticsGoals'
-import { NarrativeBanner, HeroMetricCard, ProgressToGoalCard } from './_components/HeroMetrics'
 import { MarketplaceHealthRow } from './_components/MarketplaceHealth'
 import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { TrackerAdoptionTrends } from './_components/TrackerAdoptionTrends'
@@ -207,59 +205,9 @@ function HealthTab({ platformStats, revenueStats, trackerStats, trackerLoading }
   trackerLoading: boolean
 }) {
   const monthly = platformStats.monthly_table
-  const netNewSparkline = monthly.map(m => ({ label: m.label, value: Math.round((m.new_mrr_pence - m.churned_mrr_pence) / 100) }))
-  const netNewNow = platformStats.new_mrr_pence - platformStats.churned_mrr_pence
-  const netNewPrevMonth = monthly.length >= 2 ? monthly[monthly.length - 2].new_mrr_pence - monthly[monthly.length - 2].churned_mrr_pence : 0
-  const netNewDelta = Math.round((netNewNow - netNewPrevMonth) / 100)
-  const netNewState = netNewNow > 0 ? 'good' : netNewNow === 0 ? 'amber' : 'red'
-
-  // Trailing 3-month average net-new MRR as the pace input for the goal card —
-  // a single month is too volatile to project a deadline from.
-  const lastThreeMonths = monthly.slice(-3)
-  const trailingAvgNetNew = lastThreeMonths.length > 0
-    ? lastThreeMonths.reduce((sum, m) => sum + (m.new_mrr_pence - m.churned_mrr_pence), 0) / lastThreeMonths.length
-    : 0
-
-  const coachAlarm = getCoachProAlarmState(revenueStats.coach_net_adds_monthly)
-  const coachSparkline = revenueStats.coach_net_adds_monthly.map(m => ({ label: m.label, value: m.net_adds }))
-  const coachDelta = revenueStats.coach_net_adds_monthly.length
-    ? revenueStats.coach_net_adds_monthly[revenueStats.coach_net_adds_monthly.length - 1].net_adds
-    : 0
 
   return (
     <div className="px-4 pt-4 space-y-4">
-      <NarrativeBanner monthly={monthly} />
-
-      <section>
-        <div className="grid grid-cols-2 gap-2">
-          <HeroMetricCard
-            label="Net New MRR"
-            value={`${netNewNow >= 0 ? '+' : ''}£${(netNewNow / 100).toFixed(0)}`}
-            deltaLabel={`${netNewDelta >= 0 ? '+' : ''}£${netNewDelta} vs last month`}
-            sparkline={netNewSparkline}
-            sparklineColor={HEALTH_COLORS[netNewState]}
-            state={netNewState}
-          />
-          <ProgressToGoalCard currentMrrPence={revenueStats.mrr_pence} paceActualPencePerMonth={trailingAvgNetNew} />
-          <HeroMetricCard
-            label="Coach-Searchable Pool"
-            value={(trackerStats?.searchable_pool ?? 0).toLocaleString()}
-            deltaLabel={trackerStats && trackerStats.adopters_7d > 0 ? `+${trackerStats.adopters_7d} loggers this week` : undefined}
-            footnote="Has stats + stats public"
-            state={trackerStats && trackerStats.searchable_pool >= 10 ? 'good' : 'amber'}
-          />
-          <HeroMetricCard
-            label="Coach Pro Revenue"
-            value={`£${(revenueStats.coach_mrr_pence / 100).toFixed(0)}/mo`}
-            deltaLabel={`${coachDelta >= 0 ? '+' : ''}${coachDelta} net adds vs last month`}
-            sparkline={coachSparkline}
-            sparklineColor={HEALTH_COLORS[coachAlarm]}
-            state={coachAlarm}
-            footnote={`${revenueStats.coach_subs} subscribers`}
-          />
-        </div>
-      </section>
-
       <MarketplaceHealthRow platformStats={platformStats} />
       <LeadingIndicatorsRow platformStats={platformStats} trackerStats={trackerLoading ? null : trackerStats} />
       <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />

@@ -32,6 +32,7 @@ export type MonthRow = {
   applications: number
   new_mrr_pence: number
   churned_mrr_pence: number
+  real_revenue_pence: number
 }
 
 export type PlatformStats = {

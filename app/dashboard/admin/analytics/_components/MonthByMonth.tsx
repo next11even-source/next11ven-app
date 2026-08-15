@@ -7,6 +7,7 @@ const COL_COLORS = {
   churned: '#ef4444',
   messages: '#a78bfa',
   applications: '#60a5fa',
+  revenue: '#38bdf8',
   empty: '#3a4055',
 }
 
@@ -32,6 +33,8 @@ export function MonthByMonth({ monthly }: { monthly: MonthRow[] }) {
                     style={{ color: COL_COLORS.messages }}>Msgs</th>
                   <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
                     style={{ color: COL_COLORS.applications }}>Apps</th>
+                  <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                    style={{ color: COL_COLORS.revenue }}>Revenue</th>
                 </tr>
               </thead>
               <tbody>
@@ -69,6 +72,10 @@ export function MonthByMonth({ monthly }: { monthly: MonthRow[] }) {
                       <td className="px-3 py-2.5 text-right tabular-nums"
                         style={{ color: row.applications > 0 ? COL_COLORS.applications : COL_COLORS.empty }}>
                         {row.applications || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-bold"
+                        style={{ color: row.real_revenue_pence > 0 ? COL_COLORS.revenue : COL_COLORS.empty }}>
+                        {row.real_revenue_pence > 0 ? `£${(row.real_revenue_pence / 100).toFixed(0)}` : '—'}
                       </td>
                     </tr>
                   )

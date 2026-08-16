@@ -12,17 +12,19 @@ import { MonthByMonth } from './_components/MonthByMonth'
 import { ContextStrip } from './_components/ContextStrip'
 import { OpsTab } from './_components/OpsTab'
 import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
+import { EventFeedTab } from './_components/EventFeed'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
   MessageEntry, RecentApplication, ShowcaseWaitlist, MessageStats,
-  CoachLeaderboard, HeroStats, MarketplaceHealthStats,
+  CoachLeaderboard, HeroStats, MarketplaceHealthStats, FeedEvent,
 } from './_components/types'
 
-type Tab = 'health' | 'coaches' | 'ops'
+type Tab = 'health' | 'feed' | 'coaches' | 'ops'
 
 const TAB_LABELS: Record<Tab, string> = {
   health: 'Health',
+  feed: 'Feed',
   coaches: 'Coaches',
   ops: 'Ops',
 }
@@ -57,6 +59,9 @@ export default function AnalyticsPage() {
   const [coachBoard, setCoachBoard] = useState<CoachLeaderboard | null>(null)
   const [coachBoardLoading, setCoachBoardLoading] = useState(false)
   const [coachBoardRequested, setCoachBoardRequested] = useState(false)
+  const [feedEvents, setFeedEvents] = useState<FeedEvent[] | null>(null)
+  const [feedLoading, setFeedLoading] = useState(false)
+  const [feedRequested, setFeedRequested] = useState(false)
 
   // ── Admin gate ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -149,6 +154,18 @@ export default function AnalyticsPage() {
       .catch(() => setCoachBoardLoading(false))
   }, [tab, coachBoardRequested])
 
+  // Same lazy pattern as the coach leaderboard — the event feed scans 90
+  // days across five sources, only worth paying for when the tab is open.
+  useEffect(() => {
+    if (tab !== 'feed' || feedRequested) return
+    setFeedRequested(true)
+    setFeedLoading(true)
+    fetch('/api/admin/event-feed')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setFeedEvents(d.events ?? []); setFeedLoading(false) })
+      .catch(() => setFeedLoading(false))
+  }, [tab, feedRequested])
+
   useEffect(() => {
     fetch('/api/admin/showcase-waitlist')
       .then(r => r.json())
@@ -178,7 +195,7 @@ export default function AnalyticsPage() {
           </h1>
         </div>
         <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          {(['health', 'coaches', 'ops'] as Tab[]).map(t => (
+          {(['health', 'feed', 'coaches', 'ops'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -204,6 +221,8 @@ export default function AnalyticsPage() {
         <div className="flex items-center justify-center py-24">
           <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
         </div>
+      ) : tab === 'feed' ? (
+        <EventFeedTab events={feedEvents} loading={feedLoading || !feedRequested} />
       ) : tab === 'coaches' ? (
         <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !coachBoardRequested} />
       ) : tab === 'ops' ? (

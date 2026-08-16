@@ -30,6 +30,20 @@ export type MarketplaceHealthStats = {
   dau: RoleSplit
 }
 
+export type EventType =
+  | 'application_accepted'
+  | 'conversation_started'
+  | 'conversation_engaged'
+  | 'player_signed'
+  | 'coach_upgraded'
+  | 'player_upgraded'
+
+export type FeedEvent = {
+  type: EventType
+  occurred_at: string
+  headline: string
+}
+
 export type TimeToUpgrade = {
   avg_days: number | null
   same_day: number
@@ -65,6 +79,9 @@ export type MonthRow = {
   new_mrr_pence: number
   churned_mrr_pence: number
   real_revenue_pence: number
+  opportunities_posted: number
+  connections_started: number
+  application_response_pct: number | null
 }
 
 export type PlatformStats = {

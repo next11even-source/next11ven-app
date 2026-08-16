@@ -8,6 +8,9 @@ const COL_COLORS = {
   messages: '#a78bfa',
   applications: '#60a5fa',
   revenue: '#38bdf8',
+  opportunities: '#fb923c',
+  connections: '#2dd4bf',
+  responseRate: '#f472b6',
   empty: '#3a4055',
 }
 
@@ -35,6 +38,12 @@ export function MonthByMonth({ monthly }: { monthly: MonthRow[] }) {
                     style={{ color: COL_COLORS.applications }}>Apps</th>
                   <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
                     style={{ color: COL_COLORS.revenue }}>Revenue</th>
+                  <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                    style={{ color: COL_COLORS.opportunities }}>Opps</th>
+                  <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                    style={{ color: COL_COLORS.connections }}>Convos</th>
+                  <th className="text-right px-3 py-2.5 font-semibold uppercase tracking-wider"
+                    style={{ color: COL_COLORS.responseRate }}>Response</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,6 +85,18 @@ export function MonthByMonth({ monthly }: { monthly: MonthRow[] }) {
                       <td className="px-3 py-2.5 text-right tabular-nums font-bold"
                         style={{ color: row.real_revenue_pence > 0 ? COL_COLORS.revenue : COL_COLORS.empty }}>
                         {row.real_revenue_pence > 0 ? `£${(row.real_revenue_pence / 100).toFixed(0)}` : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums"
+                        style={{ color: row.opportunities_posted > 0 ? COL_COLORS.opportunities : COL_COLORS.empty }}>
+                        {row.opportunities_posted || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums"
+                        style={{ color: row.connections_started > 0 ? COL_COLORS.connections : COL_COLORS.empty }}>
+                        {row.connections_started || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums"
+                        style={{ color: row.application_response_pct !== null ? COL_COLORS.responseRate : COL_COLORS.empty }}>
+                        {row.application_response_pct !== null ? `${row.application_response_pct}%` : '—'}
                       </td>
                     </tr>
                   )

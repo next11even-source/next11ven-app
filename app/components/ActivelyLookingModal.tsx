@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import LiveCoachCount from './LiveCoachCount'
 import {
@@ -20,6 +21,14 @@ type VariantCopy = {
   subcopy: string
   bullets: readonly string[]
   cta: string
+}
+
+// Layer 3 conversion intelligence: which premium_clicks.touchpoint each
+// variant logs as "shown" — see /api/track/premium-intent.
+const VARIANT_TOUCHPOINT: Record<PaywallVariant, string> = {
+  toggle: 'actively_looking_toggle',
+  apply: 'apply_gate',
+  match: 'match_paywall',
 }
 
 const VARIANTS: Record<PaywallVariant, VariantCopy> = {
@@ -67,6 +76,18 @@ type Props = {
  * replaces the duplicated inline modals in player/page.tsx and profile/page.tsx.
  */
 export default function ActivelyLookingModal({ open, onClose, premiumHref = '/dashboard/player/premium', variant = 'toggle' }: Props) {
+  // Fires once per open — logs the paywall as SHOWN, not just clicked, so a
+  // later upgrade can be attributed even if the player closes this and
+  // converts a different way.
+  useEffect(() => {
+    if (!open) return
+    fetch('/api/track/premium-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ touchpoint: VARIANT_TOUCHPOINT[variant] }),
+    }).catch(() => {})
+  }, [open, variant])
+
   if (!open) return null
 
   const copy = VARIANTS[variant]

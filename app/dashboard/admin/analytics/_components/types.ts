@@ -8,6 +8,15 @@ export type PricePoint = {
 
 export type CoachNetAddsMonth = { label: string; net_adds: number }
 
+export type TimeToUpgrade = {
+  avg_days: number | null
+  same_day: number
+  within_week: number
+  within_month: number
+  longer: number
+  total: number
+}
+
 export type RevenueStats = {
   mrr_pence: number
   active_subs: number
@@ -21,6 +30,7 @@ export type RevenueStats = {
   non_converting_count: number
   free_sub_count: number
   coach_net_adds_monthly: CoachNetAddsMonth[]
+  time_to_upgrade: TimeToUpgrade
 }
 
 export type MonthRow = {

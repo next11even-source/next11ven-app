@@ -56,13 +56,26 @@ the premium check), so they're unaffected. Never re-add a blanket grant here.
 Active tables
 profiles, conversations, messages, player_views, shortlist_alerts,
 coach_saved_players, subscriptions, opportunities, applications, bookmarks,
-highlights, notifications, partner_discounts, status_change_log, likes,
-premium_clicks, profile_views,
+highlights, notifications, partner_discounts, status_change_log, premium_clicks,
 posts, post_likes, post_comments, post_interests,
 player_message_quota, drip_jobs
 
+⚠️ status_change_log and premium_clicks existed in the schema but were written
+to by NOTHING (verified empty, 16 Aug 2026) until the analytics rebuild wired
+them up same day: status_change_log now gets a row from every profiles.status
+transition via trg_log_status_change (20260816000001), and premium_clicks now
+gets a row every time a free user is shown (not just clicks) a premium paywall,
+via POST /api/track/premium-intent — called from ActivelyLookingModal (all 3
+variants) and LockedMessageTrigger. The Stripe webhook marks the touchpoints in
+the preceding 7 days converted = true on that user's first premium activation.
+Don't assume either table is populated before 16 Aug 2026 — there's no history
+before that date, only forward accrual.
+
 Orphaned — never use
-player_profiles, coach_profiles
+player_profiles, coach_profiles, likes, profile_views
+Confirmed empty + zero code references (16 Aug 2026). likes and profile_views
+are superseded by post_likes and player_views respectively — don't resurrect
+them, write to the live equivalents instead.
 
 Auth & Middleware
 

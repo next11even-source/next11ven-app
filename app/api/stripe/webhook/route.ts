@@ -167,6 +167,22 @@ async function handleSubscriptionChange(
     )
   }
 
+  // Layer 3 conversion intelligence: attribute this upgrade to whichever
+  // paywalls were SHOWN to the user in the preceding 7 days — not just the
+  // single most-recent one. A player who toggles Actively Looking, applies,
+  // and hits the message paywall in one sitting before upgrading shouldn't
+  // have that collapsed into one falsely-precise trigger; mark every
+  // unconverted touchpoint in the window instead.
+  if (isFirstActivation) {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+    await supabase
+      .from('premium_clicks')
+      .update({ converted: true })
+      .eq('user_id', userId)
+      .eq('converted', false)
+      .gte('clicked_at', sevenDaysAgo)
+  }
+
   await supabase.from('subscriptions').upsert({
     user_id: userId,
     stripe_subscription_id: sub.id,

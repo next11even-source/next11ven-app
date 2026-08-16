@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PREMIUM_PRICE_PER_MONTH, PREMIUM_PRICE_WEEKLY_LOWER, PREMIUM_PRICE_WEEKLY, PROOF_LINE, MODAL_BULLETS } from '@/lib/premiumContent'
 
 type Props = {
@@ -36,6 +36,18 @@ function sentAgo(dateStr: string): string {
  */
 export default function LockedMessageTrigger({ revealedStep, sentAt, totalWaiting, onBack }: Props) {
   const [loading, setLoading] = useState(false)
+
+  // Layer 3 conversion intelligence: log this paywall as SHOWN — see
+  // /api/track/premium-intent. Only rendered when the trigger condition is
+  // already met, so mount = shown, no extra gating needed here.
+  useEffect(() => {
+    fetch('/api/track/premium-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ touchpoint: 'message_read_paywall' }),
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleUnlock() {
     setLoading(true)

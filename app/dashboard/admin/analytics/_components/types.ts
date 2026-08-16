@@ -8,6 +8,28 @@ export type PricePoint = {
 
 export type CoachNetAddsMonth = { label: string; net_adds: number }
 
+export type Movement<T> = { current: T; previous: T }
+
+export type HeroStats = {
+  active_coaches_30d: Movement<number>
+  net_new_mrr_pence: Movement<number>
+  opportunities_posted: Movement<number>
+  connections_started: Movement<number>
+  premium_conversions: Movement<{ player: number; coach: number }>
+}
+
+export type RateStat = { responded: number; total: number; rate_pct: number | null }
+export type EngagementStat = { engaged: number; total: number; rate_pct: number | null }
+export type RoleSplit = { player: number; coach: number }
+
+export type MarketplaceHealthStats = {
+  application_response_rate: RateStat
+  conversation_engagement_rate: EngagementStat
+  outcomes: { accepted: number; signed: number }
+  wau: RoleSplit
+  dau: RoleSplit
+}
+
 export type TimeToUpgrade = {
   avg_days: number | null
   same_day: number

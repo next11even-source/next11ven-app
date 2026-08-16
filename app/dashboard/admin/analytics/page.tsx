@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { HeroRow } from './_components/HeroRow'
 import { MarketplaceHealthRow } from './_components/MarketplaceHealth'
 import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { TrackerAdoptionTrends } from './_components/TrackerAdoptionTrends'
@@ -15,7 +16,7 @@ import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
   MessageEntry, RecentApplication, ShowcaseWaitlist, MessageStats,
-  CoachLeaderboard,
+  CoachLeaderboard, HeroStats, MarketplaceHealthStats,
 } from './_components/types'
 
 type Tab = 'health' | 'coaches' | 'ops'
@@ -31,6 +32,10 @@ export default function AnalyticsPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [tab, setTab] = useState<Tab>('health')
 
+  const [heroStats, setHeroStats] = useState<HeroStats | null>(null)
+  const [heroLoading, setHeroLoading] = useState(true)
+  const [marketplaceHealth, setMarketplaceHealth] = useState<MarketplaceHealthStats | null>(null)
+  const [marketplaceHealthLoading, setMarketplaceHealthLoading] = useState(true)
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
   const [revenueLoading, setRevenueLoading] = useState(true)
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null)
@@ -68,6 +73,20 @@ export default function AnalyticsPage() {
   // ── Data — every count/aggregate comes from the RPC-backed endpoints below.
   // No direct client-side profile counting: that was the source of numbers
   // disagreeing across sections (see analytics reframe).
+  useEffect(() => {
+    fetch('/api/admin/hero-stats')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setHeroStats(d); setHeroLoading(false) })
+      .catch(() => setHeroLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/marketplace-health')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setMarketplaceHealth(d); setMarketplaceHealthLoading(false) })
+      .catch(() => setMarketplaceHealthLoading(false))
+  }, [])
+
   useEffect(() => {
     fetch('/api/admin/revenue-stats')
       .then(r => r.json())
@@ -174,6 +193,13 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Layer 1 hero row — the whole first screen. Always visible regardless
+          of tab, since it's the top-level answer the rest of the page exists
+          to explain. */}
+      <div className="px-4 pt-4">
+        {heroLoading || !heroStats ? <LoadingCard /> : <HeroRow heroStats={heroStats} />}
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
@@ -190,7 +216,11 @@ export default function AnalyticsPage() {
           platformStats={platformStats}
         />
       ) : platformStats && revenueStats ? (
-        <HealthTab platformStats={platformStats} revenueStats={revenueStats} trackerStats={trackerStats} trackerLoading={trackerLoading} />
+        <HealthTab
+          platformStats={platformStats} revenueStats={revenueStats}
+          trackerStats={trackerStats} trackerLoading={trackerLoading}
+          marketplaceHealth={marketplaceHealth} marketplaceHealthLoading={marketplaceHealthLoading}
+        />
       ) : (
         <div className="px-4 pt-4"><LoadingCard /></div>
       )}
@@ -198,23 +228,50 @@ export default function AnalyticsPage() {
   )
 }
 
-function HealthTab({ platformStats, revenueStats, trackerStats, trackerLoading }: {
+function HealthTab({
+  platformStats, revenueStats, trackerStats, trackerLoading,
+  marketplaceHealth, marketplaceHealthLoading,
+}: {
   platformStats: PlatformStats
   revenueStats: RevenueStats
   trackerStats: TrackerStats | null
   trackerLoading: boolean
+  marketplaceHealth: MarketplaceHealthStats | null
+  marketplaceHealthLoading: boolean
 }) {
   const monthly = platformStats.monthly_table
+  const [detailOpen, setDetailOpen] = useState(false)
 
   return (
     <div className="px-4 pt-4 space-y-4">
-      <MarketplaceHealthRow platformStats={platformStats} />
-      <LeadingIndicatorsRow platformStats={platformStats} trackerStats={trackerLoading ? null : trackerStats} />
-      <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
-      <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
-      <MonthByMonth monthly={monthly} />
+      {marketplaceHealthLoading || !marketplaceHealth ? <LoadingCard /> : <MarketplaceHealthRow health={marketplaceHealth} />}
 
-      <ContextStrip platformStats={platformStats} revenueStats={revenueStats} />
+      {/* Everything below here is detail that explains the numbers above,
+          not new decisions — one tap deeper, not on by default. */}
+      <button
+        onClick={() => setDetailOpen(o => !o)}
+        className="w-full flex items-center justify-between rounded-xl px-4 py-3"
+        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
+      >
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8892aa' }}>
+          {detailOpen ? 'Hide detail' : 'Show more detail'}
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: detailOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {detailOpen && (
+        <>
+          <LeadingIndicatorsRow trackerStats={trackerLoading ? null : trackerStats} />
+          <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
+          <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
+          <MonthByMonth monthly={monthly} />
+
+          <ContextStrip platformStats={platformStats} revenueStats={revenueStats} />
+        </>
+      )}
     </div>
   )
 }

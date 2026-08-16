@@ -14,7 +14,7 @@ Background: #0a0a0a — Surface: #13172a — Border: #1e2235
 Primary blue: #2d5fc4 → #3a6fda hover
 Cream text: #e8dece — Muted text: #8892aa
 Headings: Barlow Condensed (bold, uppercase) — Body: Inter
-Green (#22c55e) limited to availability signals (Actively Looking dot/chip/toggle) and positive confirmations only — never for general UI
+Green (#22c55e) limited to: availability signals (Actively Looking dot/chip/toggle), positive confirmations, and positive movement/growth in analytics (this-period-vs-last-period increase, net new MRR ≥0, quick ratio ≥1 — see HeroRow.tsx UP_COLOR) — never for general UI otherwise. The analytics carve-out is deliberate (16 Aug 2026): growth needs to read as unambiguously good, and blue/amber alone didn't get there. Decline stays amber, not red — a dip on a solo founder's own dashboard doesn't need alarm-red.
 Mobile-first. Dark theme throughout. No over-engineering.
 
 
@@ -704,7 +704,7 @@ Dark theme throughout, mobile-first
 No over-engineering — solo build, keep it shippable
 Server components where possible, client only where needed
 Never put API keys or Twilio/Stripe/MailerLite/Resend calls client-side
-Green limited to availability signals and positive confirmations
+Green limited to availability signals, positive confirmations, and positive analytics movement (growth vs previous period) — see Brand & Style
 
 Tone
 Direct, no fluff. Flag issues immediately. Don't pad responses.

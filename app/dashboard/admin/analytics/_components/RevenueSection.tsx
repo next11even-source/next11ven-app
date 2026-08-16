@@ -29,7 +29,7 @@ export function RevenueSection({ revenueStats, platformStats }: {
         <ChartCard
           title="Net New MRR (6 months)"
           data={netNewTrend}
-          color={netNewTotal >= 0 ? '#2d5fc4' : '#ef4444'}
+          color={netNewTotal >= 0 ? '#22c55e' : '#ef4444'}
           total={netNewTotal}
           valuePrefix={netNewTotal >= 0 ? '+£' : '£'}
         />
@@ -50,7 +50,7 @@ export function RevenueSection({ revenueStats, platformStats }: {
             <div className="text-right">
               <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color: '#8892aa' }}>Quick Ratio</p>
               <p className="text-2xl font-black leading-none"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif", color: quickRatio == null ? '#8892aa' : quickRatio >= 1 ? '#2d5fc4' : '#ef4444' }}>
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", color: quickRatio == null ? '#8892aa' : quickRatio >= 1 ? '#22c55e' : '#ef4444' }}>
                 {quickRatio == null ? '—' : quickRatio === Infinity ? '∞' : quickRatio.toFixed(1) + 'x'}
               </p>
               <p className="text-xs mt-1" style={{ color: '#8892aa' }}>new ÷ churned MRR</p>

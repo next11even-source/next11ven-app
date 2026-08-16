@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { timeAgo } from '@/lib/utils'
 import type { EventType, FeedEvent } from './types'
 import { LoadingCard } from './ui'
+
+const PAGE_SIZE = 25
 
 const TYPE_META: Record<EventType, { label: string; color: string }> = {
   application_accepted: { label: 'Accepted', color: '#2d5fc4' },
@@ -29,12 +31,45 @@ const FILTER_OPTIONS: { value: EventType | 'all'; label: string }[] = [
  * Layer 4 — the qualitative window. Reverse-chronological, filterable by
  * type: how the founder sees the marketplace working and spots the
  * connections worth turning into content, not a KPI.
+ *
+ * Self-fetching and paginated: only loads PAGE_SIZE events up front (this
+ * query unions 5 sources including a window function over all messages —
+ * not free), with "Load more" fetching further pages on demand rather than
+ * always pulling everything in the 90-day window. The type filter only
+ * filters events already loaded, so switching to a rare type may need a
+ * "Load more" tap or two before it has anything to show.
  */
-export function EventFeedTab({ events, loading }: { events: FeedEvent[] | null; loading: boolean }) {
+export function EventFeedTab() {
   const [filter, setFilter] = useState<EventType | 'all'>('all')
+  const [events, setEvents] = useState<FeedEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/admin/event-feed?limit=${PAGE_SIZE}&offset=0`)
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => {
+        setEvents(d.events ?? [])
+        setHasMore(Boolean(d.hasMore))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  function loadMore() {
+    setLoadingMore(true)
+    fetch(`/api/admin/event-feed?limit=${PAGE_SIZE}&offset=${events.length}`)
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => {
+        setEvents(prev => [...prev, ...(d.events ?? [])])
+        setHasMore(Boolean(d.hasMore))
+        setLoadingMore(false)
+      })
+      .catch(() => setLoadingMore(false))
+  }
 
   const filtered = useMemo(() => {
-    if (!events) return []
     return filter === 'all' ? events : events.filter(e => e.type === filter)
   }, [events, filter])
 
@@ -51,12 +86,12 @@ export function EventFeedTab({ events, loading }: { events: FeedEvent[] | null; 
         ))}
       </select>
 
-      {loading || !events ? (
+      {loading ? (
         <LoadingCard />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <p className="text-xs" style={{ color: '#8892aa' }}>
-            {events.length === 0 ? 'No events in the last 90 days.' : 'No events of this type in the last 90 days.'}
+            {events.length === 0 ? 'No events in the last 90 days.' : 'None of this type loaded yet — try Load more.'}
           </p>
         </div>
       ) : (
@@ -81,6 +116,17 @@ export function EventFeedTab({ events, loading }: { events: FeedEvent[] | null; 
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && hasMore && (
+        <button
+          onClick={loadMore}
+          disabled={loadingMore}
+          className="w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider disabled:opacity-60"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa' }}
+        >
+          {loadingMore ? 'Loading…' : 'Load more'}
+        </button>
       )}
     </div>
   )

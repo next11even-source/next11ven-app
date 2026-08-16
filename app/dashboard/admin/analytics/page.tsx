@@ -13,11 +13,13 @@ import { ContextStrip } from './_components/ContextStrip'
 import { OpsTab } from './_components/OpsTab'
 import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
 import { EventFeedTab } from './_components/EventFeed'
+import { ConversionIntelligenceSection } from './_components/ConversionIntelligence'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
   MessageEntry, RecentApplication, ShowcaseWaitlist, MessageStats,
   CoachLeaderboard, HeroStats, MarketplaceHealthStats, FeedEvent,
+  ConversionIntelligence,
 } from './_components/types'
 
 type Tab = 'health' | 'feed' | 'coaches' | 'ops'
@@ -38,6 +40,8 @@ export default function AnalyticsPage() {
   const [heroLoading, setHeroLoading] = useState(true)
   const [marketplaceHealth, setMarketplaceHealth] = useState<MarketplaceHealthStats | null>(null)
   const [marketplaceHealthLoading, setMarketplaceHealthLoading] = useState(true)
+  const [conversionIntel, setConversionIntel] = useState<ConversionIntelligence | null>(null)
+  const [conversionIntelLoading, setConversionIntelLoading] = useState(true)
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
   const [revenueLoading, setRevenueLoading] = useState(true)
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null)
@@ -90,6 +94,13 @@ export default function AnalyticsPage() {
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setMarketplaceHealth(d); setMarketplaceHealthLoading(false) })
       .catch(() => setMarketplaceHealthLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/conversion-intelligence')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setConversionIntel(d); setConversionIntelLoading(false) })
+      .catch(() => setConversionIntelLoading(false))
   }, [])
 
   useEffect(() => {
@@ -239,6 +250,7 @@ export default function AnalyticsPage() {
           platformStats={platformStats} revenueStats={revenueStats}
           trackerStats={trackerStats} trackerLoading={trackerLoading}
           marketplaceHealth={marketplaceHealth} marketplaceHealthLoading={marketplaceHealthLoading}
+          conversionIntel={conversionIntel} conversionIntelLoading={conversionIntelLoading}
         />
       ) : (
         <div className="px-4 pt-4"><LoadingCard /></div>
@@ -250,6 +262,7 @@ export default function AnalyticsPage() {
 function HealthTab({
   platformStats, revenueStats, trackerStats, trackerLoading,
   marketplaceHealth, marketplaceHealthLoading,
+  conversionIntel, conversionIntelLoading,
 }: {
   platformStats: PlatformStats
   revenueStats: RevenueStats
@@ -257,6 +270,8 @@ function HealthTab({
   trackerLoading: boolean
   marketplaceHealth: MarketplaceHealthStats | null
   marketplaceHealthLoading: boolean
+  conversionIntel: ConversionIntelligence | null
+  conversionIntelLoading: boolean
 }) {
   const monthly = platformStats.monthly_table
   const [detailOpen, setDetailOpen] = useState(false)
@@ -286,6 +301,9 @@ function HealthTab({
           <LeadingIndicatorsRow trackerStats={trackerLoading ? null : trackerStats} />
           <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
           <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
+          {!conversionIntelLoading && conversionIntel && (
+            <ConversionIntelligenceSection data={conversionIntel} timeToUpgrade={revenueStats.time_to_upgrade} />
+          )}
           <MonthByMonth monthly={monthly} />
 
           <ContextStrip platformStats={platformStats} revenueStats={revenueStats} />

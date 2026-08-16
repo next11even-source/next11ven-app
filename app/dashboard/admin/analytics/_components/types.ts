@@ -30,6 +30,25 @@ export type MarketplaceHealthStats = {
   dau: RoleSplit
 }
 
+export type CalibrationStatus = {
+  ready: boolean
+  started_at: string | null
+  days_elapsed: number | null
+  days_required: number
+}
+
+export type TouchpointStat = {
+  touchpoint: string
+  shown: number
+  converted: number
+  conversion_rate_pct: number | null
+}
+
+export type ConversionIntelligence = {
+  calibration: CalibrationStatus
+  touchpoints: TouchpointStat[]
+}
+
 export type EventType =
   | 'application_accepted'
   | 'conversation_started'

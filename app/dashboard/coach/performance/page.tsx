@@ -85,6 +85,12 @@ type Player = {
 }
 
 const SORTS: { key: string; label: string }[] = [
+  // Default. Weighs level: 10 goals at Step 4 outranks 20 at Step 7/Other, and
+  // goals outweigh assists (see route's PEDIGREE_GOAL_WEIGHT) so a scorer never
+  // loses to a creator on raw combined total. See performance-search/route.ts.
+  // "Weighted by level", not "Best players" — this ranks a formula, not a
+  // verified judgment the platform can stand behind (facts-only philosophy).
+  { key: 'pedigreeScore', label: 'Weighted by level' },
   { key: 'involvements', label: 'Goal involvements' },
   { key: 'goals', label: 'Goals' },
   { key: 'assists', label: 'Assists' },
@@ -263,7 +269,7 @@ export default function CoachPerformancePage() {
   const [remainingCount, setRemainingCount] = useState(0)
   const [position, setPosition] = useState('')
   const [level, setLevel] = useState('')
-  const [sort, setSort] = useState('involvements')
+  const [sort, setSort] = useState('pedigreeScore')
   const [minApps, setMinApps] = useState('')
   const [scope, setScope] = useState<'career' | 'season'>('career')
   const [availableOnly, setAvailableOnly] = useState(false)

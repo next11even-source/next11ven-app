@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { buildPublicPerformance, toPublicMatches, RATE_MIN_MINUTES, type PublicCareerRow } from '@/lib/publicStats'
 import { performanceTrackerEnabled } from '@/lib/performance'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
-import { trackerLevelRank } from '@/lib/levels'
+import { trackerLevelRank, TRACKER_LEVELS } from '@/lib/levels'
 
 export const runtime = 'nodejs'
 
@@ -47,8 +47,48 @@ const SEASON_STATS_VISIBLE = false
 // minutes ranks whoever has the longest history, not whoever plays the most
 // football — an 11-season veteran buries a teenager playing every minute.
 // Average answers the question a coach is actually asking: does he finish games?
-type SortKey = 'involvements' | 'goals' | 'assists' | 'apps' | 'avgMinutes' | 'per90Goals' | 'perGameInvolvements'
-const SORT_KEYS: SortKey[] = ['involvements', 'goals', 'assists', 'apps', 'avgMinutes', 'per90Goals', 'perGameInvolvements']
+type SortKey = 'pedigreeScore' | 'involvements' | 'goals' | 'assists' | 'apps' | 'avgMinutes' | 'per90Goals' | 'perGameInvolvements'
+const SORT_KEYS: SortKey[] = ['pedigreeScore', 'involvements', 'goals', 'assists', 'apps', 'avgMinutes', 'per90Goals', 'perGameInvolvements']
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+// Default sort: "best players on the app" outranks "most prolific at any
+// level". Plain goal involvements let a Sunday-league top scorer outrank a
+// player doing real work three steps higher — pedigreeScore folds level
+// difficulty in so it doesn't. Filters (available, position, level) still
+// apply on top, same as every other sort.
+//
+// Goals count 3x an assist — solves for the case a scorer should never lose
+// to a creator on raw combined total (10G/2A must outrank 5G/15A at the same
+// level: 10*3+2=32 > 5*3+15=30; 1 goal ≈ 3 assists at the margin).
+const PEDIGREE_GOAL_WEIGHT = 3
+const PEDIGREE_ASSIST_WEIGHT = 1
+
+// Each rank down TRACKER_LEVELS is worth 65% of the one above — level is the
+// dominant factor (10 goals at Step 4 outweighs 20 at Step 7/Other) without
+// zeroing out lower-level output entirely. Unranked/off-list levels weight
+// the same as the ladder's last rung (Other), never higher.
+//
+// Started at 0.75; raised to 0.65 (16 Aug 2026) after a real ordering showed
+// the problem it's meant to solve: a 119-app Step 7 career (61G/6A) out-scored
+// a 60-app Step 5 career (30G/10A) despite two levels of gap, because 0.75
+// wasn't steep enough to stop a much longer low-level sample from catching up
+// to a shorter higher-level one. At 0.65 the Step 5 career clears the Step 7
+// one with a real margin, and a Step 2 career that had been buried near the
+// bottom of a mixed list moves to the top.
+const PEDIGREE_LEVEL_DECAY = 0.65
+function levelPedigreeWeight(level: string | null | undefined): number {
+  const rank = trackerLevelRank(level) ?? (TRACKER_LEVELS.length - 1)
+  return Math.pow(PEDIGREE_LEVEL_DECAY, rank)
+}
+
+// Summed across every level a player has logged career output at — a career
+// body of work, not a single-season rate. Uses careerByLevel (already split
+// per level for the honest-framing rule below), never the blended totals.
+function pedigreeScoreFrom(careerByLevel: { level: string | null; goals: number; assists: number }[]): number {
+  return round2(careerByLevel.reduce((sum, lvl) =>
+    sum + levelPedigreeWeight(lvl.level) * (lvl.goals * PEDIGREE_GOAL_WEIGHT + lvl.assists * PEDIGREE_ASSIST_WEIGHT), 0))
+}
 
 // Which body of work the sort ranks on. 'career' is the default because
 // pre-platform history is where the data currently is — ranking on
@@ -66,8 +106,6 @@ type Metrics = {
   per90Goals: number | null
   perGameInvolvements: number | null
 }
-
-const round2 = (n: number) => Math.round(n * 100) / 100
 
 function norm(s: string | null | undefined): string {
   return (s ?? '').trim().toLowerCase()
@@ -120,7 +158,7 @@ export async function GET(req: NextRequest) {
   const availableOnly = params.get('available') === '1'
   const minApps = parseInt(params.get('minApps') ?? '0', 10) || 0
   const sortRaw = params.get('sort') as SortKey | null
-  const sort: SortKey = sortRaw && SORT_KEYS.includes(sortRaw) ? sortRaw : 'involvements'
+  const sort: SortKey = sortRaw && SORT_KEYS.includes(sortRaw) ? sortRaw : 'pedigreeScore'
   const scope: Scope = SEASON_STATS_VISIBLE && params.get('scope') === 'season' ? 'season' : 'career'
 
   const service = serviceSupabase()
@@ -232,6 +270,10 @@ export async function GET(req: NextRequest) {
       _metrics: {
         career: metricsFrom(perf.totals.apps, perf.totals.goals, perf.totals.assists, perf.totals.minutes),
         season: cs ? metricsFrom(cs.apps, cs.goals, cs.assists, cs.minutes) : null,
+        // Career-wide by construction — not scope-dependent like the metrics
+        // above, since it's already summed across every level a player has
+        // logged. See pedigreeScoreFrom.
+        pedigreeScore: pedigreeScoreFrom(perf.careerByLevel),
       },
     }
   })
@@ -295,6 +337,8 @@ export async function GET(req: NextRequest) {
   // Sort within the selected scope. Players with nothing in that scope score 0
   // and fall to the bottom, rather than every player tying at 0.
   const metric = (r: typeof rows[number]): number => {
+    // pedigreeScore is career-wide regardless of scope — see _metrics above.
+    if (sort === 'pedigreeScore') return r._metrics.pedigreeScore
     const m = scope === 'season' ? r._metrics.season : r._metrics.career
     if (!m) return 0
     switch (sort) {

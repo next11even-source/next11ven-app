@@ -337,7 +337,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
           </p>
-          {!isCoach && (isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>)}
+          {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>

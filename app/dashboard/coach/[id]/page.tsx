@@ -26,6 +26,7 @@ type CoachProfile = {
   last_active: string | null
   role: string | null
   is_agent: boolean | null
+  premium: boolean
 }
 
 type Opportunity = {
@@ -99,7 +100,7 @@ export default function CoachPublicProfile() {
         const [coachRes, viewerRes, oppsRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('id, full_name, avatar_url, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent, approved')
+            .select('id, full_name, avatar_url, club, city, coaching_role, coaching_level, coaching_history, last_active, role, is_agent, approved, premium')
             .eq('id', id)
             .eq('role', 'coach')
             .single(),
@@ -340,9 +341,10 @@ export default function CoachPublicProfile() {
           )}
         </div>
 
-        <h1 className="text-3xl font-black uppercase leading-none"
+        <h1 className="text-3xl font-black uppercase leading-none flex items-center justify-center gap-2"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           {coach.full_name ?? 'Coach'}
+          {coach.premium && <span style={{ color: '#f59e0b', fontSize: 20 }}>★</span>}
         </h1>
         {isAgent(coach) && (
           <div className="mt-2 flex justify-center">

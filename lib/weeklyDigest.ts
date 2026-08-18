@@ -184,7 +184,7 @@ function block3(player: DigestPlayer, coachViews: DigestCoachView[], site: strin
       <p style="font-size:56px;font-weight:900;color:#e8dece;margin:0;line-height:1;font-family:Arial,sans-serif;">${coachCount}</p>
       <p style="font-size:14px;font-weight:700;color:#8892aa;margin:8px 0 0;letter-spacing:0.03em;text-transform:uppercase;">coach${coachCount === 1 ? '' : 'es'} viewed you this week</p>
     </div>
-    <p style="margin:0 0 16px;color:#8892aa;font-size:14px;line-height:1.6;text-align:center;">Upgrade to Premium to see exactly who&rsquo;s been looking &mdash; and get in front of them first.</p>
+    <p style="margin:0 0 16px;color:#8892aa;font-size:14px;line-height:1.6;text-align:center;">Upgrade to Pro to see exactly who&rsquo;s been looking &mdash; and get in front of them first.</p>
     <div style="text-align:center;">
       <a href="${url}" style="display:inline-block;padding:13px 30px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;">See who viewed you</a>
     </div>`

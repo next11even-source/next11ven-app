@@ -40,7 +40,7 @@ const VARIANTS: Record<PaywallVariant, VariantCopy> = {
   },
   apply: {
     headline: 'Apply to this role',
-    subcopy: 'Applying to trials and showcases is a Premium feature. Upgrade to apply to this role — and every other open role — instantly.',
+    subcopy: 'Applying to trials and showcases is a Pro feature. Upgrade to apply to this role — and every other open role — instantly.',
     bullets: [
       'Apply to any trial or showcase the moment it lands',
       'See your % match on every role coaches post',

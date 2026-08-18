@@ -80,11 +80,11 @@ export default function TermsPage() {
             Breaches may result in immediate account suspension without notice or refund.
           </Section>
 
-          <Section title="Premium subscriptions">
-            Premium plans are billed monthly via Stripe:
+          <Section title="Pro subscriptions">
+            Pro plans are billed monthly via Stripe:
             <ul className="space-y-1.5 mt-3 list-none">
               {[
-                'Player Premium — £6.99/month',
+                'Player Pro — £6.99/month',
                 'Coach Pro — £9.99/month',
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-2">

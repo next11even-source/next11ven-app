@@ -9,6 +9,7 @@ import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileComple
 import { LevelBadge } from '@/app/components/OpportunityBadges'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import {
   AWAITING_REPLY_STATUSES, isAwaitingReply, waitingDays, getWaitingTier, buildAwaitingReplySummary,
@@ -502,7 +503,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
               <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
                 <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
                   <span className="truncate">{p.full_name ?? 'Player'}</span>
-                  {isFounder(p.role) ? <FounderBadge size="sm" /> : <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                  {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
                 </p>
                 <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                   {[p.position, p.city].filter(Boolean).join(' · ') || '—'}
@@ -601,7 +602,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                 <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
                   <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
                     <span className="truncate">{p.full_name ?? 'Player'}</span>
-                    {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                    {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
                   </p>
                   <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                     {[p.position, p.city].filter(Boolean).join(' · ') || '—'}
@@ -655,7 +656,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
           </p>
-          {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
+          {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <ProBadge size="sm" />}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>

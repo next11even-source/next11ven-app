@@ -15,6 +15,8 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { normalizePhone } from '@/lib/utils'
 import { calcCompletion, calcCoachCompletion } from '@/lib/profileCompletion'
+import Icon from '@/components/ui/Icon'
+import { Flame } from 'lucide-react'
 import ActivityChip from '@/app/components/ActivityChip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -155,7 +157,7 @@ function ManageSubscriptionCard() {
       <div className="flex items-center gap-2">
         <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
           style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#60a5fa', border: '1px solid rgba(45,95,196,0.3)' }}>
-          Premium Active
+          Pro Active
         </span>
       </div>
       <p className="text-sm" style={{ color: '#8892aa' }}>
@@ -783,7 +785,7 @@ export default function ProfilePage() {
               <p className="text-sm" style={{ color: '#8892aa' }}>{subtitle}</p>
               {!isCoach && profile.streak_weeks > 0 && (
                 <div className="flex items-center gap-1.5 pt-1">
-                  <span className="text-base">🔥</span>
+                  <Icon icon={Flame} size="sm" label={true} style={{ color: '#f59e0b' }} />
                   <span className="text-xs font-semibold" style={{ color: '#e8dece' }}>{profile.streak_weeks}-week streak</span>
                   <span className="text-xs" style={{ color: '#8892aa' }}>— keep it going</span>
                 </div>

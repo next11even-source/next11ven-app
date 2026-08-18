@@ -46,7 +46,7 @@ export default function PremiumComparison({ variant = 'full', className }: Props
             <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>Free</span>
           </div>
           <div className="px-4 py-2.5 text-center" style={{ borderBottom: '1px solid #2a3d6e' }}>
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#7aa2ff' }}>Premium</span>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#7aa2ff' }}>Pro</span>
           </div>
         </div>
 

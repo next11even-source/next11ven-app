@@ -7,6 +7,8 @@ import { revealCoachStep } from '@/lib/levels'
 import LockedMessageTrigger from '@/app/components/LockedMessageTrigger'
 import { getThreadRefundState, type ThreadRefundState } from '@/lib/messageCredits'
 import { useSidebar } from '../_components/SidebarContext'
+import Icon from '@/components/ui/Icon'
+import { Lock } from 'lucide-react'
 
 type Conversation = {
   id: string
@@ -116,7 +118,7 @@ function ChatView({
         // Reachable when a subscription lapses with the chat still open.
         // "Please try again" would be a lie — trying again never works.
         setInput(text)
-        setSendError('Your Premium has ended — renew to keep replying.')
+        setSendError('Your Pro has ended — renew to keep replying.')
       } else {
         setInput(text)
         setSendError('Failed to send. Please try again.')
@@ -164,12 +166,12 @@ function ChatView({
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ paddingBottom: '80px' }}>
         {!canRead ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <span className="text-5xl mb-4">🔒</span>
+            <Icon icon={Lock} size="lg" label={true} className="mb-4" style={{ color: '#8892aa' }} />
             <p className="font-black uppercase text-xl mb-2" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-              Premium Required
+              Pro Required
             </p>
             <p className="text-sm mb-6 leading-relaxed" style={{ color: '#8892aa' }}>
-              Upgrade to Player Premium to read messages from coaches.
+              Upgrade to Player Pro to read messages from coaches.
             </p>
             <a href="/dashboard/player/premium"
               className="px-6 py-3 rounded-xl text-sm font-bold"
@@ -550,8 +552,8 @@ function MessagesInner() {
                   )}
                   {isLocked && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', fontSize: 9 }}>
-                      🔒
+                      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa' }}>
+                      <Icon icon={Lock} size="xs" label="Locked" />
                     </span>
                   )}
                 </div>

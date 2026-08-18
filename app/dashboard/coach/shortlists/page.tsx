@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import Icon from '@/components/ui/Icon'
+import { Folder } from 'lucide-react'
 
 // supabase browser client — used only for folder rename (bulk own-data update)
 function getSupabase() { return createClient() }
@@ -122,7 +124,7 @@ export default function ShortlistsPage() {
 
       {saved.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-8 text-center space-y-3">
-          <span className="text-5xl">📁</span>
+          <Icon icon={Folder} size="lg" label={true} style={{ color: '#8892aa' }} />
           <p className="font-black uppercase text-xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             No players saved yet
           </p>
@@ -186,7 +188,7 @@ export default function ShortlistsPage() {
             return (
               <div key={folder}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-base">📁</span>
+                  <Icon icon={Folder} size="sm" label={true} style={{ color: '#8892aa' }} />
                   {isRenaming ? (
                     <form onSubmit={e => { e.preventDefault(); renameFolder(folder, renaming.to) }}
                       className="flex items-center gap-2 flex-1">

@@ -147,7 +147,7 @@ export default function LockedMessageTrigger({ revealedStep, sentAt, totalWaitin
           {loading ? 'Starting checkout…' : `Unlock it · ${PREMIUM_PRICE_PER_MONTH}`}
         </button>
         <p className="text-center text-xs mt-2" style={{ color: '#8892aa' }}>
-          Go Premium to read and reply. {PREMIUM_PRICE_WEEKLY_LOWER.charAt(0).toUpperCase() + PREMIUM_PRICE_WEEKLY_LOWER.slice(1)}.
+          Go Pro to read and reply. {PREMIUM_PRICE_WEEKLY_LOWER.charAt(0).toUpperCase() + PREMIUM_PRICE_WEEKLY_LOWER.slice(1)}.
         </p>
       </div>
     </div>

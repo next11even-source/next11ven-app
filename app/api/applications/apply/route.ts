@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (!sender.premium) {
     reportError('/api/applications/apply', 'Non-premium applicant hit paywall', `applicant_id: ${user.id}, role: ${sender.role}`)
     return NextResponse.json(
-      { error: isCoach ? 'Coach Pro required to apply' : 'Player Premium required to apply' },
+      { error: isCoach ? 'Coach Pro required to apply' : 'Player Pro required to apply' },
       { status: 403 }
     )
   }

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import NewBadge from '@/app/components/NewBadge'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
+import ProBadge from '@/app/components/ProBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ function RecentlyActiveCard({ coach }: { coach: Coach }) {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
-          {coach.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
+          {coach.premium && <ProBadge size="sm" />}
           {isAgent({ role: 'coach', is_agent: coach.is_agent }) ? <AgentBadge size="sm" /> : <NewBadge createdAt={coach.created_at} size="sm" />}
         </div>
         {detail && <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{detail}</p>}
@@ -602,7 +603,7 @@ export default function CoachesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
-                    {coach.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                    {coach.premium && <ProBadge size="sm" />}
                     {isAgent({ role: 'coach', is_agent: coach.is_agent }) && <AgentBadge size="sm" />}
                     <NewBadge createdAt={coach.created_at} size="sm" />
                   </div>

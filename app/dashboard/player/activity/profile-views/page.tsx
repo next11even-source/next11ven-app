@@ -233,7 +233,7 @@ export default function ProfileViewsPage() {
                     : `${viewers.length} person${viewers.length > 1 ? 's' : ''} viewed your profile`}
                 </p>
                 <p className="text-sm" style={{ color: '#8892aa' }}>
-                  Go Premium to see who — then message them first.
+                  Go Pro to see who — then message them first.
                 </p>
               </div>
               <div className="w-full space-y-2 text-left">
@@ -257,7 +257,7 @@ export default function ProfileViewsPage() {
               <Link href="/dashboard/player/premium"
                 className="w-full text-center py-3 rounded-2xl text-sm font-bold uppercase tracking-wider"
                 style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-                Go Premium · £6.99/mo
+                Go Pro · £6.99/mo
               </Link>
             </div>
           </div>

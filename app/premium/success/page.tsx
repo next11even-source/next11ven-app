@@ -48,7 +48,7 @@ function SuccessContent() {
   }, [sessionId, router])
 
   const isCoach = role === 'coach'
-  const tierLabel = isCoach ? 'Coach Pro' : 'Player Premium'
+  const tierLabel = isCoach ? 'Coach Pro' : 'Player Pro'
   const dashboardHref = isCoach ? '/dashboard/coach' : '/dashboard/player'
   const accentColor = isCoach ? '#16a34a' : '#2d5fc4'
 

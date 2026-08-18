@@ -59,7 +59,7 @@ export function RevenueSection({ revenueStats, platformStats }: {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Premium</p>
+              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Pro</p>
               <p className="text-xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
                 {revenueStats.player_subs}
               </p>
@@ -102,7 +102,7 @@ export function RevenueSection({ revenueStats, platformStats }: {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs" style={{ color: '#8892aa' }}>
-                  Premium conversion
+                  Pro conversion
                   {revenueStats.non_converting_count > 0 && (
                     <span style={{ color: '#3a4055' }}> · {revenueStats.non_converting_count} approved users not yet subscribed</span>
                   )}
@@ -131,7 +131,7 @@ export function RevenueSection({ revenueStats, platformStats }: {
                     ? `Legacy (£${amount.toFixed(2)})`
                     : tier.unit_amount_pence >= 999
                       ? `Coach Pro (£${amount.toFixed(2)})`
-                      : `Player Premium (£${amount.toFixed(2)})`
+                      : `Player Pro (£${amount.toFixed(2)})`
                   const color = isLegacy ? '#8892aa' : tier.unit_amount_pence >= 999 ? '#a78bfa' : '#2d5fc4'
                   return (
                     <div key={tier.price_id} className="flex items-center justify-between rounded-lg px-3 py-2"

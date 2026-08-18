@@ -173,7 +173,7 @@ function SeasonWrapInner() {
                 Your season wrap is waiting
               </p>
               <p className="text-sm mt-1.5 leading-relaxed" style={{ color: '#8892aa' }}>
-                {summary.apps} game{summary.apps === 1 ? '' : 's'} logged and counting. The shareable season card — best game, best spell, the lot — is a Premium flex.
+                {summary.apps} game{summary.apps === 1 ? '' : 's'} logged and counting. The shareable season card — best game, best spell, the lot — is a Pro flex.
               </p>
             </div>
             <Link href="/dashboard/player/premium"

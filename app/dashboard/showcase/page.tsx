@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { showcaseConfig, TeamEntry } from '@/lib/showcase.config'
+import Icon from '@/components/ui/Icon'
+import { Goal } from 'lucide-react'
 
 type UserState = {
   id: string
@@ -299,7 +301,7 @@ export default function ShowcasePage() {
               />
             </div>
             <p className="text-xs mt-2.5 text-center" style={{ color: '#8892aa' }}>
-              Enjoyed the highlights? 👍 Like the video and subscribe to our{' '}
+              Enjoyed the highlights? Like the video and subscribe to our{' '}
               <a
                 href="https://www.youtube.com/@next11ven"
                 target="_blank"
@@ -402,7 +404,7 @@ export default function ShowcasePage() {
                       {(entry.goals || entry.assists) && (
                         <div className="flex items-center gap-0.5 flex-shrink-0">
                           {entry.goals && Array.from({ length: entry.goals }).map((_, i) => (
-                            <span key={i} style={{ fontSize: '9px', lineHeight: 1 }}>⚽</span>
+                            <Icon key={i} icon={Goal} size="xs" label={true} style={{ color: '#e8dece' }} />
                           ))}
                           {entry.assists && (
                             <span className="font-black" style={{ fontSize: '9px', color: '#f59e0b', lineHeight: 1 }}>A</span>

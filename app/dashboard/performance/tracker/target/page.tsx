@@ -69,7 +69,7 @@ export default function SeasonTargetPage() {
       const data = await res.json()
       if (!res.ok) {
         setError(data.error === 'NOT_PREMIUM'
-          ? 'Setting targets is a Premium feature — upgrade to lock yours in.'
+          ? 'Setting targets is a Pro feature — upgrade to lock yours in.'
           : data.error ?? 'Could not save your target')
         setBusy(false)
         return

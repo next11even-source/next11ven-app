@@ -5,18 +5,21 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import ProBadge from '@/app/components/ProBadge'
+import Icon from '@/components/ui/Icon'
+import { BarChart3, Gem, Search, MessageCircle, ClipboardList, ArrowUpToLine } from 'lucide-react'
 
 const SCOUTING_POINTS = [
-  { icon: '📊', text: 'Rank every player by goals, assists, minutes and the level they played at' },
-  { icon: '💎', text: 'Surface hidden gems — the ex-Step 2 player now grinding at Step 5' },
-  { icon: '🔍', text: 'Filter and sort on real stats — no rival platform in non-league gives you this' },
+  { icon: BarChart3, text: 'Rank every player by goals, assists, minutes and the level they played at' },
+  { icon: Gem, text: 'Surface hidden gems — the ex-Step 2 player now grinding at Step 5' },
+  { icon: Search, text: 'Filter and sort on real stats — no rival platform in non-league gives you this' },
 ]
 
 const COACH_FEATURES = [
-  { icon: '💬', text: 'Unlimited messages — received instantly' },
-  { icon: '📋', text: 'Post unlimited opportunities + receive applications faster' },
-  { icon: '🔝', text: 'Priority visibility on the platform' },
-  { icon: '⭐', text: 'Star badge next to your name everywhere you appear' },
+  { icon: MessageCircle, text: 'Unlimited messages — received instantly' },
+  { icon: ClipboardList, text: 'Post unlimited opportunities + receive applications faster' },
+  { icon: ArrowUpToLine, text: 'Priority visibility on the platform' },
+  { icon: null, badge: true, text: 'PRO badge next to your name everywhere you appear' },
 ]
 
 export default function CoachPremiumPage() {
@@ -148,7 +151,9 @@ export default function CoachPremiumPage() {
             <ul className="divide-y" style={{ borderColor: '#1e2235' }}>
               {SCOUTING_POINTS.map((f, i) => (
                 <li key={i} className="flex items-start gap-4 px-5 py-4">
-                  <span className="text-xl w-7 text-center flex-shrink-0">{f.icon}</span>
+                  <span className="w-7 flex items-center justify-center flex-shrink-0" style={{ color: '#8892aa' }}>
+                    <Icon icon={f.icon} size="md" label={true} />
+                  </span>
                   <span className="text-sm font-medium leading-snug" style={{ color: '#e8dece' }}>{f.text}</span>
                 </li>
               ))}
@@ -165,7 +170,9 @@ export default function CoachPremiumPage() {
             <ul className="divide-y" style={{ borderColor: '#1e2235' }}>
               {COACH_FEATURES.map((f, i) => (
                 <li key={i} className="flex items-center gap-4 px-5 py-4">
-                  <span className="text-xl w-7 text-center flex-shrink-0">{f.icon}</span>
+                  <span className="w-7 flex items-center justify-center flex-shrink-0" style={{ color: '#8892aa' }}>
+                    {f.badge ? <ProBadge size="sm" /> : f.icon && <Icon icon={f.icon} size="md" label={true} />}
+                  </span>
                   <span className="text-sm font-medium leading-snug" style={{ color: '#e8dece' }}>{f.text}</span>
                 </li>
               ))}

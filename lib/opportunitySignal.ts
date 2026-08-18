@@ -1,9 +1,13 @@
 // Shared opportunity status-signal logic — used by the main Open Roles feed and
 // the homepage "New Opportunities" preview so both show the same tiers.
 
+import { Clock, Zap, Users } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
 export type PrimarySignal = {
   key: 'urgent' | 'first' | 'few'
   label: string
+  icon: LucideIcon
   color: string
   bg: string
   pulse?: boolean
@@ -23,9 +27,9 @@ export function getPrimarySignal(opp: { urgent: boolean; deadline: string | null
   const dl = opp.deadline ? daysLeft(opp.deadline) : null
   const urgentWindow = opp.urgent ? 7 : 4
   if (dl !== null && dl >= 0 && dl <= urgentWindow) {
-    return { key: 'urgent', label: dl === 0 ? '⏳ Closes today' : `⏳ ${dl}d left`, color: '#fb7185', bg: 'rgba(244,63,94,0.12)', pulse: true }
+    return { key: 'urgent', label: dl === 0 ? 'Closes today' : `${dl}d left`, icon: Clock, color: '#fb7185', bg: 'rgba(244,63,94,0.12)', pulse: true }
   }
-  if (opp.application_count === 0) return { key: 'first', label: '🚀 Be first to apply', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' }
-  if (opp.application_count < 5) return { key: 'few', label: `👥 Only ${opp.application_count} applied`, color: '#c084fc', bg: 'rgba(168,85,247,0.12)' }
+  if (opp.application_count === 0) return { key: 'first', label: 'Be first to apply', icon: Zap, color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' }
+  if (opp.application_count < 5) return { key: 'few', label: `Only ${opp.application_count} applied`, icon: Users, color: '#c084fc', bg: 'rgba(168,85,247,0.12)' }
   return null
 }

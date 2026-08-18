@@ -12,6 +12,8 @@ import PerformanceSummaryCard from '@/app/components/PerformanceSummaryCard'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import Icon from '@/components/ui/Icon'
+import { Flame } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +212,10 @@ function AvatarSection({ profile, onUpdate }: { profile: Profile; onUpdate: (url
           {[profile.position, profile.club].filter(Boolean).join(' · ') || 'Add your position and club'}
         </p>
         {profile.streak_weeks > 0 && (
-          <p className="text-xs mt-1" style={{ color: '#8892aa' }}>🔥 {profile.streak_weeks}-week streak</p>
+          <p className="text-xs mt-1 inline-flex items-center gap-1" style={{ color: '#8892aa' }}>
+            <Icon icon={Flame} size="sm" label={true} style={{ color: '#f59e0b' }} />
+            {profile.streak_weeks}-week streak
+          </p>
         )}
       </div>
 
@@ -656,7 +661,7 @@ export default function PlayerProfilePage() {
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
                 style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#60a5fa', border: '1px solid rgba(45,95,196,0.3)' }}>
-                Premium Active
+                Pro Active
               </span>
             </div>
             <p className="text-sm" style={{ color: '#8892aa' }}>

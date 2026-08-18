@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
+import ProBadge from '@/app/components/ProBadge'
 import ActivityChip from '@/app/components/ActivityChip'
 import { getActivityTier } from '@/lib/activityRecency'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
@@ -260,7 +261,7 @@ export default function CoachPublicProfile() {
         setToast('Could not load your message quota. Please refresh and try again.')
         setTimeout(() => setToast(''), 5000)
       } else if (data.error === 'NOT_PREMIUM') {
-        setToast('Premium required to message coaches.')
+        setToast('Pro required to message coaches.')
         setTimeout(() => setToast(''), 4000)
       } else {
         setToast('Something went wrong. Please try again.')
@@ -344,7 +345,7 @@ export default function CoachPublicProfile() {
         <h1 className="text-3xl font-black uppercase leading-none flex items-center justify-center gap-2"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           {coach.full_name ?? 'Coach'}
-          {coach.premium && <span style={{ color: '#f59e0b', fontSize: 20 }}>★</span>}
+          {coach.premium && <ProBadge size="md" />}
         </h1>
         {isAgent(coach) && (
           <div className="mt-2 flex justify-center">
@@ -376,10 +377,10 @@ export default function CoachPublicProfile() {
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
-                  Message {firstName} — Premium Only
+                  Message {firstName} — Pro Only
                 </Link>
                 <p className="text-xs" style={{ color: '#8892aa' }}>
-                  Upgrade to Player Premium to message coaches directly
+                  Upgrade to Player Pro to message coaches directly
                 </p>
               </div>
             )}
@@ -643,7 +644,7 @@ export default function CoachPublicProfile() {
               <rect x="5" y="2" width="14" height="20" rx="2" /><path d="M12 18h.01" />
             </svg>
             <p className="text-xs" style={{ color: '#8892aa' }}>
-              Phone &amp; email are private. Premium players can message coaches directly.
+              Phone &amp; email are private. Pro players can message coaches directly.
             </p>
           </div>
         )}

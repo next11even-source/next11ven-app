@@ -9,7 +9,10 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
+import Icon from '@/components/ui/Icon'
+import { MapPin, Clapperboard } from 'lucide-react'
 
 type Player = {
   id: string
@@ -243,7 +246,7 @@ function ActivelyLookingCarousel({ players }: { players: Player[] }) {
         <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 13, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
           Actively Looking
         </span>
-        <span style={{ fontSize: 10, color: '#8892aa' }}>· Premium players</span>
+        <span style={{ fontSize: 10, color: '#8892aa' }}>· Pro players</span>
       </div>
 
       {/* Scrolling cards */}
@@ -280,7 +283,7 @@ function ActivelyLookingCarousel({ players }: { players: Player[] }) {
               <div style={{ padding: '5px 7px 7px' }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 2 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name ?? 'Player'}</span>
-                  {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span style={{ color: '#f59e0b', flexShrink: 0, fontSize: 9 }}>★</span>}
+                  {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
                 </p>
                 <p style={{ fontSize: 9, color: '#22c55e', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {p.position ?? '—'}
@@ -366,7 +369,7 @@ export default function PlayersPage() {
       // 'newest' surfaces the most recent joiners first — lets coaches catch new
       // signups they might have missed. Default 'active' is tier-blind: active
       // players surface first regardless of premium, so browse never reads as
-      // pay-to-be-seen. Premium's real perks are the ★ badge + the Actively
+      // pay-to-be-seen. Pro's real perks are the PRO badge + the Actively
       // Looking carousel above, not list ranking.
       const ordered = sort === 'newest'
         ? query.order('created_at', { ascending: false })
@@ -516,7 +519,8 @@ export default function PlayersPage() {
             {appliedFilters.location && (
               <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full"
                 style={{ backgroundColor: '#2d5fc420', border: '1px solid #2d5fc440', color: '#2d5fc4' }}>
-                📍 {appliedFilters.location}
+                <Icon icon={MapPin} size="xs" label={true} />
+                {appliedFilters.location}
                 <button onClick={() => setAppliedFilters(f => ({ ...f, location: '' }))} style={{ lineHeight: 1 }}>×</button>
               </span>
             )}
@@ -537,7 +541,8 @@ export default function PlayersPage() {
             {appliedFilters.hasHighlights && (
               <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full"
                 style={{ backgroundColor: '#2d5fc420', border: '1px solid #2d5fc440', color: '#2d5fc4' }}>
-                🎬 Has Highlights
+                <Icon icon={Clapperboard} size="xs" label={true} />
+                Has Highlights
                 <button onClick={() => setAppliedFilters(f => ({ ...f, hasHighlights: false }))} style={{ lineHeight: 1 }}>×</button>
               </span>
             )}
@@ -590,7 +595,7 @@ export default function PlayersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
-                    {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+                    {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
                     <NewBadge createdAt={p.created_at} size="sm" />
                   </div>
                   <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>

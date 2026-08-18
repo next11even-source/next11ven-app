@@ -125,7 +125,7 @@ function LockedState() {
             </h2>
           </div>
           <p className="text-sm leading-relaxed mb-4" style={{ color: '#8892aa' }}>
-            The Game Performance Tracker is a Premium feature. Log every game in under 30 seconds and build a season record that follows you — whatever club you&apos;re at.
+            The Game Performance Tracker is a Pro feature. Log every game in under 30 seconds and build a season record that follows you — whatever club you&apos;re at.
           </p>
           <div className="space-y-2.5 mb-5">
             {[
@@ -145,7 +145,7 @@ function LockedState() {
           <Link href="/dashboard/player/premium"
             className="block w-full text-center py-3.5 rounded-2xl text-sm font-bold uppercase tracking-wider"
             style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-            Unlock with Premium · {PREMIUM_PRICE_PER_MONTH}
+            Unlock with Pro · {PREMIUM_PRICE_PER_MONTH}
           </Link>
           <p className="text-center text-xs mt-2" style={{ color: '#8892aa' }}>
             {PREMIUM_PRICE_WEEKLY}. Cancel anytime.
@@ -362,7 +362,7 @@ export default function TrackerDashboardPage() {
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                Log your next match · Premium
+                Log your next match · Pro
               </Link>
             ) : (
               <Link href="/dashboard/performance/tracker/log"
@@ -434,7 +434,7 @@ export default function TrackerDashboardPage() {
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
                 <p className="text-sm font-semibold leading-snug" style={{ color: '#e8dece' }}>
-                  Your insights are locked — streaks, personal bests, form trends. <span style={{ color: '#3a6fda' }}>Unlock with Premium</span>
+                  Your insights are locked — streaks, personal bests, form trends. <span style={{ color: '#3a6fda' }}>Unlock with Pro</span>
                 </p>
               </Link>
             ) : s.insight && (() => {

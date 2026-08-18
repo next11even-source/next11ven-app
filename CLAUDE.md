@@ -642,6 +642,22 @@ Premium conversion surfaces (all copy from lib/premiumContent.ts — single sour
 - LockedMessageTrigger — locked inbound-message screen; fires when a non-premium player taps a locked conversation. Renders SYNTHETIC blurred preview only — real message body never sent to non-premium clients
 - LiveCoachCount — animated live-demand count; self-fetches /api/player/actively-looking or takes a value prop; falls back to PROOF_LINE when count < 3
 - PremiumComparison — Free vs Premium table (full = 6 rows / compact = 3); shown to free AND premium players on the premium page
+- ProBadge (app/components/ProBadge.tsx) — the PRO tier marker. Replaced the ★ star
+  next to premium users' names (18 Aug 2026). One component, identical for players
+  and coaches — the paid tier isn't role-specific. Blue (brand primary), no pill/border/icon,
+  deliberately quieter than FounderBadge/AgentBadge so it reads as a tier marker,
+  not a verification credential.
+
+⚠️ NAMING DIVERGENCE (18 Aug 2026, deliberate): the paid tier is "Pro" in all
+user-facing copy and in the Stripe Product display names ("Player Pro" / "Coach
+Pro" — renamed live in Stripe, Product objects only, no Price objects touched).
+The database schema, API fields, and RLS policies still use "premium" terminology
+(premium, is_premium-style flags, NOT_PREMIUM error codes, /dashboard/*/premium
+route paths). Do not rename schema/API/routes to match UI copy in a future
+session — this divergence is intentional, not drift. One exception left as-is:
+the legacy £5/mo grandfathered Stripe product ("NEXT11VEN - Premium",
+prod_SMeNP07NDIoS0K) was NOT renamed — it wasn't in scope of the Pro rename and
+needs a founder decision before touching it.
 
 
 Known Gaps (prioritised)
@@ -705,6 +721,16 @@ No over-engineering — solo build, keep it shippable
 Server components where possible, client only where needed
 Never put API keys or Twilio/Stripe/MailerLite/Resend calls client-side
 Green limited to availability signals, positive confirmations, and positive analytics movement (growth vs previous period) — see Brand & Style
+No emoji in JSX or UI copy (18 Aug 2026). All icons go through components/ui/Icon.tsx
+(lucide-react, single stroke weight — 1.75 — across the app, colour always inherited
+via currentColor, never passed as a prop). Exceptions: the ★/✓/✕ dingbat glyphs
+already in use (e.g. "★ Your role", "✓ Applied") are plain Unicode symbols, not
+emoji — same category as the → arrows used for navigation copy throughout the app —
+and were deliberately left alone rather than forced into the icon system. Emoji in
+lib/weeklyReport.ts (the founder's own Telegram report) and the ✅/❌ in
+lib/email.ts's application-decision HTML email are also left as-is: neither is
+app UI — one is an internal ops message, the other a different rendering medium
+lucide icons don't reach.
 
 Tone
 Direct, no fluff. Flag issues immediately. Don't pad responses.

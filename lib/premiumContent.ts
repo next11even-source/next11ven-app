@@ -26,7 +26,7 @@ export const PREMIUM_STATS = {
 } as const
 
 // The single proof line — used as fallback whenever the live count is too thin.
-export const PROOF_LINE = 'Premium players are 3× more likely to be found by a coach.'
+export const PROOF_LINE = 'Pro players are 3× more likely to be found by a coach.'
 
 // Brand-voice line under the Get Discovered hero card — emotional, not functional.
 // Ties straight to Actively Looking: opting in = putting your hand up.
@@ -78,8 +78,8 @@ export const PREMIUM_FEATURES: PremiumFeature[] = [
   },
   {
     id: 'badge',
-    title: 'Premium badge',
-    copy: 'A Premium badge on your profile.',
+    title: 'PRO badge',
+    copy: 'A PRO badge on your profile.',
     footnote: true,
   },
 ]

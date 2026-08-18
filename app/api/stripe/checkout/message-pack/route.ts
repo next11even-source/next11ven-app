@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const isPlayer = profile.role === 'player' || profile.role === 'admin'
   if (!isPlayer || !profile.premium) {
-    return NextResponse.json({ error: 'Premium players only' }, { status: 403 })
+    return NextResponse.json({ error: 'Pro players only' }, { status: 403 })
   }
 
   if (!MESSAGE_PACK_PRICE_ID || MESSAGE_PACK_PRICE_ID === 'price_REPLACE_ME') {

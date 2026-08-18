@@ -7,6 +7,9 @@ import Breadcrumb from '@/app/components/Breadcrumb'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import LiveCoachCount from '@/app/components/LiveCoachCount'
 import PremiumComparison from '@/app/components/PremiumComparison'
+import ProBadge from '@/app/components/ProBadge'
+import Icon from '@/components/ui/Icon'
+import { MessageCircle, ClipboardList, ArrowUpToLine, Folder } from 'lucide-react'
 import {
   PREMIUM_FEATURES,
   PREMIUM_STATS,
@@ -37,12 +40,12 @@ function GetDiscoveredCard() {
 
 
 const COACH_FEATURES = [
-  { icon: '💬', text: 'Message any player — they receive it instantly' },
+  { icon: MessageCircle, text: 'Message any player — they receive it instantly' },
   { icon: '∞',  text: 'Unlimited messages & enquiries' },
-  { icon: '📋', text: 'Post unlimited opportunities + receive applications faster' },
-  { icon: '🔝', text: 'Priority visibility on the platform' },
-  { icon: '📁', text: 'Save players to folders & get alerted when they become available' },
-  { icon: '🏅', text: 'Verified Coach Pro badge on your profile' },
+  { icon: ClipboardList, text: 'Post unlimited opportunities + receive applications faster' },
+  { icon: ArrowUpToLine, text: 'Priority visibility on the platform' },
+  { icon: Folder, text: 'Save players to folders & get alerted when they become available' },
+  { icon: null, badge: true, text: 'PRO badge on your profile' },
 ]
 
 export default function PremiumPage() {
@@ -107,7 +110,7 @@ export default function PremiumPage() {
   const features = COACH_FEATURES // player features render via <PlayerFeatures />; coach uses this flat list
   const price = isCoach ? '£9.99' : '£6.99'
   const tagline = isCoach ? 'Recruit faster. Move quicker.' : 'Get seen faster. Move quicker.'
-  const tierLabel = isCoach ? 'Coach Pro' : 'Player Premium'
+  const tierLabel = isCoach ? 'Coach Pro' : 'Player Pro'
   const ctaLabel = isCoach ? 'Unlock Coach Pro' : 'Unlock Visibility'
   const accentColor = isCoach ? '#c2410c' : '#2d5fc4'
   const gradientBg = isCoach
@@ -183,7 +186,7 @@ export default function PremiumPage() {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { stat: PREMIUM_STATS.discoveryMultiplier, label: 'more likely to be discovered' },
-                  { stat: PREMIUM_STATS.foundPremiumPct, label: `of premium players get found (vs ${PREMIUM_STATS.foundFreePct} free)` },
+                  { stat: PREMIUM_STATS.foundPremiumPct, label: `of Pro players get found (vs ${PREMIUM_STATS.foundFreePct} free)` },
                   { stat: PREMIUM_STATS.avgViewsPremium, label: `avg coach views (vs ${PREMIUM_STATS.avgViewsFree} free)` },
                 ].map(b => (
                   <div key={b.label} className="rounded-2xl px-2 py-4 text-center" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -221,7 +224,9 @@ export default function PremiumPage() {
             <ul className="divide-y" style={{ borderColor: '#1e2235' }}>
               {features.map((f, i) => (
                 <li key={i} className="flex items-center gap-4 px-5 py-4">
-                  <span className="text-xl w-7 text-center flex-shrink-0">{f.icon}</span>
+                  <span className="text-xl w-7 flex items-center justify-center flex-shrink-0" style={{ color: '#8892aa' }}>
+                    {f.badge ? <ProBadge size="sm" /> : typeof f.icon === 'string' ? f.icon : f.icon && <Icon icon={f.icon} size="md" label={true} />}
+                  </span>
                   <span className="text-sm font-medium leading-snug" style={{ color: '#e8dece' }}>{f.text}</span>
                 </li>
               ))}

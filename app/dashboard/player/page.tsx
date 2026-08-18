@@ -12,11 +12,14 @@ import { getLevelConfig } from '@/lib/opportunityLevel'
 import { getPrimarySignal } from '@/lib/opportunitySignal'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
 import WeekendLogBanner from '@/app/dashboard/performance/_components/WeekendLogBanner'
 import { performanceTrackerEnabled } from '@/lib/performance'
+import Icon from '@/components/ui/Icon'
+import { Lock, Flame } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,11 +131,7 @@ const STATUS_COLORS: Record<Status, string> = {
 // funnels them into the fan → player/coach conversion flow at /dashboard/become.
 
 function FanUpgradeBanner() {
-  const locked = [
-    { icon: '💬', label: 'Message' },
-    { icon: '✍️', label: 'Post' },
-    { icon: '📋', label: 'Apply' },
-  ]
+  const locked = ['Message', 'Post', 'Apply']
   return (
     <div className="px-4 pb-4">
       <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
@@ -152,10 +151,11 @@ function FanUpgradeBanner() {
         </div>
 
         <div className="flex items-center gap-2 mt-3">
-          {locked.map((l) => (
-            <span key={l.label} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full"
+          {locked.map((label) => (
+            <span key={label} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full"
               style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#8892aa' }}>
-              <span style={{ opacity: 0.7 }}>🔒</span>{l.label}
+              <Icon icon={Lock} size="xs" label={true} style={{ opacity: 0.7 }} />
+              {label}
             </span>
           ))}
         </div>
@@ -337,7 +337,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
           </p>
-          {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 11 }}>★</span>}
+          {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <ProBadge size="sm" />}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
@@ -486,7 +486,7 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
       <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
         <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
           <span className="truncate">{p.full_name ?? 'Player'}</span>
-          {isFounder(p.role) ? <FounderBadge size="sm" /> : <span className="flex-shrink-0" style={{ color: '#f59e0b', fontSize: 12 }}>★</span>}
+          {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
         </p>
         <p className="text-xs truncate" style={{ color: '#8892aa' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
         {isLooking ? (
@@ -608,12 +608,12 @@ function FeaturedCarousel({ players, viewerPremium, viewerLooking }: {
             </p>
             <p className="text-xs mt-1.5 leading-snug" style={{ color: '#8892aa', fontSize: 10 }}>
               {!viewerPremium
-                ? 'Premium players get featured to every coach on the platform.'
+                ? 'Pro players get featured to every coach on the platform.'
                 : 'Turn on Actively Looking to get the green signal coaches look for.'}
             </p>
             <span className="mt-3 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"
               style={{ backgroundColor: !viewerPremium ? '#2d5fc4' : '#22c55e', color: '#fff', fontSize: 10 }}>
-              {!viewerPremium ? 'Go Premium' : 'Enable Now'}
+              {!viewerPremium ? 'Go Pro' : 'Enable Now'}
             </span>
           </Link>
         )}
@@ -632,8 +632,9 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
 }) {
   return (
     <section className="space-y-3 px-4">
-      <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-        New Opportunities 🔥
+      <h2 className="text-xl font-black uppercase inline-flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        New Opportunities
+        <Icon icon={Flame} size="sm" label={true} style={{ color: '#f59e0b' }} />
       </h2>
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
         {opportunities.length === 0 ? (
@@ -983,7 +984,7 @@ export default function PlayerHome() {
                   {/* Left — status dropdown */}
                   <div className="flex flex-col gap-2 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>👉 Your availability:</p>
+                      <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>Your availability:</p>
                       {!profile?.status && (
                         <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Required</span>
                       )}

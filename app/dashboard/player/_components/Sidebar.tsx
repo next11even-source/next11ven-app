@@ -135,7 +135,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold" style={{ color: '#2d5fc4' }}>Go Premium</p>
+              <p className="text-sm font-bold" style={{ color: '#2d5fc4' }}>Go Pro</p>
               <p className="text-xs" style={{ color: '#8892aa' }}>£6.99/month · Get seen faster</p>
             </div>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

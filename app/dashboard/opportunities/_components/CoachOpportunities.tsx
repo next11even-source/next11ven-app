@@ -9,6 +9,8 @@ import { LevelBadge } from '@/app/components/OpportunityBadges'
 import {
   isAwaitingReply, waitingDays, waitingLabel, getWaitingTier, WAITING_TIER_COLOUR,
 } from '@/lib/applicationResponse'
+import Icon from '@/components/ui/Icon'
+import { Goal, Briefcase, Lock, Clock, Zap, Users } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,7 +81,7 @@ function daysUntilDeadline(deadline: string) {
 
 function Chip({ children, color, bg }: { children: React.ReactNode; color: string; bg: string }) {
   return (
-    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ color, backgroundColor: bg }}>
+    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ color, backgroundColor: bg }}>
       {children}
     </span>
   )
@@ -167,13 +169,14 @@ function PostOpportunityForm({ onPosted, onCancel }: {
         <div className="grid grid-cols-2 gap-2">
           {(['player', 'coach'] as const).map(t => (
             <button key={t} type="button" onClick={() => { setOpportunityType(t); setPosition('') }}
-              className="py-2.5 rounded-xl text-sm font-bold transition-all"
+              className="py-2.5 rounded-xl text-sm font-bold transition-all inline-flex items-center justify-center gap-1.5"
               style={{
                 backgroundColor: opportunityType === t ? '#2d5fc4' : '#0a0a0a',
                 color: opportunityType === t ? '#fff' : '#8892aa',
                 border: `1px solid ${opportunityType === t ? '#2d5fc4' : '#1e2235'}`,
               }}>
-              {t === 'player' ? '⚽ Player Role' : '🧑‍💼 Coaching Staff'}
+              <Icon icon={t === 'player' ? Goal : Briefcase} size="sm" label={true} />
+              {t === 'player' ? 'Player Role' : 'Coaching Staff'}
             </button>
           ))}
         </div>
@@ -728,9 +731,10 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
               </button>
             ) : (
               <a href="/dashboard/coach/premium"
-                className="flex-shrink-0 inline-block text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full"
+                className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full"
                 style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#2d5fc4', textDecoration: 'none' }}>
-                🔒 Coach Pro for Unlimited
+                <Icon icon={Lock} size="sm" label={true} />
+                Coach Pro for Unlimited
               </a>
             )
           )}
@@ -783,7 +787,8 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                 border: `1px solid ${urgentOnly ? '#f59e0b' : '#1e2235'}`,
                 color: urgentOnly ? '#f59e0b' : '#8892aa',
               }}>
-              🔴 Urgent
+              <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />
+              Urgent
             </button>
             {hasActiveFilters && (
               <button onClick={() => { setSearch(''); setLevelFilter(''); setPositionFilter(''); setUrgentOnly(false) }}
@@ -902,11 +907,24 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                                   : 'Closed'}
                               </Chip>
                             )}
-                            {opp.urgent && <Chip color="#f87171" bg="rgba(239,68,68,0.12)">🔴 Urgent</Chip>}
-                            {deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 7 && (
-                              <Chip color="#fbbf24" bg="rgba(251,191,36,0.12)">⏳ {deadlineDays}d left</Chip>
+                            {opp.urgent && (
+                              <Chip color="#f87171" bg="rgba(239,68,68,0.12)">
+                                <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f87171', flexShrink: 0 }} />
+                                Urgent
+                              </Chip>
                             )}
-                            {justPosted && opp.is_active && <Chip color="#4d8ae8" bg="rgba(45,95,196,0.12)">⚡ Just posted</Chip>}
+                            {deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 7 && (
+                              <Chip color="#fbbf24" bg="rgba(251,191,36,0.12)">
+                                <Icon icon={Clock} size="xs" label={true} />
+                                {deadlineDays}d left
+                              </Chip>
+                            )}
+                            {justPosted && opp.is_active && (
+                              <Chip color="#4d8ae8" bg="rgba(45,95,196,0.12)">
+                                <Icon icon={Zap} size="xs" label={true} />
+                                Just posted
+                              </Chip>
+                            )}
                           </div>
 
                           {opp.isOwn ? (() => {
@@ -922,7 +940,12 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                                   color: bg === 'transparent' ? '#8892aa' : '#fff',
                                   border: `1px solid ${bg === 'transparent' ? '#1e2235' : bg}`,
                                 }}>
-                                {owed ? `${opp.awaiting_count} waiting` : `👥 ${opp.application_count}`} {isViewing ? '✕' : '→'}
+                                {owed ? `${opp.awaiting_count} waiting` : (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Icon icon={Users} size="xs" label={true} />
+                                    {opp.application_count}
+                                  </span>
+                                )} {isViewing ? '✕' : '→'}
                               </button>
                             )
                           })() : canApply && !isApplying && (
@@ -943,7 +966,8 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                               <a href="/dashboard/coach/premium"
                                 className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
                                 style={{ backgroundColor: 'rgba(45,95,196,0.1)', border: '1px solid rgba(45,95,196,0.35)', color: '#2d5fc4', textDecoration: 'none' }}>
-                                🔒 Coach Pro
+                                <Icon icon={Lock} size="xs" label={true} />
+                                Coach Pro
                               </a>
                             )
                           )}

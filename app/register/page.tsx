@@ -9,6 +9,8 @@ import { LEVELS } from '@/lib/levels'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
 import { dobBounds, validateDob, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
+import Icon from '@/components/ui/Icon'
+import { Goal, ClipboardList } from 'lucide-react'
 
 const PLAYING_LEVELS = LEVELS
 const COACHING_LEVELS = LEVELS
@@ -218,8 +220,8 @@ export default function RegisterPage() {
             </p>
             <div className="grid grid-cols-2 gap-4">
               {([
-                { r: 'player', icon: '⚽', label: 'Player' },
-                { r: 'coach', icon: '📋', label: 'Coach / Manager' },
+                { r: 'player', icon: Goal, label: 'Player' },
+                { r: 'coach', icon: ClipboardList, label: 'Coach / Manager' },
               ] as const).map(({ r, icon, label }) => (
                 <button
                   key={r}
@@ -229,7 +231,9 @@ export default function RegisterPage() {
                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2d5fc4')}
                   onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1e2235')}
                 >
-                  <div className="text-3xl mb-2">{icon}</div>
+                  <div className="mb-2 flex justify-center" style={{ color: '#2d5fc4' }}>
+                    <Icon icon={icon} size="lg" label={true} />
+                  </div>
                   <div className="text-lg font-bold uppercase"
                     style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
                     {label}

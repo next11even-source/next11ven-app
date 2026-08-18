@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase-browser'
 import { Suspense } from 'react'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import Icon from '@/components/ui/Icon'
+import { MessageCircle } from 'lucide-react'
 
 type OtherPerson = {
   id: string
@@ -413,7 +415,7 @@ function MessagesInner() {
         </div>
       ) : displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-8 text-center space-y-3">
-          <span className="text-5xl">💬</span>
+          <Icon icon={MessageCircle} size="lg" label={true} style={{ color: '#8892aa' }} />
           <p className="font-black uppercase text-xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             {activeTab === 'messages' ? 'No messages yet' : 'No requests yet'}
           </p>

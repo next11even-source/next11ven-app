@@ -310,7 +310,7 @@ async function handlePaymentFailedNotifications(
           body: new URLSearchParams({
             From: process.env.TWILIO_FROM_NUMBER,
             To: profile.phone,
-            Body: `Your NEXT11VEN premium payment failed. Update your card to restore access: ${appUrl}/dashboard/premium`,
+            Body: `Your NEXT11VEN Pro payment failed. Update your card to restore access: ${appUrl}/dashboard/premium`,
           }),
         }
       )

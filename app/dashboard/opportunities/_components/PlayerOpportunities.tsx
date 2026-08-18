@@ -13,6 +13,8 @@ import { LEVELS, sortLevels } from '@/lib/levels'
 import { POSITIONS } from '@/lib/positions'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
 import CoachOpportunities from './CoachOpportunities'
+import Icon from '@/components/ui/Icon'
+import { Pencil, Clock } from 'lucide-react'
 import {
   getPlayerApplicationState,
   PLAYER_APPLICATION_COPY,
@@ -274,7 +276,7 @@ function PlayerOpportunityCard({
     ? `Already applied to ${title}`
     : isPremium
       ? `Apply to ${title}${meta ? ` at ${meta}` : ''}`
-      : `Upgrade to Premium to apply to ${title}`
+      : `Upgrade to Pro to apply to ${title}`
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -338,7 +340,8 @@ function PlayerOpportunityCard({
                 <button type="button" onClick={() => setEditing(true)}
                   className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
                   style={{ color: '#fbbf24' }}>
-                  ✎ Edit
+                  <Icon icon={Pencil} size="sm" label={true} />
+                  Edit
                 </button>
               )}
             </div>
@@ -596,11 +599,11 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
                 You match {matchedCount} open {matchedCount === 1 ? 'role' : 'roles'} right now
               </p>
               <p className="text-sm mt-1" style={{ color: '#e8dece' }}>
-                Go Premium to apply to them, unlock your match score on every role, and rank above free players when coaches browse.
+                Go Pro to apply to them, unlock your match score on every role, and rank above free players when coaches browse.
               </p>
               <span className="inline-flex items-center gap-2 mt-3 rounded-full px-5 py-2 text-sm font-bold"
                 style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-                Go Premium · £6.99/mo
+                Go Pro · £6.99/mo
                 <span aria-hidden="true">→</span>
               </span>
             </Link>
@@ -645,7 +648,8 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
             border: `1px solid ${closingSoonOnly ? '#fb7185' : '#1e2235'}`,
             color: closingSoonOnly ? '#fb7185' : '#8892aa',
           }}>
-          ⏳ Closing soon
+          <Icon icon={Clock} size="sm" label={true} />
+          Closing soon
         </button>
         {hasActiveFilters && (
           <button onClick={clearFilters}

@@ -102,7 +102,7 @@ export function HeroRow({ heroStats }: { heroStats: HeroStats }) {
 
       <div className="col-span-2 rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <span className="text-xs font-semibold uppercase tracking-wider block mb-2.5" style={{ color: '#e8dece', fontSize: 10 }}>
-          Premium conversions this month
+          Pro conversions this month
         </span>
         <div className="grid grid-cols-2 gap-3">
           <div>

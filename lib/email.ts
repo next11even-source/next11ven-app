@@ -187,7 +187,7 @@ export async function sendDripDay0Email({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${toName ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      A coach has sent you a message on NEXT11VEN. You need a premium account to read it and reply.
+      A coach has sent you a message on NEXT11VEN. You need a Pro account to read it and reply.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
       Coaches are actively recruiting. Upgrade for £6.99/month and start the conversation before they move on.
@@ -215,7 +215,7 @@ export async function sendDripDay3Email({
       You still have an unread message from a coach sitting in your NEXT11VEN inbox.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;font-size:13px;line-height:1.6;">
-      Coaches are actively looking and won't wait indefinitely. Upgrade to premium to read the message and reply before it's too late.
+      Coaches are actively looking and won't wait indefinitely. Upgrade to Pro to read the message and reply before it's too late.
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Read Your Message Now</a>
   `, makeUnsubscribeUrl(playerId))
@@ -405,10 +405,10 @@ export async function sendPaymentFailedEmail({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      We couldn't process your payment for NEXT11VEN Premium.
+      We couldn't process your payment for NEXT11VEN Pro.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
-      Your premium access has been paused. Update your payment details to restore it instantly.
+      Your Pro access has been paused. Update your payment details to restore it instantly.
     </p>
     <a href="${updateUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Update Payment Details</a>
     <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">If you think this is a mistake, reply to this email and we'll sort it.</p>
@@ -427,7 +427,7 @@ export async function sendPaymentFailedFollowUpEmail({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      Your NEXT11VEN Premium payment still hasn't gone through and your access remains paused.
+      Your NEXT11VEN Pro payment still hasn't gone through and your access remains paused.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
       Update your card details to get back in.
@@ -457,10 +457,10 @@ export async function sendSubscriptionCancelledWinBackEmail({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      Your NEXT11VEN Premium membership has ended.
+      Your NEXT11VEN Pro membership has ended.
     </p>
     ${opportunityLine}
-    <a href="${rejoinUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Rejoin Premium</a>
+    <a href="${rejoinUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Rejoin Pro</a>
     <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">Questions? Just reply to this email.</p>
   `)
   await send({ to, subject: "We'd love to have you back", html })

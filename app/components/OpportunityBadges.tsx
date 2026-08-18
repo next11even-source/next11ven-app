@@ -3,13 +3,15 @@
 import { getLevelConfig } from '@/lib/opportunityLevel'
 import { getStepToken } from '@/lib/stepTokens'
 import type { PrimarySignal } from '@/lib/opportunitySignal'
+import Icon from '@/components/ui/Icon'
 
 // Small status-signal pill (urgent / be-first / few-applied). Shared so the
 // Open Roles feed and the homepage preview render signals identically.
 export function SignalChip({ signal }: { signal: PrimarySignal }) {
   return (
-    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${signal.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
+    <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${signal.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
       style={{ color: signal.color, backgroundColor: signal.bg }}>
+      <Icon icon={signal.icon} size="xs" label={true} />
       {signal.label}
     </span>
   )
@@ -33,7 +35,7 @@ export function MatchChip({ matchPercent, isPremium, onLocked }: { matchPercent:
   if (isPremium) return null // premium but no signal to score against
   return (
     <button type="button" onClick={e => { e.stopPropagation(); e.preventDefault(); onLocked?.() }}
-      aria-label="Match score locked — upgrade to Premium to see how well this role fits you"
+      aria-label="Match score locked — upgrade to Pro to see how well this role fits you"
       className="text-xs px-2.5 py-0.5 rounded-full font-bold flex-shrink-0 inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
       style={{ color: '#8892aa', backgroundColor: 'rgba(136,146,170,0.12)' }}>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

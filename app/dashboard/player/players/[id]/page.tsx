@@ -8,12 +8,15 @@ import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
+import ProBadge from '@/app/components/ProBadge'
 import ActivityChip from '@/app/components/ActivityChip'
 import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
 import { displayHeight } from '@/lib/height'
 import { trackerLevelRank } from '@/lib/levels'
+import Icon from '@/components/ui/Icon'
+import { Folder } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,9 +161,10 @@ function FolderModal({
             <div className="flex flex-wrap gap-2">
               {suggestions.map(f => (
                 <button key={f} onClick={() => onSave(f)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5"
                   style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                  📁 {f}
+                  <Icon icon={Folder} size="sm" label={true} />
+                  {f}
                 </button>
               ))}
             </div>
@@ -483,7 +487,7 @@ export default function PlayerPublicProfile() {
               <h1 className="text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
                 {player.full_name ?? 'Player'}
               </h1>
-              {player.premium && <span style={{ color: '#f59e0b', fontSize: 16 }}>★</span>}
+              {player.premium && <ProBadge size="md" />}
               {isFounder(player.role) && <FounderBadge />}
               <NewBadge createdAt={player.created_at} />
             </div>

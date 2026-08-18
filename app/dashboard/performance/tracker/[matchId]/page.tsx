@@ -322,7 +322,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ matchId:
             {/* Actions — read-only players can look but not touch */}
             {readonly ? (
               <p className="text-xs text-center pt-1" style={{ color: '#8892aa' }}>
-                Editing and logging are Premium —{' '}
+                Editing and logging are Pro —{' '}
                 <Link href="/dashboard/player/premium" style={{ color: '#3a6fda', textDecoration: 'none', fontWeight: 600 }}>
                   unlock your tracker
                 </Link>

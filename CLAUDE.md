@@ -743,11 +743,15 @@ secondary/tertiary, size sm/md, optional href (renders a real Link/`<a>`, not an
 onClick that fakes navigation — see the sweep note below). Badge: tone neutral/
 accent/pro/urgent/available, single 11px size, --n11-r-sm radius (8px, not a full
 pill — reads as a toy at that scale otherwise). ProBadge is a thin wrapper:
-`<Badge tone="pro">PRO</Badge>`. At most one `variant="primary"` Button per screen —
-not enforced by the type system, enforced by review; per-row action buttons in a
-list (an Accept button repeated per applicant, an Apply button repeated per
-opportunity card) are the one structural exception, flagged case by case rather
-than solved by the primitives themselves.
+`<Badge tone="pro">PRO</Badge>`. At most one `variant="primary"` Button per
+CONTEXT, not per screen — not enforced by the type system, enforced by review.
+A repeating list is its own context per row: an Accept button repeated per
+applicant, an Apply button repeated per opportunity card, is each row's one
+primary action, not a violation. (Corrected 20 Aug 2026 — the earlier "per
+screen" wording got misapplied to demote every Apply button on the
+opportunities list to tertiary, leaving them as plain text with no
+affordance. Apply is the primary action of that page; it stays
+variant="primary" size="sm" on every card.)
 
 ⚠️ Button's sm/md scale (32px/40px) doesn't cover two patterns that recur
 constantly across the app (found during the 19 Aug 2026 sweep, deliberately not

@@ -373,7 +373,7 @@ function PlayerOpportunityCard({
               </div>
             )}
             <Button type="button" onClick={onApplyClick} disabled={applied}
-              aria-label={applyAria} variant="primary" size="md" className="ml-auto rounded-full">
+              aria-label={applyAria} variant="primary" size="sm" className="ml-auto rounded-full">
               {applyLabel}
             </Button>
           </div>

@@ -1,4 +1,5 @@
 import { stepNumber } from '@/lib/levels'
+import { COLORS } from '@/components/ui/tokens'
 
 // ─── Step colour tokens — SINGLE SOURCE OF TRUTH for step colour ──────────────
 //
@@ -9,16 +10,24 @@ import { stepNumber } from '@/lib/levels'
 //
 // On the pyramid a LOWER number = HIGHER level (Step 1 is the top). Key 0 is the
 // slate "OTHER" fallback for off-ladder / unknown levels.
+//
+// Steps 1–7 share ONE colour (accentOnDark) rather than a rainbow per step
+// (corrected 20 Aug 2026) — the step NUMBER already carries the information;
+// a distinct hue per step added no signal and created a false hierarchy (Step
+// 2 also happened to land on the CLAUDE.md-reserved availability green, which
+// this removes too). OTHER (key 0) stays slate — it's a genuinely different
+// category (off-ladder), not a step number, so it's exempt from "regardless
+// of step number".
 
 export const STEP_TOKENS = {
-  1: { color: '#FACC15', label: 'STEP 1' }, // gold
-  2: { color: '#22C55E', label: 'STEP 2' }, // green
-  3: { color: '#14B8A6', label: 'STEP 3' }, // teal
-  4: { color: '#0EA5E9', label: 'STEP 4' }, // sky
-  5: { color: '#6366F1', label: 'STEP 5' }, // indigo
-  6: { color: '#A855F7', label: 'STEP 6' }, // violet
-  7: { color: '#F43F5E', label: 'STEP 7' }, // rose
-  0: { color: '#64748B', label: 'OTHER'  }, // slate fallback
+  1: { color: COLORS.accentOnDark, label: 'STEP 1' },
+  2: { color: COLORS.accentOnDark, label: 'STEP 2' },
+  3: { color: COLORS.accentOnDark, label: 'STEP 3' },
+  4: { color: COLORS.accentOnDark, label: 'STEP 4' },
+  5: { color: COLORS.accentOnDark, label: 'STEP 5' },
+  6: { color: COLORS.accentOnDark, label: 'STEP 6' },
+  7: { color: COLORS.accentOnDark, label: 'STEP 7' },
+  0: { color: '#64748B', label: 'OTHER'  }, // slate fallback — off-ladder, not a step number
 } as const
 
 export type StepKey = keyof typeof STEP_TOKENS

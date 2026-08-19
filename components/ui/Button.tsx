@@ -24,6 +24,12 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   tertiary: 'bg-transparent text-[#4d8ae8] border border-transparent hover:bg-[rgba(45,95,196,0.1)]',
 }
 
+// Shared-prop keys that must never reach the DOM node (or the `{...rest}`
+// spread would leak them as invalid attributes) and, critically, must never
+// reach `rest` at all — see the button-branch comment below for why letting
+// className/style slip through here silently breaks every styled Button.
+const OWN_KEYS = ['variant', 'size', 'leadingIcon', 'trailingIcon', 'className', 'style', 'children', 'loading']
+
 type Shared = {
   children: ReactNode
   variant?: Variant
@@ -83,8 +89,10 @@ function Spinner() {
 
 /**
  * The one button/nav-link component in the app — see CLAUDE.md "no
- * inline-styled buttons". At most one `variant="primary"` per screen; not
- * enforced by the type system, enforced by review.
+ * inline-styled buttons". At most one `variant="primary"` per CONTEXT, not
+ * per screen — a repeating list is its own context per row, so a primary
+ * Apply/Accept button repeated on every card/row is correct, not a violation.
+ * Not enforced by the type system, enforced by review.
  *
  * Pass `href` for navigation (renders a real link — Next.js Link, or `<a>`
  * for absolute/external URLs) instead of `onClick` for an action (renders a
@@ -105,8 +113,9 @@ export default function Button(props: Props) {
   if (props.href !== undefined) {
     const { href, ...anchorProps } = props
     // Strip the Shared/Button-only keys so only real anchor attributes (target,
-    // rel, aria-*, ...) reach the DOM node.
-    const OWN_KEYS = ['variant', 'size', 'leadingIcon', 'trailingIcon', 'className', 'style', 'children', 'loading']
+    // rel, aria-*, ...) reach the DOM node — and so a caller-passed className/
+    // style can't silently override the computed `classes`/baseStyle below via
+    // this spread (see OWN_KEYS note on the button branch for why that matters).
     const rest = Object.fromEntries(Object.entries(anchorProps).filter(([k]) => !OWN_KEYS.includes(k)))
     const isExternal = /^https?:\/\//.test(href)
     const inner = <Content leadingIcon={leadingIcon} trailingIcon={trailingIcon}>{children}</Content>
@@ -117,7 +126,15 @@ export default function Button(props: Props) {
     )
   }
 
-  const { disabled, loading = false, ...rest } = props as ButtonOnlyProps
+  // `rest` must exclude every Shared key (className/style especially) — object
+  // spread lets a later key win even when its value came from an unrelated
+  // destructure, so `{...rest}` after `className={classes}` would otherwise
+  // silently overwrite the computed classes with the caller's raw className
+  // (this shipped broken for a while: every Button that passed a className —
+  // i.e. nearly every call site — rendered with none of its variant/size
+  // styling, just the caller's layout classes).
+  const { disabled, loading = false, ...maybeRest } = props as ButtonOnlyProps
+  const rest = Object.fromEntries(Object.entries(maybeRest).filter(([k]) => !OWN_KEYS.includes(k)))
   const isDisabled = disabled || loading
 
   return (

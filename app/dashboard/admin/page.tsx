@@ -28,30 +28,6 @@ type ApplicantProfile = {
 
 type TabFilter = 'pending' | 'approved' | 'declined'
 
-type ShowcaseCoach = {
-  id: string
-  full_name: string | null
-  club: string | null
-  city: string | null
-  coaching_role: string | null
-  showcase_confirmed_at: string | null
-}
-
-type ShowcasePayer = {
-  id: string
-  full_name: string | null
-  email: string | null
-  position: string | null
-  club: string | null
-  role: string | null
-}
-
-type UnmatchedPayer = {
-  email: string
-  name: string | null
-  amount: number
-}
-
 type OrphanedUser = {
   id: string
   email: string | null
@@ -77,25 +53,12 @@ export default function AdminPage() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [agentSaving, setAgentSaving] = useState<string | null>(null)
   const [counts, setCounts] = useState({ pending: 0, approved: 0, declined: 0 })
-  const [reconciling, setReconciling] = useState(false)
-  const [reconcileResult, setReconcileResult] = useState<{ granted: number; revoked: number; checked: number } | null>(null)
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 20
 
   const [orphaned, setOrphaned] = useState<OrphanedUser[]>([])
   const [orphanedLoading, setOrphanedLoading] = useState(false)
   const [orphanedLoaded, setOrphanedLoaded] = useState(false)
-  const [showcaseCoaches, setShowcaseCoaches] = useState<ShowcaseCoach[]>([])
-  const [showcaseLoading, setShowcaseLoading] = useState(false)
-  const [showcaseLoaded, setShowcaseLoaded] = useState(false)
-
-  const [payersMatched, setPayersMatched] = useState<ShowcasePayer[]>([])
-  const [payersUnmatched, setPayersUnmatched] = useState<UnmatchedPayer[]>([])
-  const [payersAlreadyEnabled, setPayersAlreadyEnabled] = useState<ShowcasePayer[]>([])
-  const [payersLoading, setPayersLoading] = useState(false)
-  const [payersLoaded, setPayersLoaded] = useState(false)
-  const [payersEnabling, setPayersEnabling] = useState(false)
-  const [payersEnabledCount, setPayersEnabledCount] = useState(0)
   const [rescuingId, setRescuingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [rescueRoles, setRescueRoles] = useState<Record<string, string>>({})
@@ -261,48 +224,6 @@ export default function AdminPage() {
     setRescuingId(null)
   }
 
-  async function loadShowcase() {
-    setShowcaseLoading(true)
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, club, city, coaching_role, showcase_confirmed_at')
-      .eq('role', 'coach')
-      .eq('showcase_confirmed', true)
-      .order('showcase_confirmed_at', { ascending: true })
-    setShowcaseCoaches((data ?? []) as ShowcaseCoach[])
-    setShowcaseLoading(false)
-    setShowcaseLoaded(true)
-  }
-
-  async function loadShowcasePayers() {
-    setPayersLoading(true)
-    const res = await fetch('/api/admin/showcase-payers')
-    const json = await res.json()
-    setPayersMatched(json.matched ?? [])
-    setPayersUnmatched(json.unmatched ?? [])
-    setPayersAlreadyEnabled(json.already_enabled ?? [])
-    setPayersLoading(false)
-    setPayersLoaded(true)
-  }
-
-  async function enableShowcasePayers() {
-    if (!payersMatched.length) return
-    setPayersEnabling(true)
-    const res = await fetch('/api/admin/showcase-payers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: payersMatched.map(p => p.id) }),
-    })
-    const json = await res.json()
-    if (res.ok) {
-      setPayersEnabledCount(json.count ?? 0)
-      setPayersAlreadyEnabled(prev => [...prev, ...payersMatched])
-      setPayersMatched([])
-    }
-    setPayersEnabling(false)
-  }
-
   async function deleteOrphanedUser(userId: string) {
     if (!confirm('Permanently delete this account? This cannot be undone.')) return
     setDeletingId(userId)
@@ -379,33 +300,6 @@ export default function AdminPage() {
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Admin Panel
         </h1>
-
-        {/* Stripe Reconcile */}
-        <div className="mb-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
-          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <div>
-            <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Stripe Sync</p>
-            <p className="text-xs" style={{ color: '#8892aa' }}>
-              {reconcileResult
-                ? `Done — ${reconcileResult.checked} checked · ${reconcileResult.granted} granted · ${reconcileResult.revoked} revoked`
-                : 'Reconcile premium status against live Stripe data'}
-            </p>
-          </div>
-          <button
-            onClick={async () => {
-              setReconciling(true)
-              setReconcileResult(null)
-              const res = await fetch('/api/admin/stripe-reconcile', { method: 'POST' })
-              const data = await res.json()
-              setReconcileResult(data.ok ? data : null)
-              setReconciling(false)
-            }}
-            disabled={reconciling}
-            className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
-            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-            {reconciling ? 'Syncing…' : 'Run Sync'}
-          </button>
-        </div>
 
         {/* Account Rescue — find signups that never made it through */}
         <div className="mb-4 rounded-xl overflow-hidden"
@@ -557,183 +451,6 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Showcase Day */}
-        <div className="mb-4 rounded-xl overflow-hidden"
-          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
-          <div className="px-4 py-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Showcase Day — Confirmed Coaches</p>
-              <p className="text-xs" style={{ color: '#8892aa' }}>
-                {showcaseLoaded
-                  ? `${showcaseCoaches.length} coach${showcaseCoaches.length !== 1 ? 'es' : ''} confirmed`
-                  : 'See who has confirmed attendance'}
-              </p>
-            </div>
-            <button
-              onClick={loadShowcase}
-              disabled={showcaseLoading}
-              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-              {showcaseLoading ? 'Loading…' : showcaseLoaded ? 'Refresh' : 'Load'}
-            </button>
-          </div>
-
-          {showcaseLoaded && showcaseCoaches.length > 0 && (
-            <div className="border-t divide-y" style={{ borderColor: '#1e2235' }}>
-              {showcaseCoaches.map((c, i) => (
-                <div key={c.id} className="px-4 py-3 flex items-center gap-3">
-                  <span className="text-xs font-bold w-5 flex-shrink-0" style={{ color: '#8892aa' }}>{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{c.full_name ?? '—'}</p>
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      {[c.coaching_role, c.club, c.city].filter(Boolean).join(' · ') || '—'}
-                    </p>
-                  </div>
-                  {c.showcase_confirmed_at && (
-                    <p className="text-xs flex-shrink-0" style={{ color: '#60a5fa' }}>
-                      {timeAgo(c.showcase_confirmed_at)}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {showcaseLoaded && showcaseCoaches.length === 0 && (
-            <div className="border-t px-4 py-4 text-center" style={{ borderColor: '#1e2235' }}>
-              <p className="text-xs" style={{ color: '#8892aa' }}>No coaches confirmed yet.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Showcase Game 1 — Stripe Payers */}
-        <div className="mb-4 rounded-xl overflow-hidden"
-          style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4' }}>
-          <div className="px-4 py-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Showcase Game 1 — Stripe Payers</p>
-              <p className="text-xs" style={{ color: '#8892aa' }}>
-                {payersLoaded
-                  ? `${payersMatched.length} to enable · ${payersAlreadyEnabled.length} already on · ${payersUnmatched.length} unmatched`
-                  : 'Match £14.99 / £20 Stripe payments to profiles'}
-              </p>
-            </div>
-            <button
-              onClick={loadShowcasePayers}
-              disabled={payersLoading}
-              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-              {payersLoading ? 'Loading…' : payersLoaded ? 'Refresh' : 'Load'}
-            </button>
-          </div>
-
-          {payersLoaded && (
-            <div className="border-t" style={{ borderColor: '#1e2235' }}>
-
-              {/* Matched — needs enabling */}
-              {payersMatched.length > 0 && (
-                <>
-                  <div className="px-4 py-2 flex items-center justify-between"
-                    style={{ backgroundColor: 'rgba(45,95,196,0.08)' }}>
-                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#2d5fc4' }}>
-                      {payersMatched.length} matched — not yet enabled
-                    </p>
-                    <button
-                      onClick={enableShowcasePayers}
-                      disabled={payersEnabling}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
-                      style={{ backgroundColor: '#e8dece', color: '#0a0a0a' }}>
-                      {payersEnabling ? 'Enabling…' : `Enable all ${payersMatched.length}`}
-                    </button>
-                  </div>
-                  <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-                    {payersMatched.map((p, i) => (
-                      <div key={p.id} className="px-4 py-3 flex items-center gap-3">
-                        <span className="text-xs font-bold w-5 flex-shrink-0" style={{ color: '#8892aa' }}>{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? '—'}</p>
-                          <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                            {[p.email, p.position, p.club].filter(Boolean).join(' · ') || '—'}
-                          </p>
-                        </div>
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                          style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
-                          {p.role ?? '?'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Already enabled */}
-              {payersAlreadyEnabled.length > 0 && (
-                <>
-                  <div className="px-4 py-2" style={{ backgroundColor: 'rgba(96,165,250,0.06)' }}>
-                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#60a5fa' }}>
-                      {payersAlreadyEnabled.length} already enabled
-                    </p>
-                  </div>
-                  <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-                    {payersAlreadyEnabled.map((p, i) => (
-                      <div key={p.id} className="px-4 py-3 flex items-center gap-3">
-                        <span className="text-xs font-bold w-5 flex-shrink-0" style={{ color: '#8892aa' }}>{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold truncate" style={{ color: '#60a5fa' }}>{p.full_name ?? '—'}</p>
-                          <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                            {[p.email, p.position, p.club].filter(Boolean).join(' · ') || '—'}
-                          </p>
-                        </div>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Unmatched — paid but no profile found */}
-              {payersUnmatched.length > 0 && (
-                <>
-                  <div className="px-4 py-2" style={{ backgroundColor: 'rgba(239,68,68,0.06)' }}>
-                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ef4444' }}>
-                      {payersUnmatched.length} unmatched — no profile found
-                    </p>
-                  </div>
-                  <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-                    {payersUnmatched.map((p, i) => (
-                      <div key={i} className="px-4 py-3 flex items-center gap-3">
-                        <span className="text-xs font-bold w-5 flex-shrink-0" style={{ color: '#8892aa' }}>{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.name ?? '—'}</p>
-                          <p className="text-xs truncate" style={{ color: '#8892aa' }}>
-                            {p.email} · £{(p.amount / 100).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {payersEnabledCount > 0 && payersMatched.length === 0 && (
-                <div className="px-4 py-4 text-center">
-                  <p className="text-xs font-bold" style={{ color: '#60a5fa' }}>
-                    Done — {payersEnabledCount} player{payersEnabledCount !== 1 ? 's' : ''} enabled
-                  </p>
-                </div>
-              )}
-
-              {payersLoaded && payersMatched.length === 0 && payersAlreadyEnabled.length === 0 && payersUnmatched.length === 0 && (
-                <div className="px-4 py-4 text-center">
-                  <p className="text-xs" style={{ color: '#8892aa' }}>No £14.99 or £20 payments found in Stripe.</p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* User Lookup */}

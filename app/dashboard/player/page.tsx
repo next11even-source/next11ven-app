@@ -19,7 +19,8 @@ import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStat
 import WeekendLogBanner from '@/app/dashboard/performance/_components/WeekendLogBanner'
 import { performanceTrackerEnabled } from '@/lib/performance'
 import Icon from '@/components/ui/Icon'
-import { Lock, Flame } from 'lucide-react'
+import { Lock, Flame, ChevronRight } from 'lucide-react'
+import Button from '@/components/ui/Button'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,11 +161,9 @@ function FanUpgradeBanner() {
           ))}
         </div>
 
-        <Link href="/dashboard/become"
-          className="block text-center w-full mt-4 rounded-full py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors"
-          style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
-          Become a Player or Coach →
-        </Link>
+        <Button variant="primary" size="md" href="/dashboard/become" className="w-full mt-4 rounded-full" trailingIcon={ChevronRight}>
+          Become a Player or Coach
+        </Button>
       </div>
     </div>
   )
@@ -313,14 +312,18 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
   const initials = user.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   // Homepage only needs account type + step level (not exact role)
   const accountType = isCoach ? 'Coach' : 'Player'
-  const level = isCoach ? user.coaching_level : user.playing_level
+  const rawLevel = isCoach ? user.coaching_level : user.playing_level
+  // "Other" is a real selectable level (off-ladder / doesn't fit Step 1-7,
+  // U18s, Wales) but reads as a blank on a card — city is more useful than
+  // a level that says nothing.
+  const level = rawLevel && rawLevel !== 'Other' ? rawLevel : user.city
   const href = isCoach ? `/dashboard/coach/${user.id}` : `/dashboard/player/players/${user.id}`
 
   return (
     <Link
       href={href}
       className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 230 }}
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 250 }}
     >
       <div className="relative flex-shrink-0">
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
@@ -332,17 +335,20 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
           style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />
       </div>
+      {/* Name gets its own full-width line — cramming it in beside PRO + NEW
+          badges (both can apply at once) truncated names down to 5-6 characters.
+          Badges instead ride the shorter subtitle line, which has more room to spare. */}
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
-            {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
+        <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+          {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
+        </p>
+        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+          <p className="text-xs truncate" style={{ color: '#8892aa' }}>
+            {accountType}{level ? ` · ${level}` : ''}
           </p>
           {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <ProBadge size="sm" />}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
-        <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-          {accountType}{level ? ` · ${level}` : ''}
-        </p>
       </div>
     </Link>
   )
@@ -458,14 +464,14 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
     <Link href={`/dashboard/player/players/${p.id}`}
       className="flex-shrink-0 rounded-2xl overflow-hidden block mr-3"
       style={{
-        width: 145,
+        width: 170,
         border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
         textDecoration: 'none',
         boxShadow: isLooking ? '0 0 20px rgba(34,197,94,0.1)' : 'none',
       }}>
       <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
         {p.avatar_url ? (
-          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="145px" className="object-cover object-center" />
+          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="170px" className="object-cover object-center" />
         ) : (
           <div className="w-full h-full flex items-center justify-center"
             style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
@@ -474,7 +480,7 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
             </span>
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.5) 0%, transparent 60%)' }} />
         <div className="absolute top-2 left-2">
           <NewBadge createdAt={p.created_at} size="sm" />
         </div>
@@ -482,12 +488,15 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
           <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full animate-pulse"
             style={{ backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }} />
         )}
+        {/* Tier badge lives on the photo, not squeezed onto the name line — a
+            name + PRO badge sharing one ~120px text row was truncating names
+            down to 3-4 characters. */}
+        <div className="absolute bottom-2 right-2">
+          {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
+        </div>
       </div>
       <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-        <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
-          <span className="truncate">{p.full_name ?? 'Player'}</span>
-          {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
-        </p>
+        <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
         <p className="text-xs truncate" style={{ color: '#8892aa' }}>{[p.position, p.city].filter(Boolean).join(' · ') || '—'}</p>
         {isLooking ? (
           <span className="inline-flex items-center gap-1 text-xs font-semibold"
@@ -640,11 +649,9 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
         {opportunities.length === 0 ? (
           <div className="p-6 text-center space-y-3">
             <p className="text-sm" style={{ color: '#8892aa' }}>No opportunities posted yet. Check back soon — coaches post new roles regularly.</p>
-            <Link href="/dashboard/player/profile"
-              className="inline-block px-4 py-2 rounded-xl text-xs font-bold"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            <Button variant="primary" size="sm" href="/dashboard/player/profile">
               Update My Profile
-            </Link>
+            </Button>
           </div>
         ) : (
           opportunities.map((opp, i) => {
@@ -687,18 +694,11 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
           })
         )}
       </div>
-      <Link href="/dashboard/opportunities"
-        className="group flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold uppercase tracking-wider transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] focus-visible:ring-[#4d8ae8]"
-        style={{
-          background: 'linear-gradient(135deg, #2d5fc4, #3a6fda)',
-          color: '#fff',
-          boxShadow: '0 6px 24px rgba(45,95,196,0.35)',
-          textDecoration: 'none',
-          border: '1px solid rgba(120,160,255,0.35)',
-        }}>
+      {/* Navigation, not an action — tertiary, not the solid-gradient primary
+          this used to be. See CLAUDE.md button/badge primitives note. */}
+      <Button variant="tertiary" size="md" href="/dashboard/opportunities" trailingIcon={ChevronRight} className="w-full">
         All Opportunities
-        <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
-      </Link>
+      </Button>
     </section>
   )
 }
@@ -721,7 +721,7 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
         <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           From the Feed
         </h2>
-        <Link href="/dashboard/feed" className="text-xs font-semibold" style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+        <Link href="/dashboard/feed" className="text-xs font-semibold" style={{ color: '#4d8ae8', textDecoration: 'none' }}>
           See all →
         </Link>
       </div>

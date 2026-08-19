@@ -265,7 +265,7 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
           From the Feed
         </h2>
         <Link href="/dashboard/feed" className="text-xs font-semibold"
-          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          style={{ color: '#4d8ae8', textDecoration: 'none' }}>
           See all →
         </Link>
       </div>
@@ -275,7 +275,7 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
           style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <p className="text-sm" style={{ color: '#8892aa' }}>No posts yet — check back soon.</p>
           <Link href="/dashboard/feed" className="mt-3 inline-block text-xs font-semibold"
-            style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+            style={{ color: '#4d8ae8', textDecoration: 'none' }}>
             Visit the feed →
           </Link>
         </div>
@@ -371,6 +371,9 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Latest roles posted across the platform</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Both smaller than Button's sm (32px) floor — a 10-11px header-row
+              chip forced into the fixed size scale needed !important overrides
+              to fight it back down, which is worse than not using the primitive. */}
           <Link href="/dashboard/opportunities?new=1"
             className="font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-full transition-colors"
             style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none', fontSize: 10 }}
@@ -379,7 +382,7 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
             + Add
           </Link>
           <Link href="/dashboard/opportunities" className="font-semibold"
-            style={{ color: '#2d5fc4', textDecoration: 'none', fontSize: 11 }}>
+            style={{ color: '#4d8ae8', textDecoration: 'none', fontSize: 11 }}>
             All →
           </Link>
         </div>
@@ -436,7 +439,7 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
                         ? `${opp.awaitingCount} awaiting your reply`
                         : opp.applicationCount === 0
                           ? 'No applications yet'
-                          : `✓ All ${opp.applicationCount} answered`}
+                          : `All ${opp.applicationCount} answered`}
                     </p>
                   ) : (
                     <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</p>
@@ -475,7 +478,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
             <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
               className="flex-shrink-0 rounded-2xl overflow-hidden block"
               style={{
-                width: 145,
+                width: 170,
                 scrollSnapAlign: 'start',
                 border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
                 textDecoration: 'none',
@@ -494,17 +497,20 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
                   </div>
                 )}
                 <div className="absolute inset-0"
-                  style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.4) 0%, transparent 60%)' }} />
+                  style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.5) 0%, transparent 60%)' }} />
                 {isLooking && (
                   <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full animate-pulse"
                     style={{ backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }} />
                 )}
+                {/* Tier badge lives on the photo, not squeezed onto the name line —
+                    a name + PRO badge sharing one ~120px text row was truncating
+                    names down to 3-4 characters. */}
+                <div className="absolute bottom-2 right-2">
+                  {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
+                </div>
               </div>
               <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-                <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
-                  <span className="truncate">{p.full_name ?? 'Player'}</span>
-                  {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
-                </p>
+                <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
                 <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                   {[p.position, p.city].filter(Boolean).join(' · ') || '—'}
                 </p>
@@ -548,7 +554,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
           )}
         </div>
         <Link href="/dashboard/coach/shortlists" className="text-xs font-semibold"
-          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          style={{ color: '#4d8ae8', textDecoration: 'none' }}>
           View all →
         </Link>
       </div>
@@ -560,7 +566,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
             You haven't shortlisted any players yet. Browse players to start building your shortlist.
           </p>
           <Link href="/dashboard/coach/players" className="mt-3 inline-block text-xs font-semibold"
-            style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+            style={{ color: '#4d8ae8', textDecoration: 'none' }}>
             Browse Players →
           </Link>
         </div>
@@ -573,7 +579,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
             return (
               <Link key={p.savedId} href={`/dashboard/player/players/${p.player_id}`}
                 className="flex-shrink-0 rounded-2xl overflow-hidden block"
-                style={{ width: 150, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
+                style={{ width: 175, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
                 onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1e2235')}>
                 <div className="relative" style={{ height: 150, backgroundColor: '#1a1f3a' }}>
@@ -598,12 +604,17 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                       </span>
                     </div>
                   )}
+                  {/* Tier badge lives on the photo, not squeezed onto the name line —
+                      a name + PRO badge sharing one ~110px text row was truncating
+                      names down to 3-4 characters. */}
+                  {(isFounder(p.role) || p.premium) && (
+                    <div className="absolute bottom-2 right-2">
+                      {isFounder(p.role) ? <FounderBadge size="sm" /> : <ProBadge size="sm" />}
+                    </div>
+                  )}
                 </div>
                 <div className="p-3 space-y-0.5" style={{ backgroundColor: '#13172a' }}>
-                  <p className="text-sm font-bold truncate flex items-center gap-1" style={{ color: '#e8dece' }}>
-                    <span className="truncate">{p.full_name ?? 'Player'}</span>
-                    {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
-                  </p>
+                  <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
                   <p className="text-xs truncate" style={{ color: '#8892aa' }}>
                     {[p.position, p.city].filter(Boolean).join(' · ') || '—'}
                   </p>
@@ -632,14 +643,18 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
   const initials = getInitials(user.full_name)
   // Homepage only needs account type + step level (not exact role)
   const accountType = isCoach ? 'Coach' : 'Player'
-  const level = isCoach ? user.coaching_level : user.playing_level
+  const rawLevel = isCoach ? user.coaching_level : user.playing_level
+  // "Other" is a real selectable level (off-ladder / doesn't fit Step 1-7,
+  // U18s, Wales) but reads as a blank on a card — city is more useful than
+  // a level that says nothing.
+  const level = rawLevel && rawLevel !== 'Other' ? rawLevel : user.city
   const href = isCoach ? `/dashboard/coach/${user.id}` : `/dashboard/player/players/${user.id}`
 
   return (
     <Link
       href={href}
       className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 230 }}
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 250 }}
     >
       <div className="relative flex-shrink-0">
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
@@ -651,17 +666,20 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
           style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />
       </div>
+      {/* Name gets its own full-width line — cramming it in beside PRO + NEW
+          badges (both can apply at once) truncated names down to 5-6 characters.
+          Badges instead ride the shorter subtitle line, which has more room to spare. */}
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
-            {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
+        <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
+          {user.full_name ?? (isCoach ? 'Coach' : 'Player')}
+        </p>
+        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+          <p className="text-xs truncate" style={{ color: '#8892aa' }}>
+            {accountType}{level ? ` · ${level}` : ''}
           </p>
           {isFounder(user.role) ? <FounderBadge size="sm" /> : user.premium && <ProBadge size="sm" />}
           <NewBadge createdAt={user.created_at} size="sm" />
         </div>
-        <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-          {accountType}{level ? ` · ${level}` : ''}
-        </p>
       </div>
     </Link>
   )

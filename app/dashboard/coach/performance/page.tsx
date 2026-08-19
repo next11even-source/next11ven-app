@@ -384,7 +384,7 @@ export default function CoachPerformancePage() {
                 style={availableOnly
                   ? { backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.4)' }
                   : { backgroundColor: '#0d1020', color: '#8892aa', border: '1px solid #1e2235' }}>
-                {availableOnly ? '✓ Actively looking only' : 'Actively looking only'}
+                Actively looking only
               </button>
             </div>
 

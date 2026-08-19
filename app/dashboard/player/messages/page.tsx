@@ -8,6 +8,7 @@ import LockedMessageTrigger from '@/app/components/LockedMessageTrigger'
 import { getThreadRefundState, type ThreadRefundState } from '@/lib/messageCredits'
 import { useSidebar } from '../_components/SidebarContext'
 import Icon from '@/components/ui/Icon'
+import Button from '@/components/ui/Button'
 import { Lock } from 'lucide-react'
 
 type Conversation = {
@@ -173,11 +174,9 @@ function ChatView({
             <p className="text-sm mb-6 leading-relaxed" style={{ color: '#8892aa' }}>
               Upgrade to Player Pro to read messages from coaches.
             </p>
-            <a href="/dashboard/player/premium"
-              className="px-6 py-3 rounded-xl text-sm font-bold"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            <Button variant="primary" size="md" href="/dashboard/player/premium">
               Upgrade — £6.99/mo
-            </a>
+            </Button>
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center py-12">
@@ -465,7 +464,7 @@ function MessagesInner() {
               </p>
               <a href="/dashboard/player/extra-messages"
                 className="text-xs flex-shrink-0"
-                style={{ color: '#2d5fc4', textDecoration: 'none', fontWeight: 600 }}>
+                style={{ color: '#4d8ae8', textDecoration: 'none', fontWeight: 600 }}>
                 Buy more →
               </a>
             </div>
@@ -474,7 +473,7 @@ function MessagesInner() {
               <p className="text-xs" style={{ color: '#8892aa' }}>No extra messages</p>
               <a href="/dashboard/player/extra-messages"
                 className="text-xs flex-shrink-0"
-                style={{ color: '#2d5fc4', textDecoration: 'none', fontWeight: 600 }}>
+                style={{ color: '#4d8ae8', textDecoration: 'none', fontWeight: 600 }}>
                 Buy a pack →
               </a>
             </div>
@@ -576,7 +575,7 @@ function MessagesInner() {
                       <a href="/dashboard/player/premium"
                         onClick={e => e.stopPropagation()}
                         className="inline-block text-xs font-semibold mt-1"
-                        style={{ color: '#2d5fc4' }}>
+                        style={{ color: '#4d8ae8' }}>
                         Upgrade to read and reply →
                       </a>
                     </>

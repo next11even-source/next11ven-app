@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
@@ -16,7 +15,8 @@ import { buildPublicPerformance, type PublicPerformance, type PublicPerformanceP
 import { displayHeight } from '@/lib/height'
 import { trackerLevelRank } from '@/lib/levels'
 import Icon from '@/components/ui/Icon'
-import { Folder } from 'lucide-react'
+import Button from '@/components/ui/Button'
+import { Folder, MessageCircle, Bookmark } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -357,7 +357,7 @@ export default function PlayerPublicProfile() {
       } else {
         setDmText('')
         setShowDMInput(false)
-        setSaveToast('Message sent ✓')
+        setSaveToast('Message sent')
         setTimeout(() => setSaveToast(''), 2500)
         router.push(`/dashboard/coach/messages?player=${id}`)
       }
@@ -535,36 +535,32 @@ export default function PlayerPublicProfile() {
                   style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#e8dece' }}
                 />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowDMInput(false)}
-                    className="flex-1 py-3 rounded-2xl text-sm font-bold"
-                    style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+                  <Button type="button" variant="secondary" size="md" className="flex-1" onClick={() => setShowDMInput(false)}>
                     Cancel
-                  </button>
-                  <button type="submit" disabled={!dmText.trim() || dmSending}
-                    className="flex-1 py-3 rounded-2xl text-sm font-bold"
-                    style={{ backgroundColor: dmText.trim() ? '#2d5fc4' : '#1e2235', color: '#fff' }}>
-                    {dmSending ? 'Sending…' : 'Send Message'}
-                  </button>
+                  </Button>
+                  <Button type="submit" variant="primary" size="md" className="flex-1"
+                    disabled={!dmText.trim()} loading={dmSending}>
+                    Send Message
+                  </Button>
                 </div>
               </form>
             ) : (
               <div className="flex gap-2">
+                {/* Taller hero CTA (56px) than Button's md floor (40px) — a deliberate
+                    "biggest, most important button on this screen" treatment that
+                    Button's fixed 2-size scale doesn't cover. Kept as a plain button. */}
                 <button onClick={() => setShowDMInput(true)}
                   className="flex-1 py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2"
                   style={{ background: 'linear-gradient(135deg, #3a6fda 0%, #2d5fc4 100%)', color: '#fff', boxShadow: '0 6px 18px rgba(45,95,196,0.35)' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
+                  <Icon icon={MessageCircle} size="sm" label={true} />
                   Message {firstName}
                 </button>
                 {/* Shortlist as a compact icon action alongside the primary CTA */}
                 {!savedFolder && (
-                  <button onClick={() => setShowFolderModal(true)} disabled={saving} title="Save to shortlist"
+                  <button onClick={() => setShowFolderModal(true)} disabled={saving}
                     className="px-4 rounded-2xl flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#e8dece' }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
+                    <Icon icon={Bookmark} size="md" label="Save to shortlist" />
                   </button>
                 )}
               </div>
@@ -584,11 +580,9 @@ export default function PlayerPublicProfile() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
                   Saved to <strong>{savedFolder}</strong>
                 </div>
-                <button onClick={handleRemove} disabled={saving}
-                  className="px-4 py-3 rounded-2xl text-sm"
-                  style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa' }}>
+                <Button onClick={handleRemove} disabled={saving} variant="secondary" size="md" style={{ color: '#8892aa' }}>
                   Remove
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>
@@ -662,11 +656,10 @@ export default function PlayerPublicProfile() {
 
         {/* Own profile shortcut */}
         {isOwnProfile && (
-          <Link href="/dashboard/player/profile"
-            className="flex items-center justify-center gap-2 w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider"
-            style={{ border: '1px solid #2d5fc4', color: '#2d5fc4', textDecoration: 'none' }}>
+          <Button variant="secondary" size="md" href="/dashboard/player/profile" className="w-full"
+            style={{ color: '#4d8ae8', borderColor: '#2d5fc4' }}>
             Edit Your Profile
-          </Link>
+          </Button>
         )}
 
       </div>

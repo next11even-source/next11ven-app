@@ -9,7 +9,7 @@ import { toTitleCase } from '@/lib/utils'
 import { dobBounds, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
 import Icon from '@/components/ui/Icon'
-import { Goal, ClipboardList } from 'lucide-react'
+import { CircleDot, ClipboardList } from 'lucide-react'
 
 const { min: DOB_MIN, max: DOB_MAX } = dobBounds()
 
@@ -206,7 +206,7 @@ export default function BecomePage() {
             <p className="text-center text-sm uppercase tracking-wider" style={{ color: '#8892aa' }}>I want to join as a…</p>
             <div className="grid grid-cols-2 gap-4">
               {([
-                { r: 'player', icon: Goal, label: 'Player' },
+                { r: 'player', icon: CircleDot, label: 'Player' },
                 { r: 'coach', icon: ClipboardList, label: 'Coach / Manager' },
               ] as const).map(({ r, icon, label }) => (
                 <button

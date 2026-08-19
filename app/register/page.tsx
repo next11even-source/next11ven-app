@@ -10,7 +10,7 @@ import { toTitleCase, normalizePhone } from '@/lib/utils'
 import { dobBounds, validateDob, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
 import Icon from '@/components/ui/Icon'
-import { Goal, ClipboardList } from 'lucide-react'
+import { CircleDot, ClipboardList } from 'lucide-react'
 
 const PLAYING_LEVELS = LEVELS
 const COACHING_LEVELS = LEVELS
@@ -220,7 +220,7 @@ export default function RegisterPage() {
             </p>
             <div className="grid grid-cols-2 gap-4">
               {([
-                { r: 'player', icon: Goal, label: 'Player' },
+                { r: 'player', icon: CircleDot, label: 'Player' },
                 { r: 'coach', icon: ClipboardList, label: 'Coach / Manager' },
               ] as const).map(({ r, icon, label }) => (
                 <button

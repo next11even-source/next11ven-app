@@ -16,8 +16,9 @@ import { LEVELS } from '@/lib/levels'
 import { normalizePhone } from '@/lib/utils'
 import { calcCompletion, calcCoachCompletion } from '@/lib/profileCompletion'
 import Icon from '@/components/ui/Icon'
-import { Flame } from 'lucide-react'
+import { Flame, X, Check } from 'lucide-react'
 import ActivityChip from '@/app/components/ActivityChip'
+import Badge from '@/components/ui/Badge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -323,9 +324,7 @@ function PlayerDetailsCard({ profile, onSave, incomplete }: { profile: Profile; 
             <span className="text-sm font-semibold" style={{ color: localLooking ? '#e8dece' : '#8892aa' }}>
               Actively Looking
             </span>
-            {!profile.premium && (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4' }}>Pro</span>
-            )}
+            {!profile.premium && <Badge tone="pro">PRO</Badge>}
           </div>
           <button
             onClick={handleToggle}
@@ -409,7 +408,11 @@ function HighlightsEditor({ urls, premium, onSave, onCancel }: { urls: string[];
       {list.map((url, i) => (
         <div key={i} className="flex gap-2">
           <Inp type="url" value={url} onChange={e => setList(l => l.map((u, idx) => idx === i ? e.target.value : u))} placeholder="YouTube or Vimeo link" />
-          {list.length > 1 && <button onClick={() => setList(l => l.filter((_, idx) => idx !== i))} className="text-xs px-2 rounded-lg" style={{ color: '#8892aa' }}>✕</button>}
+          {list.length > 1 && (
+            <button onClick={() => setList(l => l.filter((_, idx) => idx !== i))} className="text-xs px-2 rounded-lg" style={{ color: '#8892aa' }}>
+              <Icon icon={X} size="sm" label="Remove video link" />
+            </button>
+          )}
         </div>
       ))}
       {list.length < maxVideos && <button onClick={() => setList(l => [...l, ''])} className="text-xs uppercase tracking-wider" style={{ color: '#2d5fc4' }}>+ Add another</button>}
@@ -617,8 +620,8 @@ function CompletionBar({ profile, isCoach }: { profile: Profile; isCoach: boolea
       <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: 'rgba(167,139,250,0.15)' }}>
-            <span style={{ fontSize: 16 }}>✓</span>
+            style={{ backgroundColor: 'rgba(167,139,250,0.15)', color: '#a78bfa' }}>
+            <Icon icon={Check} size="sm" label={true} />
           </div>
           <div>
             <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Profile Complete</p>

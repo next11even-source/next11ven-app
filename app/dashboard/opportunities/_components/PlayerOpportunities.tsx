@@ -14,7 +14,8 @@ import { POSITIONS } from '@/lib/positions'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
 import CoachOpportunities from './CoachOpportunities'
 import Icon from '@/components/ui/Icon'
-import { Pencil, Clock } from 'lucide-react'
+import Button from '@/components/ui/Button'
+import { Pencil, Clock, ChevronRight } from 'lucide-react'
 import {
   getPlayerApplicationState,
   PLAYER_APPLICATION_COPY,
@@ -271,7 +272,7 @@ function PlayerOpportunityCard({
   // (e.g. title "Step 6 - striker" + an "ST" chip is redundant).
   const showPos = !!opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
 
-  const applyLabel = applied ? '✓ Applied' : 'Apply'
+  const applyLabel = applied ? 'Applied' : 'Apply'
   const applyAria = applied
     ? `Already applied to ${title}`
     : isPremium
@@ -371,14 +372,10 @@ function PlayerOpportunityCard({
                 {signal && <SignalChip signal={signal} />}
               </div>
             )}
-            <button type="button" onClick={onApplyClick} disabled={applied}
-              aria-label={applyAria}
-              className="ml-auto flex-shrink-0 rounded-full px-6 py-2 text-sm font-bold uppercase tracking-wider transition-colors hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#13172a] focus-visible:ring-[#4d8ae8] disabled:cursor-default"
-              style={applied
-                ? { backgroundColor: 'rgba(45,95,196,0.12)', color: '#6ea0f0', border: '1px solid rgba(45,95,196,0.35)' }
-                : { backgroundColor: 'rgba(45,95,196,0.22)', color: '#8fb4f5', border: '1px solid rgba(45,95,196,0.6)' }}>
+            <Button type="button" onClick={onApplyClick} disabled={applied}
+              aria-label={applyAria} variant="primary" size="md" className="ml-auto rounded-full">
               {applyLabel}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -389,16 +386,12 @@ function PlayerOpportunityCard({
               style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
               placeholder="Tell the coach about yourself (optional)…" />
             <div className="flex gap-2">
-              <button onClick={onCancel}
-                className="flex-1 rounded-full py-2.5 text-sm font-semibold uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8892aa]"
-                style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+              <Button onClick={onCancel} variant="secondary" size="md" className="flex-1 rounded-full">
                 Cancel
-              </button>
-              <button onClick={onConfirm}
-                className="flex-1 rounded-full py-2.5 text-sm font-semibold uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+              </Button>
+              <Button onClick={onConfirm} variant="primary" size="md" className="flex-1 rounded-full">
                 Confirm Apply
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -551,11 +544,9 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
     <div className="px-4 py-4">
       <div className="rounded-2xl p-10 text-center space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <p className="text-sm" style={{ color: '#8892aa' }}>No opportunities posted yet. Check back soon — coaches post new roles regularly.</p>
-        <Link href="/dashboard/player/profile"
-          className="inline-block px-5 py-2.5 rounded-xl text-sm font-bold"
-          style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+        <Button variant="primary" size="md" href="/dashboard/player/profile">
           Update My Profile
-        </Link>
+        </Button>
       </div>
     </div>
   )
@@ -720,11 +711,9 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
       {applications.length === 0 ? (
         <div className="rounded-2xl p-10 text-center space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
           <p className="text-sm" style={{ color: '#8892aa' }}>You haven&apos;t applied for any roles yet.</p>
-          <button onClick={onBrowse}
-            className="inline-block px-5 py-2.5 rounded-xl text-sm font-bold"
-            style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+          <Button variant="primary" size="md" onClick={onBrowse}>
             Browse Opportunities
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -776,17 +765,17 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
                       {done ? (
                         // A closed application is a prompt to move, not an
                         // epitaph. Always hand them somewhere to go.
-                        <button onClick={onBrowse}
-                          className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
-                          style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#2d5fc4' }}>
-                          See open roles →
-                        </button>
+                        <Button onClick={onBrowse} variant="secondary" size="sm" className="mt-3 rounded-full"
+                          style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
+                          trailingIcon={ChevronRight}>
+                          See open roles
+                        </Button>
                       ) : opp && opp.is_active ? (
-                        <button onClick={() => onView(opp.id)}
-                          className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8]"
-                          style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#2d5fc4' }}>
-                          View opportunity →
-                        </button>
+                        <Button onClick={() => onView(opp.id)} variant="secondary" size="sm" className="mt-3 rounded-full"
+                          style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
+                          trailingIcon={ChevronRight}>
+                          View opportunity
+                        </Button>
                       ) : (
                         <p className="text-xs mt-3" style={{ color: '#5b6478' }}>
                           {opp ? 'This role is now closed.' : 'This role is no longer listed.'}

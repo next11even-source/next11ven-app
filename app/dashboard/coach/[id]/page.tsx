@@ -12,6 +12,8 @@ import ActivityChip from '@/app/components/ActivityChip'
 import { getActivityTier } from '@/lib/activityRecency'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 import { REFUND_AFTER_DAYS, REFUND_PROMISE, isRefundEligible } from '@/lib/messageCredits'
+import Button from '@/components/ui/Button'
+import { ChevronRight } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -355,11 +357,10 @@ export default function CoachPublicProfile() {
         <p className="text-sm mt-1.5" style={{ color: '#8892aa' }}>{subtitle}</p>
 
         {isOwnProfile && (
-          <Link href="/dashboard/profile"
-            className="mt-5 flex items-center justify-center gap-2 w-full rounded-2xl py-3 text-sm font-bold uppercase tracking-wider"
-            style={{ border: '1px solid #2d5fc4', color: '#2d5fc4', textDecoration: 'none' }}>
+          <Button variant="secondary" size="md" href="/dashboard/profile" className="mt-5 w-full"
+            style={{ color: '#4d8ae8', borderColor: '#2d5fc4' }}>
             Edit Your Profile
-          </Link>
+          </Button>
         )}
 
         {/* ── Message section for players ─────────────────────────────────── */}
@@ -398,12 +399,9 @@ export default function CoachPublicProfile() {
                 {/* State C: existing conversation, coach replied or coach initiated — just continue */}
                 {quotaData.hasExisting && (quotaData.coachInitiated || !quotaData.cooldownUntil) && (
                   <div className="space-y-2">
-                    <Link
-                      href="/dashboard/player/messages"
-                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
-                      style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-                      Continue Conversation →
-                    </Link>
+                    <Button variant="primary" size="md" href="/dashboard/player/messages" className="w-full" trailingIcon={ChevronRight}>
+                      Continue Conversation
+                    </Button>
                     {!quotaData.coachInitiated && (
                       <p className="text-xs" style={{ color: '#8892aa' }}>
                         {firstName} has replied — conversation is open
@@ -415,12 +413,9 @@ export default function CoachPublicProfile() {
                 {/* State C2: player initiated, coach hasn't replied, within cooldown */}
                 {quotaData.hasExisting && !quotaData.coachInitiated && quotaData.cooldownUntil && (
                   <div className="space-y-3">
-                    <Link
-                      href="/dashboard/player/messages"
-                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold"
-                      style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
-                      View Conversation →
-                    </Link>
+                    <Button variant="primary" size="md" href="/dashboard/player/messages" className="w-full" trailingIcon={ChevronRight}>
+                      View Conversation
+                    </Button>
                     <div className="rounded-xl px-4 py-3 text-left space-y-1"
                       style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
                       <p className="text-xs font-semibold" style={{ color: '#e8dece' }}>
@@ -484,17 +479,12 @@ export default function CoachPublicProfile() {
                         </p>
                       </div>
                     )}
-                    <button
+                    <Button
                       onClick={handleInitiate}
-                      disabled={initiating}
-                      className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-colors"
-                      style={{ backgroundColor: initiating ? '#1e2a4a' : '#2d5fc4', color: '#fff' }}>
-                      {initiating
-                        ? 'Opening…'
-                        : coachDormant && dormantAcknowledged
-                          ? 'Send anyway'
-                          : `Message ${firstName}`}
-                    </button>
+                      loading={initiating}
+                      variant="primary" size="md" className="w-full">
+                      {coachDormant && dormantAcknowledged ? 'Send anyway' : `Message ${firstName}`}
+                    </Button>
 
                     {/* Credit status pill */}
                     <div className="flex items-center justify-center gap-2 flex-wrap">

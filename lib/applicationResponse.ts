@@ -182,7 +182,7 @@ export const PLAYER_APPLICATION_COPY: Record<
   accepted: {
     // Blue, not green. Green is reserved for availability signals; the existing
     // accepted chip was already blue and there's no reason to churn it.
-    label: '✓ Accepted',
+    label: 'Accepted',
     colour: '#2d5fc4',
     bg: 'rgba(45,95,196,0.15)',
     detail: 'Check your messages — the club wants to speak to you.',

@@ -10,7 +10,9 @@ import {
   isAwaitingReply, waitingDays, waitingLabel, getWaitingTier, WAITING_TIER_COLOUR,
 } from '@/lib/applicationResponse'
 import Icon from '@/components/ui/Icon'
-import { Goal, Briefcase, Lock, Clock, Zap, Users } from 'lucide-react'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
+import { CircleDot, Briefcase, Lock, Clock, Users, Sparkles } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +164,9 @@ function PostOpportunityForm({ onPosted, onCancel }: {
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
           Post an Opportunity
         </h3>
+        {/* Plain text button, not tertiary Button — "Cancel" reading as an accent-blue
+            link would look like a CTA, not a dismiss action. See report: tertiary's
+            fixed accent-blue text doesn't fit muted/neutral text-actions. */}
         <button onClick={onCancel} className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Cancel</button>
       </div>
 
@@ -175,7 +180,7 @@ function PostOpportunityForm({ onPosted, onCancel }: {
                 color: opportunityType === t ? '#fff' : '#8892aa',
                 border: `1px solid ${opportunityType === t ? '#2d5fc4' : '#1e2235'}`,
               }}>
-              <Icon icon={t === 'player' ? Goal : Briefcase} size="sm" label={true} />
+              <Icon icon={t === 'player' ? CircleDot : Briefcase} size="sm" label={true} />
               {t === 'player' ? 'Player Role' : 'Coaching Staff'}
             </button>
           ))}
@@ -412,29 +417,25 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
 
                   <div className="flex items-center gap-2">
                     {a.status !== 'accepted' && acceptingId !== a.id && (
-                      <button
+                      <Button
+                        size="sm" variant="primary"
                         onClick={() => { setAcceptingId(a.id); setAcceptMsg('') }}
                         disabled={actioning === a.id}
-                        className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
-                        style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#2d5fc4', border: '1px solid rgba(45,95,196,0.4)' }}
-                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.3)')}
-                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(45,95,196,0.15)')}>
-                        ✓ Accept &amp; Message
-                      </button>
+                        className="rounded-full">
+                        Accept &amp; Message
+                      </Button>
                     )}
                     {a.status !== 'rejected' && acceptingId !== a.id && (
-                      <button
+                      <Button
+                        size="sm" variant="secondary"
                         onClick={() => updateStatus(a.id, 'rejected')}
                         disabled={actioning === a.id}
-                        className="text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
-                        style={{ backgroundColor: 'transparent', color: '#8892aa', border: '1px solid #1e2235' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                        onMouseLeave={e => (e.currentTarget.style.color = '#8892aa')}>
+                        className="rounded-full">
                         {/* "Reject" made coaches hesitate, so they answered nothing
                             at all. A softer verb is the cheapest lever on the
                             silence problem — the player still gets a clear no. */}
-                        {actioning === a.id ? '…' : '✕ Not this time'}
-                      </button>
+                        {actioning === a.id ? '…' : 'Not this time'}
+                      </Button>
                     )}
                     {(a.status === 'accepted' || a.status === 'rejected') && acceptingId !== a.id && (
                       <button
@@ -465,19 +466,19 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
                       placeholder="Add a message — training times, next steps, contact info…"
                     />
                     <div className="flex gap-2">
-                      <button
+                      <Button
+                        size="sm" variant="secondary"
                         onClick={() => { setAcceptingId(null); setAcceptMsg('') }}
-                        className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider"
-                        style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+                        className="flex-1 rounded-full">
                         Cancel
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm" variant="primary"
                         onClick={() => handleAcceptAndMessage(a)}
                         disabled={actioning === a.id}
-                        className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider disabled:opacity-50"
-                        style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+                        className="flex-1 rounded-full">
                         {actioning === a.id ? 'Sending…' : 'Accept & Send Message'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -722,20 +723,16 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
           </p>
           {!showForm && (
             canPost ? (
-              <button onClick={() => setShowForm(true)}
-                className="flex-shrink-0 text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full transition-colors"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#3a6fda')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d5fc4')}>
+              <Button variant="primary" size="sm" className="rounded-full" onClick={() => setShowForm(true)}>
                 + Add Opportunity
-              </button>
+              </Button>
             ) : (
-              <a href="/dashboard/coach/premium"
-                className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full"
-                style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#2d5fc4', textDecoration: 'none' }}>
-                <Icon icon={Lock} size="sm" label={true} />
+              <Button variant="secondary" size="sm" className="rounded-full"
+                style={{ color: '#4d8ae8', borderColor: '#2d5fc4' }}
+                leadingIcon={Lock}
+                href="/dashboard/coach/premium">
                 Coach Pro for Unlimited
-              </a>
+              </Button>
             )
           )}
         </div>
@@ -817,17 +814,18 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                   : 'No opportunities yet.'}
             </p>
             {hasActiveFilters ? (
-              <button onClick={() => { setSearch(''); setLevelFilter(''); setPositionFilter(''); setUrgentOnly(false) }}
-                className="mt-4 text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full"
-                style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', color: '#2d5fc4' }}>
+              <Button variant="secondary" size="md" className="mt-4"
+                style={{ color: '#4d8ae8', borderColor: '#2d5fc4' }}
+                onClick={() => { setSearch(''); setLevelFilter(''); setPositionFilter(''); setUrgentOnly(false) }}>
                 Clear filters
-              </button>
+              </Button>
             ) : canPost && (
-              <button onClick={() => setShowForm(true)}
-                className="mt-4 text-sm font-semibold uppercase tracking-wider px-5 py-2.5 rounded-full"
-                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+              // Secondary, not primary — "+ Add Opportunity" in the header above is
+              // this screen's one primary action; this empty-state prompt does the
+              // same thing and would otherwise be a second primary button on screen.
+              <Button variant="secondary" size="md" className="mt-4" onClick={() => setShowForm(true)}>
                 Post your first role
-              </button>
+              </Button>
             )}
           </div>
         ) : (
@@ -898,32 +896,29 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                         {/* Status chips + action */}
                         <div className="flex items-center justify-between gap-2 flex-wrap mt-3">
                           <div className="flex flex-wrap gap-1.5">
-                            {opp.isOwn && <Chip color="#4d8ae8" bg="rgba(45,95,196,0.2)">★ Your role</Chip>}
+                            {opp.isOwn && <Badge tone="accent">Your role</Badge>}
+                            {/* Coaching Staff uses purple to mark a distinct opportunity_type from
+                                Badge's tones (accent/pro/urgent/available/neutral) — none is purple,
+                                so this stays a one-off rather than forcing a tone that isn't there. */}
                             {isCoachingRole && <Chip color="#a78bfa" bg="rgba(167,139,250,0.1)">Coaching Staff</Chip>}
                             {!opp.is_active && (
-                              <Chip color="#8892aa" bg="rgba(136,146,170,0.1)">
+                              <Badge tone="neutral">
                                 {opp.auto_close_reason === 'neglected' ? 'Auto-closed — no response'
                                   : opp.auto_close_reason === 'stale' ? 'Auto-closed — expired'
                                   : 'Closed'}
-                              </Chip>
+                              </Badge>
                             )}
                             {opp.urgent && (
-                              <Chip color="#f87171" bg="rgba(239,68,68,0.12)">
+                              <Badge tone="urgent">
                                 <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f87171', flexShrink: 0 }} />
                                 Urgent
-                              </Chip>
+                              </Badge>
                             )}
                             {deadlineDays !== null && deadlineDays >= 0 && deadlineDays <= 7 && (
-                              <Chip color="#fbbf24" bg="rgba(251,191,36,0.12)">
-                                <Icon icon={Clock} size="xs" label={true} />
-                                {deadlineDays}d left
-                              </Chip>
+                              <Badge tone="urgent" icon={Clock}>{deadlineDays}d left</Badge>
                             )}
                             {justPosted && opp.is_active && (
-                              <Chip color="#4d8ae8" bg="rgba(45,95,196,0.12)">
-                                <Icon icon={Zap} size="xs" label={true} />
-                                Just posted
-                              </Chip>
+                              <Badge tone="accent" icon={Sparkles}>Just posted</Badge>
                             )}
                           </div>
 
@@ -952,23 +947,20 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                             applied ? (
                               <span className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
                                 style={{ color: '#2d5fc4', border: '1px solid #2d5fc4' }}>
-                                ✓ Applied
+                                Applied
                               </span>
                             ) : isPremium ? (
-                              <button onClick={() => { setApplying(opp.id); setApplyMessage('') }}
-                                className="flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors"
-                                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}
-                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#3a6fda')}
-                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d5fc4')}>
+                              <Button variant="primary" size="sm" className="rounded-full"
+                                onClick={() => { setApplying(opp.id); setApplyMessage('') }}>
                                 Apply
-                              </button>
+                              </Button>
                             ) : (
-                              <a href="/dashboard/coach/premium"
-                                className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                                style={{ backgroundColor: 'rgba(45,95,196,0.1)', border: '1px solid rgba(45,95,196,0.35)', color: '#2d5fc4', textDecoration: 'none' }}>
-                                <Icon icon={Lock} size="xs" label={true} />
+                              <Button variant="secondary" size="sm" className="rounded-full"
+                                style={{ color: '#4d8ae8', borderColor: 'rgba(45,95,196,0.35)', backgroundColor: 'rgba(45,95,196,0.1)' }}
+                                leadingIcon={Lock}
+                                href="/dashboard/coach/premium">
                                 Coach Pro
-                              </a>
+                              </Button>
                             )
                           )}
                         </div>
@@ -981,23 +973,24 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                               style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
                               placeholder="Tell the club about your coaching background (optional)…" />
                             <div className="flex gap-2">
-                              <button onClick={() => { setApplying(null); setApplyMessage('') }}
-                                className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider"
-                                style={{ border: '1px solid #1e2235', color: '#8892aa' }}>
+                              <Button variant="secondary" size="sm" className="flex-1 rounded-full"
+                                onClick={() => { setApplying(null); setApplyMessage('') }}>
                                 Cancel
-                              </button>
-                              <button onClick={() => handleApply(opp)}
-                                className="flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider"
-                                style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+                              </Button>
+                              <Button variant="primary" size="sm" className="flex-1 rounded-full"
+                                onClick={() => handleApply(opp)}>
                                 Confirm Apply
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Manage footer — own roles only */}
+                    {/* Manage footer — own roles only. Plain text links, not Button:
+                        each needs its own one-off hover colour (grey→cream,
+                        grey→red-on-delete) that doesn't fit tertiary's fixed
+                        accent-blue text. */}
                     {opp.isOwn && (
                       <div className="flex items-center gap-3 mt-4 pt-3" style={{ borderTop: '1px solid #1e2235' }}>
                         <button onClick={() => toggleActive(opp)}

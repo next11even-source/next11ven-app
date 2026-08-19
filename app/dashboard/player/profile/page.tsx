@@ -13,7 +13,7 @@ import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import Icon from '@/components/ui/Icon'
-import { Flame } from 'lucide-react'
+import { Flame, X, Check } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -236,8 +236,8 @@ function CompletionBar({ profile }: { profile: Profile }) {
       <div className="rounded-2xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: 'rgba(167,139,250,0.15)' }}>
-            <span style={{ fontSize: 16 }}>✓</span>
+            style={{ backgroundColor: 'rgba(167,139,250,0.15)', color: '#a78bfa' }}>
+            <Icon icon={Check} size="sm" label={true} />
           </div>
           <div>
             <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Profile Complete</p>
@@ -442,7 +442,7 @@ export default function PlayerProfilePage() {
     setProfile(merged)
     syncFields(merged)
     closeSection(section)
-    showToast('Saved ✓')
+    showToast('Saved')
   }
 
   if (loading) {
@@ -616,7 +616,9 @@ export default function PlayerProfilePage() {
                 <div key={i} className="flex gap-2 items-center">
                   <Input type="url" value={url} onChange={e => { const next = [...highlights]; next[i] = e.target.value; setHighlights(next) }} placeholder="YouTube URL…" />
                   {highlights.length > 1 && (
-                    <button onClick={() => setHighlights(highlights.filter((_, j) => j !== i))} style={{ color: '#f87171', flexShrink: 0 }}>✕</button>
+                    <button onClick={() => setHighlights(highlights.filter((_, j) => j !== i))} style={{ color: '#f87171', flexShrink: 0 }}>
+                      <Icon icon={X} size="sm" label="Remove highlight link" />
+                    </button>
                   )}
                 </div>
               ))}

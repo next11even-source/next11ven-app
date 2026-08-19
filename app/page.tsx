@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
+import Button from '@/components/ui/Button'
+import { ChevronRight } from 'lucide-react'
 
 export default function SignInPage() {
   const router = useRouter()
@@ -106,13 +107,12 @@ export default function SignInPage() {
                   >
                     Check your email — a reset link is on its way to <strong>{resetEmail}</strong>.
                   </p>
-                  <button
+                  <Button
                     onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail('') }}
-                    className="w-full rounded-full py-3 text-sm font-semibold uppercase tracking-wider"
-                    style={{ backgroundColor: '#1e2235', color: '#8892aa', border: '1px solid #1e2235' }}
+                    variant="secondary" size="md" className="w-full rounded-full"
                   >
                     Back to Sign In
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -141,16 +141,9 @@ export default function SignInPage() {
                     </p>
                   )}
 
-                  <button
-                    type="submit"
-                    disabled={resetLoading}
-                    className="w-full rounded-full py-3 text-sm font-semibold uppercase tracking-wider disabled:opacity-50"
-                    style={{ backgroundColor: '#2d5fc4', color: '#ffffff' }}
-                    onMouseEnter={(e) => !resetLoading && (e.currentTarget.style.backgroundColor = '#3a6fda')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2d5fc4')}
-                  >
-                    {resetLoading ? 'Sending…' : 'Send Reset Link'}
-                  </button>
+                  <Button type="submit" loading={resetLoading} variant="primary" size="md" className="w-full rounded-full">
+                    Send Reset Link
+                  </Button>
 
                   <button
                     type="button"
@@ -245,16 +238,9 @@ export default function SignInPage() {
                   </p>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-full py-3 text-sm font-semibold uppercase tracking-wider transition-colors disabled:opacity-50"
-                  style={{ backgroundColor: '#2d5fc4', color: '#ffffff' }}
-                  onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#3a6fda')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2d5fc4')}
-                >
-                  {loading ? 'Signing in…' : 'Sign In'}
-                </button>
+                <Button type="submit" loading={loading} variant="primary" size="md" className="w-full rounded-full">
+                  Sign In
+                </Button>
               </form>
             </>
           )}
@@ -262,26 +248,16 @@ export default function SignInPage() {
 
         <div className="text-center space-y-3">
           <div>
-            <Link
-              href="/register"
-              className="text-sm uppercase tracking-wider transition-colors"
-              style={{ color: '#2d5fc4' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#3a6fda')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#2d5fc4')}
-            >
-              Create an account →
-            </Link>
+            <Button variant="tertiary" size="sm" href="/register" trailingIcon={ChevronRight}>
+              Create an account
+            </Button>
           </div>
           <div>
-            <Link
-              href="/claim"
-              className="block w-full rounded-full py-3 text-sm font-semibold uppercase tracking-wider text-center transition-colors"
-              style={{ backgroundColor: 'rgba(45,95,196,0.12)', border: '1px solid rgba(45,95,196,0.4)', color: '#7eaaed' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2d5fc4'; e.currentTarget.style.color = '#e8dece' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(45,95,196,0.4)'; e.currentTarget.style.color = '#7eaaed' }}
-            >
-              First time on the new app? Create your password →
-            </Link>
+            <Button variant="secondary" size="md" href="/claim" className="w-full rounded-full"
+              style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
+              trailingIcon={ChevronRight}>
+              First time on the new app? Create your password
+            </Button>
           </div>
         </div>
 

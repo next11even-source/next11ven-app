@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { showcaseConfig, TeamEntry } from '@/lib/showcase.config'
 import Icon from '@/components/ui/Icon'
-import { Goal } from 'lucide-react'
+import { CircleDot, X } from 'lucide-react'
 
 type UserState = {
   id: string
@@ -404,7 +404,7 @@ export default function ShowcasePage() {
                       {(entry.goals || entry.assists) && (
                         <div className="flex items-center gap-0.5 flex-shrink-0">
                           {entry.goals && Array.from({ length: entry.goals }).map((_, i) => (
-                            <Icon key={i} icon={Goal} size="xs" label={true} style={{ color: '#e8dece' }} />
+                            <Icon key={i} icon={CircleDot} size="xs" label={true} style={{ color: '#e8dece' }} />
                           ))}
                           {entry.assists && (
                             <span className="font-black" style={{ fontSize: '9px', color: '#f59e0b', lineHeight: 1 }}>A</span>
@@ -471,7 +471,7 @@ export default function ShowcasePage() {
                               onClick={() => { setLinkingSlot(null); setLinkQuery(''); setLinkResults([]) }}
                               className="flex-shrink-0 text-xs px-2 py-1.5 rounded-lg"
                               style={{ color: '#8892aa', backgroundColor: '#1e2235' }}>
-                              ✕
+                              <Icon icon={X} size="sm" label="Cancel search" />
                             </button>
                           </div>
                           {linkSearching && (

@@ -193,13 +193,17 @@ function CoachSkeleton() {
 
 function RecentlyActiveCard({ coach }: { coach: Coach }) {
   const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-  const detail = [coach.coaching_role, coach.coaching_level].filter(Boolean).join(' · ')
+  // "Other" is a real selectable level (off-ladder / doesn't fit Step 1-7,
+  // U18s, Wales) but reads as a blank on a card — fall back to city rather
+  // than showing a level that says nothing.
+  const level = coach.coaching_level && coach.coaching_level !== 'Other' ? coach.coaching_level : null
+  const detail = [coach.coaching_role, level].filter(Boolean).join(' · ') || coach.city || ''
 
   return (
     <Link
       href={`/dashboard/coach/${coach.id}`}
       className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
-      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 220 }}
+      style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 240 }}
     >
       <div className="relative flex-shrink-0">
         <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
@@ -211,13 +215,16 @@ function RecentlyActiveCard({ coach }: { coach: Coach }) {
         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
           style={{ backgroundColor: '#3a6fda', border: '2px solid #13172a' }} />
       </div>
+      {/* Name gets its own full-width line — up to two badges (PRO + Agent/New)
+          crammed in beside it truncated names down to 5-6 characters. Badges
+          instead ride the detail line, which has more room to spare. */}
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
+        <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
+        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+          {detail && <p className="text-xs truncate" style={{ color: '#8892aa' }}>{detail}</p>}
           {coach.premium && <ProBadge size="sm" />}
           {isAgent({ role: 'coach', is_agent: coach.is_agent }) ? <AgentBadge size="sm" /> : <NewBadge createdAt={coach.created_at} size="sm" />}
         </div>
-        {detail && <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>{detail}</p>}
       </div>
     </Link>
   )
@@ -385,7 +392,7 @@ function ConversationsBanner({ isPremium, quota }: { isPremium: boolean; quota: 
       ) : (
         <Link href="/dashboard/player/messages"
           className="flex-shrink-0 text-xs font-semibold"
-          style={{ color: '#2d5fc4', textDecoration: 'none' }}>
+          style={{ color: '#4d8ae8', textDecoration: 'none' }}>
           Inbox →
         </Link>
       )}

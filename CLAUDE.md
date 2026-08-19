@@ -721,16 +721,62 @@ No over-engineering — solo build, keep it shippable
 Server components where possible, client only where needed
 Never put API keys or Twilio/Stripe/MailerLite/Resend calls client-side
 Green limited to availability signals, positive confirmations, and positive analytics movement (growth vs previous period) — see Brand & Style
-No emoji in JSX or UI copy (18 Aug 2026). All icons go through components/ui/Icon.tsx
-(lucide-react, single stroke weight — 1.75 — across the app, colour always inherited
-via currentColor, never passed as a prop). Exceptions: the ★/✓/✕ dingbat glyphs
-already in use (e.g. "★ Your role", "✓ Applied") are plain Unicode symbols, not
-emoji — same category as the → arrows used for navigation copy throughout the app —
-and were deliberately left alone rather than forced into the icon system. Emoji in
+No emoji in JSX or UI copy (18 Aug 2026, updated 19 Aug 2026). All icons go through
+components/ui/Icon.tsx (lucide-react, single stroke weight — 1.75 — across the app,
+colour always inherited via currentColor, never passed as a prop). The ★/✓/✕ dingbat
+glyphs — a different Unicode category from emoji, same as the → arrows used
+throughout the app for navigation copy — were stripped from every plain-text label
+and toast string (19 Aug 2026: "Message sent ✓" → "Message sent", "★ Your role" →
+"Your role", etc.) rather than converted to icons. A handful remain as genuine
+icon-only controls (a remove-row ✕, a completion ✓, a ✕/→ panel toggle) where the
+glyph IS the entire control, not decoration on text — those are follow-up work for
+the Button/Badge sweep below, not an exception to the no-emoji rule. Emoji in
 lib/weeklyReport.ts (the founder's own Telegram report) and the ✅/❌ in
 lib/email.ts's application-decision HTML email are also left as-is: neither is
 app UI — one is an internal ops message, the other a different rendering medium
 lucide icons don't reach.
+
+All buttons and pills/chips/tags go through components/ui/Button.tsx and
+components/ui/Badge.tsx (19 Aug 2026) — no inline-styled `<button>`/`<a>` CTAs or
+ad-hoc coloured `<span>` pills outside those two. Button: variant primary/
+secondary/tertiary, size sm/md, optional href (renders a real Link/`<a>`, not an
+onClick that fakes navigation — see the sweep note below). Badge: tone neutral/
+accent/pro/urgent/available, single 11px size, --n11-r-sm radius (8px, not a full
+pill — reads as a toy at that scale otherwise). ProBadge is a thin wrapper:
+`<Badge tone="pro">PRO</Badge>`. At most one `variant="primary"` Button per screen —
+not enforced by the type system, enforced by review; per-row action buttons in a
+list (an Accept button repeated per applicant, an Apply button repeated per
+opportunity card) are the one structural exception, flagged case by case rather
+than solved by the primitives themselves.
+
+⚠️ Button's sm/md scale (32px/40px) doesn't cover two patterns that recur
+constantly across the app (found during the 19 Aug 2026 sweep, deliberately not
+forced through Button with !important overrides — see the two examples below):
+  - Small inline CTAs (~24-28px) — "Upgrade" / "Buy more" pills inside banners,
+    a `+ Add` header chip, filter-count badges. Below Button's sm floor.
+  - Large hero CTAs (~56px) — filter-sheet Apply/Clear, the DM/checkout "Message
+    X" button, Stripe checkout buttons. Above Button's md ceiling; also often
+    wants a gradient background or a taller tap target Button doesn't offer.
+  Also: tertiary's text colour is fixed accent-blue (#4d8ae8) — plain muted-grey
+  text actions (Cancel, Undo, Clear, Delete) don't fit it; forcing "Cancel" blue
+  makes it read as a CTA instead of a dismiss action. All three are real gaps in
+  the primitives, not sweep laziness — left as plain elements rather than fought
+  with `!important`. A future pass could add an `xs`/`lg` Button size and a
+  `neutral` tertiary tone if these keep recurring.
+
+⚠️ ACCENT: #2d5fc4 (documented primary) is a solid-background colour, not a text
+colour — it fails WCAG AA (3.0-3.3:1) as text sitting directly on #0a0a0a/#13172a,
+which is exactly why five near-duplicate lighter blues (#4d8ae8, #60a5fa, #7eaaed,
+#6ea0f0, #8fb4f5) had organically drifted in across the app anywhere blue text or
+an outlined button needed to read on a dark background (accent audit, 19 Aug 2026).
+#4d8ae8 is now the one designated accent-on-dark colour (components/ui/tokens.ts)
+— passes AA on both backgrounds (5.2-5.8:1), and was already the most-used of the
+five. Use #2d5fc4 for solid fills (white text on top), #4d8ae8 for text/borders/
+icons that sit on a dark or transparent background. #60a5fa stays separate — it's
+the "Free Agent" status colour in ~19 files, a different meaning, not a CTA colour.
+The sky-blue #38bdf8 on the homepage Tracker stat tile is also separate and
+deliberate (one colour per tile — amber/sky/blue — so three same-row tiles read as
+distinct at a glance), not accidental drift.
 
 Tone
 Direct, no fluff. Flag issues immediately. Don't pad responses.

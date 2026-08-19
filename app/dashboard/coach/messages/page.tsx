@@ -8,6 +8,7 @@ import { Suspense } from 'react'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import Icon from '@/components/ui/Icon'
+import Button from '@/components/ui/Button'
 import { MessageCircle } from 'lucide-react'
 
 type OtherPerson = {
@@ -425,11 +426,9 @@ function MessagesInner() {
               : 'When a player or coach messages you, it will appear here.'}
           </p>
           {activeTab === 'messages' && (
-            <Link href="/dashboard/coach/market?tab=players"
-              className="mt-2 px-6 py-3 rounded-xl text-sm font-bold"
-              style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
+            <Button variant="primary" size="md" href="/dashboard/coach/market?tab=players" className="mt-2">
               Browse Players
-            </Link>
+            </Button>
           )}
         </div>
       ) : (

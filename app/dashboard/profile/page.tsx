@@ -13,6 +13,7 @@ import Sidebar from '@/app/dashboard/player/_components/Sidebar'
 import BottomNav from '@/app/dashboard/player/_components/BottomNav'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import { CITY_OPTIONS, parseCity } from '@/lib/cities'
 import { normalizePhone } from '@/lib/utils'
 import { calcCompletion, calcCoachCompletion } from '@/lib/profileCompletion'
 import Icon from '@/components/ui/Icon'
@@ -350,7 +351,7 @@ function PlayerDetailsEditor({ profile, onSave, onCancel }: {
 }) {
   const [position, setPosition] = useState(profile.position ?? '')
   const [club, setClub] = useState(profile.club ?? '')
-  const [city, setCity] = useState(profile.city ?? '')
+  const [city, setCity] = useState(parseCity(profile.city) ?? '')
   const [status, setStatus] = useState(profile.status ?? 'just_exploring')
   const [saving, setSaving] = useState(false)
 
@@ -363,7 +364,12 @@ function PlayerDetailsEditor({ profile, onSave, onCancel }: {
         </Sel>
       </Field>
       <Field label="Club"><Inp value={club} onChange={e => setClub(e.target.value)} placeholder="e.g. Harrogate Town" /></Field>
-      <Field label="Nearest City"><Inp value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Manchester" /></Field>
+      <Field label="Nearest City">
+        <Sel value={city} onChange={e => setCity(e.target.value)}>
+          <option value="">Select city…</option>
+          {CITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+        </Sel>
+      </Field>
       <Field label="Availability">
         <Sel value={status} onChange={e => setStatus(e.target.value as Exclude<Profile['status'], null>)}>
           {Object.entries(STATUS_LABELS).map(([key, label]) => (
@@ -452,7 +458,7 @@ function CoachDetailsEditor({ profile, onSave, onCancel }: {
   const [coachingRole, setCoachingRole] = useState(profile.coaching_role ?? '')
   const [coachingLevel, setCoachingLevel] = useState(profile.coaching_level ?? '')
   const [club, setClub] = useState(profile.club ?? '')
-  const [city, setCity] = useState(profile.city ?? '')
+  const [city, setCity] = useState(parseCity(profile.city) ?? '')
   const [saving, setSaving] = useState(false)
 
   return (
@@ -473,7 +479,10 @@ function CoachDetailsEditor({ profile, onSave, onCancel }: {
         <Inp value={club} onChange={e => setClub(e.target.value)} placeholder="e.g. Salford City" />
       </Field>
       <Field label="City / Area">
-        <Inp value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Manchester" />
+        <Sel value={city} onChange={e => setCity(e.target.value)}>
+          <option value="">Select city…</option>
+          {CITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+        </Sel>
       </Field>
       <SaveCancel saving={saving} onCancel={onCancel}
         onSave={async () => {

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/utils'
 import { validateDob } from '@/lib/dob'
 import { enforceRateLimit } from '@/lib/ratelimit'
+import { isValidCity } from '@/lib/cities'
 import { z } from 'zod'
 
 // Type guard for the incoming body. Field-level rules (role whitelist, level
@@ -148,6 +149,10 @@ export async function POST(req: NextRequest) {
     if (missing.length) {
       return NextResponse.json({ error: `Please complete: ${missing.join(', ')}` }, { status: 400 })
     }
+  }
+
+  if (body.city && !isValidCity(body.city)) {
+    return NextResponse.json({ error: 'Please select a city from the list' }, { status: 400 })
   }
 
   const profilePayload: Record<string, unknown> = {

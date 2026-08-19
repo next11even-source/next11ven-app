@@ -12,6 +12,7 @@ import PerformanceSummaryCard from '@/app/components/PerformanceSummaryCard'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import { CITY_OPTIONS, parseCity } from '@/lib/cities'
 import Icon from '@/components/ui/Icon'
 import { Flame, X, Check } from 'lucide-react'
 
@@ -397,7 +398,7 @@ export default function PlayerProfilePage() {
     setPhone(p.phone ?? '')
     setSmsOptIn(p.sms_opt_in ?? false)
     setDob(p.date_of_birth ?? '')
-    setCity(p.city ?? '')
+    setCity(parseCity(p.city) ?? '')
     setPosition(p.position ?? '')
     setSecondaryPosition(p.secondary_position ?? '')
     setClub(p.club ?? '')
@@ -510,7 +511,12 @@ export default function PlayerProfilePage() {
               <Field label="Full Name"><Input value={fullName} onChange={e => setFullName(toTitleCase(e.target.value))} placeholder="Your full name" /></Field>
               <Field label="Phone"><Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+447700900000" /></Field>
               <Field label="Date of Birth"><Input type="date" value={dob} min={DOB_MIN} max={DOB_MAX} onChange={e => setDob(e.target.value)} /></Field>
-              <Field label="Nearest City"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Manchester" /></Field>
+              <Field label="Nearest City">
+                <Select value={city} onChange={e => setCity(e.target.value)}>
+                  <option value="">Select city…</option>
+                  {CITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </Select>
+              </Field>
             </div>
           ) : (
             <div className="space-y-0.5 divide-y" style={{ borderColor: '#1e2235' }}>

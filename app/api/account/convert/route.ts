@@ -6,6 +6,7 @@ import { normalizePhone } from '@/lib/utils'
 import { validateDob } from '@/lib/dob'
 import { enforceRateLimit } from '@/lib/ratelimit'
 import { onUserApproved } from '@/lib/mailerlite'
+import { isValidCity } from '@/lib/cities'
 import { z } from 'zod'
 
 // Fan → Player / Coach conversion.
@@ -131,6 +132,9 @@ export async function POST(req: NextRequest) {
   }
   if (role === 'coach' && body.coaching_level && !VALID_LEVELS.includes(body.coaching_level)) {
     return NextResponse.json({ error: 'Invalid coaching level' }, { status: 400 })
+  }
+  if (body.city && !isValidCity(body.city)) {
+    return NextResponse.json({ error: 'Please select a city from the list' }, { status: 400 })
   }
 
   const payload: Record<string, unknown> = {

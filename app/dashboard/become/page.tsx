@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import { CITY_OPTIONS, parseCity } from '@/lib/cities'
 import { toTitleCase } from '@/lib/utils'
 import { dobBounds, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
@@ -116,7 +117,7 @@ export default function BecomePage() {
       if (p) {
         setFullName(p.full_name ?? '')
         setPhone(p.phone ?? '')
-        setCity(p.city ?? '')
+        setCity(parseCity(p.city) ?? '')
         setClub(p.club ?? '')
       }
       setChecking(false)
@@ -252,7 +253,10 @@ export default function BecomePage() {
                 </Field>
               )}
               <Field label="Nearest City" required>
-                <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+                <Select required value={city} onChange={(e) => setCity(e.target.value)}>
+                  <option value="">Select city…</option>
+                  {CITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Select>
               </Field>
             </Section>
 

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
+import { CITY_OPTIONS } from '@/lib/cities'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
 import { dobBounds, validateDob, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
@@ -306,7 +307,10 @@ export default function RegisterPage() {
                 </p>
               </Field>
               <Field label="Nearest City">
-                <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Manchester" />
+                <Select required value={city} onChange={(e) => setCity(e.target.value)}>
+                  <option value="">Select city…</option>
+                  {CITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Select>
               </Field>
             </Section>
 

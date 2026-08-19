@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import { CITY_OPTIONS, parseCity } from '@/lib/cities'
 
 type ApplicantProfile = {
   id: string
@@ -952,14 +953,14 @@ export default function AdminPage() {
                   <>
                     <Detail label="Position" value={p.position} />
                     <Detail label="Club" value={p.club} />
-                    <Detail label="City" value={p.city} />
+                    <CityField profile={p} onSaved={city => setProfiles(prev => prev.map(pr => pr.id === p.id ? { ...pr, city } : pr))} />
                     <Detail label="Level" value={p.playing_level} />
                   </>
                 ) : p.role === 'coach' ? (
                   <>
                     <Detail label="Role" value={p.coaching_role} />
                     <Detail label="Club" value={p.club} />
-                    <Detail label="City" value={p.city} />
+                    <CityField profile={p} onSaved={city => setProfiles(prev => prev.map(pr => pr.id === p.id ? { ...pr, city } : pr))} />
                     <Detail label="Level" value={p.coaching_level} />
                   </>
                 ) : (
@@ -1045,6 +1046,51 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
     <div>
       <p className="text-xs" style={{ color: '#8892aa' }}>{label}</p>
       <p className="text-xs font-medium" style={{ color: value ? '#e8dece' : '#3a4055' }}>{value ?? '—'}</p>
+    </div>
+  )
+}
+
+// Inline city normaliser — the signup-era free-text city field left a lot of
+// junk in the pending queue (case variants, county names, "cheshire/
+// northwich / manchester"). parseCity() resolves the obvious cases; anything
+// it can't place shows the raw legacy value as an unselected placeholder so
+// the admin picks the real one from CITY_OPTIONS while reviewing, rather than
+// it being fixed later (or never).
+function CityField({ profile, onSaved }: { profile: ApplicantProfile; onSaved: (city: string) => void }) {
+  const [saving, setSaving] = useState(false)
+  const [value, setValue] = useState(parseCity(profile.city) ?? '')
+
+  async function handleChange(next: string) {
+    setValue(next)
+    if (!next) return
+    setSaving(true)
+    const res = await fetch('/api/admin/set-city', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: profile.id, city: next }),
+    })
+    if (res.ok) onSaved(next)
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <p className="text-xs" style={{ color: '#8892aa' }}>City</p>
+      <select
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        disabled={saving}
+        className="text-xs font-medium rounded outline-none disabled:opacity-50"
+        style={{
+          backgroundColor: 'transparent',
+          color: value ? '#e8dece' : '#f59e0b',
+          border: value ? '1px solid transparent' : '1px solid #f59e0b',
+          padding: '1px 2px',
+          marginLeft: '-2px',
+        }}>
+        <option value="">{profile.city ? `Fix: "${profile.city}"` : 'Not set'}</option>
+        {CITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
     </div>
   )
 }

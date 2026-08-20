@@ -61,16 +61,22 @@ export default function TrackerStatTile() {
 
   return (
     <Link href={state.href}
-      className="relative flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
+      className="relative flex flex-col items-center justify-center rounded-2xl pt-7 pb-3 px-2 transition-all"
       style={{ backgroundColor: 'rgba(56,189,248,0.07)', border: '1.5px solid rgba(56,189,248,0.5)', textDecoration: 'none' }}
       onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#38bdf8')}
       onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(56,189,248,0.5)')}>
       {/* Dedicated "NEW FEATURE" ribbon — yellow standout, distinct from the
           shared blue NewBadge (which marks new users, not new features).
-          Centered on the top border so it never overflows this narrow tile. */}
+          Sits inside the tile's own top edge (not overflowing above it) —
+          it used to hang off the border via a negative top offset, which
+          crowded into the ~16px gap above this row and made the section
+          read as stretching upward into its neighbour. Contained here, this
+          tile is a little taller than its Opportunities/Profile Views
+          siblings, but the grid's default stretch alignment already brings
+          all three tiles to match it, so the row stays even. */}
       <span className="absolute uppercase font-black whitespace-nowrap"
         style={{
-          top: -9, left: '50%', transform: 'translateX(-50%)',
+          top: 6, left: '50%', transform: 'translateX(-50%)',
           fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, lineHeight: 1,
           letterSpacing: '0.06em', padding: '3px 8px', borderRadius: 999,
           color: '#0a0a0a', backgroundColor: '#facc15',

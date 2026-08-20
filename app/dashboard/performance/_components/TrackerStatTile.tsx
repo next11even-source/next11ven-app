@@ -61,31 +61,10 @@ export default function TrackerStatTile() {
 
   return (
     <Link href={state.href}
-      className="relative flex flex-col items-center justify-center rounded-2xl pt-4 pb-2 px-2 transition-all"
+      className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
       style={{ backgroundColor: 'rgba(56,189,248,0.07)', border: '1.5px solid rgba(56,189,248,0.5)', textDecoration: 'none' }}
       onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#38bdf8')}
       onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(56,189,248,0.5)')}>
-      {/* Dedicated "NEW FEATURE" ribbon — yellow standout, distinct from the
-          shared blue NewBadge (which marks new users, not new features).
-          Small and contained inside the tile's own top edge — it used to
-          hang off the border via a negative top offset (crowded the gap
-          above), then a fix over-corrected by growing the tile's own
-          padding to fit a full-size ribbon, which stretched this whole row
-          taller than its Opportunities/Profile Views siblings via the
-          grid's stretch alignment. This version keeps the total top+bottom
-          padding equal to those siblings' (pt-4/pb-2 = same 24px as their
-          py-3) and shrinks the ribbon itself to fit inside that, instead of
-          growing the tile to fit the ribbon. */}
-      <span className="absolute uppercase font-black whitespace-nowrap"
-        style={{
-          top: 3, left: '50%', transform: 'translateX(-50%)',
-          fontFamily: "'Barlow Condensed', sans-serif", fontSize: 7, lineHeight: 1,
-          letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 999,
-          color: '#0a0a0a', backgroundColor: '#facc15',
-          boxShadow: '0 1px 4px rgba(250,204,21,0.35)',
-        }}>
-        New Feature
-      </span>
       {state.kind === 'stat' ? (
         <span className="leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#38bdf8' }}>
           <span className="text-2xl font-black">{state.num}</span>

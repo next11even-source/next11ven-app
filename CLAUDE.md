@@ -683,7 +683,7 @@ All users and messages migrated into Supabase ✅
 Glide subscription cancelled ✅
 Remaining Glide data intentionally left behind (not needed)
 next11ven.co.uk now redirects to app.next11ven.com ✅
-⚠️ Only ~10% of migrated users have signed into the new app so far
+⚠️ ~49% of approved players have signed into the new app at least once (measured 20 Aug 2026, up from ~10% near launch) — still worth chasing the other half, but this is no longer a 90%-dormant situation
 Users who saved old Glide PWA to homescreen may still be hitting it — resolves naturally over time
 No content push has been made yet — launch video + paid ad is the planned activation trigger
 
@@ -698,7 +698,7 @@ Build Priorities — What's Next
 Immediate (fix + activate)
 
 Ship launch video + paid ad to drive existing users onto the new app
-Re-engagement email/SMS to the ~90% who haven't signed in yet
+Re-engagement email/SMS to the ~51% who still haven't signed in
 
 Growth & Monetisation
 

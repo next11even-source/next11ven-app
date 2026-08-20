@@ -162,6 +162,7 @@ export type PublicLevelTotals = {
   seasons: number
 }
 
+
 export type PublicPerformance = {
   visible: boolean
   hasAny: boolean

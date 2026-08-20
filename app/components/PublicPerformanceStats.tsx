@@ -70,7 +70,6 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
   const t = perf.totals
   const cs = perf.currentSeason
   const cd = perf.currentDetail
-  const hasSelfReported = perf.seasons.some(s => s.selfReported)
 
   const currentYear = seasonStartYear()
   const seasonsCount = perf.seasons.length
@@ -104,11 +103,6 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
   const [selectedIdx, setSelectedIdx] = useState<number>(-1)
   const showPicker = seasonsCount >= 2
 
-  // Season-by-season is the coach's at-a-glance scan + the only per-season
-  // Logged/Self-reported provenance view. The dropdown hero now covers the
-  // headline, so a long history collapses by default to declutter; short ones
-  // (≤3) stay open since there's nothing to hide.
-  const [showSeasons, setShowSeasons] = useState(seasonsCount <= 3)
   const active = selectedIdx >= 0 ? perf.seasons[selectedIdx] ?? null : null
 
   // The view the hero renders — the selected season, or the career aggregate.
@@ -385,71 +379,6 @@ export default function PublicPerformanceStats({ perf }: { perf: PublicPerforman
         </div>
       )}
 
-      {/* ── Season-by-season history — collapsible ───────────────────────── */}
-      {perf.seasons.length > 0 && (
-        <div className="space-y-2.5">
-          <button onClick={() => setShowSeasons(v => !v)}
-            className="w-full flex items-center justify-between px-1 group"
-            aria-expanded={showSeasons}>
-            <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: '#8892aa' }}>
-              Season by season
-            </span>
-            <span className="flex items-center gap-1.5 text-xs" style={{ color: '#8892aa' }}>
-              {showSeasons ? 'Hide' : `Show all ${seasonsCount}`}
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: showSeasons ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9" /></svg>
-            </span>
-          </button>
-          {showSeasons && (
-          <div className="space-y-2">
-            {perf.seasons.map(s => {
-              const inv = s.goals + s.assists
-              return (
-                <div key={`${s.seasonStartYear}-${s.source}-${s.clubs.join('_')}`}
-                  className="rounded-2xl px-4 py-3 flex items-center justify-between gap-3" style={surface}>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{s.seasonLabel}</span>
-                      {s.selfReported ? (
-                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa', border: '1px solid #1e2235' }}>Self-reported</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(45,95,196,0.15)', color: '#3a6fda', border: '1px solid rgba(45,95,196,0.35)' }}>
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                          Logged
-                        </span>
-                      )}
-                    </div>
-                    {/* Club omitted — season-long club attribution isn't
-                        verified and can be misleading. Level is now
-                        competitive-only for logged seasons (pre-season/
-                        friendlies excluded), so it's a trustworthy signal. */}
-                    {s.level && (
-                      <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{s.level}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    <div className="text-right">
-                      <p className="text-lg font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{s.apps}</p>
-                      <p className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: '#8892aa' }}>Apps</p>
-                    </div>
-                    <div className="text-right" style={{ minWidth: 54 }}>
-                      <p className="text-lg font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: inv > 0 ? '#3a6fda' : '#8892aa' }}>{s.goals}<span style={{ color: '#8892aa', fontSize: 13 }}>G</span> {s.assists}<span style={{ color: '#8892aa', fontSize: 13 }}>A</span></p>
-                      <p className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: '#8892aa' }}>{s.cleanSheets > 0 ? `${s.cleanSheets} CS` : `${inv} G+A`}</p>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          )}
-        </div>
-      )}
-
-      {hasSelfReported && showSeasons && (
-        <p className="text-xs px-1" style={{ color: '#8892aa' }}>
-          Self-reported seasons are career history the player entered themselves. Everything marked <span style={{ color: '#3a6fda' }}>Logged</span> is recorded game-by-game on NEXT11VEN.
-        </p>
-      )}
     </div>
   )
 }

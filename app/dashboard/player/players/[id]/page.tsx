@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState, useRef } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
@@ -10,6 +10,7 @@ import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
 import ActivityChip from '@/app/components/ActivityChip'
 import PublicPerformanceStats from '@/app/components/PublicPerformanceStats'
+import PlayerClubHistory from '@/app/components/PlayerClubHistory'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { buildPublicPerformance, type PublicPerformance, type PublicPerformancePayload } from '@/lib/publicStats'
 import { displayHeight } from '@/lib/height'
@@ -201,8 +202,19 @@ function FolderModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlayerPublicProfile() {
+  // Suspense boundary required for useSearchParams (tab deep-linking) — same
+  // pattern as app/dashboard/opportunities/page.tsx.
+  return (
+    <Suspense>
+      <PlayerPublicProfileInner />
+    </Suspense>
+  )
+}
+
+function PlayerPublicProfileInner() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { openSidebar } = useSidebar()
   const [player, setPlayer] = useState<PublicProfile | null>(null)
   const [viewer, setViewer] = useState<ViewerProfile | null>(null)
@@ -401,6 +413,10 @@ export default function PlayerPublicProfile() {
   const initials = player.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const isOwnProfile = viewer?.id === player.id
   const viewerIsCoach = viewer?.role === 'coach'
+  const activeTab: 'overview' | 'history' = searchParams.get('tab') === 'history' ? 'history' : 'overview'
+  function setActiveTab(tab: 'overview' | 'history') {
+    router.replace(`/dashboard/player/players/${id}?tab=${tab}`)
+  }
   const firstName = player.full_name?.split(' ')[0] ?? 'this player'
   const availabilityLabel = player.status ? STATUS_LABELS[player.status] ?? null : null
   // "Free Agent" often lives in the club field for migrated profiles — that's a
@@ -593,14 +609,30 @@ export default function PlayerPublicProfile() {
 
         {/* Performance stats.
             - Tracked (perf.visible && hasAny): the derived block from the log +
-              career history.
+              career history, split Overview / History so club vetting detail
+              doesn't crowd the rest of the profile.
             - Opted out (perf.visible === false): show nothing — respect the
               player's coarse visibility switch.
             - No tracked data yet, or the RPC failed: fall back to the legacy
               manual season stats so the profile never shows LESS than today
               (no blank-profile window until the backfill has run). */}
         {perf?.visible && perf.hasAny ? (
-          <PublicPerformanceStats perf={perf} />
+          <div className="space-y-4">
+            <div className="rounded-2xl p-1 grid grid-cols-2 gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+              {([['overview', 'Overview'], ['history', 'History']] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setActiveTab(key)}
+                  className="py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors"
+                  style={activeTab === key
+                    ? { backgroundColor: '#2d5fc4', color: '#fff' }
+                    : { backgroundColor: 'transparent', color: '#8892aa' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {activeTab === 'overview'
+              ? <PublicPerformanceStats perf={perf} />
+              : <PlayerClubHistory perf={perf} />}
+          </div>
         ) : (!perf || (perf.visible && !perf.hasAny)) &&
             (player.goals > 0 || player.assists > 0 || player.appearances > 0) ? (
           <div>

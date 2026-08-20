@@ -267,11 +267,16 @@ function ActivelyLookingCarousel({ players }: { players: Player[] }) {
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 50%)' }} />
                 <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }}
                   className="animate-pulse" />
+                {/* Tier badge lives on the photo, not squeezed onto the name line — a
+                    name + PRO badge sharing one ~90px text row was truncating names
+                    down to 3-4 characters. */}
+                <div style={{ position: 'absolute', bottom: 4, left: 5 }}>
+                  {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
+                </div>
               </div>
               <div style={{ padding: '5px 7px 7px' }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name ?? 'Player'}</span>
-                  {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#e8dece', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {p.full_name ?? 'Player'}
                 </p>
                 <p style={{ fontSize: 9, color: '#22c55e', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {p.position ?? '—'}

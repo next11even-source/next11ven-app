@@ -295,7 +295,7 @@ function PlayerOpportunityCard({
 
   return (
     <article id={anchorId ? 'opp-' + opp.id : undefined}
-      className="relative rounded-2xl overflow-hidden transition-colors"
+      className="relative rounded-2xl overflow-hidden transition-colors h-full flex flex-col"
       style={{
         backgroundColor: '#13172a',
         border: `1px solid ${hero ? 'rgba(251,191,36,0.35)' : applied ? '#2d5fc4' : '#1e2235'}`,
@@ -307,66 +307,73 @@ function PlayerOpportunityCard({
       {/* Step-colour accent rail */}
       <span aria-hidden="true" className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: railColor, opacity: opp.inRange ? 1 : 0.5 }} />
 
-      <div style={{ padding: '13px 14px 13px 16px' }}>
-        <div className="flex gap-2.5">
-          <StepBadge level={opp.level} inRange={opp.inRange} size={44} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-bold truncate"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 16, lineHeight: 1.2 }}>
-                {title}
-              </h3>
-              {/* Top-right cluster — match % (the premium hook) sits up on the
-                  title line, with the timestamp beside it. */}
-              <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 1 }}>
-                <MatchChip matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
-                <span style={{ fontSize: 11, color: '#5b6478' }}>{compactTimeAgo(opp.created_at)}</span>
+      <div style={{ padding: '13px 14px 13px 16px' }} className="flex-1 flex flex-col">
+        {/* Header + description grow to absorb the grid row's stretched
+            height (see items-stretch on the parent grid) — so every
+            collapsed card in a row lines up at the same bottom edge, with
+            the Apply button anchored there, rather than a "See more" card
+            visibly taller than its short-description neighbour. */}
+        <div className="flex-1">
+          <div className="flex gap-2.5">
+            <StepBadge level={opp.level} inRange={opp.inRange} size={44} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-bold truncate"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 16, lineHeight: 1.2 }}>
+                  {title}
+                </h3>
+                {/* Top-right cluster — match % (the premium hook) sits up on the
+                    title line, with the timestamp beside it. */}
+                <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 1 }}>
+                  <MatchChip matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
+                  <span style={{ fontSize: 11, color: '#5b6478' }}>{compactTimeAgo(opp.created_at)}</span>
+                </div>
               </div>
-            </div>
-            <p className="truncate mt-1 flex items-center gap-1" style={{ fontSize: 12, color: '#8892aa' }}>
-              <PinIcon />
-              <span className="truncate">{meta || 'Details to follow'}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Description shows directly — no hidden-by-default toggle. Long
-            descriptions clamp to a preview with "See more" so one long
-            posting doesn't blow the card out relative to every short one.
-            Admins get an extra "Edit" trigger for moderation. */}
-        {(description || isAdmin) && !editing && (
-          <div className="mt-1.5">
-            {description && (
-              <p className="text-sm whitespace-pre-wrap" style={{ color: '#c3cbdb' }}>
-                {showFullDescription || !isLongDescription ? description : truncatedDescription}
+              <p className="truncate mt-1 flex items-center gap-1" style={{ fontSize: 12, color: '#8892aa' }}>
+                <PinIcon />
+                <span className="truncate">{meta || 'Details to follow'}</span>
               </p>
-            )}
-            {(isLongDescription || isAdmin) && (
-              <div className="flex items-center gap-3 mt-1">
-                {isLongDescription && (
-                  <button type="button" onClick={() => setShowFullDescription(v => !v)}
-                    aria-expanded={showFullDescription}
-                    className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8] rounded"
-                    style={{ color: '#6ea0f0' }}>
-                    {showFullDescription ? 'See less' : 'See more'}
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ transform: showFullDescription ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} aria-hidden="true">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-                )}
-                {isAdmin && (
-                  <button type="button" onClick={() => setEditing(true)}
-                    className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
-                    style={{ color: '#fbbf24' }}>
-                    <Icon icon={Pencil} size="sm" label={true} />
-                    Edit
-                  </button>
-                )}
-              </div>
-            )}
+            </div>
           </div>
-        )}
+
+          {/* Description shows directly — no hidden-by-default toggle. Long
+              descriptions clamp to a preview with "See more" so one long
+              posting doesn't blow the card out relative to every short one.
+              Admins get an extra "Edit" trigger for moderation. */}
+          {(description || isAdmin) && !editing && (
+            <div className="mt-1.5">
+              {description && (
+                <p className="text-sm whitespace-pre-wrap" style={{ color: '#c3cbdb' }}>
+                  {showFullDescription || !isLongDescription ? description : truncatedDescription}
+                </p>
+              )}
+              {(isLongDescription || isAdmin) && (
+                <div className="flex items-center gap-3 mt-1">
+                  {isLongDescription && (
+                    <button type="button" onClick={() => setShowFullDescription(v => !v)}
+                      aria-expanded={showFullDescription}
+                      className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8] rounded"
+                      style={{ color: '#6ea0f0' }}>
+                      {showFullDescription ? 'See less' : 'See more'}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ transform: showFullDescription ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button type="button" onClick={() => setEditing(true)}
+                      className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
+                      style={{ color: '#fbbf24' }}>
+                      <Icon icon={Pencil} size="sm" label={true} />
+                      Edit
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {editing && (
           <AdminEditForm opp={opp}
@@ -586,7 +593,7 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
               Matched to your step and position.
             </p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 items-stretch">
             {topMatches.map(opp => (
               <PlayerOpportunityCard key={'match-' + opp.id} {...cardProps(opp)} anchorId={false} hero />
             ))}
@@ -674,7 +681,7 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 items-stretch">
           {filtered.map(opp => (
             <PlayerOpportunityCard key={opp.id} {...cardProps(opp)} />
           ))}

@@ -1038,11 +1038,11 @@ export default function PlayerHome() {
           </div>
         </section>
 
-        {/* Feed Preview */}
-        <FeedPreviewSection posts={feedPosts} />
-
         {/* Opportunities */}
         <OpportunitiesPreview opportunities={opportunities} isPremium={profile?.premium ?? false} onLockedMatch={() => setShowMatchPaywall(true)} />
+
+        {/* Feed Preview */}
+        <FeedPreviewSection posts={feedPosts} />
 
         {/* Featured Players */}
         <FeaturedCarousel players={featuredPlayers} viewerPremium={profile?.premium ?? false} viewerLooking={profile?.actively_looking ?? false} />

@@ -1111,8 +1111,8 @@ export default function CoachDashboard() {
           </div>
         ) : (
           <>
-            <FeedPreview posts={feedPosts} />
             <RecentOpportunities opps={recentOpportunities} />
+            <FeedPreview posts={feedPosts} />
             <PremiumCarousel players={premiumPlayers} />
             <MyShortlist players={myShortlist} />
           </>

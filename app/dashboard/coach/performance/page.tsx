@@ -35,7 +35,7 @@ type PreviewPlayer = {
   level: string | null
   city: string | null
   actively_looking: boolean
-  pedigree: { peakLevel: string | null; academyBackground: boolean; stepsAbove: number }
+  pedigree: { peakLevel: string | null; academyBackground: boolean; stepsAbove: number; provenPeak: boolean; peakLevelStats: { apps: number; goals: number; assists: number } | null }
   career: { apps: number; goals: number; assists: number }
   nearby: boolean
 }
@@ -75,7 +75,7 @@ type Player = {
   city: string | null
   actively_looking: boolean
   versatility: string[]
-  pedigree: { peakLevel: string | null; academyBackground: boolean; stepsAbove: number }
+  pedigree: { peakLevel: string | null; academyBackground: boolean; stepsAbove: number; provenPeak: boolean; peakLevelStats: { apps: number; goals: number; assists: number } | null }
   current: { apps: number; goals: number; assists: number; involvements: number; minutes: number; avgMinutes: number | null; cleanSheets: number; motm: number } | null
   rates: { per90Goals: number | null; per90Involvements: number | null; perGameInvolvements: number | null } | null
   form: ('W' | 'D' | 'L')[]
@@ -159,15 +159,20 @@ function PreviewCard({ p }: { p: PreviewPlayer }) {
         </div>
       </div>
 
-      {p.pedigree.stepsAbove > 0 && p.pedigree.peakLevel && (
+      {p.pedigree.provenPeak && p.pedigree.peakLevel && (
         <div className="mt-3 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 flex-wrap"
           style={{ backgroundColor: 'rgba(232,222,206,0.06)', border: '1px solid rgba(232,222,206,0.2)' }}>
           <span className="text-xs font-bold" style={{ color: '#e8dece' }}>
-            ↑ Played {p.pedigree.peakLevel}{productionStat(p.career) ? ` · ${productionStat(p.career)}` : ''}
+            {/* Production figure is scoped to THIS level's own bucket (never
+                the blended career total) — otherwise a big academy/other-level
+                haul reads as output earned at the peak level shown. */}
+            ↑ Played {p.pedigree.peakLevel}{p.pedigree.peakLevelStats && productionStat(p.pedigree.peakLevelStats) ? ` · ${productionStat(p.pedigree.peakLevelStats)}` : ''}
           </span>
-          <span className="text-[11px]" style={{ color: '#8892aa' }}>
-            · {p.pedigree.stepsAbove} level{p.pedigree.stepsAbove > 1 ? 's' : ''} above now
-          </span>
+          {p.pedigree.stepsAbove > 0 && (
+            <span className="text-[11px]" style={{ color: '#8892aa' }}>
+              · {p.pedigree.stepsAbove} level{p.pedigree.stepsAbove > 1 ? 's' : ''} above now
+            </span>
+          )}
         </div>
       )}
     </Link>
@@ -429,13 +434,15 @@ export default function CoachPerformancePage() {
                     </div>
 
                     {/* Pedigree — has played above his current level */}
-                    {p.pedigree.stepsAbove > 0 && p.pedigree.peakLevel && (
+                    {p.pedigree.provenPeak && p.pedigree.peakLevel && (
                       <div className="mt-3 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 flex-wrap"
                         style={{ backgroundColor: 'rgba(232,222,206,0.06)', border: '1px solid rgba(232,222,206,0.2)' }}>
                         <span className="text-xs font-bold" style={{ color: '#e8dece' }}>↑ Played at {p.pedigree.peakLevel}</span>
-                        <span className="text-[11px]" style={{ color: '#8892aa' }}>
-                          · {p.pedigree.stepsAbove} level{p.pedigree.stepsAbove > 1 ? 's' : ''} above now
-                        </span>
+                        {p.pedigree.stepsAbove > 0 && (
+                          <span className="text-[11px]" style={{ color: '#8892aa' }}>
+                            · {p.pedigree.stepsAbove} level{p.pedigree.stepsAbove > 1 ? 's' : ''} above now
+                          </span>
+                        )}
                       </div>
                     )}
 

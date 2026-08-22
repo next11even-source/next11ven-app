@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { buildPublicPerformance, toPublicMatches, RATE_MIN_MINUTES, type PublicCareerRow } from '@/lib/publicStats'
 import { performanceTrackerEnabled } from '@/lib/performance'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
-import { trackerLevelRank, TRACKER_LEVELS } from '@/lib/levels'
+import { trackerLevelRank, isOffLadderLevel, TRACKER_LEVELS } from '@/lib/levels'
 
 export const runtime = 'nodejs'
 
@@ -25,7 +25,7 @@ export const runtime = 'nodejs'
 // profile page to any logged-in user.
 //
 // Coach Pro feature: non-premium coaches get { locked: true } plus a dynamic
-// preview — up to 2 real players with pedigree (stepsAbove > 0), preferring
+// preview — up to 2 real players with pedigree (provenPeak), preferring
 // ones near the coach (coarse city text match, same weak-signal approach as
 // lib/recommendations.ts) and backfilling with the next-best pedigree players
 // elsewhere if the local pool can't fill 2. The teaser must never render
@@ -232,11 +232,36 @@ export async function GET(req: NextRequest) {
 
     // Pedigree: peak level reached vs. where they play now. The unfakeable
     // signal — a player who's been several steps above his current club.
-    const peakRank = trackerLevelRank(perf.pedigree.peakLevel)
-    const currentRank = trackerLevelRank(p.playing_level ?? perf.level)
-    const stepsAbove = peakRank != null && currentRank != null && currentRank > peakRank
+    // "Now" must resolve the same way as the displayed badge (`level` above),
+    // or a stale/unset profile playing_level can outrank an accurate tracked
+    // level and manufacture a fake gap against a badge that shows no gap at all.
+    const currentLevel = perf.level ?? p.playing_level
+    const peakLevel = perf.pedigree.peakLevel
+    const peakOnLadder = !isOffLadderLevel(peakLevel)
+    const currentOnLadder = !isOffLadderLevel(currentLevel)
+    const peakRank = trackerLevelRank(peakLevel)
+    const currentRank = trackerLevelRank(currentLevel)
+    // A numeric gap is only honest when BOTH ends sit on the comparable Step
+    // ladder — "N levels above Other/Academy/Wales" claims precision about an
+    // unranked bucket we don't actually have. stepsAbove stays 0 (no claimed
+    // number) whenever either side is off-ladder.
+    const stepsAbove = peakOnLadder && currentOnLadder && peakRank != null && currentRank != null && currentRank > peakRank
       ? currentRank - peakRank
       : 0
+    // But the underlying proof still counts even when we can't quantify it —
+    // a player whose current level is unknown/off-ladder (e.g. "Other") but
+    // who has a real on-ladder peak has still proven that peak; we just don't
+    // claim to know how far above where they are now it sits.
+    const provenPeak = peakOnLadder && peakRank != null && (stepsAbove > 0 || !currentOnLadder)
+    // The badge's production figure must come from THIS level's own bucket,
+    // never the blended career total — a player's peak-level entry can carry
+    // a handful of appearances while the bulk of their goals sit in a
+    // different (often lower/academy) level's bucket. Pairing "Played Step 3"
+    // with a career-wide total lets those goals read as Step 3 output when
+    // they weren't. Mirrors the same split the Facts section already applies
+    // via careerByLevel (see comment below) — the pedigree badge just wasn't
+    // following it.
+    const peakLevelStats = peakLevel ? perf.careerByLevel.find(l => l.level === peakLevel) ?? null : null
 
     return {
       id: p.id,
@@ -252,6 +277,8 @@ export async function GET(req: NextRequest) {
         peakLevel: perf.pedigree.peakLevel,
         academyBackground: perf.pedigree.academyBackground,
         stepsAbove,
+        provenPeak,
+        peakLevelStats: peakLevelStats ? { apps: peakLevelStats.apps, goals: peakLevelStats.goals, assists: peakLevelStats.assists } : null,
       },
       // Season-derived fields — withheld from the payload entirely (not just
       // hidden client-side) while SEASON_STATS_VISIBLE is off.
@@ -287,10 +314,10 @@ export async function GET(req: NextRequest) {
   // the teaser must never render empty while any qualifying player exists.
   // Backfilled cards are marked `nearby: false` so the client never claims a
   // player is local when they aren't. Both counts are real against the
-  // qualifying pool (stepsAbove > 0) — never fabricated.
+  // qualifying pool (pedigree.provenPeak) — never fabricated.
   if (isLocked) {
     const qualifying = rows
-      .filter(r => r.pedigree.stepsAbove > 0)
+      .filter(r => r.pedigree.provenPeak)
       .sort((a, b) => b.pedigree.stepsAbove - a.pedigree.stepsAbove)
 
     const local = coachCity ? qualifying.filter(r => {

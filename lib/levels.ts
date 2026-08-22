@@ -53,6 +53,20 @@ export function trackerLevelRank(level: string | null | undefined): number | nul
 }
 
 /**
+ * "U18s/Academy", "Wales 1", "Wales 2" and "Other" are off-ladder per the
+ * comment above — real values, but not a rung on the comparable Step pyramid
+ * (Other in particular can mean anything from Sunday league to an unlisted
+ * country's top flight). trackerLevelRank still assigns them a numeric index
+ * for sorting, but that index must never be subtracted against another
+ * level's rank to claim a specific "N levels above/below" gap — the distance
+ * to an unknown quantity isn't a number. Callers computing a pedigree gap
+ * should treat either side as unusable the moment this returns true.
+ */
+export function isOffLadderLevel(level: string | null | undefined): boolean {
+  return level === 'U18s/Academy' || level === 'Wales 1' || level === 'Wales 2' || level === 'Other'
+}
+
+/**
  * For the locked-message trigger: reveal the coach's club step ONLY when it's a
  * strong signal — i.e. the coach's club is at or above the player's own level.
  * Returns the coach's step label (e.g. "Step 2") to display, or null to stay

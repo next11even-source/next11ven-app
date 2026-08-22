@@ -279,7 +279,18 @@ function PlayerOpportunityCard({
       ? `Apply to ${title}${meta ? ` at ${meta}` : ''}`
       : `Upgrade to Pro to apply to ${title}`
 
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  // Show the description directly rather than hiding it behind a toggle — a
+  // card with real content and a card with none shouldn't look identical.
+  // Only long descriptions get a "See more" clamp, so short ones (the
+  // majority) never show a pointless expand control next to nothing to hide.
+  const DESCRIPTION_TRUNCATE_LENGTH = 160
+  const description = opp.description || null
+  const isLongDescription = !!description && description.length > DESCRIPTION_TRUNCATE_LENGTH
+  const truncatedDescription = isLongDescription
+    ? description!.slice(0, DESCRIPTION_TRUNCATE_LENGTH).replace(/\s+\S*$/, '') + '…'
+    : description
+
+  const [showFullDescription, setShowFullDescription] = useState(false)
   const [editing, setEditing] = useState(false)
 
   return (
@@ -319,37 +330,40 @@ function PlayerOpportunityCard({
           </div>
         </div>
 
-        {/* View details — collapsed by default, reveals the coach's full
-            description when the card only shows the bare essentials. Admins
-            get an extra "Edit" trigger alongside it for moderation. */}
-        {(opp.description || isAdmin) && !editing && (
+        {/* Description shows directly — no hidden-by-default toggle. Long
+            descriptions clamp to a preview with "See more" so one long
+            posting doesn't blow the card out relative to every short one.
+            Admins get an extra "Edit" trigger for moderation. */}
+        {(description || isAdmin) && !editing && (
           <div className="mt-1.5">
-            <div className="flex items-center gap-3">
-              {opp.description && (
-                <button type="button" onClick={() => setDetailsOpen(v => !v)}
-                  aria-expanded={detailsOpen}
-                  className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8] rounded"
-                  style={{ color: '#6ea0f0' }}>
-                  {detailsOpen ? 'Hide details' : 'View details'}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ transform: detailsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} aria-hidden="true">
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-              )}
-              {isAdmin && (
-                <button type="button" onClick={() => setEditing(true)}
-                  className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
-                  style={{ color: '#fbbf24' }}>
-                  <Icon icon={Pencil} size="sm" label={true} />
-                  Edit
-                </button>
-              )}
-            </div>
-            {detailsOpen && opp.description && (
-              <p className="mt-1.5 text-sm whitespace-pre-wrap" style={{ color: '#c3cbdb' }}>
-                {opp.description}
+            {description && (
+              <p className="text-sm whitespace-pre-wrap" style={{ color: '#c3cbdb' }}>
+                {showFullDescription || !isLongDescription ? description : truncatedDescription}
               </p>
+            )}
+            {(isLongDescription || isAdmin) && (
+              <div className="flex items-center gap-3 mt-1">
+                {isLongDescription && (
+                  <button type="button" onClick={() => setShowFullDescription(v => !v)}
+                    aria-expanded={showFullDescription}
+                    className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8] rounded"
+                    style={{ color: '#6ea0f0' }}>
+                    {showFullDescription ? 'See less' : 'See more'}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ transform: showFullDescription ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} aria-hidden="true">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                )}
+                {isAdmin && (
+                  <button type="button" onClick={() => setEditing(true)}
+                    className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
+                    style={{ color: '#fbbf24' }}>
+                    <Icon icon={Pencil} size="sm" label={true} />
+                    Edit
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

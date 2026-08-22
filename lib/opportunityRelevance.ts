@@ -20,6 +20,22 @@ function norm(s: string | null | undefined): string {
   return (s ?? '').trim().toLowerCase()
 }
 
+// "Winger" is the generic/unspecified-side value a player picks when they
+// play either flank — it should exact-match a side-specific "LW"/"RW" role,
+// not just share the broader "attackers" category (the same category a
+// striker role also falls into). Without this, a winger's own profile
+// position could never earn a genuine exact match against the far more
+// common side-specific listings, capping their best-possible match well
+// below what an exact position/step fit should score.
+function positionsEquivalent(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = norm(a)
+  const nb = norm(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const wingerPair = (x: string, y: string) => x === 'winger' && (y === 'lw' || y === 'rw')
+  return wingerPair(na, nb) || wingerPair(nb, na)
+}
+
 /**
  * Ranks how relevant an opportunity is to a player — a soft ordering signal
  * only, never a filter (see PlayerOpportunities.tsx: nothing is hidden, the
@@ -50,7 +66,7 @@ export function getOpportunityRelevanceScore(
   const oppPos = norm(opportunity.position)
   if (!oppPos) {
     score += 18
-  } else if (oppPos === norm(player.position) || oppPos === norm(player.secondary_position)) {
+  } else if (positionsEquivalent(opportunity.position, player.position) || positionsEquivalent(opportunity.position, player.secondary_position)) {
     score += 40
   } else {
     const oppCategory = positionCategory(opportunity.position)
@@ -123,7 +139,7 @@ export function getOpportunityMatchPercent(
   let position: number
   if (!oppPos) {
     position = 32
-  } else if (oppPos === norm(player.position) || oppPos === norm(player.secondary_position)) {
+  } else if (positionsEquivalent(opportunity.position, player.position) || positionsEquivalent(opportunity.position, player.secondary_position)) {
     position = 45
   } else {
     const oppCategory = positionCategory(opportunity.position)
@@ -165,7 +181,7 @@ export function isCloseMatch(
   player: RelevancePlayerProfile
 ): boolean {
   const oppPos = norm(opportunity.position)
-  const positionFits = !oppPos || oppPos === norm(player.position) || oppPos === norm(player.secondary_position)
+  const positionFits = !oppPos || positionsEquivalent(opportunity.position, player.position) || positionsEquivalent(opportunity.position, player.secondary_position)
 
   const playerStep = stepNumber(player.playing_level)
   const oppStep = stepNumber(opportunity.level)

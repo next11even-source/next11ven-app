@@ -133,7 +133,13 @@ function PostOpportunityForm({ onPosted, onCancel }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) { setError('Title is required.'); return }
+    if (!location.trim()) { setError('Area is required — players need to know where the club is based.'); return }
+    if (!position) {
+      setError(opportunityType === 'coach' ? 'Coaching role is required — select the role you\'re recruiting for.' : 'Position is required — select a position, or "Any position".')
+      return
+    }
     if (!level) { setError('Club level is required — select the level your club plays at.'); return }
+    if (!description.trim()) { setError('Description is required — tell players what you\'re looking for.'); return }
     setSaving(true)
     setError(null)
 
@@ -143,10 +149,10 @@ function PostOpportunityForm({ onPosted, onCancel }: {
       body: JSON.stringify({
         title: title.trim(),
         club: club || null,
-        location: location || null,
-        position: position || null,
+        location: location.trim(),
+        position: position === 'any' ? null : position,
         level: level || null,
-        description: description || null,
+        description: description.trim(),
         urgent,
         deadline: deadline || null,
         opportunity_type: opportunityType,
@@ -202,7 +208,7 @@ function PostOpportunityForm({ onPosted, onCancel }: {
               onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}
               placeholder="e.g. Abbey Hey FC" />
           </Field>
-          <Field label="Area (shown to all)">
+          <Field label="Area (shown to all) *">
             <input value={location} onChange={e => setLocation(e.target.value)}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
@@ -212,12 +218,13 @@ function PostOpportunityForm({ onPosted, onCancel }: {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label={opportunityType === 'coach' ? 'Coaching Role' : 'Position'}>
+          <Field label={opportunityType === 'coach' ? 'Coaching Role *' : 'Position *'}>
             <select value={position} onChange={e => setPosition(e.target.value)}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
               onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}>
-              <option value="">{opportunityType === 'coach' ? 'Select role' : 'Any position'}</option>
+              <option value="">Select {opportunityType === 'coach' ? 'role' : 'position'}</option>
+              {opportunityType === 'player' && <option value="any">Any position</option>}
               {(opportunityType === 'coach' ? COACHING_ROLES : POSITIONS).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </Field>
@@ -232,7 +239,7 @@ function PostOpportunityForm({ onPosted, onCancel }: {
           </Field>
         </div>
 
-        <Field label="Description">
+        <Field label="Description *">
           <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4}
             className="w-full rounded-lg px-4 py-2.5 text-sm outline-none resize-none" style={inputStyle}
             onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}

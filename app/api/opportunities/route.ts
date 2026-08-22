@@ -7,10 +7,14 @@ import { z } from 'zod'
 const OpportunitySchema = z.object({
   title: z.string().trim().min(1, 'title is required').max(200),
   club: z.string().max(200).nullish(),
-  location: z.string().max(200).nullish(),
-  position: z.string().max(120).nullish(),
+  location: z.string().trim().min(1, 'area is required').max(200),
+  // "Any position" (player roles) is submitted as null — a deliberate value, not
+  // a missing one — so this stays nullish while the trimmed-string case still
+  // can't be empty. See lib/opportunityRelevance.ts: a null position matches
+  // every player and scores accordingly.
+  position: z.string().trim().min(1).max(120).nullable(),
   level: z.string().max(120).nullish(),
-  description: z.string().max(5000).nullish(),
+  description: z.string().trim().min(1, 'description is required').max(5000),
   urgent: z.boolean().nullish(),
   deadline: z.string().nullish(),
   opportunity_type: z.enum(['player', 'coach']).optional(),

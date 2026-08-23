@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { greetingName } from '@/lib/name'
 import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
 import { MatchTypography } from '@/app/components/OpportunityBadges'
@@ -33,6 +34,7 @@ type Status = 'free_agent' | 'signed' | 'loan_dual_reg' | 'just_exploring'
 type Profile = {
   id: string
   full_name: string | null
+  first_name: string | null
   avatar_url: string | null
   role: string | null
   status: Status | null
@@ -844,7 +846,7 @@ export default function PlayerHome() {
       const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
 
       const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes, matchesCountRes, careerCountRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, full_name, first_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, role, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
@@ -941,7 +943,7 @@ export default function PlayerHome() {
       <div className="px-4 pb-3 text-center">
         <p className="text-base" style={{ color: '#8892aa' }}>
           Welcome back,{' '}
-          <span className="font-semibold" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</span>
+          <span className="font-semibold" style={{ color: '#e8dece' }}>{profile ? greetingName(profile, 'Player') : 'Player'}</span>
         </p>
       </div>
 

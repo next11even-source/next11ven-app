@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
+import { greetingName } from '@/lib/name'
 import CoachSidebar from './_components/CoachSidebar'
 import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
 import { getStepToken } from '@/lib/stepTokens'
@@ -800,7 +801,7 @@ export default function CoachDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [coachProfile, setCoachProfile] = useState<{ full_name: string | null; avatar_url: string | null; coaching_role: string | null } | null>(null)
   const [coachCompletion, setCoachCompletion] = useState<CoachCompletionProfile | null>(null)
-  const [fullName, setFullName] = useState<string | null>(null)
+  const [firstName, setFirstName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
@@ -829,7 +830,7 @@ export default function CoachDashboard() {
         activeRes,
       ] = await Promise.all([
         supabase.from('profiles')
-          .select('full_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, role')
+          .select('full_name, first_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, role')
           .eq('id', user.id).single(),
 
         // Last 5 roles posted across the platform (own + other clubs)
@@ -872,7 +873,7 @@ export default function CoachDashboard() {
 
       // Profile
       const profile = profileRes.data
-      setFullName(profile?.full_name ?? null)
+      setFirstName(profile ? greetingName(profile, '') || null : null)
       setIsCoachPremium(profile?.premium ?? false)
       setCoachProfile({
         full_name: profile?.full_name ?? null,
@@ -1026,7 +1027,7 @@ export default function CoachDashboard() {
         <div className="text-center">
           <p className="text-base" style={{ color: '#8892aa' }}>
             Welcome back,{' '}
-            <span className="font-semibold" style={{ color: '#e8dece' }}>{fullName ? fullName.split(' ')[0] : 'Coach'}</span>
+            <span className="font-semibold" style={{ color: '#e8dece' }}>{firstName ?? 'Coach'}</span>
           </p>
         </div>
 

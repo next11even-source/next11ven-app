@@ -54,13 +54,19 @@ async function findSubscriber(email: string): Promise<{ id: string } | null> {
  * Called when admin approves a user.
  * - If subscriber already exists in MailerLite → skip entirely.
  * - If new → create and add to the correct group (triggers onboarding sequence).
+ *
+ * Takes a params object rather than positional args deliberately: firstName,
+ * lastName, role and city are all `string | null`, so a mis-ordered positional
+ * call would type-check cleanly and silently mail people their own role.
  */
-export async function onUserApproved(
-  email: string,
-  name: string | null,
-  role: string | null,
-  city: string | null = null
-): Promise<void> {
+export async function onUserApproved(params: {
+  email: string
+  firstName: string | null
+  lastName: string | null
+  role: string | null
+  city?: string | null
+}): Promise<void> {
+  const { email, firstName, lastName, role, city = null } = params
   if (process.env.MAILERLITE_ENABLED === 'false') {
     console.log('[MailerLite] disabled via MAILERLITE_ENABLED flag — skipping onUserApproved')
     return
@@ -81,9 +87,14 @@ export async function onUserApproved(
   // Check if they already exist — update fields if so, otherwise create
   const existing = await findSubscriber(email)
 
-  // MailerLite API v3: all subscriber data including name goes inside `fields`
+  // MailerLite API v3: all subscriber data including name goes inside `fields`.
+  // `name` and `last_name` are MailerLite's two built-in name fields — `name` is
+  // what a campaign's personalisation token resolves to. It used to be sent the
+  // whole full_name, which is why a third of the list got greeted "Hi Ryan Bimbi
+  // Fikula". It takes the given name only; the family name goes in `last_name`.
   const fields: Record<string, string> = {}
-  if (name) fields.name = name
+  if (firstName) fields.name = firstName
+  if (lastName) fields.last_name = lastName
   if (city) fields.city = city
   fields.are_you_a = accountTypeLabel
 

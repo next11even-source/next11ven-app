@@ -6,6 +6,7 @@ import { normalizePhone } from '@/lib/utils'
 import { validateDob } from '@/lib/dob'
 import { enforceRateLimit } from '@/lib/ratelimit'
 import { isValidCity } from '@/lib/cities'
+import { composeName, normaliseNamePart, splitName } from '@/lib/name'
 import { z } from 'zod'
 
 // Type guard for the incoming body. Field-level rules (role whitelist, level
@@ -14,6 +15,10 @@ import { z } from 'zod'
 // permissive passthrough the route already relies on.
 const RegisterSchema = z.object({
   userId: z.string().optional(),
+  first_name: z.string().max(100).nullish(),
+  last_name: z.string().max(100).nullish(),
+  // Legacy. The register form now posts first_name/last_name; this stays accepted
+  // so a client still running the previous bundle mid-deploy doesn't 400.
   full_name: z.string().max(200).nullish(),
   email: z.string().max(320).nullish(),
   phone: z.string().max(40).nullish(),
@@ -35,17 +40,36 @@ const RegisterSchema = z.object({
   coaching_history: z.string().max(5000).nullish(),
 })
 
+type ResolvedName = { firstName: string | null; lastName: string | null }
+
+/**
+ * first_name/last_name if the client sent them, otherwise split the legacy
+ * full_name. Surname is required at signup from here on — this is the half of
+ * the name problem we can close at the source, so the forced-surname modal only
+ * ever has to deal with the historic accounts.
+ */
+function resolveName(b: z.infer<typeof RegisterSchema>): ResolvedName {
+  if (b.first_name != null || b.last_name != null) {
+    return {
+      firstName: normaliseNamePart(b.first_name),
+      lastName: normaliseNamePart(b.last_name),
+    }
+  }
+  return splitName(b.full_name)
+}
+
 // Core-fields gate — server-enforced so the client can't wave through a profile
 // that nobody can find. Mobile number is required platform-wide, including fans,
 // so any account can always be reached. DOB is deliberately NOT required for
 // coaches — nothing filters coaches by age — but IS required for players since
 // it drives the 16+ floor and age-relevant discovery.
-function missingCoachFields(b: z.infer<typeof RegisterSchema>): string[] {
+function missingCoachFields(b: z.infer<typeof RegisterSchema>, name: ResolvedName): string[] {
   const missing: string[] = []
   const need = (label: string, value: unknown) => {
     if (!value || (typeof value === 'string' && !value.trim())) missing.push(label)
   }
-  need('Full name', b.full_name)
+  need('First name', name.firstName)
+  need('Surname', name.lastName)
   need('Mobile number', b.phone)
   need('Nearest city', b.city)
   need('Coaching role', b.coaching_role)
@@ -54,12 +78,13 @@ function missingCoachFields(b: z.infer<typeof RegisterSchema>): string[] {
   return missing
 }
 
-function missingPlayerFields(b: z.infer<typeof RegisterSchema>): string[] {
+function missingPlayerFields(b: z.infer<typeof RegisterSchema>, name: ResolvedName): string[] {
   const missing: string[] = []
   const need = (label: string, value: unknown) => {
     if (!value || (typeof value === 'string' && !value.trim())) missing.push(label)
   }
-  need('Full name', b.full_name)
+  need('First name', name.firstName)
+  need('Surname', name.lastName)
   need('Mobile number', b.phone)
   need('Date of birth', b.date_of_birth)
   need('Nearest city', b.city)
@@ -139,13 +164,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: dobProblem }, { status: 400 })
   }
 
+  const name = resolveName(body)
+
   if (role === 'coach') {
-    const missing = missingCoachFields(body)
+    const missing = missingCoachFields(body, name)
     if (missing.length) {
       return NextResponse.json({ error: `Please complete: ${missing.join(', ')}` }, { status: 400 })
     }
   } else if (role === 'player') {
-    const missing = missingPlayerFields(body)
+    const missing = missingPlayerFields(body, name)
     if (missing.length) {
       return NextResponse.json({ error: `Please complete: ${missing.join(', ')}` }, { status: 400 })
     }
@@ -157,7 +184,10 @@ export async function POST(req: NextRequest) {
 
   const profilePayload: Record<string, unknown> = {
     id: userId,
-    full_name: body.full_name ?? null,
+    // full_name is intentionally absent — trg_sync_profile_name derives it from
+    // these two. Writing it here as well would just race the trigger.
+    first_name: name.firstName,
+    last_name: name.lastName,
     email: body.email ?? null,
     phone,
     // Opt-in follows the number we actually stored, not the raw input — the old
@@ -210,7 +240,11 @@ export async function POST(req: NextRequest) {
   try {
     await admin.auth.admin.updateUserById(userId, {
       user_metadata: {
-        full_name: body.full_name,
+        // The profiles-insert trigger reads full_name out of raw_user_meta_data,
+        // so this stays a composed single string.
+        full_name: composeName(name.firstName, name.lastName),
+        first_name: name.firstName,
+        last_name: name.lastName,
         role,
       },
     })
@@ -250,7 +284,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'signup',
-        name: body.full_name ?? 'Unknown',
+        name: composeName(name.firstName, name.lastName) ?? 'Unknown',
         email: body.email ?? null,
         role: role ?? null,
         club,

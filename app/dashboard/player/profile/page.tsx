@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import { calcCompletion } from '@/lib/profileCompletion'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
+import { splitName } from '@/lib/name'
 import { dobBounds } from '@/lib/dob'
 import { HEIGHT_OPTIONS, parseHeight, displayHeight } from '@/lib/height'
 import Breadcrumb from '@/app/components/Breadcrumb'
@@ -22,6 +23,8 @@ type Profile = {
   id: string
   email: string | null
   full_name: string | null
+  first_name: string | null
+  last_name: string | null
   avatar_url: string | null
   phone: string | null
   sms_opt_in: boolean
@@ -351,7 +354,8 @@ export default function PlayerProfilePage() {
   const [saving, setSaving] = useState(false)
 
   // Personal fields
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [dob, setDob] = useState('')
@@ -394,7 +398,8 @@ export default function PlayerProfilePage() {
   }, [])
 
   function syncFields(p: Profile) {
-    setFullName(p.full_name ?? '')
+    setFirstName(p.first_name ?? splitName(p.full_name).firstName ?? '')
+    setLastName(p.last_name ?? splitName(p.full_name).lastName ?? '')
     setPhone(p.phone ?? '')
     setSmsOptIn(p.sms_opt_in ?? false)
     setDob(p.date_of_birth ?? '')
@@ -504,11 +509,12 @@ export default function PlayerProfilePage() {
           action={
             <EditButton editing={editingPersonal} saving={saving}
               onEdit={() => setEditingPersonal(e => !e)}
-              onSave={() => save({ full_name: fullName || null, phone: normalizePhone(phone), date_of_birth: dob || null, city: city || null }, 'personal')} />
+              onSave={() => save({ first_name: firstName || null, last_name: lastName || null, phone: normalizePhone(phone), date_of_birth: dob || null, city: city || null }, 'personal')} />
           }>
           {editingPersonal ? (
             <div className="space-y-3">
-              <Field label="Full Name"><Input value={fullName} onChange={e => setFullName(toTitleCase(e.target.value))} placeholder="Your full name" /></Field>
+              <Field label="First Name"><Input value={firstName} onChange={e => setFirstName(toTitleCase(e.target.value))} placeholder="First name" /></Field>
+              <Field label="Surname"><Input value={lastName} onChange={e => setLastName(toTitleCase(e.target.value))} placeholder="Surname" /></Field>
               <Field label="Phone"><Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+447700900000" /></Field>
               <Field label="Date of Birth"><Input type="date" value={dob} min={DOB_MIN} max={DOB_MAX} onChange={e => setDob(e.target.value)} /></Field>
               <Field label="Nearest City">

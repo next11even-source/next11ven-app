@@ -8,6 +8,7 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { CITY_OPTIONS } from '@/lib/cities'
 import { toTitleCase, normalizePhone } from '@/lib/utils'
+import { composeName } from '@/lib/name'
 import { dobBounds, validateDob, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
 import Icon from '@/components/ui/Icon'
@@ -77,7 +78,8 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Shared fields
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
@@ -135,7 +137,7 @@ export default function RegisterPage() {
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, role } },
+      options: { data: { full_name: composeName(firstName, lastName), first_name: firstName, last_name: lastName, role } },
     })
 
     if (signUpError) {
@@ -154,7 +156,8 @@ export default function RegisterPage() {
     // 2. Build profile payload
     const profilePayload: Record<string, unknown> = {
       userId,
-      full_name: fullName,
+      first_name: firstName,
+      last_name: lastName,
       email,
       phone: normalisedPhone,
       date_of_birth: dob || null,
@@ -266,8 +269,11 @@ export default function RegisterPage() {
 
             {/* Section: Personal Details */}
             <Section title="Personal Details">
-              <Field label="Full Name">
-                <Input required value={fullName} onChange={(e) => setFullName(toTitleCase(e.target.value))} placeholder="e.g. Marcus Johnson" />
+              <Field label="First Name">
+                <Input required value={firstName} onChange={(e) => setFirstName(toTitleCase(e.target.value))} placeholder="e.g. Marcus" />
+              </Field>
+              <Field label="Surname">
+                <Input required value={lastName} onChange={(e) => setLastName(toTitleCase(e.target.value))} placeholder="e.g. Johnson" />
               </Field>
               <Field label="Email">
                 <Input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />

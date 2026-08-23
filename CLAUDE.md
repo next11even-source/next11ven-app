@@ -38,7 +38,32 @@ Status values: free_agent | signed | loan_dual_reg | just_exploring
 ⚠️ status is a profile display field only. The "Free Agents" filter and Actively Looking carousel use actively_looking, NOT status = 'free_agent'
 
 Key columns:
-id, email, full_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, actively_looking, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at, is_agent
+id, email, full_name, first_name, last_name, role, approved, approval_status, position, secondary_position, club, avatar_url, status, premium, actively_looking, weekly_views, created_at, goals, assists, appearances, season, streak_weeks, streak_last_week, last_active, highlight_urls, date_of_birth, city, location, playing_level, foot, height, coaching_level, coaching_role, coaching_history, gdpr_consent, referral, phone, sms_opt_in, is_active, bio, updated_at, purchased_message_credits, showcase_confirmed, showcase_confirmed_at, email_marketing_opt_out, last_sms_at, is_agent
+
+⚠️ NAMES: first_name + last_name are the SOURCE OF TRUTH. full_name is DERIVED
+and is maintained by trg_sync_profile_name (20260823000001) — never write it in
+new code, and never write it alongside the parts (the parts win). Reads of
+full_name are fine and are the reason it still exists: there were 414 references
+across 90 files, including the `full_name.ilike` search on both browse pages, so
+inverting the relationship was far cheaper than a 90-file refactor.
+The trigger is bidirectional: a legacy write that sets ONLY full_name (the Make
+webhook, /api/admin/rescue-profile, an old client mid-deploy) back-derives the
+parts from it, so the three columns cannot drift apart.
+Splitting rule = "first word is the given name, the remainder is the family name".
+lib/name.ts (splitName / composeName / greetingName / needsLastName) mirrors the
+SQL exactly — change one, change the other.
+⚠️ last_name IS NULL is the gate for the forced-surname modal
+(app/components/SurnameGate.tsx, mounted in PlayerShell + coach/layout). It's
+blocking by design: no backdrop dismiss, no Escape, no close control. 11 legacy
+rows hit it; signup and fan-conversion now collect the two parts separately and
+server-enforce both, so nothing new can land without a surname.
+⚠️ MailerLite gets first_name in `fields.name` and last_name in `fields.last_name`
+— those are its two BUILT-IN name fields and `name` is what a campaign's
+personalisation token resolves to. It used to be sent the whole full_name, which
+is why campaigns greeted people "Hi Ryan Bimbi Fikula". Don't put a full name back
+in `fields.name`. onUserApproved() takes a params object, not positionals, on
+purpose: firstName/lastName/role/city are all `string | null`, so a mis-ordered
+positional call would type-check and silently mail people their own role.
 
 ⚠️ conversations has COLUMN-LEVEL select grants, not a blanket table grant
 (20260812000003). A newly added column is NOT readable by clients until it is

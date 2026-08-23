@@ -67,7 +67,11 @@ export async function POST(req: NextRequest) {
   const email = authUser.email ?? null
   const metaName = (authUser.user_metadata?.full_name as string | undefined) ?? null
 
-  // Resolve full_name: admin input → auth metadata → email prefix
+  // Resolve full_name: admin input → auth metadata → email prefix.
+  // Deliberately still writes full_name rather than first_name/last_name:
+  // trg_sync_profile_name back-derives the parts from it, and the email-prefix
+  // fallback is genuinely a single word, so it should land with last_name NULL
+  // and put the rescued account in front of the add-your-surname modal.
   const resolvedName =
     (bodyName && bodyName.trim()) ||
     metaName ||

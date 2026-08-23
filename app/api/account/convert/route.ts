@@ -7,6 +7,7 @@ import { validateDob } from '@/lib/dob'
 import { enforceRateLimit } from '@/lib/ratelimit'
 import { onUserApproved } from '@/lib/mailerlite'
 import { isValidCity } from '@/lib/cities'
+import { composeName, normaliseNamePart, splitName } from '@/lib/name'
 import { z } from 'zod'
 
 // Fan → Player / Coach conversion.
@@ -19,6 +20,9 @@ const VALID_LEVELS = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6'
 
 const ConvertSchema = z.object({
   role: z.enum(['player', 'coach']),
+  first_name: z.string().max(100).nullish(),
+  last_name: z.string().max(100).nullish(),
+  // Legacy — kept accepted so a client on the previous bundle doesn't 400 mid-deploy.
   full_name: z.string().max(200).nullish(),
   phone: z.string().max(40).nullish(),
   date_of_birth: z.string().nullish(),
@@ -39,12 +43,23 @@ const ConvertSchema = z.object({
 })
 
 // Core-fields gate — enough to be a real, findable profile. Not the full set.
-function missingFields(role: 'player' | 'coach', b: z.infer<typeof ConvertSchema>): string[] {
+type ResolvedName = { firstName: string | null; lastName: string | null }
+
+/** first_name/last_name when sent, else split the legacy full_name. */
+function resolveName(b: z.infer<typeof ConvertSchema>): ResolvedName {
+  if (b.first_name != null || b.last_name != null) {
+    return { firstName: normaliseNamePart(b.first_name), lastName: normaliseNamePart(b.last_name) }
+  }
+  return splitName(b.full_name)
+}
+
+function missingFields(role: 'player' | 'coach', b: z.infer<typeof ConvertSchema>, name: ResolvedName): string[] {
   const missing: string[] = []
   const need = (label: string, value: unknown) => {
     if (!value || (typeof value === 'string' && !value.trim())) missing.push(label)
   }
-  need('Full name', b.full_name)
+  need('First name', name.firstName)
+  need('Surname', name.lastName)
   // Mobile number required for both roles, kept in step with /api/register/complete
   // — otherwise a player or coach could sign up as a fan and convert to dodge it.
   need('Mobile number', b.phone)
@@ -112,7 +127,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Enough-information gate
-  const missing = missingFields(role, body)
+  const name = resolveName(body)
+  const missing = missingFields(role, body, name)
   if (missing.length) {
     return NextResponse.json(
       { error: 'INCOMPLETE', message: `Please complete: ${missing.join(', ')}`, missing },
@@ -139,7 +155,9 @@ export async function POST(req: NextRequest) {
 
   const payload: Record<string, unknown> = {
     role,
-    full_name: body.full_name ?? null,
+    // full_name omitted — trg_sync_profile_name derives it from these two.
+    first_name: name.firstName,
+    last_name: name.lastName,
     city: body.city ?? null,
     // approved stays true — a fan was already vetted; conversion is instant.
     approved: true,
@@ -182,7 +200,12 @@ export async function POST(req: NextRequest) {
   // register-complete route handles.
   try {
     await admin.auth.admin.updateUserById(user.id, {
-      user_metadata: { full_name: body.full_name, role },
+      user_metadata: {
+        full_name: composeName(name.firstName, name.lastName),
+        first_name: name.firstName,
+        last_name: name.lastName,
+        role,
+      },
     })
   } catch (metaErr) {
     console.warn('[Convert] could not stamp role into auth metadata:', metaErr)
@@ -199,7 +222,13 @@ export async function POST(req: NextRequest) {
   // Add to the right MailerLite lifecycle group (fires onboarding sequence for
   // new subscribers; no-op update for existing ones). Fire-and-forget.
   if (email) {
-    onUserApproved(email, body.full_name ?? null, role, body.city ?? null).catch(() => {})
+    onUserApproved({
+      email,
+      firstName: name.firstName,
+      lastName: name.lastName,
+      role,
+      city: body.city ?? null,
+    }).catch(() => {})
   }
 
   // Notify founder of the conversion so it can be spot-checked. Fire-and-forget.
@@ -210,7 +239,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'conversion',
-        name: body.full_name ?? 'Unknown',
+        name: composeName(name.firstName, name.lastName) ?? 'Unknown',
         email,
         role,
         club: body.club ?? null,

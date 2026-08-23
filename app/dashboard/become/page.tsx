@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { CITY_OPTIONS, parseCity } from '@/lib/cities'
+import { splitName } from '@/lib/name'
 import { toTitleCase } from '@/lib/utils'
 import { dobBounds, DOB_HELP } from '@/lib/dob'
 import { HEIGHT_OPTIONS } from '@/lib/height'
@@ -82,7 +83,8 @@ export default function BecomePage() {
   const [error, setError] = useState<string | null>(null)
 
   // Shared
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
   const [dob, setDob] = useState('')
   const [city, setCity] = useState('')
@@ -110,12 +112,13 @@ export default function BecomePage() {
       if (!user) { setChecking(false); return }
       const { data: p } = await supabase
         .from('profiles')
-        .select('role, full_name, phone, city, club')
+        .select('role, full_name, first_name, last_name, phone, city, club')
         .eq('id', user.id)
         .single()
       if (p && p.role !== 'fan') { setNotFan(true); setChecking(false); return }
       if (p) {
-        setFullName(p.full_name ?? '')
+        setFirstName(p.first_name ?? splitName(p.full_name).firstName ?? '')
+        setLastName(p.last_name ?? splitName(p.full_name).lastName ?? '')
         setPhone(p.phone ?? '')
         setCity(parseCity(p.city) ?? '')
         setClub(p.club ?? '')
@@ -132,7 +135,8 @@ export default function BecomePage() {
 
     const payload: Record<string, unknown> = {
       role,
-      full_name: fullName,
+      first_name: firstName,
+      last_name: lastName,
       phone: phone || null,
       city: city || null,
     }
@@ -240,8 +244,11 @@ export default function BecomePage() {
             </div>
 
             <Section title="Your Details">
-              <Field label="Full Name" required>
-                <Input required value={fullName} onChange={(e) => setFullName(toTitleCase(e.target.value))} placeholder="e.g. Marcus Johnson" />
+              <Field label="First Name" required>
+                <Input required value={firstName} onChange={(e) => setFirstName(toTitleCase(e.target.value))} placeholder="e.g. Marcus" />
+              </Field>
+              <Field label="Surname" required>
+                <Input required value={lastName} onChange={(e) => setLastName(toTitleCase(e.target.value))} placeholder="e.g. Johnson" />
               </Field>
               <Field label="Mobile Number" required>
                 <Input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07700 900000" />

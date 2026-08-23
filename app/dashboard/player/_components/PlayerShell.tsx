@@ -8,12 +8,9 @@ import BottomNav from './BottomNav'
 import CoachBottomNav from '@/app/dashboard/coach/_components/CoachBottomNav'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import InstallBanner from '@/app/components/InstallBanner'
-import SurnameGate from '@/app/components/SurnameGate'
 
 type SidebarProfile = {
   full_name: string | null
-  first_name: string | null
-  last_name: string | null
   avatar_url: string | null
   position: string | null
   coaching_role: string | null
@@ -45,7 +42,7 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
       setUserId(user.id)
       supabase
         .from('profiles')
-        .select('full_name, first_name, last_name, avatar_url, position, role, coaching_role, password_set_at')
+        .select('full_name, avatar_url, position, role, coaching_role, password_set_at')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
@@ -74,11 +71,6 @@ export default function PlayerShell({ children }: { children: React.ReactNode })
       </div>
       {role === null ? null : isCoach ? <CoachBottomNav /> : <BottomNav />}
       <InstallBanner />
-      <SurnameGate
-        userId={userId}
-        profile={profile}
-        onSaved={name => setProfile(p => p ? { ...p, ...name, full_name: `${name.first_name} ${name.last_name}` } : p)}
-      />
     </>
   )
 }

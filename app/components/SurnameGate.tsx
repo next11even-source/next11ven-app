@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { toTitleCase } from '@/lib/utils'
 import { needsLastName, normaliseNamePart, splitName } from '@/lib/name'
@@ -9,28 +9,34 @@ import Button from '@/components/ui/Button'
 // Historic accounts stored a single `full_name`, so a user who typed only their
 // first name at signup has no surname on file — they can't be addressed properly
 // in campaigns and read as half-finished to a coach. Signup now collects the two
-// parts separately, so this only ever has to catch the accounts that predate that.
+// parts separately and server-enforces both, so this only ever has to catch the
+// accounts that predate that.
 //
-// Blocking by design: no backdrop dismiss, no Escape, no close control. It is a
-// single required field on an account that is otherwise unusable to a recruiter,
-// and it is the last thing standing between the profiles table and a clean
-// first/last split. Roughly 8 live accounts hit it.
+// Blocking by design: no backdrop dismiss, no Escape, no close control, and focus
+// is trapped inside the panel so the page behind can't be reached by keyboard.
+//
+// Mounted ONCE, in app/dashboard/layout.tsx, so it covers every route under
+// /dashboard — including /dashboard/profile, /showcase, /become and /admin, which
+// have no shell of their own and were reachable by direct URL when this was
+// mounted per-shell. Do not also mount it in PlayerShell or coach/layout: nested
+// layouts compose, so that would stack two overlays.
+//
+// Self-fetching rather than prop-driven for the same reason — the dashboard root
+// has no profile to hand it, and one small query per dashboard load is cheaper
+// than threading a profile through every shell.
 
 type NameProfile = {
-  first_name?: string | null
-  last_name?: string | null
-  full_name?: string | null
+  first_name: string | null
+  last_name: string | null
+  full_name: string | null
 }
 
-export default function SurnameGate({
-  userId,
-  profile,
-  onSaved,
-}: {
-  userId: string | null
-  profile: NameProfile | null
-  onSaved?: (name: { first_name: string; last_name: string }) => void
-}) {
+const FOCUSABLE = 'input, button, a[href], [tabindex]:not([tabindex="-1"])'
+
+export default function SurnameGate() {
+  const [userId, setUserId] = useState<string | null>(null)
+  const [profile, setProfile] = useState<NameProfile | null>(null)
+
   // null means "the user hasn't touched this field", so the seed below still
   // applies once the profile arrives. Derived during render rather than pushed in
   // by an effect — profile loads async, so an effect here would set state on
@@ -39,17 +45,32 @@ export default function SurnameGate({
   const [lastName, setLastName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
 
-  const open = !done && !!userId && !!profile && needsLastName(profile)
+  const panelRef = useRef<HTMLDivElement>(null)
 
-  // Seed from whichever side of the name the row actually has. first_name may be
-  // absent on a payload that only selected full_name, hence the split fallback.
+  const open = !!userId && !!profile && needsLastName(profile)
+
+  // Seed from whichever side of the name the row actually has. first_name can be
+  // absent on a row written before the split migration, hence the split fallback.
   const firstName =
     firstNameInput ??
     profile?.first_name ??
     splitName(profile?.full_name).firstName ??
     ''
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      setUserId(user.id)
+      supabase
+        .from('profiles')
+        .select('full_name, first_name, last_name')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => setProfile(data))
+    })
+  }, [])
 
   // Hold the page still while the gate is up — the content behind it is not
   // reachable anyway, and a scrolling backdrop makes it look dismissible.
@@ -58,6 +79,51 @@ export default function SurnameGate({
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previous }
+  }, [open])
+
+  // Focus trap. The overlay stops clicks, but without this Tab still walks into
+  // the page behind and Enter activates it — which is the difference between
+  // "hard to ignore" and "blocking".
+  useEffect(() => {
+    if (!open) return
+
+    const items = () => {
+      const panel = panelRef.current
+      if (!panel) return [] as HTMLElement[]
+      return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+        .filter(el => !el.hasAttribute('disabled'))
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      // Escape is a no-op by default here, but swallow it so a parent handler
+      // somewhere up the tree can't treat it as a dismiss.
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return }
+      if (e.key !== 'Tab') return
+
+      const focusable = items()
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      if (!panelRef.current?.contains(active)) { e.preventDefault(); first.focus(); return }
+      if (e.shiftKey && active === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus() }
+    }
+
+    // Backstop for focus arriving by any route Tab-handling doesn't cover
+    // (browser find-on-page, screen-reader navigation, an autofocus behind us).
+    function onFocusIn(e: FocusEvent) {
+      const panel = panelRef.current
+      if (panel && !panel.contains(e.target as Node)) items()[0]?.focus()
+    }
+
+    document.addEventListener('keydown', onKeyDown, true)
+    document.addEventListener('focusin', onFocusIn, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+      document.removeEventListener('focusin', onFocusIn, true)
+    }
   }, [open])
 
   if (!open) return null
@@ -82,15 +148,16 @@ export default function SurnameGate({
       .update({ first_name: first, last_name: last })
       .eq('id', userId!)
 
-    setSaving(false)
-
     if (saveError) {
+      setSaving(false)
       setError('Could not save — please try again.')
       return
     }
 
-    setDone(true)
-    onSaved?.({ first_name: first, last_name: last })
+    // Full reload rather than local state: the name is rendered by sidebars,
+    // headers and cards that each hold their own copy from their own fetch, and
+    // this happens once per account, ever. Not worth a cache-invalidation story.
+    window.location.reload()
   }
 
   return (
@@ -102,6 +169,7 @@ export default function SurnameGate({
       aria-labelledby="surname-gate-title"
     >
       <div
+        ref={panelRef}
         className="w-full max-w-md mx-4 rounded-t-2xl sm:rounded-2xl p-6 space-y-4"
         style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
       >

@@ -53,10 +53,19 @@ Splitting rule = "first word is the given name, the remainder is the family name
 lib/name.ts (splitName / composeName / greetingName / needsLastName) mirrors the
 SQL exactly — change one, change the other.
 ⚠️ last_name IS NULL is the gate for the forced-surname modal
-(app/components/SurnameGate.tsx, mounted in PlayerShell + coach/layout). It's
-blocking by design: no backdrop dismiss, no Escape, no close control. 11 legacy
-rows hit it; signup and fan-conversion now collect the two parts separately and
-server-enforce both, so nothing new can land without a surname.
+(app/components/SurnameGate.tsx). Blocking by design: no backdrop dismiss, no
+Escape, no close control, and focus is trapped in the panel so the page behind
+can't be reached by keyboard. 11 legacy rows hit it; signup and fan-conversion
+now collect the two parts separately and server-enforce both, so nothing new can
+land without a surname.
+⚠️ It is mounted ONCE, in app/dashboard/layout.tsx — a root layout that exists
+solely to host it. Do NOT also mount it in PlayerShell or coach/layout: nested
+layouts compose, so that stacks two overlays. Mounting it per-shell (the original
+approach) silently missed /dashboard/profile, /showcase, /become and /admin —
+none of which have a shell, all reachable by direct URL with the gate skipped.
+The gate is a UI convention, not an enforcement boundary — nothing server-side
+rejects a surname-less profile, which is fine for 11 accounts but don't treat it
+as a security control.
 ⚠️ MailerLite gets first_name in `fields.name` and last_name in `fields.last_name`
 — those are its two BUILT-IN name fields and `name` is what a campaign's
 personalisation token resolves to. It used to be sent the whole full_name, which

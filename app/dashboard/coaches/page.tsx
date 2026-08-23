@@ -9,6 +9,9 @@ import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import NewBadge from '@/app/components/NewBadge'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import ProBadge from '@/app/components/ProBadge'
+import ListRow from '@/components/ui/ListRow'
+import Icon from '@/components/ui/Icon'
+import { ChevronRight } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -585,43 +588,38 @@ export default function CoachesPage() {
           )}
         </div>
       ) : (
-        <div className="mx-4 mt-2 rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
-          {filtered.map((coach, i) => {
+        <div className="mx-4 mt-2 rounded-2xl overflow-hidden divide-y divide-[#1e2235]" style={{ border: '1px solid #1e2235' }}>
+          {filtered.map((coach) => {
             const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-            const meta = [coach.coaching_role, coach.coaching_level].filter(Boolean).join(' · ')
-            const sub = [coach.city, coach.club].filter(Boolean).join(' · ')
+            // Role/level and city/club used to be two separately-conditional
+            // lines — a coach missing both collapsed the row to half height.
+            // One subtitle line, ListRow's fixed min-height fixes the rest.
+            const subtitle = [coach.coaching_role, coach.coaching_level, coach.city, coach.club].filter(Boolean).join(' · ')
 
             return (
-              <Link key={coach.id}
+              <ListRow key={coach.id}
                 href={`/dashboard/coach/${coach.id}`}
-                className="flex items-center gap-3 px-4 py-4"
-                style={{
-                  backgroundColor: '#13172a',
-                  borderBottom: i < filtered.length - 1 ? '1px solid #1e2235' : undefined,
-                  textDecoration: 'none',
-                  display: 'flex',
-                }}>
-                <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: '#1a1f3a' }}>
-                  {coach.avatar_url
-                    ? <Image src={coach.avatar_url} alt="" width={48} height={48} className="w-full h-full object-cover object-center" />
-                    : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
-                </div>
-                <div className="flex-1 min-w-0">
+                className="px-4"
+                style={{ backgroundColor: '#13172a' }}
+                leading={
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
+                    style={{ backgroundColor: '#1a1f3a' }}>
+                    {coach.avatar_url
+                      ? <Image src={coach.avatar_url} alt="" width={48} height={48} className="w-full h-full object-cover object-center" />
+                      : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
+                  </div>
+                }
+                title={
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{coach.full_name ?? 'Coach'}</p>
+                    <span className="truncate">{coach.full_name ?? 'Coach'}</span>
                     {coach.premium && <ProBadge size="sm" />}
                     {isAgent({ role: 'coach', is_agent: coach.is_agent }) && <AgentBadge size="sm" />}
                     <NewBadge createdAt={coach.created_at} size="sm" />
                   </div>
-                  {meta && <p className="text-xs mt-0.5 truncate" style={{ color: '#8892aa' }}>{meta}</p>}
-                  {sub && <p className="text-xs mt-0.5 truncate" style={{ color: '#8892aa' }}>{sub}</p>}
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2"
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </Link>
+                }
+                subtitle={subtitle || undefined}
+                trailing={<Icon icon={ChevronRight} size="sm" label={true} style={{ color: '#8892aa' }} />}
+              />
             )
           })}
         </div>

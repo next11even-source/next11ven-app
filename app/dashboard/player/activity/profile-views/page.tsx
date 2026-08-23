@@ -159,7 +159,7 @@ export default function ProfileViewsPage() {
                     <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
                       {v.avatar_url
                         ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" />
-                        : <span className="text-xs font-bold" style={{ color: isCoach ? '#a78bfa' : '#2d5fc4' }}>{initials}</span>}
+                        : <span className="text-xs font-bold" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
                     </div>
                     {isCoach && (
                       <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"

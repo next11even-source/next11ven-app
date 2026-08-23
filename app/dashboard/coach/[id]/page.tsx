@@ -338,7 +338,7 @@ export default function CoachPublicProfile() {
             <Image src={coach.avatar_url} alt={coach.full_name ?? ''} width={112} height={112} className="w-full h-full object-cover object-center" />
           ) : (
             <span className="font-black text-4xl"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
               {initials}
             </span>
           )}

@@ -12,7 +12,8 @@ import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import Icon from '@/components/ui/Icon'
-import { MapPin, Clapperboard } from 'lucide-react'
+import ListRow from '@/components/ui/ListRow'
+import { MapPin, Clapperboard, ChevronRight } from 'lucide-react'
 
 type Player = {
   id: string
@@ -573,59 +574,51 @@ export default function PlayersPage() {
           ))}
         </div>
       ) : (
-        <div>
-          {players.map((p, i) => {
+        <div className="divide-y divide-[#1e2235]">
+          {players.map((p) => {
             const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+            // Position/level and club/city used to be two independently-
+            // conditional lines. One subtitle line, ListRow's fixed
+            // min-height keeps rows with a bare "—/—" the same height as
+            // rows with a full profile.
+            const subtitle = [p.position, p.playing_level, p.club, p.city].filter(Boolean).join(' · ') || '—'
 
             return (
-              <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
-                className="flex items-center gap-3 px-4 py-3.5"
-                style={{ textDecoration: 'none', backgroundColor: '#0a0a0a', borderTop: i > 0 ? '1px solid #1e2235' : 'none' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0d1020')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#0a0a0a')}>
-
-                {/* Avatar */}
-                <div className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
-                  style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${p.actively_looking ? 'rgba(34,197,94,0.4)' : '#1e2235'}` }}>
-                  {p.avatar_url ? (
-                    <Image src={p.avatar_url} alt={p.full_name ?? ''} width={56} height={56} className="w-full h-full object-cover object-center" />
-                  ) : (
-                    <span className="font-black text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                      {initials}
-                    </span>
-                  )}
-                </div>
-
-                {/* Details */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? 'Player'}</p>
+              <ListRow key={p.id} href={`/dashboard/player/players/${p.id}`}
+                className="px-4 bg-[#0a0a0a] transition-colors hover:bg-[#0d1020]"
+                leading={
+                  <div className="rounded-xl overflow-hidden flex items-center justify-center"
+                    style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${p.actively_looking ? 'rgba(34,197,94,0.4)' : '#1e2235'}` }}>
+                    {p.avatar_url ? (
+                      <Image src={p.avatar_url} alt={p.full_name ?? ''} width={56} height={56} className="w-full h-full object-cover object-center" />
+                    ) : (
+                      <span className="font-black text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#5b6478' }}>
+                        {initials}
+                      </span>
+                    )}
+                  </div>
+                }
+                title={
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{p.full_name ?? 'Player'}</span>
                     {isFounder(p.role) ? <FounderBadge size="sm" /> : p.premium && <ProBadge size="sm" />}
                     <NewBadge createdAt={p.created_at} size="sm" />
                   </div>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>
-                    {[p.position, p.playing_level].filter(Boolean).join(' · ') || '—'}
-                  </p>
-                  <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa', fontSize: 11 }}>
-                    {[p.club, p.city].filter(Boolean).join(' · ') || '—'}
-                  </p>
-                </div>
-
-                {/* Actively Looking chip + arrow */}
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  {p.actively_looking && (
-                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold"
-                      style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', fontSize: 10, whiteSpace: 'nowrap' }}>
-                      <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
-                      Actively Looking
-                    </span>
-                  )}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e2235" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                </div>
-
-              </Link>
+                }
+                subtitle={subtitle}
+                trailing={
+                  <div className="flex flex-col items-end gap-1.5">
+                    {p.actively_looking && (
+                      <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', fontSize: 10, whiteSpace: 'nowrap' }}>
+                        <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+                        Actively Looking
+                      </span>
+                    )}
+                    <Icon icon={ChevronRight} size="sm" label={true} style={{ color: '#1e2235' }} />
+                  </div>
+                }
+              />
             )
           })}
 

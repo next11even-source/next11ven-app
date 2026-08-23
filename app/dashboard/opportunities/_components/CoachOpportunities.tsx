@@ -5,14 +5,17 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS, sortLevels } from '@/lib/levels'
-import { LevelBadge } from '@/app/components/OpportunityBadges'
+import { getStepToken } from '@/lib/stepTokens'
+import { toSentenceCase } from '@/lib/opportunityText'
+import { COLORS, RADIUS_SM } from '@/components/ui/tokens'
 import {
   isAwaitingReply, waitingDays, waitingLabel, getWaitingTier, WAITING_TIER_COLOUR,
 } from '@/lib/applicationResponse'
 import Icon from '@/components/ui/Icon'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
-import { CircleDot, Briefcase, Lock, Clock, Users, Sparkles } from 'lucide-react'
+import Card from '@/components/ui/Card'
+import { CircleDot, Briefcase, Lock, Clock, Users, Sparkles, ChevronDown } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +97,7 @@ function Avatar({ name, url, size = 40 }: { name: string | null; url: string | n
   if (url) return <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
   return (
     <div className="rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-      style={{ width: size, height: size, backgroundColor: '#1e2235', color: '#8892aa' }}>
+      style={{ width: size, height: size, backgroundColor: '#1a1f3a', color: '#5b6478' }}>
       {initials}
     </div>
   )
@@ -346,9 +349,9 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #2d5fc4', backgroundColor: '#0d1020' }}>
       <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #1e2235' }}>
         <div>
-          <h3 className="text-sm font-bold uppercase"
+          <h3 className="text-sm font-bold"
             style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            Applicants — {opportunity.title}
+            Applicants — {toSentenceCase(opportunity.title)}
           </h3>
           {(() => {
             if (loading) return <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>…</p>
@@ -719,8 +722,12 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
       )}
 
       <main className={embedded ? 'px-4 py-4 space-y-5 max-w-5xl mx-auto' : 'max-w-3xl mx-auto px-4 py-6 space-y-5'}>
-        {/* Add Opportunity */}
-        <div className="flex items-center justify-between gap-3">
+        {/* Add Opportunity — stacked on mobile (the default here) rather than
+            sharing a row with the intro text: at this app's mobile-first
+            widths, a fixed-width button next to text long enough to wrap 2-3
+            lines had nowhere to go but overlap it. Side-by-side only once
+            there's clearly room (sm: 640px+). */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-sm" style={{ color: '#8892aa' }}>
             {embedded
               ? 'Roles you’ve posted — tap a role to view and manage applicants.'
@@ -730,11 +737,11 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
           </p>
           {!showForm && (
             canPost ? (
-              <Button variant="primary" size="sm" className="rounded-full" onClick={() => setShowForm(true)}>
+              <Button variant="primary" size="sm" className="rounded-full w-full sm:w-auto flex-shrink-0" onClick={() => setShowForm(true)}>
                 + Add Opportunity
               </Button>
             ) : (
-              <Button variant="secondary" size="sm" className="rounded-full"
+              <Button variant="secondary" size="sm" className="rounded-full w-full sm:w-auto flex-shrink-0"
                 style={{ color: '#4d8ae8', borderColor: '#2d5fc4' }}
                 leadingIcon={Lock}
                 href="/dashboard/coach/premium">
@@ -768,30 +775,39 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
               <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search roles, clubs, areas…"
-                className="w-full rounded-full py-2 text-sm outline-none"
-                style={{ ...selectStyle, paddingLeft: 34, paddingRight: 12 }}
+                placeholder="Search roles, areas…"
+                className="w-full h-10 text-sm outline-none"
+                style={{ ...selectStyle, borderRadius: RADIUS_SM, paddingLeft: 34, paddingRight: 12 }}
                 onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
                 onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')} />
             </div>
-            <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)}
-              className="rounded-full px-3 py-2 text-sm outline-none cursor-pointer" style={selectStyle}>
-              <option value="">All levels</option>
-              {levelOptions.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
-            <select value={positionFilter} onChange={e => setPositionFilter(e.target.value)}
-              className="rounded-full px-3 py-2 text-sm outline-none cursor-pointer" style={selectStyle}>
-              <option value="">All positions</option>
-              {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <div className="relative">
+              <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)}
+                className="appearance-none h-10 pl-3 text-sm outline-none cursor-pointer"
+                style={{ ...selectStyle, borderRadius: RADIUS_SM, paddingRight: 28 }}>
+                <option value="">All levels</option>
+                {levelOptions.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+              <Icon icon={ChevronDown} size="xs" label={true} className="absolute top-1/2 -translate-y-1/2 pointer-events-none" style={{ right: 10, color: '#8892aa' }} />
+            </div>
+            <div className="relative">
+              <select value={positionFilter} onChange={e => setPositionFilter(e.target.value)}
+                className="appearance-none h-10 pl-3 text-sm outline-none cursor-pointer"
+                style={{ ...selectStyle, borderRadius: RADIUS_SM, paddingRight: 28 }}>
+                <option value="">All positions</option>
+                {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <Icon icon={ChevronDown} size="xs" label={true} className="absolute top-1/2 -translate-y-1/2 pointer-events-none" style={{ right: 10, color: '#8892aa' }} />
+            </div>
             <button onClick={() => setUrgentOnly(v => !v)}
-              className="rounded-full px-3.5 py-2 text-sm font-semibold transition-colors flex items-center gap-1.5"
+              className="h-10 px-3.5 text-sm font-semibold transition-colors flex items-center gap-1.5"
               style={{
+                borderRadius: RADIUS_SM,
                 backgroundColor: urgentOnly ? 'rgba(245,158,11,0.15)' : '#0d1020',
                 border: `1px solid ${urgentOnly ? '#f59e0b' : '#1e2235'}`,
                 color: urgentOnly ? '#f59e0b' : '#8892aa',
               }}>
-              <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />
+              <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: COLORS.urgent, flexShrink: 0 }} />
               Urgent
             </button>
             {hasActiveFilters && (
@@ -836,69 +852,72 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
             )}
           </div>
         ) : (
+          // Deliberately a separate card, not a shared OpportunityCard with
+          // PlayerOpportunityCard (PlayerOpportunities.tsx) — evaluated and
+          // rejected in the coach-opportunities parity pass, 22 Aug 2026. This
+          // card carries applicant management (view/accept/reject, waiting/
+          // applied counts, close/delete) that has no player-side equivalent;
+          // PlayerOpportunityCard carries admin moderation editing that has no
+          // coach-side equivalent. A single component would need the union of
+          // both prop surfaces gated behind role checks — more conditional
+          // branching in one file than two focused components, and it would
+          // couple applicant-management changes to the apply-flow's blast
+          // radius. What DOES stay shared, and must keep being reused rather
+          // than re-implemented here: Card, Badge (incl. the neutral step
+          // chip + getStepToken "OTHER" hiding), MatchTypography, and
+          // toSentenceCase — all from OpportunityBadges.tsx / opportunityText.ts.
+          // That's the right level of sharing; a full merged component isn't.
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {displayed.map(opp => {
               const deadlineDays = opp.deadline ? daysUntilDeadline(opp.deadline) : null
               const isCoachingRole = opp.opportunity_type === 'coach'
               const isViewing = viewingApplicants?.id === opp.id
               const justPosted = Date.now() - new Date(opp.created_at).getTime() < 48 * 3600000
-              const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+              const title = toSentenceCase(opp.title)
+              const showPos = opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
               const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
+              const stepToken = getStepToken(opp.level)
               const applied = appliedIds.has(opp.id)
               const isApplying = applying === opp.id
               // Coaches can apply to other clubs' coaching-staff roles
               const canApply = !opp.isOwn && isCoachingRole && opp.is_active
 
               return (
-                <div key={opp.id}
-                  className="relative rounded-2xl overflow-hidden transition-all"
+                <Card key={opp.id}
+                  className="relative overflow-hidden"
                   style={{
-                    backgroundColor: opp.isOwn ? 'rgba(45,95,196,0.06)' : '#13172a',
-                    border: `1px solid ${isViewing ? '#2d5fc4' : opp.isOwn ? 'rgba(45,95,196,0.5)' : '#1e2235'}`,
+                    padding: 0,
+                    backgroundColor: opp.isOwn ? 'rgba(45,95,196,0.06)' : undefined,
+                    borderColor: isViewing ? '#2d5fc4' : opp.isOwn ? 'rgba(45,95,196,0.5)' : undefined,
                     opacity: opp.is_active ? 1 : 0.65,
-                  }}
-                  onMouseEnter={e => {
-                    if (isViewing) return
-                    e.currentTarget.style.borderColor = 'rgba(45,95,196,0.5)'
-                    e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(45,95,196,0.12)'
-                  }}
-                  onMouseLeave={e => {
-                    if (isViewing) return
-                    e.currentTarget.style.borderColor = opp.isOwn ? 'rgba(45,95,196,0.5)' : '#1e2235'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
                   }}>
-                  {/* Edge-stripe — urgent (red) takes priority, else own roles (blue) */}
-                  {(opp.urgent || opp.isOwn) && (
-                    <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: opp.urgent ? '#ef4444' : '#2d5fc4' }} />
-                  )}
+                  {/* No edge-stripe — urgent/own-role are already signalled by the
+                      Badge chips below (Badge tone="urgent" / "Your role"), so a
+                      second coloured indicator was redundant (see CLAUDE.md "no
+                      coloured left borders"). */}
 
                   <div className="p-4 lg:p-5">
-                    <div className="flex gap-3.5">
-                      <LevelBadge level={opp.level} />
+                    <div className="flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+                      {stepToken.step !== 0 && (
+                        <>
+                          <Badge tone="neutral">{stepToken.label}</Badge>
+                          <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>·</span>
+                        </>
+                      )}
+                      <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>{timeAgo(opp.created_at)}</span>
+                    </div>
+                    <h3 className="truncate"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
+                      {title}
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
+                        · {meta || 'Details to follow'}
+                      </span>
+                    </h3>
 
-                      <div className="flex-1 min-w-0">
-                        {/* Title row */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <h3 className="font-bold uppercase truncate"
-                              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 19, lineHeight: 1.1 }}>
-                              {opp.title}
-                            </h3>
-                          </div>
-                          <span className="text-xs flex-shrink-0 pt-1" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</span>
-                        </div>
-
-                        {/* Single meta line */}
-                        <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>
-                          {meta || 'Details to follow'}
-                        </p>
-
-                        {/* Description */}
-                        {opp.description && (
-                          <p className="text-xs mt-2 line-clamp-2" style={{ color: '#6b7488' }}>{opp.description}</p>
-                        )}
+                    {/* Description */}
+                    {opp.description && (
+                      <p className="text-xs mt-2 line-clamp-2" style={{ color: '#6b7488' }}>{opp.description}</p>
+                    )}
 
                         {/* Status chips + action */}
                         <div className="flex items-center justify-between gap-2 flex-wrap mt-3">
@@ -917,7 +936,7 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                             )}
                             {opp.urgent && (
                               <Badge tone="urgent">
-                                <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f87171', flexShrink: 0 }} />
+                                <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: COLORS.urgent, flexShrink: 0 }} />
                                 Urgent
                               </Badge>
                             )}
@@ -991,8 +1010,6 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                             </div>
                           </div>
                         )}
-                      </div>
-                    </div>
 
                     {/* Manage footer — own roles only. Plain text links, not Button:
                         each needs its own one-off hover colour (grey→cream,
@@ -1018,7 +1035,7 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                       </div>
                     )}
                   </div>
-                </div>
+                </Card>
               )
             })}
           </div>

@@ -143,7 +143,7 @@ function ChatView({
           style={{ backgroundColor: '#1a1f3a' }}>
           {p?.avatar_url
             ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-            : <span className="text-xs font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+            : <span className="text-xs font-black" style={{ color: '#5b6478' }}>{initials}</span>}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'User'}</p>
@@ -451,7 +451,7 @@ function MessagesInner() {
                     style={{ backgroundColor: '#1a1f3a' }}>
                     {p?.avatar_url
                       ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+                      : <span className="font-black" style={{ color: '#5b6478' }}>{initials}</span>}
                   </div>
                   {hasUnread && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"

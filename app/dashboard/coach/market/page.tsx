@@ -83,12 +83,12 @@ function timeAgo(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-function Avatar({ name, url, size = 40, color = '#2d5fc4' }: { name: string | null; url: string | null; size?: number; color?: string }) {
+function Avatar({ name, url, size = 40, color = '#5b6478' }: { name: string | null; url: string | null; size?: number; color?: string }) {
   const initials = name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   if (url) return <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
   return (
     <div className="rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-      style={{ width: size, height: size, backgroundColor: '#1e2235', color }}>
+      style={{ width: size, height: size, backgroundColor: '#1a1f3a', color }}>
       {initials}
     </div>
   )

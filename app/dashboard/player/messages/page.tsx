@@ -149,7 +149,7 @@ function ChatView({
           style={{ backgroundColor: '#1a1f3a', filter: !canRead ? 'blur(6px)' : 'none' }}>
           {c?.avatar_url
             ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-            : <span className="text-xs font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+            : <span className="text-xs font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
@@ -541,7 +541,7 @@ function MessagesInner() {
                     style={{ backgroundColor: '#1a1f3a', filter: isLocked ? 'blur(6px)' : 'none' }}>
                     {c?.avatar_url
                       ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+                      : <span className="font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
                   </div>
                   {hasUnread && !isLocked && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"

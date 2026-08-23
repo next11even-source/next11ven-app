@@ -162,7 +162,7 @@ export default function ShortlistsPage() {
                         style={{ backgroundColor: '#1a1f3a' }}>
                         {p?.avatar_url
                           ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                          : <span className="text-sm font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+                          : <span className="text-sm font-black" style={{ color: '#5b6478' }}>{initials}</span>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'Player'}</p>
@@ -232,7 +232,7 @@ export default function ShortlistsPage() {
                             style={{ backgroundColor: '#1a1f3a' }}>
                             {p?.avatar_url
                               ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-                              : <span className="text-lg font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>{initials}</span>}
+                              : <span className="text-lg font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#5b6478' }}>{initials}</span>}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">

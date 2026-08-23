@@ -6,16 +6,20 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '@/app/dashboard/player/_components/SidebarContext'
-import { LevelBadge, StepBadge, MatchChip, SignalChip } from '@/app/components/OpportunityBadges'
-import { getLevelConfig } from '@/lib/opportunityLevel'
+import { MatchTypography } from '@/app/components/OpportunityBadges'
+import { getStepToken } from '@/lib/stepTokens'
 import { getPrimarySignal } from '@/lib/opportunitySignal'
+import { toSentenceCase } from '@/lib/opportunityText'
 import { LEVELS, sortLevels } from '@/lib/levels'
 import { POSITIONS } from '@/lib/positions'
 import ActivelyLookingModal, { type PaywallVariant } from '@/app/components/ActivelyLookingModal'
 import CoachOpportunities from './CoachOpportunities'
 import Icon from '@/components/ui/Icon'
 import Button from '@/components/ui/Button'
-import { Pencil, Clock, ChevronRight } from 'lucide-react'
+import Badge from '@/components/ui/Badge'
+import Card from '@/components/ui/Card'
+import { COLORS, RADIUS_SM } from '@/components/ui/tokens'
+import { Pencil, Clock, ChevronRight, ChevronDown } from 'lucide-react'
 import {
   getPlayerApplicationState,
   PLAYER_APPLICATION_COPY,
@@ -76,38 +80,6 @@ function compactTimeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-// Football position / club abbreviations that should stay uppercase when a
-// free-text title is converted to sentence case.
-const KNOWN_ACRONYMS = new Set([
-  'GK', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST',
-  'FC', 'AFC', 'U18', 'U21', 'U23',
-])
-
-// Coach-entered titles are often ALL CAPS free text. Convert to sentence case
-// for display only (never mutates stored data), preserving known position /
-// club acronyms and any punctuation (including em dashes) untouched.
-function toSentenceCase(text: string): string {
-  if (!text) return text
-  return text.split(' ').map((word, i) => {
-    const core = word.replace(/[^A-Za-z0-9]/g, '')
-    if (core.length > 1 && KNOWN_ACRONYMS.has(core.toUpperCase())) return word.toUpperCase()
-    const lower = word.toLowerCase()
-    if (i === 0 && lower) return lower.charAt(0).toUpperCase() + lower.slice(1)
-    return lower
-  }).join(' ')
-}
-
-// Generic pill used for the position tag on a card. Status signals use the
-// shared SignalChip; the match score uses the shared MatchChip.
-function Chip({ children, color, bg }: { children: React.ReactNode; color: string; bg: string }) {
-  return (
-    <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0"
-      style={{ color, backgroundColor: bg }}>
-      {children}
-    </span>
-  )
-}
-
 // Status copy now lives in lib/applicationResponse.ts (PLAYER_APPLICATION_COPY)
 // so the cron that closes applications and the UI that renders them can never
 // disagree about what a player is being told.
@@ -122,15 +94,6 @@ function SkeletonRow() {
         <div className="h-5 w-20 rounded-full" style={{ backgroundColor: '#1e2235' }} />
       </div>
     </div>
-  )
-}
-
-// Pin glyph for the location line.
-function PinIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" aria-hidden="true">
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-    </svg>
   )
 }
 
@@ -235,7 +198,7 @@ function AdminEditForm({ opp, onCancel, onSaved }: {
 // button is the single strongest element; the match chip is the premium hook.
 function PlayerOpportunityCard({
   opp, isPremium, applied, isApplying, highlighted, message,
-  onMessageChange, onApplyClick, onCancel, onConfirm, onLockedMatch, anchorId = true, hero = false,
+  onMessageChange, onApplyClick, onCancel, onConfirm, onLockedMatch, anchorId = true,
   isAdmin = false, onAdminSave,
 }: {
   opp: Opportunity
@@ -252,9 +215,6 @@ function PlayerOpportunityCard({
   // Set false for a duplicate render of the same opportunity (e.g. the "Best
   // matches" preview) so it doesn't collide with the main list's anchor id.
   anchorId?: boolean
-  // Best-matches treatment: a subtle amber ring + glow on the card itself (no
-  // wrapper box, so an odd match count never leaves a dead glowing cell).
-  hero?: boolean
   // Founder-only moderation edit (see AdminEditForm above).
   isAdmin?: boolean
   onAdminSave?: (updated: Partial<Opportunity> & { id: string }) => void
@@ -263,14 +223,14 @@ function PlayerOpportunityCard({
   const title = toSentenceCase(opp.title)
   // club is already null for free players (gated server-side).
   const meta = [opp.club, opp.location].filter(Boolean).join(' · ')
-  // Left accent rail in the step colour; desaturated when the role is outside
-  // the player's ±1 step range (see StepBadge).
-  const railToken = getLevelConfig(opp.level)
-  const railColor = opp.inRange ? railToken.color : '#64748b'
+  const stepToken = getStepToken(opp.level)
 
   // Don't repeat the position as a chip when the title already names it
-  // (e.g. title "Step 6 - striker" + an "ST" chip is redundant).
+  // (e.g. title "Step 6 - striker" + an "ST" chip is redundant). Folded into
+  // the subtitle line rather than its own chip — the footer only carries
+  // scarcity + Apply now (see MatchTypography/footer below).
   const showPos = !!opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
+  const subtitle = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ') || 'Details to follow'
 
   const applyLabel = applied ? 'Applied' : 'Apply'
   const applyAria = applied
@@ -281,59 +241,64 @@ function PlayerOpportunityCard({
 
   // Show the description directly rather than hiding it behind a toggle — a
   // card with real content and a card with none shouldn't look identical.
-  // Only long descriptions get a "See more" clamp, so short ones (the
-  // majority) never show a pointless expand control next to nothing to hide.
-  const DESCRIPTION_TRUNCATE_LENGTH = 160
+  // Collapsed state clamps to 2 lines via CSS (line-clamp-2 below) rather than
+  // a character-count slice — a real line clamp always breaks at a rendered
+  // line boundary, a char slice could cut mid-word regardless of actual wrap
+  // width. isLongDescription is a separate heuristic that only gates whether
+  // the "See more" toggle is worth rendering at all — a description that's
+  // naturally one line doesn't need an affordance to expand nothing. Real
+  // overflow detection would need a ref + layout measurement, which is more
+  // than this needs; ~100 chars is roughly where 2 lines fill at this card's
+  // text-sm width.
+  const DESCRIPTION_LINE_CLAMP_THRESHOLD = 100
   const description = opp.description || null
-  const isLongDescription = !!description && description.length > DESCRIPTION_TRUNCATE_LENGTH
-  const truncatedDescription = isLongDescription
-    ? description!.slice(0, DESCRIPTION_TRUNCATE_LENGTH).replace(/\s+\S*$/, '') + '…'
-    : description
+  const isLongDescription = !!description && description.length > DESCRIPTION_LINE_CLAMP_THRESHOLD
 
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [editing, setEditing] = useState(false)
 
   return (
-    <article id={anchorId ? 'opp-' + opp.id : undefined}
-      className="relative rounded-2xl overflow-hidden transition-colors h-full flex flex-col"
+    <Card id={anchorId ? 'opp-' + opp.id : undefined}
+      className="relative overflow-hidden h-full flex flex-col"
       style={{
-        backgroundColor: '#13172a',
-        border: `1px solid ${hero ? 'rgba(251,191,36,0.35)' : applied ? '#2d5fc4' : '#1e2235'}`,
+        padding: 0,
+        borderColor: applied ? '#2d5fc4' : undefined,
         outline: highlighted ? '2px solid #2d5fc4' : 'none',
         outlineOffset: 2,
-        boxShadow: hero ? '0 0 20px rgba(251,191,36,0.06)' : undefined,
         scrollMarginTop: 120,
       }}>
-      {/* Step-colour accent rail */}
-      <span aria-hidden="true" className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: railColor, opacity: opp.inRange ? 1 : 0.5 }} />
-
-      <div style={{ padding: '13px 14px 13px 16px' }} className="flex-1 flex flex-col">
+      <div style={{ padding: '13px 16px 0 16px' }} className="flex-1 flex flex-col">
         {/* Header + description grow to absorb the grid row's stretched
             height (see items-stretch on the parent grid) — so every
             collapsed card in a row lines up at the same bottom edge, with
             the Apply button anchored there, rather than a "See more" card
             visibly taller than its short-description neighbour. */}
         <div className="flex-1">
-          <div className="flex gap-2.5">
-            <StepBadge level={opp.level} inRange={opp.inRange} size={44} />
+          <div className="flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+            {/* "OTHER" (off-ladder / unset level) carries no information on its
+                own — the title already says what the role actually is, so the
+                badge is dropped rather than showing a label that means nothing. */}
+            {stepToken.step !== 0 && (
+              <>
+                <Badge tone="neutral">{stepToken.label}</Badge>
+                <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>·</span>
+              </>
+            )}
+            <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>{compactTimeAgo(opp.created_at)}</span>
+          </div>
+          <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-bold truncate"
-                  style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 16, lineHeight: 1.2 }}>
-                  {title}
-                </h3>
-                {/* Top-right cluster — match % (the premium hook) sits up on the
-                    title line, with the timestamp beside it. */}
-                <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 1 }}>
-                  <MatchChip matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
-                  <span style={{ fontSize: 11, color: '#5b6478' }}>{compactTimeAgo(opp.created_at)}</span>
-                </div>
-              </div>
-              <p className="truncate mt-1 flex items-center gap-1" style={{ fontSize: 12, color: '#8892aa' }}>
-                <PinIcon />
-                <span className="truncate">{meta || 'Details to follow'}</span>
-              </p>
+              <h3 className="truncate"
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
+                {title}
+                {subtitle && (
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
+                    · {subtitle}
+                  </span>
+                )}
+              </h3>
             </div>
+            <MatchTypography matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
           </div>
 
           {/* Description shows directly — no hidden-by-default toggle. Long
@@ -343,8 +308,8 @@ function PlayerOpportunityCard({
           {(description || isAdmin) && !editing && (
             <div className="mt-1.5">
               {description && (
-                <p className="text-sm whitespace-pre-wrap" style={{ color: '#c3cbdb' }}>
-                  {showFullDescription || !isLongDescription ? description : truncatedDescription}
+                <p className={`text-sm whitespace-pre-wrap ${!showFullDescription ? 'line-clamp-2' : ''}`} style={{ color: '#c3cbdb' }}>
+                  {description}
                 </p>
               )}
               {(isLongDescription || isAdmin) && (
@@ -353,7 +318,7 @@ function PlayerOpportunityCard({
                     <button type="button" onClick={() => setShowFullDescription(v => !v)}
                       aria-expanded={showFullDescription}
                       className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4d8ae8] rounded"
-                      style={{ color: '#6ea0f0' }}>
+                      style={{ color: '#4d8ae8' }}>
                       {showFullDescription ? 'See less' : 'See more'}
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                         style={{ transform: showFullDescription ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} aria-hidden="true">
@@ -362,10 +327,13 @@ function PlayerOpportunityCard({
                     </button>
                   )}
                   {isAdmin && (
+                    // Admin-only moderation trigger — deliberately quieter than
+                    // "See more" (a regular-user control) rather than matching
+                    // its weight, so it doesn't read as a second user-facing action.
                     <button type="button" onClick={() => setEditing(true)}
-                      className="flex items-center gap-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
-                      style={{ color: '#fbbf24' }}>
-                      <Icon icon={Pencil} size="sm" label={true} />
+                      className="flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24] rounded"
+                      style={{ fontSize: 11, color: COLORS.textMuted2 }}>
+                      <Icon icon={Pencil} size="xs" label={true} />
                       Edit
                     </button>
                   )}
@@ -380,44 +348,40 @@ function PlayerOpportunityCard({
             onCancel={() => setEditing(false)}
             onSaved={(updated) => { onAdminSave?.(updated); setEditing(false) }} />
         )}
+      </div>
 
-        {/* Action row — supporting chips (position / applicant / deadline signal)
-            fill the space to the LEFT of the Apply button rather than taking
-            their own row, so the card stays compact. Apply is a soft, compact,
-            right-aligned pill. */}
-        {!isApplying && !editing && (
-          <div className="mt-2.5 flex items-center gap-2">
-            {(showPos || signal) && (
-              <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                {showPos && <Chip color="#60a5fa" bg="rgba(96,165,250,0.12)">{opp.position!.toUpperCase()}</Chip>}
-                {signal && <SignalChip signal={signal} />}
-              </div>
-            )}
-            <Button type="button" onClick={onApplyClick} disabled={applied}
-              aria-label={applyAria} variant="primary" size="sm" className="ml-auto rounded-full">
-              {applyLabel}
+      {/* Footer — scarcity signal as plain amber text (no chip background) on
+          the left, Apply always right-aligned via justify-between even when
+          there's no signal to show. */}
+      {!isApplying && !editing && (
+        <div className="flex items-center justify-between gap-2" style={{ padding: '12px 16px', borderTop: `1px solid ${COLORS.border}` }}>
+          <span className="truncate" style={{ fontSize: 12, fontWeight: 600, color: COLORS.urgent }}>
+            {signal?.label ?? ''}
+          </span>
+          <Button type="button" onClick={onApplyClick} disabled={applied}
+            aria-label={applyAria} variant="primary" size="sm" className="flex-shrink-0 rounded-full">
+            {applyLabel}
+          </Button>
+        </div>
+      )}
+
+      {isApplying && (
+        <div className="space-y-2" style={{ padding: '12px 16px', borderTop: `1px solid ${COLORS.border}` }}>
+          <textarea value={message} onChange={e => onMessageChange(e.target.value)} rows={3}
+            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none focus-visible:ring-2 focus-visible:ring-[#2d5fc4]"
+            style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
+            placeholder="Tell the coach about yourself (optional)…" />
+          <div className="flex gap-2">
+            <Button onClick={onCancel} variant="secondary" size="md" className="flex-1 rounded-full">
+              Cancel
+            </Button>
+            <Button onClick={onConfirm} variant="primary" size="md" className="flex-1 rounded-full">
+              Confirm Apply
             </Button>
           </div>
-        )}
-
-        {isApplying && (
-          <div className="space-y-2 mt-3">
-            <textarea value={message} onChange={e => onMessageChange(e.target.value)} rows={3}
-              className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none focus-visible:ring-2 focus-visible:ring-[#2d5fc4]"
-              style={{ backgroundColor: '#0a0a0a', border: '1px solid #2d5fc4', color: '#e8dece' }}
-              placeholder="Tell the coach about yourself (optional)…" />
-            <div className="flex gap-2">
-              <Button onClick={onCancel} variant="secondary" size="md" className="flex-1 rounded-full">
-                Cancel
-              </Button>
-              <Button onClick={onConfirm} variant="primary" size="md" className="flex-1 rounded-full">
-                Confirm Apply
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </article>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -493,6 +457,9 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
     ? [...closeMatches].sort((a, b) => (b.matchPercent ?? 0) - (a.matchPercent ?? 0))
     : closeMatches
   ).slice(0, 3)
+  // Anything already shown in Best Matches is excluded from the list below —
+  // the same role appearing in both sections on one screen read as a bug.
+  const topMatchIds = new Set(topMatches.map(o => o.id))
 
   // Filter options + filtering. Club is intentionally excluded from free-player
   // search (it isn't in their payload anyway). Chronological (newest-first)
@@ -501,6 +468,7 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
   const positionOptions = Array.from(new Set(opportunities.map(o => o.position).filter(Boolean) as string[]))
   const q = search.trim().toLowerCase()
   const filtered = opportunities.filter(o => {
+    if (topMatchIds.has(o.id)) return false
     if (levelFilter && o.level !== levelFilter) return false
     if (positionFilter && o.position !== positionFilter) return false
     if (closingSoonOnly && getPrimarySignal(o)?.key !== 'urgent') return false
@@ -585,7 +553,7 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
               <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
-              <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#e8dece' }}>
+              <h2 className="font-bold uppercase" style={{ fontSize: 11, letterSpacing: '0.06em', color: '#8892aa' }}>
                 Best matches for you
               </h2>
             </div>
@@ -595,7 +563,7 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 items-stretch">
             {topMatches.map(opp => (
-              <PlayerOpportunityCard key={'match-' + opp.id} {...cardProps(opp)} anchorId={false} hero />
+              <PlayerOpportunityCard key={'match-' + opp.id} {...cardProps(opp)} anchorId={false} />
             ))}
           </div>
 
@@ -624,7 +592,7 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
           <div className="pt-2">
             <div className="flex items-center gap-3">
               <span className="h-px flex-1" style={{ backgroundColor: '#1e2235' }} />
-              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#5b6478' }}>All open roles</span>
+              <span className="font-bold uppercase" style={{ fontSize: 11, letterSpacing: '0.06em', color: '#8892aa' }}>All open roles</span>
               <span className="h-px flex-1" style={{ backgroundColor: '#1e2235' }} />
             </div>
           </div>
@@ -640,22 +608,31 @@ function OpportunitiesTab({ playerId, focusOppId, onFocused, isAdmin = false }: 
           <input value={search} onChange={e => setSearch(e.target.value)}
             aria-label="Search roles and areas"
             placeholder="Search roles, areas…"
-            className="w-full rounded-full py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#2d5fc4]"
-            style={{ ...selectStyle, paddingLeft: 34, paddingRight: 12 }} />
+            className="w-full h-10 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#2d5fc4]"
+            style={{ ...selectStyle, borderRadius: RADIUS_SM, paddingLeft: 34, paddingRight: 12 }} />
         </div>
-        <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} aria-label="Filter by level"
-          className="rounded-full px-3 py-2 text-sm outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#2d5fc4]" style={selectStyle}>
-          <option value="">All levels</option>
-          {levelOptions.map(l => <option key={l} value={l}>{l}</option>)}
-        </select>
-        <select value={positionFilter} onChange={e => setPositionFilter(e.target.value)} aria-label="Filter by position"
-          className="rounded-full px-3 py-2 text-sm outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#2d5fc4]" style={selectStyle}>
-          <option value="">All positions</option>
-          {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+        <div className="relative">
+          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} aria-label="Filter by level"
+            className="appearance-none h-10 pl-3 text-sm outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#2d5fc4]"
+            style={{ ...selectStyle, borderRadius: RADIUS_SM, paddingRight: 28 }}>
+            <option value="">All levels</option>
+            {levelOptions.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <Icon icon={ChevronDown} size="xs" label={true} className="absolute top-1/2 -translate-y-1/2 pointer-events-none" style={{ right: 10, color: '#8892aa' }} />
+        </div>
+        <div className="relative">
+          <select value={positionFilter} onChange={e => setPositionFilter(e.target.value)} aria-label="Filter by position"
+            className="appearance-none h-10 pl-3 text-sm outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#2d5fc4]"
+            style={{ ...selectStyle, borderRadius: RADIUS_SM, paddingRight: 28 }}>
+            <option value="">All positions</option>
+            {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <Icon icon={ChevronDown} size="xs" label={true} className="absolute top-1/2 -translate-y-1/2 pointer-events-none" style={{ right: 10, color: '#8892aa' }} />
+        </div>
         <button onClick={() => setClosingSoonOnly(v => !v)} aria-pressed={closingSoonOnly}
-          className="rounded-full px-3.5 py-2 text-sm font-semibold transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f59e0b]"
+          className="h-10 px-3.5 text-sm font-semibold transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f59e0b]"
           style={{
+            borderRadius: RADIUS_SM,
             backgroundColor: closingSoonOnly ? 'rgba(244,63,94,0.15)' : '#0d1020',
             border: `1px solid ${closingSoonOnly ? '#fb7185' : '#1e2235'}`,
             color: closingSoonOnly ? '#fb7185' : '#8892aa',
@@ -730,14 +707,14 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
   return (
     <div className="px-4 py-4 max-w-5xl mx-auto">
       {applications.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center space-y-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <p className="text-sm" style={{ color: '#8892aa' }}>You haven&apos;t applied for any roles yet.</p>
+        <Card className="text-center space-y-4" style={{ padding: '40px 24px' }}>
+          <p className="text-sm" style={{ color: COLORS.textMuted }}>You haven&apos;t applied for any roles yet.</p>
           <Button variant="primary" size="md" onClick={onBrowse}>
             Browse Opportunities
           </Button>
-        </div>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
           {ordered.map(app => {
             const state = getPlayerApplicationState(app.status, app.closed_at, app.close_reason)
             const cfg = PLAYER_APPLICATION_COPY[state]
@@ -748,64 +725,80 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
             const detail = state === 'closed_role_gone'
               ? getRoleClosedDetail(opp?.auto_close_reason as 'stale' | 'neglected' | null)
               : cfg.detail
-            const showPos = opp?.position && !opp.title?.toLowerCase().includes(opp.position.toLowerCase())
+            const title = toSentenceCase(opp?.title ?? 'Opportunity')
+            const showPos = opp?.position && !title.toLowerCase().includes(opp.position.toLowerCase())
             const meta = [opp?.club, opp?.location, showPos ? opp?.position : null].filter(Boolean).join(' · ')
+            const stepToken = getStepToken(opp?.level ?? null)
             return (
-              <div key={app.id} className="rounded-2xl overflow-hidden"
+              <Card key={app.id} className="relative overflow-hidden h-full flex flex-col"
                 style={{
-                  backgroundColor: '#13172a',
-                  border: '1px solid #1e2235',
+                  padding: 0,
                   // Resolved applications recede. They stay readable — a player
                   // should be able to see their own history — but they stop
                   // competing with the ones still live.
                   opacity: done ? 0.72 : 1,
                 }}>
-                <div className="p-4 lg:p-5">
-                  <div className="flex gap-3.5">
-                    <LevelBadge level={opp?.level ?? null} size={44} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-bold uppercase truncate"
-                          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 19, lineHeight: 1.1 }}>
-                          {opp?.title ?? 'Opportunity'}
-                        </h3>
-                        <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
-                          style={{ color: cfg.colour, backgroundColor: cfg.bg }}>
-                          {cfg.label}
-                        </span>
-                      </div>
-                      <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || '—'}</p>
-                      <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>Applied {timeAgo(app.created_at)}</p>
-
-                      {/* The line that replaces the old dead-end "Pending" chip:
-                          every state says what it means and what happens next. */}
-                      {detail && (
-                        <p className="text-xs mt-2 leading-relaxed" style={{ color: '#8892aa' }}>{detail}</p>
+                <div style={{ padding: '13px 16px 0 16px' }} className="flex-1 flex flex-col">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+                      {stepToken.step !== 0 && (
+                        <>
+                          <Badge tone="neutral">{stepToken.label}</Badge>
+                          <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>·</span>
+                        </>
                       )}
-
-                      {done ? (
-                        // A closed application is a prompt to move, not an
-                        // epitaph. Always hand them somewhere to go.
-                        <Button onClick={onBrowse} variant="secondary" size="sm" className="mt-3 rounded-full"
-                          style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
-                          trailingIcon={ChevronRight}>
-                          See open roles
-                        </Button>
-                      ) : opp && opp.is_active ? (
-                        <Button onClick={() => onView(opp.id)} variant="secondary" size="sm" className="mt-3 rounded-full"
-                          style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
-                          trailingIcon={ChevronRight}>
-                          View opportunity
-                        </Button>
-                      ) : (
-                        <p className="text-xs mt-3" style={{ color: '#5b6478' }}>
-                          {opp ? 'This role is now closed.' : 'This role is no longer listed.'}
-                        </p>
-                      )}
+                      <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>Applied {timeAgo(app.created_at)}</span>
                     </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="truncate"
+                          style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
+                          {title}
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
+                            · {meta || 'Details to follow'}
+                          </span>
+                        </h3>
+                      </div>
+                      {/* Status tag colours follow the doctrine in
+                          lib/applicationResponse.ts — grey (human decided),
+                          amber (platform resolved), blue (accepted), purple
+                          (shortlisted). Never restyle these independently of
+                          PLAYER_APPLICATION_COPY. */}
+                      <span className="flex-shrink-0 font-semibold" style={{ fontSize: 11, borderRadius: RADIUS_SM, padding: '3px 8px', color: cfg.colour, backgroundColor: cfg.bg }}>
+                        {cfg.label}
+                      </span>
+                    </div>
+
+                    {/* The line that replaces the old dead-end "Pending" chip:
+                        every state says what it means and what happens next. */}
+                    {detail && (
+                      <p className="text-xs mt-2 leading-relaxed" style={{ color: COLORS.textMuted }}>{detail}</p>
+                    )}
                   </div>
                 </div>
-              </div>
+
+                <div style={{ padding: '12px 16px', borderTop: `1px solid ${COLORS.border}` }}>
+                  {done ? (
+                    // A closed application is a prompt to move, not an
+                    // epitaph. Always hand them somewhere to go.
+                    <Button onClick={onBrowse} variant="secondary" size="sm" className="w-full rounded-full"
+                      style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
+                      trailingIcon={ChevronRight}>
+                      See open roles
+                    </Button>
+                  ) : opp && opp.is_active ? (
+                    <Button onClick={() => onView(opp.id)} variant="secondary" size="sm" className="w-full rounded-full"
+                      style={{ color: '#4d8ae8', backgroundColor: 'rgba(45,95,196,0.12)', borderColor: 'rgba(45,95,196,0.4)' }}
+                      trailingIcon={ChevronRight}>
+                      View opportunity
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-center" style={{ color: COLORS.textMuted2 }}>
+                      {opp ? 'This role is now closed.' : 'This role is no longer listed.'}
+                    </p>
+                  )}
+                </div>
+              </Card>
             )
           })}
         </div>

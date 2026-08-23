@@ -3,10 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from './_components/CoachSidebar'
 import { calcCoachCompletion, CoachCompletionProfile } from '@/lib/profileCompletion'
-import { LevelBadge } from '@/app/components/OpportunityBadges'
+import { getStepToken } from '@/lib/stepTokens'
+import { toSentenceCase } from '@/lib/opportunityText'
+import Card from '@/components/ui/Card'
+import Badge from '@/components/ui/Badge'
+import Icon from '@/components/ui/Icon'
+import { COLORS } from '@/components/ui/tokens'
+import { ChevronRight } from 'lucide-react'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
@@ -260,8 +267,7 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-xl font-black uppercase"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
           From the Feed
         </h2>
         <Link href="/dashboard/feed" className="text-xs font-semibold"
@@ -303,8 +309,14 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
                       </span>
                     </div>
                   )}
+                  {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
+                      not near-black — the photo sits directly above a solid
+                      #13172a text block, and fading toward a darker,
+                      mismatched near-black left a visible seam at the
+                      boundary (confirmed via pixel inspection, 23 Aug 2026:
+                      not a loading issue, a colour-mismatch one). */}
                   <div className="absolute inset-0"
-                    style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.5) 0%, transparent 60%)' }} />
+                    style={{ background: 'linear-gradient(to top, rgba(19,23,42,0.5) 0%, transparent 60%)' }} />
                   <div className="absolute top-2 left-2">
                     <span className="font-bold px-1.5 py-0.5 rounded"
                       style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontSize: 9, letterSpacing: '0.04em' }}>
@@ -364,8 +376,7 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
         <div>
-          <h2 className="text-xl font-black uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
             Opportunities
           </h2>
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Latest roles posted across the platform</p>
@@ -398,57 +409,54 @@ function RecentOpportunities({ opps }: { opps: RecentOpportunity[] }) {
       ) : (
         <div className="space-y-2">
           {opps.map(opp => {
-            const showPos = opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+            const title = toSentenceCase(opp.title)
+            const showPos = opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
             // Mirror the player homepage: no club crest, club shown as limited text only.
             const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
+            const stepToken = getStepToken(opp.level)
             return (
-              <Link key={opp.id} href="/dashboard/opportunities"
-                className="relative flex items-center gap-3 rounded-xl px-4 py-3.5 overflow-hidden"
+              <Card key={opp.id} href="/dashboard/opportunities" interactive
+                className="flex items-center gap-3"
                 style={{
-                  backgroundColor: opp.isMine ? 'rgba(45,95,196,0.06)' : '#13172a',
-                  border: `1px solid ${opp.isMine ? 'rgba(45,95,196,0.55)' : '#1e2235'}`,
-                  textDecoration: 'none', display: 'flex',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = opp.isMine ? 'rgba(45,95,196,0.55)' : '#1e2235')}>
-                {opp.isMine && (
-                  <div className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: '#2d5fc4' }} />
-                )}
-                <LevelBadge level={opp.level} size={44} />
+                  backgroundColor: opp.isMine ? 'rgba(45,95,196,0.06)' : undefined,
+                  borderColor: opp.isMine ? 'rgba(45,95,196,0.55)' : undefined,
+                }}>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h3 className="font-bold uppercase truncate"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
-                      {opp.title}
-                    </h3>
-                    {opp.isMine && (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: 'rgba(45,95,196,0.18)', color: '#4d8ae8' }}>
-                        YOUR ROLE
-                      </span>
+                  <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 4 }}>
+                    {/* "OTHER" (off-ladder / unset level) carries no information
+                        on its own — the title already says what the role is. */}
+                    {stepToken.step !== 0 && (
+                      <>
+                        <Badge tone="neutral">{stepToken.label}</Badge>
+                        <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>·</span>
+                      </>
                     )}
+                    <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>{timeAgo(opp.created_at)}</span>
+                    {opp.isMine && <Badge tone="accent">Your role</Badge>}
                   </div>
-                  <p className="text-xs mt-1 truncate" style={{ color: '#8892aa' }}>{meta || 'Details to follow'}</p>
-                  {opp.isMine ? (
+                  <h3 className="truncate"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
+                    {title}
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
+                      · {meta || 'Details to follow'}
+                    </span>
+                  </h3>
+                  {opp.isMine && (
                     // Lead with what's outstanding, not the total — a role with
                     // "5 applications" all answered reads the same as one with
                     // 5 people still waiting, which is how backlogs go unseen.
-                    <p className="text-xs mt-0.5 font-semibold"
-                      style={{ color: opp.awaitingCount > 0 ? '#f59e0b' : opp.applicationCount > 0 ? '#2d5fc4' : '#4b5563' }}>
+                    <p className="text-xs mt-1 font-semibold"
+                      style={{ color: opp.awaitingCount > 0 ? '#f59e0b' : opp.applicationCount > 0 ? COLORS.accentOnDark : COLORS.textMuted2 }}>
                       {opp.awaitingCount > 0
                         ? `${opp.awaitingCount} awaiting your reply`
                         : opp.applicationCount === 0
                           ? 'No applications yet'
                           : `All ${opp.applicationCount} answered`}
                     </p>
-                  ) : (
-                    <p className="text-xs mt-0.5" style={{ color: '#5b6478' }}>{timeAgo(opp.created_at)}</p>
                   )}
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </Link>
+                <Icon icon={ChevronRight} size="sm" label={true} className="flex-shrink-0" style={{ color: '#8892aa' }} />
+              </Card>
             )
           })}
         </div>
@@ -464,8 +472,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
   return (
     <section className="space-y-3">
       <div className="px-1">
-        <h2 className="text-xl font-black uppercase"
-          style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
           Featured Players
         </h2>
         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Pro players · actively looking players highlighted in green</p>
@@ -478,15 +485,24 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
             <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
               className="flex-shrink-0 rounded-2xl overflow-hidden block"
               style={{
-                width: 170,
+                width: 150,
                 scrollSnapAlign: 'start',
                 border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
                 textDecoration: 'none',
                 boxShadow: isLooking ? '0 0 20px rgba(34,197,94,0.1)' : 'none',
               }}>
-              <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
+              <div className="relative" style={{ height: 125, backgroundColor: '#1a1f3a' }}>
                 {p.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
+                  // `loading="eager"` — this carousel auto-scrolls
+                  // continuously via a JS-driven `scrollLeft`, not native
+                  // scroll, which doesn't reliably trigger Next Image's
+                  // default lazy (IntersectionObserver) loading before a
+                  // card comes into view; a genuine bug (confirmed via
+                  // img.complete/naturalHeight), just not the one behind the
+                  // visible dark line at each card's bottom — see the
+                  // gradient fix below for that. Bounded list (a handful of
+                  // featured players), so eager loading everything is cheap.
+                  <Image src={p.avatar_url} alt="" fill sizes="150px" loading="eager" className="object-cover object-center" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"
                     style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
@@ -496,8 +512,10 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
                     </span>
                   </div>
                 )}
+                {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
+                    not near-black — see the From the Feed card above for why. */}
                 <div className="absolute inset-0"
-                  style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.5) 0%, transparent 60%)' }} />
+                  style={{ background: 'linear-gradient(to top, rgba(19,23,42,0.5) 0%, transparent 60%)' }} />
                 {isLooking && (
                   <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full animate-pulse"
                     style={{ backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }} />
@@ -542,8 +560,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-black uppercase"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
             Your Shortlist
           </h2>
           {players.length > 0 && (
@@ -594,8 +611,10 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                       </span>
                     </div>
                   )}
+                  {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
+                      not near-black — see the From the Feed card above for why. */}
                   <div className="absolute inset-0"
-                    style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.7) 0%, transparent 55%)' }} />
+                    style={{ background: 'linear-gradient(to top, rgba(19,23,42,0.7) 0%, transparent 55%)' }} />
                   {wasUpdated && (
                     <div className="absolute top-2 right-2">
                       <span className="font-bold px-1.5 py-0.5 rounded"
@@ -661,7 +680,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           style={{ backgroundColor: '#1a1f3a', boxShadow: isLooking ? '0 0 0 2px #22c55e, 0 0 10px rgba(34,197,94,0.5)' : 'none' }}>
           {user.avatar_url
             ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
+            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
         </div>
         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
           style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />
@@ -756,12 +775,7 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
   return (
     <section className="space-y-2 -mx-6">
       <div className="flex items-center gap-1.5 px-6">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full rounded-full opacity-75"
-            style={{ backgroundColor: '#2d5fc4', animation: 'n11-ping 1.6s cubic-bezier(0,0,0.2,1) infinite' }} />
-          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#3a6fda' }} />
-        </span>
-        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
           Recently Active
         </h2>
       </div>
@@ -775,12 +789,6 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
           {users.map(u => <ActiveUserCard key={u.id} user={u} />)}
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes n11-ping {
-          75%, 100% { transform: scale(2); opacity: 0; }
-        }
-      `}</style>
     </section>
   )
 }
@@ -1032,15 +1040,18 @@ export default function CoachDashboard() {
         {!loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
             <Link href="/dashboard/coach/performance" className="block h-full relative" style={{ textDecoration: 'none' }}>
-              {/* "New Feature" ribbon — same yellow convention as the player
-                  homepage's tracker tile, distinct from the blue NewBadge
-                  (which marks new users, not new features). */}
+              {/* "New Feature" ribbon — COLORS.spotlight (components/ui/tokens.ts),
+                  a dedicated one-off promotional token, not the blue NewBadge
+                  (marks new users, not new features) and not Badge's own
+                  spotlight tone: a corner ribbon needs a bold solid fill + dark
+                  text to read at a glance, not Badge's soft tint-chip style, so
+                  this stays bespoke markup — just off the token, not a raw hex. */}
               <span className="absolute z-10 uppercase font-black whitespace-nowrap"
                 style={{
                   top: -9, left: 16,
                   fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, lineHeight: 1,
                   letterSpacing: '0.06em', padding: '3px 8px', borderRadius: 999,
-                  color: '#0a0a0a', backgroundColor: '#facc15',
+                  color: '#0a0a0a', backgroundColor: COLORS.spotlight,
                   boxShadow: '0 2px 6px rgba(250,204,21,0.35)',
                 }}>
                 New Feature

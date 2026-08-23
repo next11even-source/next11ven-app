@@ -7,9 +7,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { useSidebar } from './_components/SidebarContext'
 import { COMPLETION_CHECKS, calcCompletion } from '@/lib/profileCompletion'
-import { StepBadge, MatchChip, SignalChip } from '@/app/components/OpportunityBadges'
-import { getLevelConfig } from '@/lib/opportunityLevel'
+import { MatchTypography } from '@/app/components/OpportunityBadges'
+import { getStepToken } from '@/lib/stepTokens'
 import { getPrimarySignal } from '@/lib/opportunitySignal'
+import { toSentenceCase } from '@/lib/opportunityText'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
@@ -19,7 +20,10 @@ import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStat
 import WeekendLogBanner from '@/app/dashboard/performance/_components/WeekendLogBanner'
 import { performanceTrackerEnabled } from '@/lib/performance'
 import Icon from '@/components/ui/Icon'
-import { Lock, Flame, ChevronRight } from 'lucide-react'
+import Badge from '@/components/ui/Badge'
+import Card from '@/components/ui/Card'
+import { COLORS } from '@/components/ui/tokens'
+import { Lock, ChevronRight } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -210,45 +214,39 @@ function ProfileCompletionBar({ profile }: { profile: Profile }) {
 
 type QuickStat = {
   label: string; value: number; href: string; sub: string
-  color: string; bg: string; border: string
 }
 
 function QuickStatTile({ s }: { s: QuickStat }) {
   return (
-    <Link href={s.href}
-      className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-      style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}`, textDecoration: 'none' }}
-      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = s.color)}
-      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = s.border)}>
-      <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: s.color }}>
+    <Card href={s.href} interactive
+      className="flex flex-col items-center justify-center text-center"
+      style={{ padding: '12px 8px' }}>
+      <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: COLORS.text }}>
         {s.value}
       </span>
-      <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>{s.label}</span>
-      <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{s.sub}</span>
-    </Link>
+      <span className="mt-1 leading-tight font-semibold" style={{ color: COLORS.textMuted, fontSize: 10 }}>{s.label}</span>
+      <span className="text-xs mt-0.5 leading-tight" style={{ color: COLORS.textMuted }}>{s.sub}</span>
+    </Card>
   )
 }
 
-// Order: Opportunities (amber) · Game Performance Tracker (sky) · Profile
-// Views (blue) — one colour per tile.
+// All three tiles are identical Cards now — same surface, border, padding,
+// type scale (22 Aug 2026, Session 5; supersedes the 19 Aug "one colour per
+// tile" note in CLAUDE.md, which this overwrites). Tracker is promoted with a
+// small accent dot in its corner instead of a different border colour.
 function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number }) {
   return (
     <div className={`mx-4 grid gap-3 ${views > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-      <QuickStatTile s={{
-        label: 'Opportunities', value: openOpps, href: '/dashboard/opportunities', sub: 'open',
-        color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)',
-      }} />
+      <QuickStatTile s={{ label: 'Opportunities', value: openOpps, href: '/dashboard/opportunities', sub: 'open' }} />
       {performanceTrackerEnabled() ? (
         /* Game Performance Tracker replaces the Showcase tile once live —
            Showcase keeps its sidebar entry */
         <TrackerStatTile />
       ) : (
-        <Link href="/dashboard/showcase"
-          className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-          style={{ backgroundColor: 'rgba(45,95,196,0.07)', border: '1.5px solid rgba(45,95,196,0.5)', textDecoration: 'none' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(45,95,196,0.5)')}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2d5fc4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <Card href="/dashboard/showcase" interactive
+          className="flex flex-col items-center justify-center text-center"
+          style={{ padding: '12px 8px' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
             <path d="M4 22h16" />
@@ -256,15 +254,12 @@ function QuickStatsBar({ views, openOpps }: { views: number; openOpps: number })
             <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
             <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
           </svg>
-          <span className="text-xs mt-1 text-center leading-tight font-semibold" style={{ color: '#e8dece', fontSize: 10 }}>Showcase Games</span>
-          <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>sold out</span>
-        </Link>
+          <span className="mt-1 leading-tight font-semibold" style={{ color: COLORS.textMuted, fontSize: 10 }}>Showcase Games</span>
+          <span className="text-xs mt-0.5 leading-tight" style={{ color: COLORS.textMuted }}>sold out</span>
+        </Card>
       )}
       {views > 0 && (
-        <QuickStatTile s={{
-          label: 'Profile Views', value: views, href: '/dashboard/player/activity/profile-views', sub: 'this week',
-          color: '#2d5fc4', bg: 'rgba(45,95,196,0.07)', border: 'rgba(45,95,196,0.5)',
-        }} />
+        <QuickStatTile s={{ label: 'Profile Views', value: views, href: '/dashboard/player/activity/profile-views', sub: 'this week' }} />
       )}
     </div>
   )
@@ -330,7 +325,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           style={{ backgroundColor: '#1a1f3a', boxShadow: isLooking ? '0 0 0 2px #22c55e, 0 0 10px rgba(34,197,94,0.5)' : 'none' }}>
           {user.avatar_url
             ? <Image src={user.avatar_url} alt="" width={44} height={44} className="w-full h-full object-cover object-center" />
-            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#60a5fa' }}>{initials}</span>}
+            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
         </div>
         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
           style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />
@@ -427,12 +422,7 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
   return (
     <section className="space-y-2">
       <div className="flex items-center gap-1.5 px-4">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full rounded-full opacity-75"
-            style={{ backgroundColor: '#2d5fc4', animation: 'n11-ping 1.6s cubic-bezier(0,0,0.2,1) infinite' }} />
-          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#3a6fda' }} />
-        </span>
-        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
           Recently Active
         </h2>
       </div>
@@ -446,12 +436,6 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
           {users.map(u => <ActiveUserCard key={u.id} user={u} />)}
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes n11-ping {
-          75%, 100% { transform: scale(2); opacity: 0; }
-        }
-      `}</style>
     </section>
   )
 }
@@ -464,14 +448,21 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
     <Link href={`/dashboard/player/players/${p.id}`}
       className="flex-shrink-0 rounded-2xl overflow-hidden block mr-3"
       style={{
-        width: 170,
+        width: 150,
         border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
         textDecoration: 'none',
         boxShadow: isLooking ? '0 0 20px rgba(34,197,94,0.1)' : 'none',
       }}>
-      <div className="relative" style={{ height: 145, backgroundColor: '#1a1f3a' }}>
+      <div className="relative" style={{ height: 125, backgroundColor: '#1a1f3a' }}>
         {p.avatar_url ? (
-          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="170px" className="object-cover object-center" />
+          // `loading="eager"` — this carousel auto-scrolls continuously via a
+          // JS-driven `scrollLeft`, not native scroll, which doesn't reliably
+          // trigger Next Image's default lazy (IntersectionObserver) loading
+          // before a card comes into view; a genuine bug (confirmed via
+          // img.complete/naturalHeight), just not the one behind the visible
+          // dark line at each card's bottom — see the gradient fix below for
+          // that. Bounded list, so eager loading everything is cheap.
+          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="150px" loading="eager" className="object-cover object-center" />
         ) : (
           <div className="w-full h-full flex items-center justify-center"
             style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
@@ -480,7 +471,13 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
             </span>
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.5) 0%, transparent 60%)' }} />
+        {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
+            not near-black — the photo sits directly above a solid #13172a
+            text block, and fading toward a darker, mismatched near-black
+            left a visible seam at the boundary (confirmed via pixel
+            inspection, 23 Aug 2026: not a loading issue, a colour-mismatch
+            one — same fix on coach/page.tsx's three equivalent cards). */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(19,23,42,0.5) 0%, transparent 60%)' }} />
         <div className="absolute top-2 left-2">
           <NewBadge createdAt={p.created_at} size="sm" />
         </div>
@@ -592,7 +589,7 @@ function FeaturedCarousel({ players, viewerPremium, viewerLooking }: {
   return (
     <section className="space-y-3">
       <div className="px-4">
-        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        <h2 className="font-bold uppercase" style={{ fontSize: 11, letterSpacing: '0.06em', color: '#8892aa' }}>
           Featured Players
         </h2>
         <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>Pro players · actively looking players get extra visibility</p>
@@ -641,10 +638,14 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
 }) {
   return (
     <section className="space-y-3 px-4">
-      <h2 className="text-xl font-black uppercase inline-flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-        New Opportunities
-        <Icon icon={Flame} size="sm" label={true} style={{ color: '#f59e0b' }} />
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold uppercase" style={{ fontSize: 13, letterSpacing: '0.06em', color: '#8892aa' }}>
+          New Opportunities
+        </h2>
+        <Link href="/dashboard/opportunities" className="text-xs font-semibold" style={{ color: '#4d8ae8', textDecoration: 'none' }}>
+          All Opportunities →
+        </Link>
+      </div>
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
         {opportunities.length === 0 ? (
           <div className="p-6 text-center space-y-3">
@@ -656,49 +657,45 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
         ) : (
           opportunities.map((opp, i) => {
             const signal = getPrimarySignal(opp)
+            const title = toSentenceCase(opp.title)
             // Don't repeat the position when the title already names it.
-            const showPos = !!opp.position && !opp.title.toLowerCase().includes(opp.position.toLowerCase())
+            const showPos = !!opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
             // club is null for free (gated); meta mirrors the main card.
             const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
-            const railColor = opp.inRange ? getLevelConfig(opp.level).color : '#64748b'
+            const stepToken = getStepToken(opp.level)
             return (
               <Link key={opp.id} href="/dashboard/opportunities"
-                className="relative flex items-center gap-3 pl-5 pr-3 py-3 transition-colors"
+                className="flex items-center gap-3 pl-4 pr-3 py-3 transition-colors"
                 style={{ backgroundColor: '#13172a', borderBottom: i < opportunities.length - 1 ? '1px solid #1e2235' : undefined, textDecoration: 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#161b30')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#13172a')}>
-                {/* Step-colour accent rail (desaturated when out of ±1 step) */}
-                <span aria-hidden="true" className="absolute left-0 top-0 bottom-0" style={{ width: 3, backgroundColor: railColor, opacity: opp.inRange ? 1 : 0.5 }} />
-                <StepBadge level={opp.level} inRange={opp.inRange} size={44} />
+                {/* Unlike the opportunities page, this badge is a leading flex
+                    item (not a stacked top-line) — hiding it on "Other" would
+                    shift the title left relative to every other row, so it
+                    always renders here even though OTHER carries no info. */}
+                <Badge tone="neutral">{stepToken.label}</Badge>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold uppercase truncate"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 17, lineHeight: 1.1 }}>
-                      {opp.title}
-                    </h3>
-                    <span className="flex-shrink-0" style={{ paddingTop: 1 }}>
-                      <MatchChip matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
-                    </span>
-                  </div>
-                  <p className="text-xs mt-1 truncate flex items-center gap-1" style={{ color: '#8892aa' }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" aria-hidden="true">
-                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-                    </svg>
-                    <span className="truncate">{meta || 'Details to follow'}</span>
+                  {/* Title and location each get their own truncating line —
+                      combined on one line they were squeezed by the match %
+                      column enough to cut location mid-word ("Alsager Tow…"). */}
+                  <h3 className="truncate"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 15, lineHeight: 1.2 }}>
+                    {title}
+                  </h3>
+                  <p className="truncate mt-0.5" style={{ fontSize: 12, color: COLORS.textMuted2 }}>
+                    {meta || 'Details to follow'}
                   </p>
-                  {signal && <div className="mt-1.5"><SignalChip signal={signal} /></div>}
+                  {signal && (
+                    <p className="truncate mt-1" style={{ fontSize: 11, fontWeight: 600, color: COLORS.urgent }}>{signal.label}</p>
+                  )}
                 </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M9 18l6-6-6-6" /></svg>
+                <MatchTypography matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} scale={0.8} />
+                <Icon icon={ChevronRight} size="sm" label={true} className="flex-shrink-0" style={{ color: '#8892aa' }} />
               </Link>
             )
           })
         )}
       </div>
-      {/* Navigation, not an action — tertiary, not the solid-gradient primary
-          this used to be. See CLAUDE.md button/badge primitives note. */}
-      <Button variant="tertiary" size="md" href="/dashboard/opportunities" trailingIcon={ChevronRight} className="w-full">
-        All Opportunities
-      </Button>
     </section>
   )
 }
@@ -718,7 +715,7 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
   return (
     <section className="space-y-3">
       <div className="px-4 flex items-center justify-between">
-        <h2 className="text-xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+        <h2 className="font-bold uppercase" style={{ fontSize: 11, letterSpacing: '0.06em', color: '#8892aa' }}>
           From the Feed
         </h2>
         <Link href="/dashboard/feed" className="text-xs font-semibold" style={{ color: '#4d8ae8', textDecoration: 'none' }}>
@@ -738,8 +735,8 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
               {author?.avatar_url ? (
                 <img src={author.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
               ) : (
-                <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1e2235', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: '#8892aa' }}>{initials}</span>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1a1f3a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: author?.role === 'coach' ? '#a78bfa' : '#5b6478' }}>{initials}</span>
                 </div>
               )}
               <span className="text-xs font-semibold truncate" style={{ color: '#e8dece', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12 }}>
@@ -898,9 +895,8 @@ export default function PlayerHome() {
     load()
   }, [])
 
-  async function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const val = e.target.value as Status
-    if (!profile) return
+  async function handleStatusChange(val: Status) {
+    if (!profile || val === profile.status) return
     setSavingStatus(true)
     const supabase = createClient()
     await supabase.from('profiles').update({ status: val }).eq('id', profile.id)
@@ -976,7 +972,11 @@ export default function PlayerHome() {
         <section className="px-4">
           <div className="grid gap-3 items-stretch grid-cols-1">
 
-            {/* Availability — hidden for fans */}
+            {/* Availability — hidden for fans. Reverted to the dropdown +
+                toggle split (22 Aug 2026) — the one-Card segmented-control
+                rebuild from Session 5 took up more vertical space than the
+                founder wanted on a page where space is at a premium; the
+                condensed select+toggle layout is intentional, not drift. */}
             {profile?.role !== 'fan' && (
               <div className="rounded-2xl p-4"
                 style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -991,7 +991,7 @@ export default function PlayerHome() {
                     </div>
                     <select
                       value={profile?.status ?? ''}
-                      onChange={handleStatusChange}
+                      onChange={e => handleStatusChange(e.target.value as Status)}
                       disabled={savingStatus}
                       className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none cursor-pointer"
                       style={{

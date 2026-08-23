@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import Card from '@/components/ui/Card'
+import { COLORS } from '@/components/ui/tokens'
 import type { MatchSummary } from '@/lib/performance'
 
 type TileState =
@@ -38,6 +39,10 @@ function pickStat(s: MatchSummary, defensive: boolean): { num: string; unit: str
 // same row as Profile Views and Opportunities, so it leads with a number as
 // soon as the player has logged a game. Until then (or when the summary is
 // premium-locked) it's a doorway with a clear first action.
+//
+// Same Card treatment as its row-mates (Session 5, 22 Aug 2026) — promoted
+// via a small accent dot in the corner rather than a different border colour
+// or number hue (see CLAUDE.md, supersedes the 19 Aug "one colour per tile" note).
 export default function TrackerStatTile() {
   const [state, setState] = useState<TileState>({ kind: 'icon', sub: 'track your season', href: HUB })
 
@@ -60,26 +65,24 @@ export default function TrackerStatTile() {
   }, [])
 
   return (
-    <Link href={state.href}
-      className="flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all"
-      style={{ backgroundColor: 'rgba(56,189,248,0.07)', border: '1.5px solid rgba(56,189,248,0.5)', textDecoration: 'none' }}
-      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#38bdf8')}
-      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(56,189,248,0.5)')}>
+    <Card href={state.href} interactive
+      className="relative flex flex-col items-center justify-center text-center"
+      style={{ padding: '12px 8px' }}>
+      <span aria-hidden="true" className="absolute rounded-full" style={{ top: 8, right: 8, width: 6, height: 6, backgroundColor: COLORS.accent }} />
       {state.kind === 'stat' ? (
-        <span className="leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#38bdf8' }}>
+        <span className="leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: COLORS.text }}>
           <span className="text-2xl font-black">{state.num}</span>
           {state.unit && <span className="text-sm font-black ml-1">{state.unit}</span>}
         </span>
       ) : (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       )}
-      <span className="mt-1 text-center leading-tight font-black uppercase"
-        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece', fontSize: 11, letterSpacing: '0.02em' }}>
+      <span className="mt-1 leading-tight font-semibold" style={{ color: COLORS.textMuted, fontSize: 10 }}>
         Track Your Games
       </span>
-      <span className="text-xs mt-0.5 text-center leading-tight" style={{ color: '#8892aa' }}>{state.sub}</span>
-    </Link>
+      <span className="text-xs mt-0.5 leading-tight" style={{ color: COLORS.textMuted }}>{state.sub}</span>
+    </Card>
   )
 }

@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import Icon from './Icon'
 import { COLORS, RADIUS_SM } from './tokens'
 
-type Tone = 'neutral' | 'accent' | 'pro' | 'urgent' | 'available'
+type Tone = 'neutral' | 'accent' | 'pro' | 'urgent' | 'available' | 'spotlight'
 
 const TONE_COLORS: Record<Tone, { color: string; bg: string }> = {
   neutral: { color: COLORS.textMuted, bg: 'rgba(136,146,170,0.12)' },
@@ -15,6 +15,9 @@ const TONE_COLORS: Record<Tone, { color: string; bg: string }> = {
   // signals, positive confirmations, positive analytics movement only. Never
   // reach for this tone for anything else.
   available: { color: COLORS.available, bg: COLORS.availableBg },
+  // One-off promotional "New Feature" marker only — see tokens.ts for why this
+  // isn't just `urgent` reused. Reach for this tone rarely.
+  spotlight: { color: COLORS.spotlight, bg: COLORS.spotlightBg },
 }
 
 type Props = {

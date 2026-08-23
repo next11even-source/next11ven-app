@@ -1,3 +1,4 @@
+import Badge from '@/components/ui/Badge'
 import { isNewUser } from '@/lib/isNewUser'
 
 type Props = {
@@ -5,38 +6,24 @@ type Props = {
   createdAt?: string | null
   /** Skip the date check and always render (useful when the caller already filtered). */
   force?: boolean
-  /** sm = compact pill for list rows / overlays, md = default. */
+  /** Accepted for backward compatibility with existing call sites but is a
+   * no-op — Badge is single-size by design (see components/ui/Badge.tsx). */
   size?: 'sm' | 'md'
 }
 
 /**
  * "NEW" chip shown for users who joined within the last 2 weeks.
  * Used on browse lists, carousels, profile headers and the homepage.
+ * Thin wrapper around Badge tone="neutral" — the star glyph this used to
+ * carry was dropped (22 Aug 2026), same call as ProBadge dropping its star:
+ * stars read as a rating/premium signal, not a recency one. Tone was
+ * `accent` until this same pass, but accentOnDark and pro resolve to the
+ * identical hex (#4d8ae8) in tokens.ts, so New and PRO were indistinguishable
+ * sitting next to each other on a card. Neutral fits better anyway — New is a
+ * temporal marker, not a paid tier, and blue should stay reserved for Pro.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- size kept for call-site backward compatibility, see doc comment above
 export default function NewBadge({ createdAt, force = false, size = 'md' }: Props) {
   if (!force && !isNewUser(createdAt)) return null
-
-  const isSm = size === 'sm'
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 font-black uppercase tracking-wider flex-shrink-0"
-      style={{
-        fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: isSm ? 9 : 10,
-        lineHeight: 1,
-        padding: isSm ? '2px 6px' : '3px 7px',
-        borderRadius: 999,
-        color: '#fff',
-        background: 'linear-gradient(135deg, #2d5fc4 0%, #3a6fda 100%)',
-        boxShadow: '0 0 0 1px rgba(58,111,218,0.4), 0 2px 6px rgba(45,95,196,0.45)',
-        letterSpacing: '0.08em',
-      }}
-    >
-      <svg width={isSm ? 7 : 8} height={isSm ? 7 : 8} viewBox="0 0 24 24" fill="#fff" stroke="none" aria-hidden="true">
-        <path d="M12 2l2.4 6.9L21 9.3l-5.2 4.3L17.5 21 12 17.1 6.5 21l1.7-7.4L3 9.3l6.6-.4z" />
-      </svg>
-      New
-    </span>
-  )
+  return <Badge tone="neutral">New</Badge>
 }

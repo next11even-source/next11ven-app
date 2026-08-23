@@ -186,7 +186,7 @@ function AvatarSection({ profile, onUpdate }: { profile: Profile; onUpdate: (url
             <Image src={profile.avatar_url} alt="" width={96} height={96} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl font-black"
-              style={{ backgroundColor: '#1e2235', color: '#8892aa', fontFamily: "'Barlow Condensed', sans-serif" }}>
+              style={{ backgroundColor: '#1a1f3a', color: '#5b6478', fontFamily: "'Barlow Condensed', sans-serif" }}>
               {initials}
             </div>
           )}

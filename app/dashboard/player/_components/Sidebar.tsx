@@ -109,7 +109,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
               style={{ backgroundColor: '#1a1f3a' }}>
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                : <span className="text-base font-black" style={{ color: '#2d5fc4' }}>{initials}</span>}
+                : <span className="text-base font-black" style={{ color: '#5b6478' }}>{initials}</span>}
             </div>
             <div>
               <p className="text-sm font-bold leading-snug" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</p>

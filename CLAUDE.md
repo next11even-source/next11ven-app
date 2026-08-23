@@ -15,6 +15,7 @@ Primary blue: #2d5fc4 → #3a6fda hover
 Cream text: #e8dece — Muted text: #8892aa
 Headings: Barlow Condensed (bold, uppercase) — Body: Inter
 Green (#22c55e) limited to: availability signals (Actively Looking dot/chip/toggle), positive confirmations, and positive movement/growth in analytics (this-period-vs-last-period increase, net new MRR ≥0, quick ratio ≥1 — see HeroRow.tsx UP_COLOR) — never for general UI otherwise. The analytics carve-out is deliberate (16 Aug 2026): growth needs to read as unambiguously good, and blue/amber alone didn't get there. Decline stays amber, not red — a dip on a solo founder's own dashboard doesn't need alarm-red.
+The green ring/glow on an avatar (Recently Active carousel on both homepages, Featured Players/carousel cards) is the same availability-signal carve-out, not a separate rule — `isLooking = !isCoach && user.actively_looking` (ActiveUserCard in both app/dashboard/player/page.tsx and app/dashboard/coach/page.tsx). Coaches never get it (actively_looking is a player-only concept); a player gets it only while the toggle is genuinely on, which server-side requires premium. Consistent, not applied "sometimes" — confirmed 23 Aug 2026.
 Mobile-first. Dark theme throughout. No over-engineering.
 
 
@@ -741,9 +742,25 @@ components/ui/Badge.tsx (19 Aug 2026) — no inline-styled `<button>`/`<a>` CTAs
 ad-hoc coloured `<span>` pills outside those two. Button: variant primary/
 secondary/tertiary, size sm/md, optional href (renders a real Link/`<a>`, not an
 onClick that fakes navigation — see the sweep note below). Badge: tone neutral/
-accent/pro/urgent/available, single 11px size, --n11-r-sm radius (8px, not a full
-pill — reads as a toy at that scale otherwise). ProBadge is a thin wrapper:
-`<Badge tone="pro">PRO</Badge>`. At most one `variant="primary"` Button per
+accent/pro/urgent/available/spotlight, single 11px size, --n11-r-sm radius (8px,
+not a full pill — reads as a toy at that scale otherwise). ProBadge is a thin wrapper:
+`<Badge tone="pro">PRO</Badge>`.
+
+⚠️ `spotlight` (COLORS.spotlight, #facc15) is a documented one-off exception,
+added same session as this note — a "New Feature" promotional ribbon, not a
+general-purpose tone. Deliberately NOT a reuse of `urgent`: urgent means "this
+needs your attention," spotlight means "here's something new we built" —
+visually adjacent ambers, but conflating them makes a marketing callout read
+as if something needs action. Currently used once: the Coach Pro Dashboard
+ribbon on the coach homepage (app/dashboard/coach/page.tsx) — as bespoke
+ribbon markup keyed off COLORS.spotlight, not literally `<Badge tone=
+"spotlight">`, because a corner ribbon needs a bold solid fill + dark text to
+read at a glance, not Badge's soft tint-chip style. Reach for `accent` or
+`urgent` first; only add a second spotlight use for a genuine one-off
+promotional marker, not a recurring "new" or "urgent" signal — NewBadge
+already owns "new," `urgent` already owns "needs attention."
+
+At most one `variant="primary"` Button per
 CONTEXT, not per screen — not enforced by the type system, enforced by review.
 A repeating list is its own context per row: an Accept button repeated per
 applicant, an Apply button repeated per opportunity card, is each row's one
@@ -752,6 +769,38 @@ screen" wording got misapplied to demote every Apply button on the
 opportunities list to tertiary, leaving them as plain text with no
 affordance. Apply is the primary action of that page; it stays
 variant="primary" size="sm" on every card.)
+
+All cards go through components/ui/Card.tsx and all dense list rows through
+components/ui/ListRow.tsx (22 Aug 2026, Session 4) — no ad-hoc rounded-2xl
+card `<div>`s or hand-rolled `<Link>` rows outside those two. Card: surface-1
+background (#13172a), 1px hairline border (#1e2235), radius-md (12px, tokens.ts
+RADIUS_MD), 16px padding; optional `interactive` prop raises to surface-2
+(#1a1f3a)/border-strong (#2a3150) on hover, 150ms — colour comes through
+Tailwind arbitrary classes, not inline style, same reasoning as Button (a
+pseudo-class needs a real CSS rule). ListRow: fixed 64px min-height so a row
+missing optional fields (no role, no location) doesn't collapse and break
+vertical rhythm; slots are leading/title/subtitle/trailing, subtitle always
+reserves its line height even when empty so the title never shifts between
+rows. ListRow renders content only, no divider of its own — wrap a list of
+them in a container with `divide-y divide-[#1e2235]` for a hairline between
+rows with none after the last, rather than every row tracking its own index.
+NO COLOURED LEFT BORDERS on either primitive — an accent-tinted 3px rail
+(the old opportunity step-tint rail, the old coach-opportunity urgent/own-role
+edge-stripe) competes with the card's own hairline, doesn't survive at small
+sizes, and duplicates information a Badge chip already carries next to it.
+NO PER-CARD SHADOWS — depth comes from surface lightness + hairline only; the
+old coach-opportunity hover (translateY + boxShadow lift) is gone, replaced by
+Card's flat surface-raise. The functional unread-indicator left border on
+notification/activity rows (a real state signal, not decoration) is the one
+documented exception — left alone deliberately, see the opportunities-page
+notes below for why it doesn't get the same treatment.
+Not every list fits these two: the coach-players "Recommended for you" /
+Actively-Looking marquee tiles (104px photo-bleed cards in an auto-scrolling
+track) and the opportunity ApplicantsPanel rows (multiple inline action
+buttons + an expandable accept-and-message composer per row) fit neither
+Card's uniform-padding box nor ListRow's leading/title/subtitle/trailing
+slots — left as their existing bespoke markup rather than forced into a
+variant of either primitive.
 
 ⚠️ Button's sm/md scale (32px/40px) doesn't cover two patterns that recur
 constantly across the app (found during the 19 Aug 2026 sweep, deliberately not
@@ -778,9 +827,18 @@ an outlined button needed to read on a dark background (accent audit, 19 Aug 202
 five. Use #2d5fc4 for solid fills (white text on top), #4d8ae8 for text/borders/
 icons that sit on a dark or transparent background. #60a5fa stays separate — it's
 the "Free Agent" status colour in ~19 files, a different meaning, not a CTA colour.
-The sky-blue #38bdf8 on the homepage Tracker stat tile is also separate and
-deliberate (one colour per tile — amber/sky/blue — so three same-row tiles read as
-distinct at a glance), not accidental drift.
+The homepage quick-stats row (Opportunities / Track Your Games / Profile Views)
+used to be one colour per tile — amber/sky/blue — deliberately, so three
+same-row tiles read as distinct at a glance (19 Aug 2026). Superseded 22 Aug
+2026 (Session 5): all three are now identical Cards (surface-1, hairline
+border, same padding, same type scale — number in primary text #e8dece, label
+muted #8892aa, no coloured borders or number hues). Distinctness wasn't worth
+three cards that all otherwise violate the Card/no-coloured-borders rule
+(CLAUDE.md, Session 4). Track Your Games is promoted instead via a small
+accent-blue dot in the tile's corner — not a different border, not a
+breakout badge. #38bdf8 (sky) is no longer used on the homepage but is still
+the Tracker series colour on the admin analytics charts (LeadingIndicators,
+TrackerAdoptionTrends, MonthByMonth) — that usage is untouched by this pass.
 
 Tone
 Direct, no fluff. Flag issues immediately. Don't pad responses.

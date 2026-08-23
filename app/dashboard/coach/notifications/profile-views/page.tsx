@@ -156,7 +156,7 @@ export default function CoachProfileViewsPage() {
                     style={{ backgroundColor: '#1e2235' }}>
                     {v.avatar_url
                       ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="text-xs font-bold" style={{ color: '#2d5fc4' }}>{initials}</span>}
+                      : <span className="text-xs font-bold" style={{ color: '#5b6478' }}>{initials}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{v.full_name ?? 'Unknown'}</p>

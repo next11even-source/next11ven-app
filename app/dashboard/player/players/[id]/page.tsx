@@ -488,7 +488,7 @@ function PlayerPublicProfileInner() {
               {player.avatar_url ? (
                 <Image src={player.avatar_url} alt={player.full_name ?? ''} width={80} height={80} className="w-full h-full object-cover object-center" />
               ) : (
-                <span className="font-black text-2xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>{initials}</span>
+                <span className="font-black text-2xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#5b6478' }}>{initials}</span>
               )}
             </div>
             {player.actively_looking && (

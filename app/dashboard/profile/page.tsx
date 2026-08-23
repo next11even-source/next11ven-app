@@ -222,16 +222,17 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
   }
 
   const initials = profile.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+  const isCoach = profile.role === 'coach'
 
   return (
     <div className="flex-shrink-0 relative group">
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
         className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden relative transition-opacity disabled:opacity-50"
-        style={{ backgroundColor: '#1e2235' }} title="Upload photo">
+        style={{ backgroundColor: '#1a1f3a' }} title="Upload photo">
         {profile.avatar_url
           ? <Image src={profile.avatar_url} alt="" width={80} height={80} className="w-full h-full object-cover" />
-          : <span className="text-xl font-bold" style={{ color: '#8892aa' }}>{initials}</span>}
+          : <span className="text-xl font-bold" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
         <span className="absolute inset-0 flex flex-col items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           {uploading

@@ -37,6 +37,28 @@ export async function GET(req: NextRequest) {
     cur = { ...cur, ...(trackerStats as Metrics) }
   }
 
+  // Time-to-upgrade — pulled from analytics_revenue_stats() (same source the
+  // admin dashboard's ConversionIntelligence card reads) rather than a new
+  // function. It's a lifetime distribution, not a 7d flow, so it's flattened
+  // in under a ttu_ prefix and rendered without week-over-week deltas.
+  // Non-fatal if it fails.
+  const { data: revenueStats, error: revenueError } = await supabase.rpc('analytics_revenue_stats')
+  if (revenueError) {
+    console.error('[weekly-metrics-telegram] revenue stats error:', revenueError)
+    reportError('/api/cron/weekly-metrics-telegram', revenueError, 'analytics_revenue_stats failed')
+  } else if (revenueStats && (revenueStats as { time_to_upgrade?: Record<string, number | null> }).time_to_upgrade) {
+    const ttu = (revenueStats as { time_to_upgrade: Record<string, number | null> }).time_to_upgrade
+    cur = {
+      ...cur,
+      ttu_avg_days: ttu.avg_days,
+      ttu_same_day: ttu.same_day,
+      ttu_within_week: ttu.within_week,
+      ttu_within_month: ttu.within_month,
+      ttu_longer: ttu.longer,
+      ttu_total: ttu.total,
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
 
   // 2. Fetch the most recent prior snapshot (strictly before today) for deltas

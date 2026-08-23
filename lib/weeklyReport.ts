@@ -77,6 +77,9 @@ export function buildReport(cur: Metrics, prev: Metrics | null): string {
   L.push(`📈 ARPU: <b>${arpu === null ? '—' : pounds(arpu)}</b>${dMoney(arpu, arpuPrev)}`)
   L.push(`👥 Active premium players: <b>${num(cur.active_subs)}</b>${d(cur.active_subs, p('active_subs'))}`)
   L.push(`🔄 Net MRR this week (new − churn): <b>${signedPounds(netMrr)}</b>`)
+  if (cur.ttu_total !== undefined && (cur.ttu_total ?? 0) > 0) {
+    L.push(`⏳ Avg signup→upgrade: <b>${cur.ttu_avg_days}d</b> <i>(${num(cur.ttu_same_day)} same-day · ${num(cur.ttu_within_week)} week · ${num(cur.ttu_within_month)} month · ${num(cur.ttu_longer)} longer)</i>`)
+  }
 
   // ── 🆕 Premium movement (this week) ─────────────────────────────────────────
   L.push('')
@@ -127,6 +130,9 @@ export function buildReport(cur: Metrics, prev: Metrics | null): string {
   // ── 💬 Messaging (this week) ────────────────────────────────────────────────
   L.push('')
   L.push(`💬 <b>MESSAGING</b> <i>(7d)</i>`)
+  const connectionsMade = (cur.new_conversations ?? 0) + (cur.applications_accepted ?? 0)
+  const connectionsMadePrev = prev ? (p('new_conversations') ?? 0) + (p('applications_accepted') ?? 0) : undefined
+  L.push(`🤝 Connections made: <b>${connectionsMade}</b> (${num(cur.new_conversations)} new chats · ${num(cur.applications_accepted)} accepted)${d(connectionsMade, connectionsMadePrev)}`)
   L.push(`✉️ Sent: <b>${num(cur.messages_total)}</b> (${num(cur.messages_coach_first)} by coaches · ${num(cur.messages_player_first)} by players)${d(cur.messages_total, p('messages_total'))}`)
   const med = cur.median_first_reply_hours
   L.push(`⏱ Median time to first reply: <b>${med === null || med === undefined ? '—' : `${med}h`}</b>`)

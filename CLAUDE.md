@@ -74,6 +74,35 @@ in `fields.name`. onUserApproved() takes a params object, not positionals, on
 purpose: firstName/lastName/role/city are all `string | null`, so a mis-ordered
 positional call would type-check and silently mail people their own role.
 
+⚠️⚠️ PRIVILEGES SUM — THEY NEVER SUBTRACT. Read this before touching any grant,
+policy, or new table/view/function. This has caused four separate incidents,
+each in a different disguise, and every one looked fixed until it was tested:
+  - a column REVOKE can't subtract from a table-level GRANT (conversations, below)
+  - a narrow RLS policy can't subtract from a `USING (true)` one beside it — one
+    such policy on `profiles` made all 956 rows readable by ANY anonymous caller
+    for months (25 Aug 2026)
+  - `revoke ... from anon` can't subtract EXECUTE held via PUBLIC — `=X/postgres`
+    in pg_proc.proacl means PUBLIC has it, and REVOKE FROM PUBLIC is the only
+    thing that works
+  - a NEW view/table is born readable by anon: Supabase ships ALTER DEFAULT
+    PRIVILEGES on the public schema, so `grant select to authenticated` restricts
+    NOTHING. This one happened WHILE fixing the one above it, in the fix itself.
+THE RULE: after any grant/policy/new-object change, TEST AS ANON. Don't reason
+about it — run it. The pre-existing broad grant is invisible unless you look.
+    npx supabase db query --linked "begin; set local role anon; select count(*) from X; rollback;"
+Docker and psql are NOT installed — `db dump`/`--local` fail, `--linked` works.
+`npx supabase db advisors --linked --type security` found one of these unprompted.
+⚠️ RLS policies on `profiles` were created in the Supabase DASHBOARD and are NOT
+in any migration. grep will tell you nothing; query pg_policies.
+Full write-up: docs/incidents/2026-08-25-profiles-data-exposure.md
+
+⚠️ Cross-user profile reads go through the `public_profiles` VIEW, never the
+`profiles` table. profiles is restricted to the caller's OWN ROW; the view
+exposes browse-safe columns plus a computed `age` (never `date_of_birth`, never
+email/phone). Reading yourself → `profiles`. Reading anyone else → `public_profiles`.
+Anything needing an excluded column cross-user needs a service-role API route
+(see /api/admin/pending-count, /api/account/claim-legacy-profile).
+
 ⚠️ conversations has COLUMN-LEVEL select grants, not a blanket table grant
 (20260812000003). A newly added column is NOT readable by clients until it is
 granted — symptom is a PostgREST 403 "permission denied for column" and an inbox
@@ -698,7 +727,17 @@ needs a founder decision before touching it.
 Known Gaps (prioritised)
 Confirmed open issues. Fix in this order:
 
-(none currently blocking)
+1. ⚠️ Migration 20260825000006_profiles_own_row_only.sql is written but NOT
+   APPLIED. It must be pushed AFTER the code using public_profiles is live in
+   production — the reverse of 20260825000001's ordering. Until it runs, any
+   logged-in member can still read every other member's email/phone/DOB.
+   Verify browse/carousels/profile/messages work on prod first, then
+   `npx supabase db push`. Rollback is one CREATE POLICY, in the migration.
+2. date_of_birth data quality: earliest DOB on file is 0008-08-26 and 3 rows are
+   absurdly old, so ages render as implausible (up to 2017) to users. Pre-existing,
+   surfaced 25 Aug 2026. Not security, but it's a GDPR-sensitive column.
+3. profiles' RLS policies exist only in the Supabase dashboard, not in any
+   migration. Codify them so they're readable in the repo.
 
 Recently closed (no longer gaps — kept for context):
 - Opportunities POST coach-role check — /api/opportunities POST now loads the poster's profile and rejects anyone who isn't coach/admin (403). Closes the hole where any authenticated user (player/fan) could create a role via the API. ✅

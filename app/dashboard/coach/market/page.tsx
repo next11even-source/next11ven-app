@@ -240,7 +240,7 @@ function MessagesTab({ coachId }: { coachId: string }) {
     if (!data?.length) { setLoading(false); return }
 
     const playerIds = data.map(c => c.player_id)
-    const { data: players } = await supabase.from('profiles')
+    const { data: players } = await supabase.from('public_profiles')
       .select('id, full_name, avatar_url, position, club, status').in('id', playerIds)
     const playerMap = Object.fromEntries((players ?? []).map(p => [p.id, p]))
 
@@ -554,7 +554,7 @@ function PlayersTab() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('profiles')
+    supabase.from('public_profiles')
       .select('id, full_name, avatar_url, position, secondary_position, club, city, playing_level, status, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)

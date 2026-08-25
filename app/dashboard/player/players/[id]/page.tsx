@@ -34,7 +34,7 @@ type PublicProfile = {
   foot: string | null
   height: string | null
   status: string | null
-  date_of_birth: string | null
+  age: number | null
   goals: number
   assists: number
   appearances: number
@@ -58,17 +58,6 @@ const STATUS_LABELS: Record<string, string> = {
   signed: 'Signed',
   loan_dual_reg: 'Loan / dual-reg',
   just_exploring: 'Just exploring',
-}
-
-function computeAge(dateOfBirth: string | null): number | null {
-  if (!dateOfBirth) return null
-  const dob = new Date(dateOfBirth)
-  if (Number.isNaN(dob.getTime())) return null
-  const now = new Date()
-  let age = now.getFullYear() - dob.getFullYear()
-  const hasHadBirthdayThisYear = now.getMonth() > dob.getMonth() || (now.getMonth() === dob.getMonth() && now.getDate() >= dob.getDate())
-  if (!hasHadBirthdayThisYear) age--
-  return age
 }
 
 function StatTile({ label, value }: { label: string; value: number }) {
@@ -240,7 +229,7 @@ function PlayerPublicProfileInner() {
         if (!user) { router.push('/'); return }
 
         const [playerRes, viewerRes, perfRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, date_of_birth, actively_looking, goals, assists, appearances, season, highlight_urls, premium, last_active, created_at, approved').eq('id', id).single(),
+          supabase.from('public_profiles').select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, foot, height, status, age, actively_looking, goals, assists, appearances, season, highlight_urls, premium, last_active, created_at, approved').eq('id', id).single(),
           supabase.from('profiles').select('id, premium, role, city').eq('id', user.id).single(),
           // Public, allowlisted tracked-performance aggregate (SECURITY DEFINER
           // RPC — returns objective stats only, gated on the player's coarse
@@ -423,7 +412,9 @@ function PlayerPublicProfileInner() {
   // status, not a club, so don't render it as one.
   const realClub = player.club && player.club.trim().toLowerCase() !== 'free agent' ? player.club.trim() : null
 
-  const age = computeAge(player.date_of_birth)
+  // Age arrives precomputed from the public_profiles view — a viewer never
+  // receives another member's raw date_of_birth. See 20260825000004.
+  const age = player.age
 
   // Pedigree — derived purely from performance data + self-reported past
   // seasons (no extra input from the player). Peak level only surfaces when

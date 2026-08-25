@@ -320,7 +320,7 @@ function MessagesInner() {
       ? 'id, full_name, avatar_url, coaching_role, club, coaching_level'
       : 'id, coaching_role, coaching_level'
     const coachesRes = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select(coachCols)
       .in('id', coachIds)
     const coaches = (coachesRes.data ?? []) as unknown as CoachRow[]

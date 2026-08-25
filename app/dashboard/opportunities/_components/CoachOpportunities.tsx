@@ -558,7 +558,7 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
       startOfMonth.setHours(0, 0, 0, 0)
 
       const [profileRes, ownRes, othersRes, monthlyRes, appsRes] = await Promise.all([
-        supabase.from('profiles').select('premium').eq('id', coachId).single(),
+        supabase.from('public_profiles').select('premium').eq('id', coachId).single(),
         supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').eq('coach_id', coachId).order('created_at', { ascending: false }),
         supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').neq('coach_id', coachId).eq('is_active', true).order('created_at', { ascending: false }).limit(50),
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', coachId).gte('created_at', startOfMonth.toISOString()),

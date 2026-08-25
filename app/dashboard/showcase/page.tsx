@@ -75,7 +75,7 @@ export default function ShowcasePage() {
           .eq('id', authUser.id)
           .single(),
         supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, full_name, avatar_url, position, club, showcase_team, showcase_squad_number')
           .eq('showcase_attended', true)
           .eq('approved', true),
@@ -115,7 +115,7 @@ export default function ShowcasePage() {
       // Refresh attendees
       const supabase = createClient()
       const { data } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, full_name, avatar_url, position, club, showcase_team, showcase_squad_number')
         .eq('showcase_attended', true)
         .eq('approved', true)

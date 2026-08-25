@@ -110,7 +110,7 @@ export default function CoachBottomNav() {
           if (!convIdsRef.current.includes(msg.conversation_id)) return
           setUnreadMessages(prev => prev + 1)
           const { data: sender } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('full_name')
             .eq('id', msg.sender_id)
             .single()

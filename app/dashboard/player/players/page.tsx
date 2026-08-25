@@ -326,7 +326,7 @@ export default function PlayersPage() {
   // independent of the paginated list below.
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('profiles')
+    supabase.from('public_profiles')
       .select('id, full_name, role, avatar_url, position, club, city, playing_level, status, actively_looking, created_at, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
@@ -350,7 +350,7 @@ export default function PlayersPage() {
       const from = page * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
 
-      let query = supabase.from('profiles')
+      let query = supabase.from('public_profiles')
         .select(
           'id, full_name, role, avatar_url, position, club, city, playing_level, status, actively_looking, created_at, premium',
           { count: 'exact' }

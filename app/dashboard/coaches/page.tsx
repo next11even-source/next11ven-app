@@ -427,7 +427,7 @@ export default function CoachesPage() {
 
       const [coachRes, profileRes] = await Promise.all([
         supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, full_name, avatar_url, coaching_role, coaching_level, club, city, last_active, created_at, is_agent, premium')
           .eq('role', 'coach')
           .eq('approved', true),

@@ -73,24 +73,13 @@ export default function SetPasswordPage() {
 
     // Migration fallback: profile exists under the old Glide ID but same email.
     // Update the profile ID so future logins work normally.
+    // Server-side: this reads AND writes a row whose id is not the caller's, so
+    // it can't run from the browser once profiles is narrowed to own-row.
+    // The route derives the email from the session, never from the client.
     if ((!profile || !profile.approved) && user.email) {
-      const { data: byEmail } = await supabase
-        .from('profiles')
-        .select('role, approved, approval_status')
-        .eq('email', user.email)
-        .neq('id', user.id)
-        .single()
-
-      if (byEmail) {
-        const shouldAutoApprove = byEmail.role === 'fan'
-        const updates: Record<string, unknown> = { id: user.id }
-        if (shouldAutoApprove) {
-          updates.approved = true
-          updates.approval_status = 'approved'
-        }
-        await supabase.from('profiles').update(updates).eq('email', user.email)
-        profile = { ...byEmail, ...(shouldAutoApprove ? { approved: true, approval_status: 'approved' } : {}) }
-      }
+      const res = await fetch('/api/account/claim-legacy-profile', { method: 'POST' })
+      const json = res.ok ? await res.json() : null
+      if (json?.profile) profile = json.profile
     }
 
     // Fans are view-only — auto-approve if not already approved

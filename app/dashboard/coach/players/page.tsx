@@ -428,7 +428,7 @@ export default function CoachPlayersPage() {
         .then(({ data }) => setCoachProfile(data ?? null))
     })
 
-    supabase.from('profiles')
+    supabase.from('public_profiles')
       .select('id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium')
       .in('role', ['player', 'admin'])
       .eq('approved', true)
@@ -452,7 +452,7 @@ export default function CoachPlayersPage() {
       const from = page * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
 
-      let query = supabase.from('profiles')
+      let query = supabase.from('public_profiles')
         .select(
           'id, full_name, role, avatar_url, position, secondary_position, club, city, playing_level, status, actively_looking, created_at, premium',
           { count: 'exact' }

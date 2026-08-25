@@ -1,0 +1,47 @@
+-- Step 2 of 2 — ⚠️ DO NOT APPLY UNTIL THE CODE USING public_profiles IS DEPLOYED.
+--
+-- This is the migration that actually stops one logged-in member reading another
+-- member's email, phone and date of birth. Everything before it was preparation.
+--
+-- It drops the two policies that let any authenticated user read every row of
+-- profiles:
+--
+--   "Authenticated users can read profiles"   SELECT {public}        USING (auth.role() = 'authenticated')
+--   "Approved profiles are viewable by all"   SELECT {authenticated} USING (approved = true)
+--
+-- What survives is "Users can upsert their own profile" (ALL, authenticated,
+-- USING/WITH CHECK auth.uid() = id) and "Users can update own profile" (UPDATE,
+-- auth.uid() = id). So after this, a caller reads exactly one row from this
+-- table: their own — with all 61 columns, which is why the 38 own-row client
+-- reads (including the two `select('*')` profile-edit screens) need no changes.
+--
+-- Everyone else's profile comes from public_profiles (20260825000004), which
+-- exposes the browse-safe columns plus a computed age, and is granted to
+-- `authenticated` only.
+--
+-- ⚠️ ORDERING IS LOAD-BEARING AND IS THE REVERSE OF 20260825000001.
+-- That one had to precede its code. This one must FOLLOW it:
+--     1. 20260825000004 + ...005   (done — additive, view created and locked to authenticated)
+--     2. deploy the app            (21 cross-user reads now hit the view; 2 moved to service-role routes)
+--     3. this migration            (narrows the table)
+-- Applying this before the deploy makes every browse list, carousel, coach
+-- profile, message thread and player profile return zero rows for every user.
+--
+-- Rollback is a single statement if something was missed:
+--     create policy "Authenticated users can read profiles" on public.profiles
+--       for select using (auth.role() = 'authenticated');
+--
+-- PRE-FLIGHT — the client must have NO remaining cross-user read of `profiles`.
+-- Verify with:
+--     grep -rn "from('profiles')" app --include=*.tsx | grep -v "/api/"
+-- and confirm every hit is either a write, or filtered to the caller's own id.
+-- At the time of writing there were 17 writes and 38 own-row reads left, which
+-- is the expected steady state; the 21 cross-user reads now use public_profiles,
+-- and the 2 that could not (the admin pending-signups count, which needs
+-- approval_status, and the Glide legacy-claim fallback, which reads and writes a
+-- row belonging to a different id) moved to service-role API routes:
+--     GET  /api/admin/pending-count
+--     POST /api/account/claim-legacy-profile
+
+drop policy if exists "Authenticated users can read profiles" on public.profiles;
+drop policy if exists "Approved profiles are viewable by all users" on public.profiles;

@@ -853,7 +853,7 @@ export default function CoachDashboard() {
           .order('created_at', { ascending: false })
           .limit(15),
 
-        supabase.from('profiles')
+        supabase.from('public_profiles')
           .select('id, full_name, role, position, avatar_url, status, actively_looking, city, premium')
           .in('role', ['player', 'admin'])
           .eq('approved', true)
@@ -861,7 +861,7 @@ export default function CoachDashboard() {
           .not('id', 'in', HIDDEN_PROFILE_FILTER),
 
         // Recently active players + coaches
-        supabase.from('profiles')
+        supabase.from('public_profiles')
           .select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at')
           .in('role', ['player', 'admin', 'coach'])
           .eq('approved', true)
@@ -972,7 +972,7 @@ export default function CoachDashboard() {
       if (savedRows.length) {
         const playerIds = savedRows.map(r => r.player_id)
         const { data: playerData } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, full_name, role, avatar_url, position, city, status, premium, actively_looking, updated_at')
           .in('id', playerIds)
         const playerMap = Object.fromEntries((playerData ?? []).map((p: any) => [p.id, p]))

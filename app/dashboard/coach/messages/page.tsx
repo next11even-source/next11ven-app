@@ -285,7 +285,7 @@ function MessagesInner() {
     )
 
     const { data: profiles } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('id, full_name, avatar_url, role, position, coaching_role, club, status')
       .in('id', otherIds)
 

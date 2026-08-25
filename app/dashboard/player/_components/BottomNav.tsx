@@ -122,13 +122,13 @@ export default function BottomNav() {
         .gt('created_at', oppsLastSeen)
       setUnseenOpps(oppsCount ?? 0)
 
-      // Admin: pending signups
+      // Admin: pending signups. Server-side because this counts UNAPPROVED rows
+      // across every user — it can't come from public_profiles (no
+      // approval_status there) and the client can only read its own row.
       if (admin) {
-        const { count: pendingCount } = await supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .eq('approval_status', 'pending')
-        setPendingSignups(pendingCount ?? 0)
+        const res = await fetch('/api/admin/pending-count')
+        const json = res.ok ? await res.json() : null
+        setPendingSignups(json?.count ?? 0)
       }
 
       // Realtime: new messages
@@ -144,7 +144,7 @@ export default function BottomNav() {
           if (!convIdsRef.current.includes(msg.conversation_id)) return
           setUnreadMessages(prev => prev + 1)
           const { data: sender } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('full_name')
             .eq('id', msg.sender_id)
             .single()

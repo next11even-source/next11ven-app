@@ -1,15 +1,23 @@
 /**
  * POST /api/stripe/sync
  *
- * Called on first dashboard load for each user.
- * Looks up the user's email in Stripe, and if they have an active
- * subscription, grants premium and links the customer/subscription.
+ * Looks up the user's email in Stripe, and if they have an active subscription,
+ * grants premium and links the customer/subscription. The safety net for a
+ * subscription created outside the webhook — in practice a migrated Glide
+ * subscriber claiming their account late.
  *
  * Safe to call multiple times — idempotent.
+ *
+ * ⚠️ Rate of asking Stripe is governed by needsStripeSync() / profiles.stripe_synced_at
+ * (lib/stripeSync.ts). The dashboards apply the same rule before fetching, so in
+ * the steady state this route isn't invoked at all; the check below is the
+ * authoritative one and does not trust the client to have skipped.
+ * This used to run on EVERY dashboard load for EVERY non-premium user — its old
+ * doc comment claimed "first dashboard load" but nothing enforced that.
  */
 import { NextResponse } from 'next/server'
 import { onUserUpgradedToPremium } from '@/lib/mailerlite'
-import { stripe } from '@/lib/stripe'
+import { needsStripeSync } from '@/lib/stripeSync'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -44,7 +52,7 @@ export async function POST() {
   // Get profile — check if already linked
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, email, premium, stripe_customer_id, role')
+    .select('id, email, premium, stripe_customer_id, role, stripe_synced_at')
     .eq('id', user.id)
     .single()
 
@@ -55,12 +63,33 @@ export async function POST() {
     return NextResponse.json({ premium: true, synced: false })
   }
 
+  // Asked Stripe about this person recently and it had nothing. Don't ask again.
+  if (!needsStripeSync(profile)) {
+    return NextResponse.json({ premium: false, synced: false, skipped: true })
+  }
+
   const email = (profile.email ?? user.email ?? '').toLowerCase().trim()
   if (!email) return NextResponse.json({ premium: false, synced: false })
+
+  // Imported here rather than at module scope so the guarded path above doesn't
+  // construct a Stripe client it will never use — lib/stripe.ts instantiates on
+  // import, and that instantiation was a real slice of this route's CPU.
+  const { stripe } = await import('@/lib/stripe')
+
+  // Records that Stripe was asked and came back empty, so the next dashboard load
+  // doesn't ask again. Only for the "no subscription" outcomes — a user who IS
+  // found comes back premium + linked and exits at the check above instead.
+  async function markChecked() {
+    await supabase
+      .from('profiles')
+      .update({ stripe_synced_at: new Date().toISOString() })
+      .eq('id', user!.id)
+  }
 
   // Search Stripe for a customer with this email
   const customers = await stripe.customers.list({ email, limit: 5 })
   if (!customers.data.length) {
+    await markChecked()
     return NextResponse.json({ premium: false, synced: false })
   }
 
@@ -103,5 +132,8 @@ export async function POST() {
     return NextResponse.json({ premium: true, synced: true })
   }
 
+  // Known to Stripe, but no active subscription — still a "nothing to grant"
+  // answer, so it gets cached like the others.
+  await markChecked()
   return NextResponse.json({ premium: false, synced: false })
 }

@@ -155,7 +155,7 @@ export default function ShortlistsPage() {
                   const statusCfg = p?.status ? STATUS_CONFIG[p.status] : null
                   const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
                   return (
-                    <Link key={s.id} href={`/dashboard/player/players/${s.player_id}`}
+                    <Link key={s.id} href={`/dashboard/player/players/${s.player_id}`} prefetch={false}
                       className="flex items-center gap-3 px-4 py-3"
                       style={{ textDecoration: 'none' }}>
                       <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
@@ -225,7 +225,7 @@ export default function ShortlistsPage() {
                     return (
                       <div key={s.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
                         style={{ backgroundColor: '#13172a', border: `1px solid ${available ? '#60a5fa30' : '#1e2235'}` }}>
-                        <Link href={`/dashboard/player/players/${s.player_id}`}
+                        <Link href={`/dashboard/player/players/${s.player_id}`} prefetch={false}
                           className="flex items-center gap-3 flex-1 min-w-0"
                           style={{ textDecoration: 'none' }}>
                           <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"

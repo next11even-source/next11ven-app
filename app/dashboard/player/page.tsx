@@ -16,6 +16,7 @@ import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
+import { needsStripeSync } from '@/lib/stripeSync'
 import ActivelyLookingModal from '@/app/components/ActivelyLookingModal'
 import TrackerStatTile from '@/app/dashboard/performance/_components/TrackerStatTile'
 import WeekendLogBanner from '@/app/dashboard/performance/_components/WeekendLogBanner'
@@ -447,7 +448,7 @@ function RecentlyActiveSection({ users }: { users: ActiveUser[] }) {
 function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
   const isLooking = p.actively_looking
   return (
-    <Link href={`/dashboard/player/players/${p.id}`}
+    <Link href={`/dashboard/player/players/${p.id}`} prefetch={false}
       className="flex-shrink-0 rounded-2xl overflow-hidden block mr-3"
       style={{
         width: 150,
@@ -846,7 +847,7 @@ export default function PlayerHome() {
       const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString()
 
       const [profileRes, featuredRes, activeRes, oppsRes, viewsRes, convsRes, oppsCountRes, feedRes, matchesCountRes, careerCountRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, first_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, full_name, first_name, avatar_url, role, status, premium, actively_looking, position, club, city, phone, date_of_birth, foot, height, playing_level, highlight_urls, goals, assists, appearances, stripe_synced_at').eq('id', user.id).single(),
         supabase.from('profiles').select('id, full_name, role, avatar_url, position, club, city, status, actively_looking, premium, created_at').in('role', ['player', 'admin']).eq('approved', true).eq('premium', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('avatar_url', 'is', null).neq('avatar_url', '').limit(20),
         // Recently active players + coaches
         supabase.from('profiles').select('id, role, full_name, avatar_url, position, playing_level, coaching_role, coaching_level, club, city, status, premium, actively_looking, last_active, created_at').in('role', ['player', 'admin', 'coach']).eq('approved', true).not('id', 'in', HIDDEN_PROFILE_FILTER).not('last_active', 'is', null).gte('last_active', twoWeeksAgo).order('last_active', { ascending: false }).limit(20),
@@ -887,8 +888,11 @@ export default function PlayerHome() {
       setStatsOpps(oppsCountRes.count ?? 0)
       setLoading(false)
 
-      // Auto-grant premium for existing Stripe subscribers who just claimed their account
-      if (!profileData?.premium) {
+      // Auto-grant premium for existing Stripe subscribers who just claimed their
+      // account. Gated on stripe_synced_at so this is a one-off per user rather
+      // than a Stripe lookup on every dashboard load — see lib/stripeSync.ts.
+      // The route re-checks the same rule; this only avoids the invocation.
+      if (profileData && needsStripeSync(profileData)) {
         fetch('/api/stripe/sync', { method: 'POST' }).then(r => r.json()).then(d => {
           if (d.synced) setProfile(p => p ? { ...p, premium: true } : p)
         }).catch(() => {})

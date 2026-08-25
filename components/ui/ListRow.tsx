@@ -25,6 +25,16 @@ type DivProps = Shared & Omit<HTMLAttributes<HTMLDivElement>, keyof Shared> & { 
 type LinkProps = Shared & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof Shared> & {
   /** Renders as a real link instead of a `<div>` — the common case for coach/player list rows. */
   href: string
+  /**
+   * Forwarded to next/link. Pass `false` when the row points at a DYNAMIC route
+   * — `/dashboard/player/players/[id]` and `/dashboard/coach/[id]` are the only
+   * two that list rows reach. Next prefetches every link that scrolls into the
+   * viewport, and for a dynamic route that costs a function invocation per row,
+   * so a 20-row browse list bills 20 renders nobody asked for. Static routes
+   * prefetch off the CDN for free and don't need this. See middleware.ts for the
+   * other half of the same problem.
+   */
+  prefetch?: boolean
 }
 
 type Props = DivProps | LinkProps
@@ -64,13 +74,16 @@ export default function ListRow(props: Props) {
   )
 
   if (props.href !== undefined) {
-    const { href, ...anchorProps } = props
+    // `prefetch` is destructured out rather than spread: it's a next/link prop,
+    // not an HTML attribute, so letting it reach the external `<a>` branch would
+    // put an unknown attribute on a real DOM node.
+    const { href, prefetch, ...anchorProps } = props
     const rest = Object.fromEntries(Object.entries(anchorProps).filter(([k]) => !OWN_KEYS.includes(k)))
     const isExternal = /^https?:\/\//.test(href)
     return isExternal ? (
       <a href={href} className={classes} style={baseStyle} {...rest}>{content}</a>
     ) : (
-      <Link href={href} className={classes} style={baseStyle} {...rest}>{content}</Link>
+      <Link href={href} prefetch={prefetch} className={classes} style={baseStyle} {...rest}>{content}</Link>
     )
   }
 

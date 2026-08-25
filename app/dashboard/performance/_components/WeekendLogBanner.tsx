@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { fetchPerformanceSummary } from '@/lib/performanceSummaryClient'
 
 // Weekend "log your game" prompt. Shows Sat–Mon to players who can actually log
 // (not read-only / locked), and deep-links straight to the log form so the CTA
@@ -26,8 +27,9 @@ export default function WeekendLogBanner() {
     if (localStorage.getItem(key) === '1') return
 
     // Only surface to players who can log (read-only / locked can't act on it).
-    fetch('/api/performance/summary')
-      .then(r => (r.ok ? r.json() : null))
+    // Shares TrackerStatTile's request when both are on screen — this needs one
+    // field out of that whole payload, so it should never pay for its own copy.
+    fetchPerformanceSummary<{ access: string }>()
       .then(data => {
         if (!data || data.access === 'readonly') return
         setShow(true)

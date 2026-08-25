@@ -179,7 +179,7 @@ export default function ProfileViewsPage() {
                     </div>
                     {isCoach && (
                       <Link
-                        href={`/dashboard/coach/${v.viewer_id}`}
+                        href={`/dashboard/coach/${v.viewer_id}`} prefetch={false}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
                         style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none', whiteSpace: 'nowrap' }}>
                         <User size={12} />

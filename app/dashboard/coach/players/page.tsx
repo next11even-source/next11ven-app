@@ -249,7 +249,7 @@ function ActivelyLookingCarousel({ players }: { players: Player[] }) {
         <div className="n11-looking-track-c">
           {items.map((p, i) => (
             <Link
-              href={`/dashboard/player/players/${p.id}`}
+              href={`/dashboard/player/players/${p.id}`} prefetch={false}
               key={`${p.id}-${i}`}
               style={{
                 flexShrink: 0,
@@ -363,7 +363,7 @@ function RecommendedForYou() {
               const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
               return (
                 <Link
-                  href={`/dashboard/player/players/${p.id}`}
+                  href={`/dashboard/player/players/${p.id}`} prefetch={false}
                   key={`${p.id}-${i}`}
                   style={{
                     flexShrink: 0,
@@ -725,7 +725,7 @@ export default function CoachPlayersPage() {
               const subtitle = [p.position, p.playing_level, p.club, p.city].filter(Boolean).join(' · ') || '—'
 
               return (
-                <ListRow key={p.id} href={`/dashboard/player/players/${p.id}`}
+                <ListRow key={p.id} href={`/dashboard/player/players/${p.id}`} prefetch={false}
                   className="px-4 bg-[#0a0a0a] transition-colors hover:bg-[#0d1020]"
                   leading={
                     <div className="rounded-xl overflow-hidden flex items-center justify-center"

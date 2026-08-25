@@ -19,6 +19,7 @@ import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
+import { needsStripeSync } from '@/lib/stripeSync'
 import {
   AWAITING_REPLY_STATUSES, isAwaitingReply, waitingDays, getWaitingTier, buildAwaitingReplySummary,
 } from '@/lib/applicationResponse'
@@ -483,7 +484,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
         {players.map(p => {
           const isLooking = p.actively_looking
           return (
-            <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+            <Link key={p.id} href={`/dashboard/player/players/${p.id}`} prefetch={false}
               className="flex-shrink-0 rounded-2xl overflow-hidden block"
               style={{
                 width: 150,
@@ -595,7 +596,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
             const statusCfg = p.status ? STATUS_CONFIG[p.status] : null
             const wasUpdated = p.updated_at ? new Date(p.updated_at).getTime() > weekAgo : false
             return (
-              <Link key={p.savedId} href={`/dashboard/player/players/${p.player_id}`}
+              <Link key={p.savedId} href={`/dashboard/player/players/${p.player_id}`} prefetch={false}
                 className="flex-shrink-0 rounded-2xl overflow-hidden block"
                 style={{ width: 175, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none' }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = '#2d5fc4')}
@@ -830,7 +831,7 @@ export default function CoachDashboard() {
         activeRes,
       ] = await Promise.all([
         supabase.from('profiles')
-          .select('full_name, first_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, role')
+          .select('full_name, first_name, premium, avatar_url, coaching_role, coaching_level, coaching_history, club, city, phone, role, stripe_synced_at')
           .eq('id', user.id).single(),
 
         // Last 5 roles posted across the platform (own + other clubs)
@@ -997,8 +998,11 @@ export default function CoachDashboard() {
 
       setLoading(false)
 
-      // Auto-sync Stripe premium state
-      if (!profile?.premium) {
+      // Auto-sync Stripe premium state. Gated on stripe_synced_at so this is a
+      // one-off per coach rather than a Stripe lookup on every dashboard load —
+      // see lib/stripeSync.ts. The route re-checks the same rule; this only
+      // avoids the invocation.
+      if (profile && needsStripeSync(profile)) {
         fetch('/api/stripe/sync', { method: 'POST' }).catch(() => {})
       }
     }

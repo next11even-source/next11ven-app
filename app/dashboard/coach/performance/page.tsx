@@ -130,7 +130,7 @@ function FormPills({ results }: { results: ('W' | 'D' | 'L')[] }) {
 // career/season stats: those stay behind the wall).
 function PreviewCard({ p }: { p: PreviewPlayer }) {
   return (
-    <Link href={`/dashboard/player/players/${p.id}`}
+    <Link href={`/dashboard/player/players/${p.id}`} prefetch={false}
       className="block rounded-2xl p-4" style={{ ...surface, textDecoration: 'none' }}>
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
@@ -408,7 +408,7 @@ export default function CoachPerformancePage() {
             ) : (
               <div className="space-y-2">
                 {players.map(p => (
-                  <Link key={p.id} href={`/dashboard/player/players/${p.id}`}
+                  <Link key={p.id} href={`/dashboard/player/players/${p.id}`} prefetch={false}
                     className="block rounded-2xl p-4" style={{ ...surface, textDecoration: 'none' }}>
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>

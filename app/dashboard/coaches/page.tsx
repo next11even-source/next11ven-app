@@ -204,7 +204,7 @@ function RecentlyActiveCard({ coach }: { coach: Coach }) {
 
   return (
     <Link
-      href={`/dashboard/coach/${coach.id}`}
+      href={`/dashboard/coach/${coach.id}`} prefetch={false}
       className="flex items-center gap-2.5 px-3 py-2.5 mr-2.5 rounded-xl flex-shrink-0"
       style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none', width: 240 }}
     >
@@ -598,7 +598,7 @@ export default function CoachesPage() {
 
             return (
               <ListRow key={coach.id}
-                href={`/dashboard/coach/${coach.id}`}
+                href={`/dashboard/coach/${coach.id}`} prefetch={false}
                 className="px-4"
                 style={{ backgroundColor: '#13172a' }}
                 leading={

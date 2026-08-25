@@ -174,7 +174,7 @@ function MatchCard({ m }: { m: PerformanceMatch }) {
   const isMotm = m.tags?.includes('man_of_the_match')
 
   return (
-    <Link href={`/dashboard/performance/tracker/${m.id}`}
+    <Link href={`/dashboard/performance/tracker/${m.id}`} prefetch={false}
       className="block rounded-2xl px-4 py-3.5" style={{ ...surface, textDecoration: 'none' }}>
       <div className="flex items-center gap-3">
         {/* Result chip */}

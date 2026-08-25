@@ -164,7 +164,7 @@ function ChatView({ conversation, coachId, onBack }: { conversation: Conversatio
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'Player'}</p>
           <p className="text-xs truncate" style={{ color: '#8892aa' }}>{p?.position ?? '—'}{p?.club ? ` · ${p.club}` : ''}</p>
         </div>
-        <Link href={`/dashboard/player/players/${conversation.player_id}`}
+        <Link href={`/dashboard/player/players/${conversation.player_id}`} prefetch={false}
           className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
           style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', color: '#8892aa', textDecoration: 'none' }}>
           Profile
@@ -489,7 +489,7 @@ function ShortlistsTab({ coachId }: { coachId: string }) {
               </p>
               <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
                 {players.map((s, i) => (
-                  <Link key={s.id} href={`/dashboard/player/players/${s.player_id}`}
+                  <Link key={s.id} href={`/dashboard/player/players/${s.player_id}`} prefetch={false}
                     className="flex items-center gap-3 px-4 py-3.5 transition-colors"
                     style={{ backgroundColor: '#13172a', borderBottom: i < players.length - 1 ? '1px solid #1e2235' : undefined, textDecoration: 'none', display: 'flex' }}>
                     <Avatar name={s.player?.full_name ?? null} url={s.player?.avatar_url ?? null} size={40} />
@@ -824,7 +824,7 @@ function ActivityTab({ coachId, onAlertsRead }: { coachId: string; onAlertsRead:
         ) : (
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
             {alerts.map((alert, i) => (
-              <Link key={alert.id} href={`/dashboard/player/players/${alert.player?.id}`}
+              <Link key={alert.id} href={`/dashboard/player/players/${alert.player?.id}`} prefetch={false}
                 className="flex items-center gap-3 px-4 py-3.5"
                 style={{ backgroundColor: alert.is_read ? '#13172a' : '#0f1428', borderBottom: i < alerts.length - 1 ? '1px solid #1e2235' : undefined, textDecoration: 'none', display: 'flex' }}>
                 <div className="relative flex-shrink-0">
@@ -872,7 +872,7 @@ function ActivityTab({ coachId, onAlertsRead }: { coachId: string; onAlertsRead:
             {applications.map((app, i) => {
               const statusCfg = STATUS_CFG[app.status] ?? { label: app.status, color: '#8892aa' }
               return (
-                <Link key={app.id} href={`/dashboard/player/players/${app.player?.id}`}
+                <Link key={app.id} href={`/dashboard/player/players/${app.player?.id}`} prefetch={false}
                   className="flex items-center gap-3 px-4 py-3.5"
                   style={{ backgroundColor: '#13172a', borderBottom: i < applications.length - 1 ? '1px solid #1e2235' : undefined, textDecoration: 'none', display: 'flex' }}>
                   <Avatar name={app.player?.full_name ?? null} url={app.player?.avatar_url ?? null} size={42} />

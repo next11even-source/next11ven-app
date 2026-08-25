@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import { COLORS } from '@/components/ui/tokens'
 import type { MatchSummary } from '@/lib/performance'
+import { fetchPerformanceSummary } from '@/lib/performanceSummaryClient'
 
 type TileState =
   | { kind: 'icon'; sub: string; href: string }                              // loading / locked / no games yet
@@ -47,11 +48,14 @@ export default function TrackerStatTile() {
   const [state, setState] = useState<TileState>({ kind: 'icon', sub: 'track your season', href: HUB })
 
   useEffect(() => {
-    fetch('/api/performance/summary')
-      .then(r => (r.ok ? r.json() : null))
+    fetchPerformanceSummary<{
+      competitive: MatchSummary | null
+      access: string
+      focus: string
+    }>()
       .then(data => {
         if (!data) return // locked or error — stay a doorway
-        const competitive = data.competitive as MatchSummary
+        const competitive = data.competitive
         if (!competitive || competitive.apps === 0) {
           // No data yet: writers deep-link straight to the log form (no hunt);
           // read-only players get the hub doorway, not a CTA they can't act on.

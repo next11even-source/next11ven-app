@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import PlaceSeasonNudge from '@/app/dashboard/performance/_components/PlaceSeasonNudge'
+import { fetchPerformanceSummary } from '@/lib/performanceSummaryClient'
 
 type Summary = {
   seasonLabel: string
@@ -44,10 +45,8 @@ export default function PerformanceSummaryCard({ legacy, hasCareerHistory }: { l
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    fetch('/api/performance/summary')
-      .then(r => (r.ok ? r.json() : null))
+    fetchPerformanceSummary<Summary>()
       .then(d => setSummary(d))
-      .catch(() => {})
       .finally(() => setLoaded(true))
   }, [])
 

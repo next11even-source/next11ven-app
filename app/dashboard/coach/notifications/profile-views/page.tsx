@@ -175,7 +175,7 @@ export default function CoachProfileViewsPage() {
                       <span className="text-xs font-bold" style={{ color: '#2d5fc4' }}>{v.count}×</span>
                     )}
                     <Link
-                      href={`/dashboard/player/players/${v.viewer_id}`}
+                      href={`/dashboard/player/players/${v.viewer_id}`} prefetch={false}
                       className="text-xs font-semibold px-2.5 py-1 rounded-lg"
                       style={{ backgroundColor: '#2d5fc4', color: '#fff', textDecoration: 'none' }}>
                       View

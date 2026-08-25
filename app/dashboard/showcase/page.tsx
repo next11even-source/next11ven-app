@@ -450,7 +450,7 @@ export default function ShowcasePage() {
                   return (
                     <div key={entry.number}>
                       {profile
-                        ? <Link href={`/dashboard/player/players/${profile.id}`} style={{ textDecoration: 'none', display: 'block' }}>{rowContent}</Link>
+                        ? <Link href={`/dashboard/player/players/${profile.id}`} prefetch={false} style={{ textDecoration: 'none', display: 'block' }}>{rowContent}</Link>
                         : rowContent
                       }
 

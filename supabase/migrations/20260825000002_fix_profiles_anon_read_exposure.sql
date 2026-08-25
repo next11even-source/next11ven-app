@@ -1,0 +1,60 @@
+-- SECURITY FIX — public.profiles was readable by ANY unauthenticated caller.
+--
+-- Found 25 Aug 2026 while verifying an unrelated column add. Probing the REST
+-- API with nothing but the public anon key (which ships in the client bundle by
+-- design — it was found in 26 files under .next/static/chunks, so it is trivially
+-- extractable from app.next11ven.com) returned all 956 profile rows, including
+-- email, phone, date_of_birth, full_name, city and stripe_customer_id.
+--
+-- Root cause: five SELECT/UPDATE policies had accumulated on this table over
+-- time, none of them in version control — they were created in the Supabase
+-- dashboard during the Glide era, which is why no migration defines them and why
+-- nobody had reviewed them since. RLS was correctly ENABLED the whole time; one
+-- policy simply undid it:
+--
+--   "Public profiles visible to all"          SELECT  {public}         USING (true)   ← this one
+--   "Authenticated users can read profiles"   SELECT  {public}         USING (auth.role() = 'authenticated')
+--   "Approved profiles are viewable by all"   SELECT  {authenticated}  USING (approved = true)
+--   "Users can upsert their own profile"      ALL     {authenticated}  USING/CHECK (auth.uid() = id)
+--   "Users can update own profile"            UPDATE  {public}         USING (auth.uid() = id)
+--
+-- Postgres ORs permissive policies together, so `USING (true)` for the `public`
+-- role — which includes `anon` — grants every row to everyone regardless of what
+-- the other four say. This is the same class of mistake as the conversations
+-- column-grant bug (20260812000003): a broad grant silently defeating a narrow
+-- one, because privileges sum rather than intersect.
+--
+-- THE FIX IS DELIBERATELY ONE LINE. Dropping this single policy closes the hole
+-- completely and cannot affect a single logged-in code path, because
+-- "Authenticated users can read profiles" still grants authenticated callers
+-- exactly what they had before. After the drop, an anonymous caller matches NO
+-- select policy on this table:
+--   • "Authenticated users can read profiles" → auth.role() is 'anon', not 'authenticated' → false
+--   • "Approved profiles are viewable by all" → scoped to the `authenticated` role → does not apply
+--   • "Users can upsert their own profile"    → scoped to `authenticated` → does not apply
+-- so it reads zero rows. Verified empirically after applying.
+--
+-- Verified safe before applying: no pre-login code path reads `profiles`. Every
+-- client-side read sits behind auth (all of /dashboard/*, plus /set-password and
+-- /premium/success, both of which run with an established session). The sign-in
+-- page, /register, /claim and /auth/confirm never touch this table.
+--
+-- WRITES WERE NEVER EXPOSED. A PATCH/DELETE probe returned 204, but that was RLS
+-- filtering to zero rows, not permission: both write policies are scoped to
+-- `auth.uid() = id`, and auth.uid() is NULL for an anonymous caller, so the
+-- predicate is NULL and never true. Recorded here because a 204 on a zero-row
+-- write looks identical to a successful one and will mislead the next person who
+-- probes it.
+--
+-- ⚠️ THIS CLOSES THE ANONYMOUS HOLE ONLY. It does NOT reduce what one LOGGED-IN
+-- user can read about another: "Authenticated users can read profiles" is still
+-- USING (auth.role() = 'authenticated'), so any approved member can still read
+-- every column of every profile, email/phone/date_of_birth included. That is a
+-- real second problem and needs its own migration plus code changes (column-
+-- scoped grants for cross-user reads + a security-definer RPC for own-row reads,
+-- the pattern conversation_previews() already uses). It is NOT fixed here on
+-- purpose: it requires product decisions (does a coach see a player's full DOB
+-- or just an age?) and touches read sites across the app, and none of that
+-- should delay closing a hole that is open to the entire internet right now.
+
+drop policy if exists "Public profiles visible to all" on public.profiles;

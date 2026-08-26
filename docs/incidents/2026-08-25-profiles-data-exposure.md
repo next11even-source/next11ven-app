@@ -135,6 +135,12 @@ each migration rather than working from the habit of the last one.
 - **The 11 SECURITY DEFINER trigger functions** the advisor still flags are
   untidy but unreachable — they return type `trigger` and Postgres refuses direct
   invocation. Left alone deliberately.
-- **Codify the policies.** `profiles`' remaining policies still exist only in the
-  dashboard. They should be written into a migration so the next person can read
-  them in the repo.
+- ~~**Codify the policies.**~~ Done, `20260826000001`. Both surviving policies are
+  now in the repo, reproduced verbatim — verified a no-op by diffing `pg_policies`
+  against a snapshot taken immediately before applying. This was the root cause,
+  not a footnote: code review cannot catch what is not in the repository.
+- **Drop `"Users can update own profile"`.** Redundant (subsumed by the ALL policy,
+  and grants anon nothing since `auth.uid()` is NULL). Left in place by
+  `20260826000001` because that migration codifies what *is*; removing it is a
+  behavioural change and belongs in its own. Worth doing — a `{public}`-scoped
+  policy here is the exact shape of the one that caused this incident.

@@ -730,10 +730,12 @@ Confirmed open issues. Fix in this order:
 1. date_of_birth data quality: earliest DOB on file is 0008-08-26 and 3 rows are
    absurdly old, so ages render as implausible (up to 2017) to users. Pre-existing,
    surfaced 25 Aug 2026. Not security, but it's a GDPR-sensitive column.
-2. profiles' TWO REMAINING RLS policies ("Users can upsert their own profile",
-   "Users can update own profile") still exist only in the Supabase dashboard,
-   not in any migration. This is the ROOT CAUSE of the 25 Aug incident — config
-   nobody could review because grep couldn't see it. Codify them.
+2. Drop the redundant "Users can update own profile" policy on profiles. It is
+   fully subsumed by "Users can upsert their own profile" (ALL, authenticated)
+   and grants anon nothing (auth.uid() is NULL, so NULL = id is never true).
+   Worth removing purely because a {public}-scoped policy on this table is the
+   exact shape of the one that caused the 25 Aug incident, and nobody should
+   have to re-derive that this one is harmless. See 20260826000001.
 
 Recently closed:
 - 25 Aug 2026 profiles data exposure — all six migrations applied and verified.

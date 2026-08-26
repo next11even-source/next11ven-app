@@ -431,11 +431,17 @@ function ShortlistsTab({ coachId }: { coachId: string }) {
   useEffect(() => {
     const supabase = createClient()
     supabase.from('coach_saved_players')
-      .select('id, player_id, folder_name, created_at, player:player_id(id, full_name, avatar_url, position, club, status, playing_level)')
+      .select('id, player_id, folder_name, created_at')
       .eq('coach_id', coachId)
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setSaved((data as unknown as SavedPlayer[]) ?? [])
+      .then(async ({ data }) => {
+        const rows = data ?? []
+        const playerIds = Array.from(new Set(rows.map(r => r.player_id).filter(Boolean)))
+        const { data: players } = playerIds.length
+          ? await supabase.from('public_profiles').select('id, full_name, avatar_url, position, club, status, playing_level').in('id', playerIds)
+          : { data: [] as SavedPlayer['player'][] }
+        const playerById = new Map((players ?? []).map(p => [p!.id, p]))
+        setSaved(rows.map(r => ({ ...r, player: playerById.get(r.player_id) ?? null })) as SavedPlayer[])
         setLoading(false)
       })
   }, [coachId])
@@ -735,25 +741,37 @@ function ActivityTab({ coachId, onAlertsRead }: { coachId: string; onAlertsRead:
     Promise.all([
       supabase
         .from('applications')
-        .select('id, created_at, status, message, opportunity:opportunity_id(id, title, club, level), player:player_id(id, full_name, avatar_url, position, club)')
+        .select('id, created_at, status, message, player_id, opportunity:opportunity_id(id, title, club, level)')
         .eq('coach_id', coachId)
         .order('created_at', { ascending: false })
         .limit(50),
       supabase
         .from('shortlist_alerts')
-        .select('id, created_at, is_read, old_status, new_status, player:player_id(id, full_name, avatar_url, position, club)')
+        .select('id, created_at, is_read, old_status, new_status, player_id')
         .eq('coach_id', coachId)
         .order('created_at', { ascending: false })
         .limit(50),
-    ]).then(([appsRes, alertsRes]) => {
-      setApplications((appsRes.data as unknown as Application[]) ?? [])
-      setAlerts((alertsRes.data as unknown as ShortlistAlert[]) ?? [])
+    ]).then(async ([appsRes, alertsRes]) => {
+      const rawApps = appsRes.data ?? []
+      const rawAlerts = alertsRes.data ?? []
+
+      // player_id points at `profiles`, locked down to the caller's own row —
+      // cross-user identity comes from public_profiles, batched once for both.
+      const playerIds = Array.from(new Set([
+        ...rawApps.map(a => a.player_id),
+        ...rawAlerts.map(a => a.player_id),
+      ].filter(Boolean)))
+      const { data: players } = playerIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, avatar_url, position, club').in('id', playerIds)
+        : { data: [] as { id: string; full_name: string | null; avatar_url: string | null; position: string | null; club: string | null }[] }
+      const playerById = new Map((players ?? []).map(p => [p.id, p]))
+
+      setApplications(rawApps.map(a => ({ ...a, player: playerById.get(a.player_id) ?? null })) as unknown as Application[])
+      setAlerts(rawAlerts.map(a => ({ ...a, player: playerById.get(a.player_id) ?? null })) as unknown as ShortlistAlert[])
       setLoading(false)
 
       // Mark all unread alerts as read
-      const unreadIds = (alertsRes.data ?? [])
-        .filter((a: { is_read: boolean }) => !a.is_read)
-        .map((a: { id: string }) => a.id)
+      const unreadIds = rawAlerts.filter(a => !a.is_read).map(a => a.id)
       if (unreadIds.length > 0) {
         supabase.from('shortlist_alerts')
           .update({ is_read: true })

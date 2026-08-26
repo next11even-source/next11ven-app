@@ -712,18 +712,21 @@ export default function ProfilePage() {
       Object.entries(updates).map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v])
     )
 
+    let statusFailed = false
     if ('status' in normalized && normalized.status !== profile.status) {
-      await fetch('/api/player/status-change', {
+      const res = await fetch('/api/player/status-change', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: normalized.status }),
       })
+      statusFailed = !res.ok
       delete normalized.status
     }
 
     const payload = { ...normalized, streak_weeks: streak, streak_last_week: lastWeek, last_active: new Date().toISOString() }
     await supabase.from('profiles').update(payload).eq('id', profile.id)
-    setProfile(p => p ? { ...p, ...updates, streak_weeks: streak, streak_last_week: lastWeek, last_active: new Date().toISOString() } : p)
+    const applied = statusFailed ? { ...updates, status: profile.status } : updates
+    setProfile(p => p ? { ...p, ...applied, streak_weeks: streak, streak_last_week: lastWeek, last_active: new Date().toISOString() } : p)
   }
 
   async function handleSignOut() {

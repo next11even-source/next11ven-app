@@ -217,13 +217,13 @@ export default function CoachNotificationsPage() {
         supabase.from('profiles').select('full_name, avatar_url, coaching_role, premium').eq('id', user.id).single(),
         supabase
           .from('notifications')
-          .select('id, type, entity_id, message, is_read, created_at, actor:profiles!actor_id(full_name, avatar_url)')
+          .select('id, type, entity_id, message, is_read, created_at, actor_id')
           .eq('recipient_id', user.id)
           .order('created_at', { ascending: false })
           .limit(100),
         supabase
           .from('player_views')
-          .select('viewer_id, viewed_at, viewer:profiles!viewer_id(full_name, avatar_url, position, club, status)')
+          .select('viewer_id, viewed_at')
           .eq('player_id', user.id)
           .eq('viewer_role', 'player')
           .gte('viewed_at', weekAgo)
@@ -233,14 +233,28 @@ export default function CoachNotificationsPage() {
       setCoachProfile(profileRes.data ?? null)
       setIsPremium(profileRes.data?.premium ?? false)
 
-      const raw = (notifRes.data as any[]) ?? []
+      const raw = notifRes.data ?? []
+      const rawViews = viewsRes.data ?? []
+
+      // actor_id and viewer_id both point at `profiles`, which is locked down to
+      // the caller's own row — cross-user identity comes from public_profiles,
+      // batched in one lookup for both notification actors and profile viewers.
+      const peopleIds = Array.from(new Set([
+        ...raw.map(n => n.actor_id).filter((id): id is string => !!id),
+        ...rawViews.map(v => v.viewer_id).filter((id): id is string => !!id),
+      ]))
+      const { data: people } = peopleIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, avatar_url, position, club, status').in('id', peopleIds)
+        : { data: [] as { id: string; full_name: string | null; avatar_url: string | null; position: string | null; club: string | null; status: string | null }[] }
+      const peopleById = new Map((people ?? []).map(p => [p.id, p]))
+
       setNotifications(raw.map(n => ({
         ...n,
-        actor: Array.isArray(n.actor) ? (n.actor[0] ?? null) : n.actor,
+        actor: n.actor_id ? (peopleById.get(n.actor_id) ?? null) : null,
       })))
 
       // Mark all unseen as read in the background
-      if (raw.some((n: any) => !n.is_read)) {
+      if (raw.some((n) => !n.is_read)) {
         supabase.from('notifications')
           .update({ is_read: true })
           .eq('recipient_id', user.id)
@@ -249,10 +263,9 @@ export default function CoachNotificationsPage() {
       }
 
       // Deduplicate viewers — keep most recent visit per person
-      const rawViews = (viewsRes.data as any[]) ?? []
       const viewerMap = new Map<string, ProfileViewer>()
       for (const v of rawViews) {
-        const viewer = Array.isArray(v.viewer) ? (v.viewer[0] ?? null) : v.viewer
+        const viewer = peopleById.get(v.viewer_id) ?? null
         const existing = viewerMap.get(v.viewer_id)
         if (!existing) {
           viewerMap.set(v.viewer_id, {

@@ -42,13 +42,16 @@ export async function PATCH(
   if (!parsed.success) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   const { status, message } = parsed.data
 
-  // Fetch application and verify this coach owns it
+  // Fetch application and verify this coach owns it. player_id points at
+  // `profiles`, which is locked down to the caller's own row — the applicant's
+  // email isn't even in public_profiles (deliberately excluded), so it's
+  // fetched separately below via the service-role client once ownership is
+  // confirmed.
   const { data: app, error: fetchErr } = await supabase
     .from('applications')
     .select(`
       id, status, player_id, opportunity_id, created_at,
-      opportunity:opportunity_id ( title, club, coach_id ),
-      player:player_id ( email, full_name )
+      opportunity:opportunity_id ( title, club, coach_id )
     `)
     .eq('id', id)
     .single()
@@ -83,15 +86,22 @@ export async function PATCH(
   // 24h — same pattern as shortlist_availability in /api/player/status-change.
   // In-app declines then collapse into a single daily row on the activity page.
   if (status === 'accepted' || status === 'rejected') {
-    const player = app.player as unknown as { email: string; full_name: string | null } | null
     const accepted = status === 'accepted'
     const role = [opp?.title, opp?.club].filter(Boolean).join(' at ') || 'a role'
 
-    // Service-role client: RLS allows no client inserts on notifications.
+    // Service-role client: RLS allows no client inserts on notifications, and
+    // the applicant's email needs it too — profiles is locked to the caller's
+    // own row, and email is deliberately excluded from public_profiles.
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+
+    const { data: player } = await admin
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', app.player_id)
+      .single()
 
     let shouldEmail = true
     if (!accepted) {

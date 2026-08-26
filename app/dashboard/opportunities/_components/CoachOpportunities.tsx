@@ -282,16 +282,24 @@ function ApplicantsPanel({ opportunity, onClose }: { opportunity: Opp; onClose: 
       const supabase = createClient()
       const { data } = await supabase
         .from('applications')
-        .select(`
-          id, message, status, created_at, closed_at,
-          player:player_id (id, full_name, position, club, avatar_url, city, playing_level, status)
-        `)
+        .select('id, message, status, created_at, closed_at, player_id')
         .eq('opportunity_id', opportunity.id)
         .order('created_at', { ascending: false })
+      const rawApps = data ?? []
+
+      // player_id points at `profiles`, locked down to the caller's own row —
+      // applicant identity comes from public_profiles instead.
+      const playerIds = Array.from(new Set(rawApps.map(a => a.player_id).filter(Boolean)))
+      const { data: players } = playerIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, position, club, avatar_url, city, playing_level, status').in('id', playerIds)
+        : { data: [] as Applicant['player'][] }
+      const playerById = new Map((players ?? []).map(p => [p!.id, p]))
+
       // Unanswered first, longest-waiting first within that — the coach should
       // never have to scroll past people they've already dealt with to find the
       // ones still hanging.
-      const rows = ((data as unknown as Applicant[]) ?? []).slice().sort((a, b) => {
+      const rows = rawApps.map(a => ({ ...a, player: playerById.get(a.player_id) ?? null })) as unknown as Applicant[]
+      rows.sort((a, b) => {
         const aOpen = isAwaitingReply(a.status, a.closed_at)
         const bOpen = isAwaitingReply(b.status, b.closed_at)
         if (aOpen !== bOpen) return aOpen ? -1 : 1

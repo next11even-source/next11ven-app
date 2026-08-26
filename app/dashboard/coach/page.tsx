@@ -820,7 +820,7 @@ export default function CoachDashboard() {
           .limit(20),
 
         supabase.from('posts')
-          .select('id, post_type, caption, image_url, author:profiles!author_id(full_name, avatar_url, role)')
+          .select('id, post_type, caption, image_url, author_id')
           .eq('is_deleted', false)
           .order('created_at', { ascending: false })
           .limit(15),
@@ -864,14 +864,20 @@ export default function CoachDashboard() {
         coaching_history: profile?.coaching_history ?? null,
       })
 
-      // Feed posts — normalize author join (Supabase returns as array)
-      const rawPosts = (feedRes.data ?? []) as any[]
+      // Feed posts — author is almost always someone else, so identity comes
+      // from public_profiles (profiles is locked to the caller's own row).
+      const rawPosts = feedRes.data ?? []
+      const authorIds = Array.from(new Set(rawPosts.map(p => p.author_id).filter((id): id is string => !!id)))
+      const { data: authors } = authorIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, avatar_url, role').in('id', authorIds)
+        : { data: [] as { id: string; full_name: string | null; avatar_url: string | null; role: string | null }[] }
+      const authorById = new Map((authors ?? []).map(a => [a.id, a]))
       setFeedPosts(rawPosts.map(p => ({
         id: p.id,
         post_type: p.post_type,
         caption: p.caption,
         image_url: p.image_url,
-        author: Array.isArray(p.author) ? (p.author[0] ?? null) : (p.author ?? null),
+        author: p.author_id ? (authorById.get(p.author_id) ?? null) : null,
       })))
 
       // Premium players — random order, actively looking cards visually distinct

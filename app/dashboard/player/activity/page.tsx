@@ -437,27 +437,40 @@ export default function NotificationsPage() {
       const [notifRes, profileRes, viewsRes] = await Promise.all([
         supabase
           .from('notifications')
-          .select('id, type, entity_id, message, is_read, created_at, actor:profiles!actor_id(full_name, avatar_url)')
+          .select('id, type, entity_id, message, is_read, created_at, actor_id')
           .eq('recipient_id', user.id)
           .order('created_at', { ascending: false })
           .limit(100),
         supabase.from('profiles').select('premium').eq('id', user.id).single(),
         supabase.from('player_views')
-          .select('id, viewer_id, viewed_at, viewer:viewer_id(full_name, club, role, avatar_url)')
+          .select('id, viewer_id, viewed_at')
           .eq('player_id', user.id)
           .order('viewed_at', { ascending: false })
           .limit(200),
       ])
 
-      // Normalise actor (Supabase returns joined rows as arrays)
-      const rawNotifs = (notifRes.data as any[]) ?? []
+      const rawNotifs = notifRes.data ?? []
+      const rawViews = viewsRes.data ?? []
+
+      // actor_id and viewer_id both point at `profiles`, which is locked down to
+      // the caller's own row — cross-user identity comes from public_profiles,
+      // batched in one lookup for both notification actors and profile viewers.
+      const peopleIds = Array.from(new Set([
+        ...rawNotifs.map(n => n.actor_id).filter((id): id is string => !!id),
+        ...rawViews.map(v => v.viewer_id).filter((id): id is string => !!id),
+      ]))
+      const { data: people } = peopleIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, club, role, avatar_url').in('id', peopleIds)
+        : { data: [] as { id: string; full_name: string | null; club: string | null; role: string | null; avatar_url: string | null }[] }
+      const peopleById = new Map((people ?? []).map(p => [p.id, p]))
+
       setNotifications(rawNotifs.map(n => ({
         ...n,
-        actor: Array.isArray(n.actor) ? (n.actor[0] ?? null) : n.actor,
+        actor: n.actor_id ? (peopleById.get(n.actor_id) ?? null) : null,
       })))
 
       // Mark all unseen as read in the background — badge clears on next nav mount
-      if (rawNotifs.some((n: any) => !n.is_read)) {
+      if (rawNotifs.some((n) => !n.is_read)) {
         supabase.from('notifications')
           .update({ is_read: true })
           .eq('recipient_id', user.id)
@@ -468,7 +481,12 @@ export default function NotificationsPage() {
       setIsPremium(profileRes.data?.premium ?? false)
 
       // Deduplicate viewers
-      const allViews = (viewsRes.data as unknown as ProfileView[]) ?? []
+      const allViews: ProfileView[] = rawViews.map(v => ({
+        id: v.id,
+        viewer_id: v.viewer_id,
+        viewed_at: v.viewed_at,
+        viewer: peopleById.get(v.viewer_id) ?? null,
+      }))
       const filtered = allViews.filter(v => ['player', 'coach', 'admin'].includes(v.viewer?.role ?? ''))
       const viewerMap = new Map<string, ViewerGroup>()
       for (const v of filtered) {

@@ -62,7 +62,7 @@ export default function ProfileViewsPage() {
       const [profileRes, viewsRes] = await Promise.all([
         supabase.from('profiles').select('premium').eq('id', user.id).single(),
         supabase.from('player_views')
-          .select('id, viewer_id, viewed_at, viewer:viewer_id(full_name, club, role, avatar_url)')
+          .select('id, viewer_id, viewed_at')
           .eq('player_id', user.id)
           .order('viewed_at', { ascending: false })
           .limit(200),
@@ -70,7 +70,19 @@ export default function ProfileViewsPage() {
 
       setIsPremium(profileRes.data?.premium ?? false)
 
-      const allViews = (viewsRes.data as unknown as ProfileView[]) ?? []
+      const rawViews = viewsRes.data ?? []
+      const viewerIds = Array.from(new Set(rawViews.map(v => v.viewer_id).filter(Boolean)))
+      const { data: viewerProfiles } = viewerIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, club, role, avatar_url').in('id', viewerIds)
+        : { data: [] as { id: string; full_name: string | null; club: string | null; role: string | null; avatar_url: string | null }[] }
+      const viewerById = new Map((viewerProfiles ?? []).map(p => [p.id, p]))
+
+      const allViews: ProfileView[] = rawViews.map(v => ({
+        id: v.id,
+        viewer_id: v.viewer_id,
+        viewed_at: v.viewed_at,
+        viewer: viewerById.get(v.viewer_id) ?? null,
+      }))
       const filtered = allViews.filter(v => ['player', 'coach', 'admin'].includes(v.viewer?.role ?? ''))
       const viewerMap = new Map<string, ViewerGroup>()
       for (const v of filtered) {

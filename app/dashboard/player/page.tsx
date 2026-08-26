@@ -857,7 +857,7 @@ export default function PlayerHome() {
         // Open opportunities count
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('is_active', true),
         // Feed preview — show enough cards to scroll through
-        supabase.from('posts').select('id, post_type, caption, image_url, created_at, author:profiles!author_id(full_name, avatar_url, role, position)').eq('is_deleted', false).order('created_at', { ascending: false }).limit(15),
+        supabase.from('posts').select('id, post_type, caption, image_url, created_at, author_id').eq('is_deleted', false).order('created_at', { ascending: false }).limit(15),
         // Tracker presence — the "Season stats" completion check is satisfied
         // by real tracker data too, not just the legacy flat columns.
         supabase.from('performance_matches').select('id', { count: 'exact', head: true }).eq('player_id', user.id),
@@ -873,10 +873,17 @@ export default function PlayerHome() {
       setFeaturedPlayers(((featuredRes.data as FeaturedPlayer[]) ?? []).sort(() => Math.random() - 0.5).slice(0, 10))
       setActiveUsers(((activeRes.data as ActiveUser[]) ?? []).filter(u => u.id !== user.id))
       setOpportunities((oppsRes.opportunities as Opportunity[]) ?? [])
-      const rawFeed = (feedRes.data as any[]) ?? []
+      // Feed posts — author is almost always someone else, so identity comes
+      // from public_profiles (profiles is locked to the caller's own row).
+      const rawFeed = feedRes.data ?? []
+      const feedAuthorIds = Array.from(new Set(rawFeed.map(p => p.author_id).filter((id): id is string => !!id)))
+      const { data: feedAuthors } = feedAuthorIds.length
+        ? await supabase.from('public_profiles').select('id, full_name, avatar_url, role, position').in('id', feedAuthorIds)
+        : { data: [] as { id: string; full_name: string | null; avatar_url: string | null; role: string | null; position: string | null }[] }
+      const feedAuthorById = new Map((feedAuthors ?? []).map(a => [a.id, a]))
       setFeedPosts(rawFeed.map(p => ({
         ...p,
-        author: Array.isArray(p.author) ? (p.author[0] ?? null) : p.author,
+        author: p.author_id ? (feedAuthorById.get(p.author_id) ?? null) : null,
       })))
 
       // Quick stats

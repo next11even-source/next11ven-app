@@ -727,17 +727,19 @@ needs a founder decision before touching it.
 Known Gaps (prioritised)
 Confirmed open issues. Fix in this order:
 
-1. ⚠️ Migration 20260825000006_profiles_own_row_only.sql is written but NOT
-   APPLIED. It must be pushed AFTER the code using public_profiles is live in
-   production — the reverse of 20260825000001's ordering. Until it runs, any
-   logged-in member can still read every other member's email/phone/DOB.
-   Verify browse/carousels/profile/messages work on prod first, then
-   `npx supabase db push`. Rollback is one CREATE POLICY, in the migration.
-2. date_of_birth data quality: earliest DOB on file is 0008-08-26 and 3 rows are
+1. date_of_birth data quality: earliest DOB on file is 0008-08-26 and 3 rows are
    absurdly old, so ages render as implausible (up to 2017) to users. Pre-existing,
    surfaced 25 Aug 2026. Not security, but it's a GDPR-sensitive column.
-3. profiles' RLS policies exist only in the Supabase dashboard, not in any
-   migration. Codify them so they're readable in the repo.
+2. profiles' TWO REMAINING RLS policies ("Users can upsert their own profile",
+   "Users can update own profile") still exist only in the Supabase dashboard,
+   not in any migration. This is the ROOT CAUSE of the 25 Aug incident — config
+   nobody could review because grep couldn't see it. Codify them.
+
+Recently closed:
+- 25 Aug 2026 profiles data exposure — all six migrations applied and verified.
+  Anon reads 0 rows from profiles and 401s on public_profiles; a logged-in member
+  reads exactly 1 row (their own) from profiles, down from 956. See
+  docs/incidents/2026-08-25-profiles-data-exposure.md ✅
 
 Recently closed (no longer gaps — kept for context):
 - Opportunities POST coach-role check — /api/opportunities POST now loads the poster's profile and rejects anyone who isn't coach/admin (403). Closes the hole where any authenticated user (player/fan) could create a role via the API. ✅

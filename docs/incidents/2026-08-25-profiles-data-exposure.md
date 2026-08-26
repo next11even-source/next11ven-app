@@ -103,7 +103,24 @@ authorised. Confirm write access by reading the function/policy source instead.
 | `...0003` | `REVOKE ... FROM PUBLIC` on 14 SECURITY DEFINER RPCs | ✅ |
 | `...0004` | Create `public_profiles` view (safe columns + computed `age`) | ✅ |
 | `...0005` | Re-apply the anon revokes the default privileges had undone | ✅ |
-| `...0006` | Narrow `profiles` to own-row — **the actual cross-user fix** | ⚠️ after deploy |
+| `...0006` | Narrow `profiles` to own-row — **the actual cross-user fix** | ✅ |
+
+## Closed — final verified state (26 Aug 2026)
+
+Applied after the code was live in production and browse/profiles were checked
+by hand there, not just on preview.
+
+| Actor | `profiles` | `public_profiles` | Privileged RPCs |
+|---|---|---|---|
+| anon (key ships in the browser bundle) | **0 rows** (was 956) | 401 denied | 404 / 401 denied |
+| logged-in member | **1 row — their own**, all 61 cols (was 956) | 957 rows, safe columns only | service-role only |
+
+`email`, `phone`, `date_of_birth`, `stripe_customer_id`, `gdpr_consent`,
+`approval_status` and `password_set_at` are confirmed absent from the view.
+
+Two policies survive on the table, both `auth.uid() = id`:
+`"Users can upsert their own profile"` (ALL) and `"Users can update own profile"`
+(UPDATE). Nothing grants a cross-user read of the table to anyone.
 
 Deploy ordering is **not** uniform and that is the easiest way to get this wrong:
 `...0001` had to precede its code; `...0006` must follow it. Re-read the note in

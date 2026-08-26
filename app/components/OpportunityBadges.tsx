@@ -11,6 +11,9 @@ import { Lock } from 'lucide-react'
 // number up, not by colour. Shared by the Open Roles feed and the homepage
 // preview so a match score never looks different depending on where it's
 // read (Session 5, 22 Aug 2026 — previously duplicated in both places).
+// 60 (the floor from getOpportunityMatchPercent) is withheld entirely — it's
+// a generic "no particular signal" score, and a fake-looking 60% erodes
+// trust in every other number more than showing nothing does (26 Aug 2026).
 export function MatchTypography({ matchPercent, isPremium, onLocked, scale = 1 }: {
   matchPercent: number | null
   isPremium: boolean
@@ -18,7 +21,7 @@ export function MatchTypography({ matchPercent, isPremium, onLocked, scale = 1 }
   /** Shrinks the whole block proportionally for compact rows (e.g. the homepage preview). */
   scale?: number
 }) {
-  if (isPremium && matchPercent !== null) {
+  if (isPremium && matchPercent !== null && matchPercent > 60) {
     const strong = matchPercent >= 90
     const numberSize = Math.round((strong ? 22 : 19) * scale)
     return (

@@ -17,7 +17,7 @@ import { CITY_OPTIONS, parseCity } from '@/lib/cities'
 import { normalizePhone } from '@/lib/utils'
 import { calcCompletion, calcCoachCompletion } from '@/lib/profileCompletion'
 import Icon from '@/components/ui/Icon'
-import { Flame, X, Check } from 'lucide-react'
+import { Flame, X, Check, User } from 'lucide-react'
 import ActivityChip from '@/app/components/ActivityChip'
 import Badge from '@/components/ui/Badge'
 
@@ -221,7 +221,6 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
     setUploading(false)
   }
 
-  const initials = profile.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const isCoach = profile.role === 'coach'
 
   return (
@@ -232,7 +231,7 @@ function AvatarUpload({ profile, onUploaded }: { profile: Profile; onUploaded: (
         style={{ backgroundColor: '#1a1f3a' }} title="Upload photo">
         {profile.avatar_url
           ? <Image src={profile.avatar_url} alt="" width={80} height={80} className="w-full h-full object-cover" />
-          : <span className="text-xl font-bold" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
+          : <Icon icon={User} size={44} label={true} style={{ color: isCoach ? '#a78bfa' : '#5b6478' }} />}
         <span className="absolute inset-0 flex flex-col items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           {uploading

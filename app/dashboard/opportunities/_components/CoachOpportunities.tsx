@@ -13,6 +13,7 @@ import {
 } from '@/lib/applicationResponse'
 import Icon from '@/components/ui/Icon'
 import Button from '@/components/ui/Button'
+import Avatar from '@/components/ui/Avatar'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
 import { CircleDot, Briefcase, Lock, Clock, Users, Sparkles, ChevronDown } from 'lucide-react'
@@ -89,17 +90,6 @@ function Chip({ children, color, bg }: { children: React.ReactNode; color: strin
     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ color, backgroundColor: bg }}>
       {children}
     </span>
-  )
-}
-
-function Avatar({ name, url, size = 40 }: { name: string | null; url: string | null; size?: number }) {
-  const initials = name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-  if (url) return <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
-  return (
-    <div className="rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-      style={{ width: size, height: size, backgroundColor: '#1a1f3a', color: '#5b6478' }}>
-      {initials}
-    </div>
   )
 }
 

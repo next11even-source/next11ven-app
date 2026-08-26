@@ -25,7 +25,7 @@ import Icon from '@/components/ui/Icon'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
 import { COLORS } from '@/components/ui/tokens'
-import { Lock, ChevronRight } from 'lucide-react'
+import { Lock, ChevronRight, User } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -307,7 +307,6 @@ function PlayerHomeSkeleton() {
 function ActiveUserCard({ user }: { user: ActiveUser }) {
   const isCoach = user.role === 'coach'
   const isLooking = !isCoach && user.actively_looking
-  const initials = user.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   // Homepage only needs account type + step level (not exact role)
   const accountType = isCoach ? 'Coach' : 'Player'
   const rawLevel = isCoach ? user.coaching_level : user.playing_level
@@ -328,7 +327,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           style={{ backgroundColor: '#1a1f3a', boxShadow: isLooking ? '0 0 0 2px #22c55e, 0 0 10px rgba(34,197,94,0.5)' : 'none' }}>
           {user.avatar_url
             ? <Image src={user.avatar_url} alt="" width={44} height={44} className="w-full h-full object-cover object-center" />
-            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
+            : <Icon icon={User} size={24} label={true} style={{ color: isCoach ? '#a78bfa' : '#5b6478' }} />}
         </div>
         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
           style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />
@@ -469,9 +468,7 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
         ) : (
           <div className="w-full h-full flex items-center justify-center"
             style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-            <span className="font-black text-5xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-              {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2) ?? '??'}
-            </span>
+            <Icon icon={User} size={56} label={true} style={{ color: '#1e2235' }} />
           </div>
         )}
         {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
@@ -729,7 +726,6 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
         {posts.map((post) => {
           const typeStyle = FEED_TYPE_STYLE[post.post_type] ?? FEED_TYPE_STYLE.general
           const author = post.author
-          const initials = author?.full_name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2) ?? '??'
           const hasImage = !!post.image_url
 
           // Shared author row — anchors both card styles.
@@ -739,7 +735,7 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
                 <img src={author.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1a1f3a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: author?.role === 'coach' ? '#a78bfa' : '#5b6478' }}>{initials}</span>
+                  <Icon icon={User} size={10} label={true} style={{ color: author?.role === 'coach' ? '#a78bfa' : '#5b6478' }} />
                 </div>
               )}
               <span className="text-xs font-semibold truncate" style={{ color: '#e8dece', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12 }}>

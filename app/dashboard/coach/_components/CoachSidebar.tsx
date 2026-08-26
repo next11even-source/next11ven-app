@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
+import Avatar from '@/components/ui/Avatar'
+import { COLORS } from '@/components/ui/tokens'
 
 type Props = {
   isOpen: boolean
@@ -50,8 +52,6 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
     router.push('/')
   }
 
-  const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-
   return (
     <>
       {/* Backdrop */}
@@ -91,12 +91,7 @@ export default function CoachSidebar({ isOpen, onClose, profile }: Props) {
         <Link href="/dashboard/profile" onClick={onClose}
           className="flex items-center gap-3 mx-4 mt-4 mb-4 px-4 py-3 rounded-xl"
           style={{ backgroundColor: '#13172a', border: '1px solid #1e2235', textDecoration: 'none' }}>
-          <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: '#1a1f3a' }}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-              : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
-          </div>
+          <Avatar url={profile?.avatar_url ?? null} name={profile?.full_name ?? null} size={40} iconColor={COLORS.coachIdentity} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Coach'}</p>
             <p className="text-xs truncate" style={{ color: '#8892aa' }}>{profile?.coaching_role ?? 'View profile →'}</p>

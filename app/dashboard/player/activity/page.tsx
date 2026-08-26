@@ -7,6 +7,7 @@ import { Bell, Bookmark, Briefcase, Check, ChevronRight, CircleSlash, ClipboardC
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
 import { useSidebar } from '../_components/SidebarContext'
+import Avatar from '@/components/ui/Avatar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,11 +160,6 @@ function groupMessage(g: NotifGroup): string {
   return `${names[0]}, ${names[1]} + ${names.length - 2} others ${verb}`
 }
 
-function getInitials(name: string | null) {
-  if (!name) return '?'
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-}
-
 // ─── Notification type icon (fallback when no actor avatar) ───────────────────
 
 function TypeIcon({ type }: { type: string }) {
@@ -195,20 +191,6 @@ function TypeIcon({ type }: { type: string }) {
   )
 }
 
-// ─── Avatar ────────────────────────────────────────────────────────────────────
-
-function Avatar({ url, name }: { url: string | null; name: string | null }) {
-  if (url) return (
-    <img src={url} alt={name ?? ''} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-  )
-  return (
-    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-      style={{ backgroundColor: '#1e2235', color: '#8892aa' }}>
-      {getInitials(name)}
-    </div>
-  )
-}
-
 // ─── Stacked avatars (grouped rows) ───────────────────────────────────────────
 
 function StackedAvatars({ actors }: { actors: Actor[] }) {
@@ -217,18 +199,13 @@ function StackedAvatars({ actors }: { actors: Actor[] }) {
   return (
     <div className="flex items-center flex-shrink-0" style={{ paddingLeft: 2 }}>
       {show.map((a, i) => (
-        <div key={i}
-          className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center"
+        <Avatar key={i} url={a.avatar_url} name={a.full_name} size={36} iconColor="#8892aa"
           style={{
             marginLeft: i === 0 ? 0 : -12,
             zIndex: show.length - i,
             border: '2px solid #13172a',
             backgroundColor: '#1e2235',
-          }}>
-          {a.avatar_url
-            ? <img src={a.avatar_url} alt={a.full_name ?? ''} className="w-full h-full object-cover" />
-            : <span className="text-xs font-bold" style={{ color: '#8892aa' }}>{getInitials(a.full_name)}</span>}
-        </div>
+          }} />
       ))}
     </div>
   )

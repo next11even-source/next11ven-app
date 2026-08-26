@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import { timeAgo } from '@/lib/utils'
+import Avatar from '@/components/ui/Avatar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,11 +79,6 @@ function groupByDate(items: Notification[]) {
   }
 }
 
-function getInitials(name: string | null) {
-  if (!name) return '?'
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-}
-
 // ─── Type icon ────────────────────────────────────────────────────────────────
 
 function TypeIcon({ type }: { type: string }) {
@@ -100,21 +96,6 @@ function TypeIcon({ type }: { type: string }) {
     <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
       style={{ backgroundColor: c.bg, color: c.color }}>
       {c.icon}
-    </div>
-  )
-}
-
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-
-function Avatar({ url, name, size = 40 }: { url: string | null; name: string | null; size?: number }) {
-  if (url) return (
-    <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0"
-      style={{ width: size, height: size }} />
-  )
-  return (
-    <div className="rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-      style={{ width: size, height: size, backgroundColor: '#1e2235', color: '#8892aa' }}>
-      {getInitials(name)}
     </div>
   )
 }

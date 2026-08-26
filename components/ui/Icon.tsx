@@ -7,7 +7,10 @@ const SIZE_PX = { xs: 12, sm: 16, md: 20, lg: 24 } as const
 
 type Props = {
   icon: LucideIcon
-  size?: keyof typeof SIZE_PX
+  // A raw pixel number is only for contexts that scale continuously (Avatar's
+  // silhouette fallback, sized as a fraction of the avatar diameter) — every
+  // other caller picks from the fixed xs/sm/md/lg scale.
+  size?: keyof typeof SIZE_PX | number
   className?: string
   style?: React.CSSProperties
   /**
@@ -33,7 +36,7 @@ export default function Icon({ icon: IconComponent, size = 'md', className, styl
 
   return (
     <IconComponent
-      size={SIZE_PX[size]}
+      size={typeof size === 'number' ? size : SIZE_PX[size]}
       strokeWidth={1.75}
       className={className}
       style={style}

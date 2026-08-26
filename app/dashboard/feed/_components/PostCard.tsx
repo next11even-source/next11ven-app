@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import type { PostWithAuthor, PostComment } from '@/types/feed'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
+import Avatar from '@/components/ui/Avatar'
 
 const ROLE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   player: { bg: '#2d5fc422', color: '#4d8ae8', label: 'PLAYER' },
@@ -27,31 +28,6 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hours / 24)
   if (days < 7) return `${days}d`
   return `${Math.floor(days / 7)}w`
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return '?'
-  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-}
-
-function Avatar({ url, name, size = 40 }: { url: string | null; name: string | null; size?: number }) {
-  if (url) {
-    return (
-      <img src={url} alt={name ?? ''}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-    )
-  }
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      backgroundColor: '#1e2235', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', flexShrink: 0,
-    }}>
-      <span style={{ fontSize: size * 0.36, fontWeight: 700, color: '#8892aa', fontFamily: "'Inter', sans-serif" }}>
-        {getInitials(name)}
-      </span>
-    </div>
-  )
 }
 
 // ─── Message modal ────────────────────────────────────────────────────────────

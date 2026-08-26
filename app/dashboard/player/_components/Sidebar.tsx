@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 import { performanceTrackerEnabled } from '@/lib/performance'
+import Avatar from '@/components/ui/Avatar'
 
 type Props = {
   isOpen: boolean
@@ -63,8 +64,6 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
     router.push('/')
   }
 
-  const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-
   return (
     <>
       {/* Backdrop */}
@@ -105,12 +104,7 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
           className="block mx-4 mt-4 mb-4 rounded-xl overflow-hidden"
           style={{ backgroundColor: '#13172a', border: '1px solid #2d5fc4', textDecoration: 'none' }}>
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-            <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: '#1a1f3a' }}>
-              {profile?.avatar_url
-                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                : <span className="text-base font-black" style={{ color: '#5b6478' }}>{initials}</span>}
-            </div>
+            <Avatar url={profile?.avatar_url ?? null} name={profile?.full_name ?? null} size={48} />
             <div>
               <p className="text-sm font-bold leading-snug" style={{ color: '#e8dece' }}>{profile?.full_name ?? 'Player'}</p>
               <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>{profile?.position ?? 'Add your position'}</p>

@@ -10,6 +10,7 @@ import { Suspense } from 'react'
 import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
+import Avatar from '@/components/ui/Avatar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,17 +82,6 @@ function timeAgo(d: string) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`
   if (diff < 604800) return `${Math.floor(diff / 86400)}d`
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-function Avatar({ name, url, size = 40, color = '#5b6478' }: { name: string | null; url: string | null; size?: number; color?: string }) {
-  const initials = name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-  if (url) return <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
-  return (
-    <div className="rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-      style={{ width: size, height: size, backgroundColor: '#1a1f3a', color }}>
-      {initials}
-    </div>
-  )
 }
 
 function LoadingSpinner() {
@@ -668,12 +658,7 @@ function PlayersTab() {
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0f1428')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#13172a')}>
                 <div className="relative flex-shrink-0">
-                  {p.avatar_url
-                    ? <img src={p.avatar_url} alt={p.full_name ?? ''} className="rounded-full object-cover" style={{ width: 44, height: 44 }} />
-                    : <div className="rounded-full flex items-center justify-center font-bold text-xs" style={{ width: 44, height: 44, backgroundColor: '#1e2235', color: '#8892aa' }}>
-                        {p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'}
-                      </div>
-                  }
+                  <Avatar url={p.avatar_url} name={p.full_name} size={44} style={{ backgroundColor: '#1e2235' }} />
                   {p.premium && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-black"
                       style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 8 }}>P</span>

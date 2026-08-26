@@ -11,7 +11,9 @@ import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import ProBadge from '@/app/components/ProBadge'
 import ListRow from '@/components/ui/ListRow'
 import Icon from '@/components/ui/Icon'
-import { ChevronRight } from 'lucide-react'
+import Avatar from '@/components/ui/Avatar'
+import { COLORS } from '@/components/ui/tokens'
+import { ChevronRight, User } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -195,7 +197,6 @@ function CoachSkeleton() {
 // ─── Recently active marquee ──────────────────────────────────────────────────
 
 function RecentlyActiveCard({ coach }: { coach: Coach }) {
-  const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   // "Other" is a real selectable level (off-ladder / doesn't fit Step 1-7,
   // U18s, Wales) but reads as a blank on a card — fall back to city rather
   // than showing a level that says nothing.
@@ -213,7 +214,7 @@ function RecentlyActiveCard({ coach }: { coach: Coach }) {
           style={{ backgroundColor: '#1a1f3a' }}>
           {coach.avatar_url
             ? <Image src={coach.avatar_url} alt="" width={44} height={44} className="w-full h-full object-cover object-center" />
-            : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
+            : <Icon icon={User} size={24} label={true} style={{ color: COLORS.coachIdentity }} />}
         </div>
         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
           style={{ backgroundColor: '#3a6fda', border: '2px solid #13172a' }} />
@@ -590,7 +591,6 @@ export default function CoachesPage() {
       ) : (
         <div className="mx-4 mt-2 rounded-2xl overflow-hidden divide-y divide-[#1e2235]" style={{ border: '1px solid #1e2235' }}>
           {filtered.map((coach) => {
-            const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             // Role/level and city/club used to be two separately-conditional
             // lines — a coach missing both collapsed the row to half height.
             // One subtitle line, ListRow's fixed min-height fixes the rest.
@@ -602,12 +602,7 @@ export default function CoachesPage() {
                 className="px-4"
                 style={{ backgroundColor: '#13172a' }}
                 leading={
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
-                    style={{ backgroundColor: '#1a1f3a' }}>
-                    {coach.avatar_url
-                      ? <Image src={coach.avatar_url} alt="" width={48} height={48} className="w-full h-full object-cover object-center" />
-                      : <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
-                  </div>
+                  <Avatar url={coach.avatar_url} name={coach.full_name} size={48} iconColor={COLORS.coachIdentity} />
                 }
                 title={
                   <div className="flex items-center gap-1.5 min-w-0">

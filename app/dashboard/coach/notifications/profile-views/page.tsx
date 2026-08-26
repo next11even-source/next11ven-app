@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
+import Avatar from '@/components/ui/Avatar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,11 +52,6 @@ function Skeleton() {
       ))}
     </div>
   )
-}
-
-function getInitials(name: string | null) {
-  if (!name) return '?'
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -148,16 +144,10 @@ export default function CoachProfileViewsPage() {
         <div className="px-4 py-4">
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
             {viewers.map((v, i) => {
-              const initials = getInitials(v.full_name)
               return (
                 <div key={v.viewer_id} className="flex items-center gap-3 px-4 py-3.5"
                   style={{ backgroundColor: '#13172a', borderBottom: i < viewers.length - 1 ? '1px solid #1e2235' : undefined, minHeight: 44 }}>
-                  <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: '#1e2235' }}>
-                    {v.avatar_url
-                      ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="text-xs font-bold" style={{ color: '#5b6478' }}>{initials}</span>}
-                  </div>
+                  <Avatar url={v.avatar_url} name={v.full_name} size={40} style={{ backgroundColor: '#1e2235' }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{v.full_name ?? 'Unknown'}</p>
                     <p className="text-xs truncate mt-0.5" style={{ color: '#8892aa' }}>

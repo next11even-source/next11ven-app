@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Eye, MessageCircle, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { timeAgo } from '@/lib/utils'
+import Icon from '@/components/ui/Icon'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -151,7 +152,6 @@ export default function ProfileViewsPage() {
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
             {viewers.map((v, i) => {
               const isCoach = v.role === 'coach'
-              const initials = v.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
               return (
                 <div key={v.viewer_id} className="flex items-center gap-3 px-4 py-3.5"
                   style={{ backgroundColor: '#13172a', borderBottom: i < viewers.length - 1 ? '1px solid #1e2235' : undefined, minHeight: 44 }}>
@@ -159,7 +159,7 @@ export default function ProfileViewsPage() {
                     <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ backgroundColor: '#1e2235' }}>
                       {v.avatar_url
                         ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" />
-                        : <span className="text-xs font-bold" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
+                        : <Icon icon={User} size={20} label={true} style={{ color: isCoach ? '#a78bfa' : '#5b6478' }} />}
                     </div>
                     {isCoach && (
                       <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"

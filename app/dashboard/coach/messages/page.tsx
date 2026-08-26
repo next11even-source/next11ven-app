@@ -9,6 +9,7 @@ import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import Icon from '@/components/ui/Icon'
 import Button from '@/components/ui/Button'
+import Avatar from '@/components/ui/Avatar'
 import { MessageCircle } from 'lucide-react'
 
 type OtherPerson = {
@@ -121,7 +122,6 @@ function ChatView({
     setSending(false)
   }
 
-  const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const subtitle = p?.role === 'coach'
     ? [p.coaching_role, p.club].filter(Boolean).join(' · ')
     : [p?.position, p?.club].filter(Boolean).join(' · ')
@@ -139,12 +139,7 @@ function ChatView({
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
         </button>
-        <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-          style={{ backgroundColor: '#1a1f3a' }}>
-          {p?.avatar_url
-            ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-            : <span className="text-xs font-black" style={{ color: '#5b6478' }}>{initials}</span>}
-        </div>
+        <Avatar url={p?.avatar_url ?? null} name={p?.full_name ?? null} size={36} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'User'}</p>
           <p className="text-xs truncate" style={{ color: '#8892aa' }}>{subtitle || '—'}</p>
@@ -435,7 +430,6 @@ function MessagesInner() {
         <div className="divide-y" style={{ borderColor: '#1e2235' }}>
           {displayed.map(conv => {
             const p = conv.other_person
-            const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const hasUnread = (conv.unread ?? 0) > 0
             const subtitle = p?.role === 'coach'
               ? [p.coaching_role, p.club].filter(Boolean).join(' · ')
@@ -447,12 +441,7 @@ function MessagesInner() {
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0d1020')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#0a0a0a')}>
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
-                    style={{ backgroundColor: '#1a1f3a' }}>
-                    {p?.avatar_url
-                      ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="font-black" style={{ color: '#5b6478' }}>{initials}</span>}
-                  </div>
+                  <Avatar url={p?.avatar_url ?? null} name={p?.full_name ?? null} size={48} />
                   {hasUnread && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
                       style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>

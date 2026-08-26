@@ -15,7 +15,7 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS } from '@/lib/levels'
 import { CITY_OPTIONS, parseCity } from '@/lib/cities'
 import Icon from '@/components/ui/Icon'
-import { Flame, X, Check } from 'lucide-react'
+import { Flame, X, Check, User } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -175,7 +175,6 @@ function AvatarSection({ profile, onUpdate }: { profile: Profile; onUpdate: (url
     setUploading(false)
   }
 
-  const initials = profile.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const statusColor = profile.status ? STATUS_COLORS[profile.status] : null
 
   return (
@@ -188,9 +187,9 @@ function AvatarSection({ profile, onUpdate }: { profile: Profile; onUpdate: (url
           {profile.avatar_url ? (
             <Image src={profile.avatar_url} alt="" width={96} height={96} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl font-black"
-              style={{ backgroundColor: '#1a1f3a', color: '#5b6478', fontFamily: "'Barlow Condensed', sans-serif" }}>
-              {initials}
+            <div className="w-full h-full flex items-center justify-center"
+              style={{ backgroundColor: '#1a1f3a' }}>
+              <Icon icon={User} size={52} label={true} style={{ color: '#5b6478' }} />
             </div>
           )}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full"

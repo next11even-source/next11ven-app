@@ -9,6 +9,8 @@ import { getThreadRefundState, type ThreadRefundState } from '@/lib/messageCredi
 import { useSidebar } from '../_components/SidebarContext'
 import Icon from '@/components/ui/Icon'
 import Button from '@/components/ui/Button'
+import Avatar from '@/components/ui/Avatar'
+import { COLORS } from '@/components/ui/tokens'
 import { Lock } from 'lucide-react'
 
 type Conversation = {
@@ -133,8 +135,6 @@ function ChatView({
     setSending(false)
   }
 
-  const initials = c?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-
   return (
     <div className="flex flex-col" style={{ height: '100dvh', backgroundColor: '#0a0a0a' }}>
       {/* Chat header */}
@@ -145,12 +145,8 @@ function ChatView({
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
         </button>
-        <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-          style={{ backgroundColor: '#1a1f3a', filter: !canRead ? 'blur(6px)' : 'none' }}>
-          {c?.avatar_url
-            ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-            : <span className="text-xs font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
-        </div>
+        <Avatar url={c?.avatar_url ?? null} name={c?.full_name ?? null} size={36} iconColor={COLORS.coachIdentity}
+          style={{ filter: !canRead ? 'blur(6px)' : 'none' }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: '#e8dece' }}>
             {canRead ? (c?.full_name ?? 'Coach') : (c?.coaching_role ?? 'Coach')}
@@ -524,7 +520,6 @@ function MessagesInner() {
         <div className="divide-y" style={{ borderColor: '#1e2235' }}>
           {conversations.map(conv => {
             const c = conv.coach
-            const initials = c?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             const hasUnread = (conv.unread ?? 0) > 0
             const isLocked = !playerIsPremium
             return (
@@ -537,12 +532,8 @@ function MessagesInner() {
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0d1020')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#0a0a0a')}>
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
-                    style={{ backgroundColor: '#1a1f3a', filter: isLocked ? 'blur(6px)' : 'none' }}>
-                    {c?.avatar_url
-                      ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <span className="font-black" style={{ color: '#a78bfa' }}>{initials}</span>}
-                  </div>
+                  <Avatar url={c?.avatar_url ?? null} name={c?.full_name ?? null} size={48} iconColor={COLORS.coachIdentity}
+                    style={{ filter: isLocked ? 'blur(6px)' : 'none' }} />
                   {hasUnread && !isLocked && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
                       style={{ backgroundColor: '#2d5fc4', color: '#fff', fontSize: 10 }}>

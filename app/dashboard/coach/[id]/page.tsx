@@ -13,7 +13,8 @@ import { getActivityTier } from '@/lib/activityRecency'
 import { MESSAGE_PACK_CREDITS, MESSAGE_PACK_PRICE_GBP } from '@/lib/message-pack'
 import { REFUND_AFTER_DAYS, REFUND_PROMISE, isRefundEligible } from '@/lib/messageCredits'
 import Button from '@/components/ui/Button'
-import { ChevronRight } from 'lucide-react'
+import Icon from '@/components/ui/Icon'
+import { ChevronRight, User } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -294,7 +295,6 @@ export default function CoachPublicProfile() {
     )
   }
 
-  const initials = coach.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const subtitle = [coach.coaching_role, coach.club].filter(Boolean).join(' · ') || 'Coach'
   const isOwnProfile = viewer?.id === coach.id
   const viewerIsPlayer = viewer?.role === 'player' || viewer?.role === 'admin'
@@ -337,10 +337,7 @@ export default function CoachPublicProfile() {
           {coach.avatar_url ? (
             <Image src={coach.avatar_url} alt={coach.full_name ?? ''} width={112} height={112} className="w-full h-full object-cover object-center" />
           ) : (
-            <span className="font-black text-4xl"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-              {initials}
-            </span>
+            <Icon icon={User} size={60} label={true} style={{ color: '#a78bfa' }} />
           )}
         </div>
 

@@ -13,8 +13,9 @@ import { toSentenceCase } from '@/lib/opportunityText'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Icon from '@/components/ui/Icon'
+import Avatar from '@/components/ui/Avatar'
 import { COLORS } from '@/components/ui/tokens'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, User } from 'lucide-react'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
@@ -112,25 +113,6 @@ const POST_TYPE_STYLE: Record<string, { color: string; bg: string; label: string
   looking_for_club: { bg: '#f59e0b22', color: '#f59e0b', label: 'LOOKING FOR CLUB' },
   season_review:    { bg: '#7c3aed22', color: '#a78bfa', label: 'SEASON REVIEW' },
   general:          { bg: '#37415130', color: '#9ca3af', label: 'GENERAL' },
-}
-
-function getInitials(name: string | null) {
-  return name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
-}
-
-function Avatar({ name, url, size = 40 }: { name: string | null; url: string | null; size?: number }) {
-  if (url) {
-    return (
-      <img src={url} alt={name ?? ''} className="rounded-full object-cover flex-shrink-0"
-        style={{ width: size, height: size }} />
-    )
-  }
-  return (
-    <div className="rounded-full flex items-center justify-center flex-shrink-0 font-bold"
-      style={{ width: size, height: size, backgroundColor: '#1e2235', color: '#8892aa', fontSize: Math.max(size * 0.35, 10) }}>
-      {getInitials(name)}
-    </div>
-  )
 }
 
 // ─── Coach Profile Completion Bar ────────────────────────────────────────────
@@ -305,10 +287,7 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"
                       style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                      <span className="font-black text-4xl"
-                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                        {getInitials(post.author?.full_name ?? null)}
-                      </span>
+                      <Icon icon={User} size={48} label={true} style={{ color: '#1e2235' }} />
                     </div>
                   )}
                   {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
@@ -508,10 +487,7 @@ function PremiumCarousel({ players }: { players: PremiumPlayer[] }) {
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"
                     style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                    <span className="font-black text-5xl"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                      {getInitials(p.full_name)}
-                    </span>
+                    <Icon icon={User} size={56} label={true} style={{ color: '#1e2235' }} />
                   </div>
                 )}
                 {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
@@ -607,10 +583,7 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"
                       style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-                      <span className="font-black text-4xl"
-                        style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#1e2235' }}>
-                        {getInitials(p.full_name)}
-                      </span>
+                      <Icon icon={User} size={48} label={true} style={{ color: '#1e2235' }} />
                     </div>
                   )}
                   {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),
@@ -661,7 +634,6 @@ function MyShortlist({ players }: { players: ShortlistPlayer[] }) {
 function ActiveUserCard({ user }: { user: ActiveUser }) {
   const isCoach = user.role === 'coach'
   const isLooking = !isCoach && user.actively_looking
-  const initials = getInitials(user.full_name)
   // Homepage only needs account type + step level (not exact role)
   const accountType = isCoach ? 'Coach' : 'Player'
   const rawLevel = isCoach ? user.coaching_level : user.playing_level
@@ -682,7 +654,7 @@ function ActiveUserCard({ user }: { user: ActiveUser }) {
           style={{ backgroundColor: '#1a1f3a', boxShadow: isLooking ? '0 0 0 2px #22c55e, 0 0 10px rgba(34,197,94,0.5)' : 'none' }}>
           {user.avatar_url
             ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-            : <span className="text-sm font-black" style={{ color: isCoach ? '#a78bfa' : '#5b6478' }}>{initials}</span>}
+            : <Icon icon={User} size={24} label={true} style={{ color: isCoach ? '#a78bfa' : '#5b6478' }} />}
         </div>
         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full${isLooking ? ' animate-pulse' : ''}`}
           style={{ backgroundColor: isLooking ? '#22c55e' : '#3a6fda', border: '2px solid #13172a' }} />

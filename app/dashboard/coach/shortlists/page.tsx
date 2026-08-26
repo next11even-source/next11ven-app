@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import CoachSidebar from '@/app/dashboard/coach/_components/CoachSidebar'
 import Icon from '@/components/ui/Icon'
-import { Folder } from 'lucide-react'
+import Avatar from '@/components/ui/Avatar'
+import { Folder, User } from 'lucide-react'
 
 // supabase browser client — used only for folder rename (bulk own-data update)
 function getSupabase() { return createClient() }
@@ -153,17 +154,11 @@ export default function ShortlistsPage() {
                 {availableNow.map(s => {
                   const p = s.player
                   const statusCfg = p?.status ? STATUS_CONFIG[p.status] : null
-                  const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
                   return (
                     <Link key={s.id} href={`/dashboard/player/players/${s.player_id}`} prefetch={false}
                       className="flex items-center gap-3 px-4 py-3"
                       style={{ textDecoration: 'none' }}>
-                      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: '#1a1f3a' }}>
-                        {p?.avatar_url
-                          ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                          : <span className="text-sm font-black" style={{ color: '#5b6478' }}>{initials}</span>}
-                      </div>
+                      <Avatar url={p?.avatar_url ?? null} name={p?.full_name ?? null} size={40} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{p?.full_name ?? 'Player'}</p>
                         <p className="text-xs truncate" style={{ color: '#8892aa' }}>{p?.position ?? '—'} · {p?.club ?? p?.city ?? '—'}</p>
@@ -220,7 +215,6 @@ export default function ShortlistsPage() {
                   {players.map(s => {
                     const p = s.player
                     const statusCfg = p?.status ? STATUS_CONFIG[p.status] : null
-                    const initials = p?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
                     const available = isAvailable(p?.status ?? null)
                     return (
                       <div key={s.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
@@ -232,7 +226,7 @@ export default function ShortlistsPage() {
                             style={{ backgroundColor: '#1a1f3a' }}>
                             {p?.avatar_url
                               ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover object-center" />
-                              : <span className="text-lg font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#5b6478' }}>{initials}</span>}
+                              : <Icon icon={User} size={26} label={true} style={{ color: '#5b6478' }} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">

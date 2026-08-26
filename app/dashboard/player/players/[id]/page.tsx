@@ -17,7 +17,7 @@ import { displayHeight } from '@/lib/height'
 import { trackerLevelRank } from '@/lib/levels'
 import Icon from '@/components/ui/Icon'
 import Button from '@/components/ui/Button'
-import { Folder, MessageCircle, Bookmark } from 'lucide-react'
+import { Folder, MessageCircle, Bookmark, User } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -399,7 +399,6 @@ function PlayerPublicProfileInner() {
 
   if (!player) return null
 
-  const initials = player.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const isOwnProfile = viewer?.id === player.id
   const viewerIsCoach = viewer?.role === 'coach'
   const activeTab: 'overview' | 'history' = searchParams.get('tab') === 'history' ? 'history' : 'overview'
@@ -479,7 +478,7 @@ function PlayerPublicProfileInner() {
               {player.avatar_url ? (
                 <Image src={player.avatar_url} alt={player.full_name ?? ''} width={80} height={80} className="w-full h-full object-cover object-center" />
               ) : (
-                <span className="font-black text-2xl" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#5b6478' }}>{initials}</span>
+                <Icon icon={User} size={44} label={true} style={{ color: '#5b6478' }} />
               )}
             </div>
             {player.actively_looking && (

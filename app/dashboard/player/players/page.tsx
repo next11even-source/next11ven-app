@@ -13,7 +13,7 @@ import ProBadge from '@/app/components/ProBadge'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 import Icon from '@/components/ui/Icon'
 import ListRow from '@/components/ui/ListRow'
-import { MapPin, Clapperboard, ChevronRight } from 'lucide-react'
+import { MapPin, Clapperboard, ChevronRight, User } from 'lucide-react'
 
 type Player = {
   id: string
@@ -576,7 +576,6 @@ export default function PlayersPage() {
       ) : (
         <div className="divide-y divide-[#1e2235]">
           {players.map((p) => {
-            const initials = p.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
             // Position/level and club/city used to be two independently-
             // conditional lines. One subtitle line, ListRow's fixed
             // min-height keeps rows with a bare "—/—" the same height as
@@ -592,9 +591,7 @@ export default function PlayersPage() {
                     {p.avatar_url ? (
                       <Image src={p.avatar_url} alt={p.full_name ?? ''} width={56} height={56} className="w-full h-full object-cover object-center" />
                     ) : (
-                      <span className="font-black text-lg" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#5b6478' }}>
-                        {initials}
-                      </span>
+                      <Icon icon={User} size={30} label={true} style={{ color: '#5b6478' }} />
                     )}
                   </div>
                 }

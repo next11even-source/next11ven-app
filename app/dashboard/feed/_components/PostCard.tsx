@@ -180,13 +180,18 @@ export default function PostCard({
     const supabase = createClient()
     const { data } = await supabase
       .from('post_comments')
-      .select('id, post_id, author_id, content, created_at, author:profiles!author_id(full_name, avatar_url)')
+      .select('id, post_id, author_id, content, created_at')
       .eq('post_id', post.id)
       .eq('is_deleted', false)
       .order('created_at', { ascending: true })
+    const authorIds = Array.from(new Set((data ?? []).map((c: any) => c.author_id)))
+    const { data: authors } = authorIds.length
+      ? await supabase.from('public_profiles').select('id, full_name, avatar_url').in('id', authorIds)
+      : { data: [] }
+    const authorMap = new Map((authors ?? []).map((a: any) => [a.id, a]))
     const normalized = (data ?? []).map((c: any) => ({
       ...c,
-      author: Array.isArray(c.author) ? (c.author[0] ?? null) : c.author,
+      author: authorMap.get(c.author_id) ?? null,
     }))
     setComments(normalized as PostComment[])
     setLoadingComments(false)

@@ -98,7 +98,7 @@ export async function GET(req: Request) {
   const q = searchParams.get('q')?.trim()
   if (!q || q.length < 2) return NextResponse.json({ results: [] })
 
-  const { data } = await supabase
+  const { data } = await serviceSupabase()
     .from('profiles')
     .select('id, full_name, position, club, avatar_url')
     .ilike('full_name', `%${q}%`)

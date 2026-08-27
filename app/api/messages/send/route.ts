@@ -57,10 +57,11 @@ export async function POST(req: NextRequest) {
 
   if (!sender) return NextResponse.json({ error: 'Sender profile not found' }, { status: 403 })
 
+  const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
   // Rate limit: 10 messages per minute per user
-  const rlClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const since60s = new Date(Date.now() - 60_000).toISOString()
-  const { count: recentMsgs } = await rlClient
+  const { count: recentMsgs } = await adminClient
     .from('messages')
     .select('id', { count: 'exact', head: true })
     .eq('sender_id', user.id)
@@ -95,8 +96,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Recipient ID is required' }, { status: 400 })
   }
 
-  // Fetch recipient to verify and get role
-  const { data: recipientProfile } = await supabase
+  // Fetch recipient to verify and get role. Needs columns (email, phone,
+  // sms_opt_in, last_sms_at, email_marketing_opt_out) that RLS restricts to
+  // the row owner and public_profiles deliberately excludes, so this must go
+  // through the service-role client, not the RLS-bound one.
+  const { data: recipientProfile } = await adminClient
     .from('profiles')
     .select('id, approved, role, full_name, email, phone, sms_opt_in, coaching_role, position, last_sms_at, premium, email_marketing_opt_out')
     .eq('id', recipientId)
@@ -206,8 +210,6 @@ export async function POST(req: NextRequest) {
   const recipientDashboardUrl = recipientIsCoach
     ? `${appUrl}/dashboard/coach/messages`
     : `${appUrl}/dashboard/player/messages`
-
-  const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
   // Drip-eligible: coach → non-premium player only
   const isDripEligible = senderIsCoach && !recipientIsCoach && recipientProfile.premium === false

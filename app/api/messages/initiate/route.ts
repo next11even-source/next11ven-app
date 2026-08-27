@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   if (!sender.premium) return NextResponse.json({ error: 'NOT_PREMIUM' }, { status: 403 })
 
   const { data: coach } = await supabase
-    .from('profiles')
+    .from('public_profiles')
     .select('id')
     .eq('id', coachId)
     .eq('role', 'coach')

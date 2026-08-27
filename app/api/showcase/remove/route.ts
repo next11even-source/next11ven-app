@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -6,6 +7,13 @@ import { z } from 'zod'
 const RemoveSchema = z.object({
   playerId: z.string().min(1, 'Missing playerId'),
 })
+
+function serviceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function POST(req: Request) {
   const cookieStore = await cookies()
@@ -43,7 +51,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Missing playerId' }, { status: 400 })
   const { playerId } = parsed.data
 
-  const { error } = await supabase
+  const { error } = await serviceSupabase()
     .from('profiles')
     .update({ showcase_attended: false })
     .eq('id', playerId)

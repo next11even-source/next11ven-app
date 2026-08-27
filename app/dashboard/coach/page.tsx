@@ -282,8 +282,8 @@ function FeedPreview({ posts }: { posts: FeedPost[] }) {
                 style={{ width: 170, scrollSnapAlign: 'start', border: '1px solid #1e2235', textDecoration: 'none', backgroundColor: '#13172a' }}>
                 {/* Thumbnail */}
                 <div className="relative" style={{ height: 120, backgroundColor: '#1a1f3a' }}>
-                  {post.image_url ? (
-                    <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                  {post.image_url || post.author?.avatar_url ? (
+                    <img src={post.image_url ?? post.author!.avatar_url!} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"
                       style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>

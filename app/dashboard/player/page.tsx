@@ -726,7 +726,12 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
         {posts.map((post) => {
           const typeStyle = FEED_TYPE_STYLE[post.post_type] ?? FEED_TYPE_STYLE.general
           const author = post.author
-          const hasImage = !!post.image_url
+          // Posts without a photo fall back to the author's avatar as the
+          // card image rather than the text-forward variant below — keeps
+          // every card in the rail photo-led, avatar only when there's
+          // truly nothing to show.
+          const cardImage = post.image_url ?? author?.avatar_url ?? null
+          const hasImage = !!cardImage
 
           // Shared author row — anchors both card styles.
           const authorRow = (
@@ -783,7 +788,7 @@ function FeedPreviewSection({ posts }: { posts: FeedPost[] }) {
             >
               {/* Image */}
               <div className="relative flex-shrink-0" style={{ height: 120, backgroundColor: '#0d1020' }}>
-                <img src={post.image_url!} alt="" className="w-full h-full object-cover" />
+                <img src={cardImage!} alt="" className="w-full h-full object-cover" />
                 {/* Post type badge */}
                 <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-bold"
                   style={{ backgroundColor: typeStyle.bg, color: typeStyle.color, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 9, letterSpacing: '0.04em', backdropFilter: 'blur(4px)' }}>

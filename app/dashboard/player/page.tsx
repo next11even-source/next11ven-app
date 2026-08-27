@@ -450,12 +450,12 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
     <Link href={`/dashboard/player/players/${p.id}`} prefetch={false}
       className="flex-shrink-0 rounded-2xl overflow-hidden block mr-3"
       style={{
-        width: 150,
+        width: 175,
         border: `1px solid ${isLooking ? 'rgba(34,197,94,0.4)' : '#1e2235'}`,
         textDecoration: 'none',
         boxShadow: isLooking ? '0 0 20px rgba(34,197,94,0.1)' : 'none',
       }}>
-      <div className="relative" style={{ height: 125, backgroundColor: '#1a1f3a' }}>
+      <div className="relative" style={{ height: 150, backgroundColor: '#1a1f3a' }}>
         {p.avatar_url ? (
           // `loading="eager"` — this carousel auto-scrolls continuously via a
           // JS-driven `scrollLeft`, not native scroll, which doesn't reliably
@@ -464,11 +464,11 @@ function FeaturedPlayerCard({ p }: { p: FeaturedPlayer }) {
           // img.complete/naturalHeight), just not the one behind the visible
           // dark line at each card's bottom — see the gradient fix below for
           // that. Bounded list, so eager loading everything is cheap.
-          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="150px" loading="eager" className="object-cover object-center" />
+          <Image src={p.avatar_url} alt={p.full_name ?? ''} fill sizes="175px" loading="eager" className="object-cover object-center" />
         ) : (
           <div className="w-full h-full flex items-center justify-center"
             style={{ background: 'linear-gradient(160deg, #13172a 0%, #0d1020 100%)' }}>
-            <Icon icon={User} size={56} label={true} style={{ color: '#1e2235' }} />
+            <Icon icon={User} size={48} label={true} style={{ color: '#1e2235' }} />
           </div>
         )}
         {/* Fades to the card's own surface colour (#13172a → rgb(19,23,42)),

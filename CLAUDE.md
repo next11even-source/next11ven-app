@@ -4,6 +4,15 @@ What this is
 Custom non-league football recruitment platform. Live at app.next11ven.com.
 Glide is dead. Migration is complete. Focus is now usage, activation, and monetisation.
 Solo founder build. Launched April 2026.
+
+⚠️ Living docs — keep them in sync. FEATURE_CRITICALITY_MAP.md (every premium
+gate/core flow, ranked P0–P2, with test coverage) and TOUCHPOINTS.md (every
+email/SMS/in-app send, trigger, and status) live at repo root. Any change that
+adds, removes, or changes the behaviour of a premium gate, core flow, or a
+customer-facing send (new email/SMS/notification, new cron, new cap/guard, a
+flow going dead or being deprecated) updates the relevant row in these files
+as part of that change — not as a follow-up cleanup task. Blank cells and
+stale statuses are exactly the failure mode these docs exist to prevent.
 Stack
 Next.js 16 (16.1.6) App Router, React 19, TypeScript, Tailwind CSS v4, Supabase (PostgreSQL + Auth + Storage),
 Stripe, Twilio, Resend, MailerLite, Telegram (metrics), Vercel (production at app.next11ven.com)

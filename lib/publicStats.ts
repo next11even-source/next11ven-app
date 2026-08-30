@@ -302,7 +302,6 @@ function careerMilestones(totals: { apps: number; goals: number; assists: number
   if (goals) out.push(`${goals}+ career goals`)
   const assists = highest(totals.assists, [25, 50, 100])
   if (assists) out.push(`${assists}+ career assists`)
-  if (totals.motm >= 5) out.push(`${highest(totals.motm, [5, 10, 20, 30])}+ Man of the match awards`)
   return out
 }
 

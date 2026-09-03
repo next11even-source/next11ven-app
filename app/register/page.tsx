@@ -20,8 +20,8 @@ const COACHING_LEVELS = LEVELS
 const { min: DOB_MIN, max: DOB_MAX } = dobBounds()
 
 const COACHING_ROLES = [
-  'Head Coach / Manager', 'Assistant Manager', 'Goalkeeper Coach',
-  'Fitness Coach', 'Scout', 'Director of Football', 'Other',
+  'Manager', 'Assistant Manager', 'First Team Coach', 'Coach', 'Goalkeeper Coach',
+  'Scout', 'Director of Football', 'Other',
 ]
 
 const inputStyle = {

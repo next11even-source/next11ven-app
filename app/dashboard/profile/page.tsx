@@ -80,8 +80,8 @@ const STATUS_COLORS: Record<string, string> = {
 const PLAYER_POSITIONS = POSITIONS
 
 const COACHING_ROLES = [
-  'Head Coach / Manager','Assistant Manager','First Team Coach',
-  'Goalkeeper Coach','U18s / Academy Coach','Fitness Coach',
+  'Manager','Assistant Manager','First Team Coach','Coach',
+  'Goalkeeper Coach','U18s / Academy Coach',
   'Scout / Analyst','Player-Coach',
 ]
 

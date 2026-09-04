@@ -61,6 +61,31 @@ function baseTemplate(content: string, unsubscribeUrl?: string) {
   `
 }
 
+// Marketing template — for win-back and re-engagement sends.
+// Visually distinct from baseTemplate: blue hero band, wider card, prominent
+// unsubscribe. All marketing sends must pass a valid unsubscribeUrl.
+function marketingTemplate(content: string, unsubscribeUrl: string) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin:0;padding:0;background:#0a0a0a;font-family:Inter,Arial,sans-serif;">
+      <div style="max-width:560px;margin:40px auto;">
+        <div style="background:#2d5fc4;border-radius:16px 16px 0 0;padding:32px 28px;text-align:center;">
+          <img src="${SITE}/logo.jpg" alt="NEXT11VEN" width="120" style="width:120px;height:auto;display:block;margin:0 auto;" />
+        </div>
+        <div style="background:#13172a;border:1px solid #1e2235;border-top:none;border-radius:0 0 16px 16px;padding:36px 32px;">
+          ${content}
+        </div>
+        <div style="padding:20px 32px 36px;text-align:center;">
+          <p style="margin:0 0 6px;font-size:11px;color:#4b5563;">You're receiving this because you had a NEXT11VEN Pro membership.</p>
+          <a href="${unsubscribeUrl}" style="font-size:11px;color:#4b5563;text-decoration:underline;">Unsubscribe from marketing emails</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+}
+
 function makeUnsubscribeUrl(playerId: string): string {
   return `${SITE}/api/unsubscribe?id=${playerId}`
 }
@@ -438,32 +463,53 @@ export async function sendPaymentFailedFollowUpEmail({
   await send({ to, subject: 'Still having trouble with your payment?', html })
 }
 
-// ─── Billing: subscription cancelled win-back (transactional — never suppress) ─
+// ─── Billing: subscription cancelled win-back (marketing — respects opt-out) ──
+// Uses marketingTemplate to distinguish it visually from transactional sends.
+// userId is required so the unsubscribe link is always present.
 
 export async function sendSubscriptionCancelledWinBackEmail({
   to,
   toName,
+  userId,
   opportunityCount,
+  playerPosition,
 }: {
   to: string
   toName: string | null
+  userId: string
   opportunityCount?: number
+  playerPosition?: string | null
 }) {
   const rejoinUrl = `${SITE}/dashboard/premium`
-  const opportunityLine =
-    typeof opportunityCount === 'number'
-      ? `<p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">Since you left, <strong style="color:#e8dece;">${opportunityCount} new ${opportunityCount === 1 ? 'opportunity has' : 'opportunities have'} been posted</strong> by coaches actively looking for players.</p>`
+  const unsubscribeUrl = makeUnsubscribeUrl(userId)
+
+  const statLabel = playerPosition
+    ? `new ${playerPosition} ${opportunityCount === 1 ? 'role has' : 'roles have'} been posted in the last 30 days`
+    : `new ${opportunityCount === 1 ? 'role has' : 'roles have'} been posted in the last 30 days`
+
+  const statBlock =
+    typeof opportunityCount === 'number' && opportunityCount > 0
+      ? `
+        <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+          <p style="color:#e8dece;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${opportunityCount}</p>
+          <p style="color:#8892aa;font-size:13px;margin:0;">${statLabel}</p>
+        </div>`
       : ''
-  const html = baseTemplate(`
-    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(toName)},</p>
-    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      Your NEXT11VEN Pro membership has ended.
+
+  const html = marketingTemplate(`
+    <h2 style="color:#e8dece;font-size:20px;font-weight:700;margin:0 0 16px;line-height:1.3;">Come back before coaches move on.</h2>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      Hi ${firstName(toName)}, your Pro membership has ended. Coaches are still recruiting — here's what's been posted while you've been away.
     </p>
-    ${opportunityLine}
-    <a href="${rejoinUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Rejoin Pro</a>
-    <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">Questions? Just reply to this email.</p>
-  `)
-  await send({ to, subject: "We'd love to have you back", html })
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 28px;line-height:1.6;">
+      Your profile is still live. Pro gets you ranked higher, seen in more places, and lets you message coaches directly.
+    </p>
+    <a href="${rejoinUrl}" style="display:block;padding:14px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;text-align:center;">Rejoin Pro — £6.99/month</a>
+    <p style="color:#8892aa;margin:20px 0 0;font-size:13px;line-height:1.6;">Questions? Just reply to this email.</p>
+  `, unsubscribeUrl)
+
+  await send({ to, subject: "Coaches are still recruiting — come back", html })
 }
 
 // ─── Shortlisted player became available (coach) ────────────────────────────

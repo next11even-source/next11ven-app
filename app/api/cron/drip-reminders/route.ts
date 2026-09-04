@@ -19,6 +19,7 @@ type ProfileEmbed = {
   premium: boolean
   last_sms_at: string | null
   email_marketing_opt_out: boolean | null
+  position: string | null
 }
 
 type MessageEmbed = {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
 
   const { data: jobs, error } = await supabase
     .from('drip_jobs')
-    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at, email_marketing_opt_out), messages(read_at)')
+    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at, email_marketing_opt_out, position), messages(read_at)')
     .eq('sent', false)
     .lte('send_at', new Date().toISOString())
     .limit(100)
@@ -107,11 +108,16 @@ export async function GET(req: NextRequest) {
       } else {
         // step 98 — win-back
         try {
+          const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
           let opportunityCount: number | undefined
-          const { count, error: oppError } = await supabase
+          // Filter by the player's position if available — "3 new striker roles" beats "14 new roles"
+          const oppQuery = supabase
             .from('opportunities')
             .select('id', { count: 'exact', head: true })
-            .gte('created_at', new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString())
+            .eq('is_active', true)
+            .gte('created_at', since)
+          if (profile.position) oppQuery.eq('position', profile.position)
+          const { count, error: oppError } = await oppQuery
           if (!oppError && count !== null) {
             opportunityCount = count
           }
@@ -120,7 +126,9 @@ export async function GET(req: NextRequest) {
             await sendSubscriptionCancelledWinBackEmail({
               to: profile.email,
               toName: profile.full_name,
+              userId: job.recipient_id,
               opportunityCount,
+              playerPosition: profile.position,
             })
           }
           await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)

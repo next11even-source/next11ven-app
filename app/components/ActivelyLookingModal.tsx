@@ -33,7 +33,7 @@ const VARIANT_TOUCHPOINT: Record<PaywallVariant, string> = {
 
 const VARIANTS: Record<PaywallVariant, VariantCopy> = {
   toggle: {
-    headline: 'This is how coaches find you',
+    headline: 'This is how coaches find you first',
     subcopy: "Switch on Actively Looking and you'll appear in the carousel and free-agent searches coaches see first.",
     bullets: MODAL_BULLETS,
     cta: `Switch it on · ${PREMIUM_PRICE_PER_MONTH}`,

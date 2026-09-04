@@ -70,7 +70,7 @@ Every message the platform sends a user, across every channel. Source of truth f
 | Email | Resend | Message pack purchase confirmation | Player | One-off per purchase | Live | `sendExtraMessagesPurchaseEmail`, `app/api/stripe/webhook/route.ts` (`checkout.session.completed`, `message_pack` type) | 28 Aug 2026 |
 | Email + SMS | Resend + Twilio | Payment failed | Premium subscriber | Conditional, on `invoice.payment_failed` | Live | `sendPaymentFailedEmail` + SMS (`handlePaymentFailedNotifications`), `app/api/stripe/webhook/route.ts` | 28 Aug 2026 |
 | Email | Resend | Payment failed — follow-up reminder | Premium subscriber, payment still failed | Conditional | Live | `sendPaymentFailedFollowUpEmail`, `app/api/cron/drip-reminders` | 28 Aug 2026 |
-| Email | Resend | Subscription cancelled — win-back | Player/Coach, subscription cancelled | Once per cancellation | Live | `sendSubscriptionCancelledWinBackEmail`, `app/api/cron/drip-reminders` | 28 Aug 2026. There is no separate "trial ending" email — NEXT11VEN doesn't run trials; this row replaces that placeholder from the previous version of this doc |
+| Email | Resend | Subscription cancelled — win-back | Player/Coach, subscription cancelled | Once per cancellation | Live | `sendSubscriptionCancelledWinBackEmail`, `app/api/cron/drip-reminders` | 4 Sep 2026. Uses `marketingTemplate` (blue hero band, distinct from transactional). Stat block is position-filtered (active roles for the player's position in the last 30 days). Respects `email_marketing_opt_out`. |
 
 ## Internal / founder-only (not a customer touchpoint, tracked here for completeness)
 

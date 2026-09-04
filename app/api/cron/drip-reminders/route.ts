@@ -6,6 +6,7 @@ import {
   sendPaymentFailedFollowUpEmail,
   sendSubscriptionCancelledWinBackEmail,
 } from '@/lib/email'
+import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 
 export const runtime = 'nodejs'
@@ -97,6 +98,7 @@ export async function GET(req: NextRequest) {
         try {
           if (profile.email) {
             await sendPaymentFailedFollowUpEmail({ to: profile.email, toName: profile.full_name })
+            await logTouch(supabase, job.recipient_id, 'email', 'payment_failed_followup')
           }
           await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
           processed++
@@ -130,6 +132,7 @@ export async function GET(req: NextRequest) {
               opportunityCount,
               playerPosition: profile.position,
             })
+            await logTouch(supabase, job.recipient_id, 'email', 'winback')
           }
           await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
           processed++
@@ -173,6 +176,7 @@ export async function GET(req: NextRequest) {
       try {
         if (profile.email) {
           await sendDripDay3Email({ to: profile.email, toName: profile.full_name, playerId: job.recipient_id })
+          await logTouch(supabase, job.recipient_id, 'email', 'drip_day3')
         }
         await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
         processed++
@@ -216,6 +220,7 @@ export async function GET(req: NextRequest) {
             .from('profiles')
             .update({ last_sms_at: new Date().toISOString() })
             .eq('id', job.recipient_id)
+          await logTouch(supabase, job.recipient_id, 'sms', 'drip_day7')
         } catch (err) {
           // SMS failure is non-blocking — log but still send the email and mark sent
           reportError('/api/cron/drip-reminders', err, `drip job ${job.id} step 3 SMS failed`)
@@ -225,6 +230,7 @@ export async function GET(req: NextRequest) {
       try {
         if (profile.email) {
           await sendDripDay7Email({ to: profile.email, toName: profile.full_name, playerId: job.recipient_id })
+          await logTouch(supabase, job.recipient_id, 'email', 'drip_day7')
         }
         await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
         processed++

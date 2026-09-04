@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { buildWeeklyDigest, type DigestPlatform, type DigestCoachView } from '@/lib/weeklyDigest'
 import { sendWeeklyDigestEmail } from '@/lib/email'
+import { logTouch } from '@/lib/touchpoint'
 import { positionCategory, POSITION_CATEGORIES } from '@/lib/positions'
 import { reportError } from '@/lib/alert'
 
@@ -216,6 +217,7 @@ export async function GET(req: NextRequest) {
       }
 
       await sendWeeklyDigestEmail({ to: p.email!, playerId: p.id, subject, contentHtml })
+      await logTouch(supabase, p.id, 'email', 'weekly_digest')
       sent++
     } catch (err) {
       // A thrown assertClean (or send failure) skips this player — never mails garbage.

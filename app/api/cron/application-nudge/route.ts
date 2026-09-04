@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendApplicationNudgeEmail } from '@/lib/email'
+import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { isAwaitingReply, waitingDays, getWaitingTier } from '@/lib/applicationResponse'
 import { ageDays, getOpportunityLifecycleStatus, OPP_NEGLECT_DAYS } from '@/lib/opportunityLifecycle'
@@ -204,6 +205,7 @@ export async function GET(req: NextRequest) {
           sentSms = true
           nudgedSms++
           await supabase.from('profiles').update({ last_sms_at: new Date().toISOString() }).eq('id', c.id)
+          await logTouch(supabase, c.id, 'sms', 'application_nudge')
         }
       }
 
@@ -223,6 +225,7 @@ export async function GET(req: NextRequest) {
           atRiskCount: atRisk?.count,
           atRiskDaysLeft: atRisk?.minDaysLeft,
         })
+        await logTouch(supabase, c.id, 'email', 'application_nudge')
         nudgedEmail++
       } else if (!sentSms) {
         skipped++

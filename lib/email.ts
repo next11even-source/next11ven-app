@@ -90,6 +90,25 @@ function makeUnsubscribeUrl(playerId: string): string {
   return `${SITE}/api/unsubscribe?id=${playerId}`
 }
 
+// ─── Broadcast (admin-composed emails) ───────────────────────────────────────
+// Content is pre-built by the send route. This wrapper applies marketingTemplate
+// and fires. The unsubscribeUrl is always required for broadcast sends.
+
+export async function sendBroadcastEmail({
+  to,
+  subject,
+  contentHtml,
+  unsubscribeUrl,
+}: {
+  to: string
+  subject: string
+  contentHtml: string
+  unsubscribeUrl: string
+}) {
+  const html = marketingTemplate(contentHtml, unsubscribeUrl)
+  await send({ to, subject, html })
+}
+
 // ─── Message notification ─────────────────────────────────────────────────────
 
 export async function sendMessageNotificationEmail({

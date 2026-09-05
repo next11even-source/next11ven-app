@@ -6,6 +6,8 @@ import {
   sendSubscriptionCancelledWinBackEmail,
   sendCoachActivationD7Email,
   sendCoachActivationD21Email,
+  sendCoachGoneQuietD1Email,
+  sendCoachGoneQuietD14Email,
   sendApplicationNudgeEmail,
   sendWeeklyDigestEmail,
   sendBroadcastEmail,
@@ -15,6 +17,8 @@ const TEMPLATES = [
   'winback',
   'coach_activation_d7',
   'coach_activation_d21',
+  'coach_gone_quiet_d1',
+  'coach_gone_quiet_d14',
   'application_nudge',
   'weekly_digest',
   'broadcast',
@@ -106,6 +110,23 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         coachName: 'Jamal Crawford',
         coachId: userId,
         coachesPostedThisWeek: 12,
+      })
+
+    case 'coach_gone_quiet_d1':
+      return sendCoachGoneQuietD1Email({
+        to,
+        coachName: 'Jamal Crawford',
+        coachId: userId,
+        newPlayerCount: 23,
+        daysSinceLastPost: 34,
+      })
+
+    case 'coach_gone_quiet_d14':
+      return sendCoachGoneQuietD14Email({
+        to,
+        coachName: 'Jamal Crawford',
+        coachId: userId,
+        coachesPostedThisWeek: 9,
       })
 
     case 'application_nudge':

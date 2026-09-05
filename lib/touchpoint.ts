@@ -29,6 +29,8 @@ export type TouchFlow =
   | 'broadcast'
   | 'coach_activation_d7'
   | 'coach_activation_d21'
+  | 'coach_gone_quiet_d1'
+  | 'coach_gone_quiet_d14'
 
 // ─── Write ────────────────────────────────────────────────────────────────────
 

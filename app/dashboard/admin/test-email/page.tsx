@@ -6,6 +6,8 @@ import Breadcrumb from '@/app/components/Breadcrumb'
 type TemplateId =
   | 'coach_activation_d7'
   | 'coach_activation_d21'
+  | 'coach_gone_quiet_d1'
+  | 'coach_gone_quiet_d14'
   | 'winback'
   | 'application_nudge'
   | 'weekly_digest'
@@ -34,6 +36,21 @@ const GROUPS: Group[] = [
       {
         id: 'coach_activation_d21',
         label: 'Day 21 — social proof',
+        description: 'Second and final nudge. Different angle: coaches who posted this week.',
+      },
+    ],
+  },
+  {
+    label: 'Coach gone quiet flow',
+    templates: [
+      {
+        id: 'coach_gone_quiet_d1',
+        label: 'Gone quiet D1 — new players since last post',
+        description: 'First nudge. Posted before but silent 28+ days. Shows new players who joined since their last role.',
+      },
+      {
+        id: 'coach_gone_quiet_d14',
+        label: 'Gone quiet D14 — social proof',
         description: 'Second and final nudge. Different angle: coaches who posted this week.',
       },
     ],

@@ -424,6 +424,111 @@ export async function sendCoachActivationD21Email({
   await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — are you?`, html })
 }
 
+// ─── Coach gone quiet: D1 — new players have joined since you last posted ─────
+// Fires when a coach posted at least once ever but has had no new opportunity
+// in >= 28 days. Different from coach-activation: this coach has been active,
+// just not recently. Angle: what they're missing — demand they've already proven
+// appetite for, now landing on their competition.
+// newPlayerCount: approved players who joined AFTER the coach's last post date.
+// daysSinceLastPost: integer, for the subject line.
+export async function sendCoachGoneQuietD1Email({
+  to,
+  coachName,
+  coachId,
+  newPlayerCount,
+  daysSinceLastPost,
+}: {
+  to: string
+  coachName: string | null
+  coachId: string
+  newPlayerCount: number
+  daysSinceLastPost: number
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const unsubscribeUrl = makeUnsubscribeUrl(coachId)
+
+  const subject = newPlayerCount > 0
+    ? `${newPlayerCount} new players joined since you last posted`
+    : `It's been ${daysSinceLastPost} days since your last role — players are waiting`
+
+  const statBlock = newPlayerCount > 0
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${newPlayerCount}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">new players joined NEXT11VEN since you last posted</p>
+      </div>`
+    : ''
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      It's been ${daysSinceLastPost} days since you last posted a role on NEXT11VEN.
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      ${newPlayerCount > 0
+        ? 'These are approved, verified players — none of them have seen a role from you yet.'
+        : 'Players are joining every week and actively browsing for opportunities like yours.'}
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Post a role today and they can apply by tonight.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post a role</a>
+  `, unsubscribeUrl)
+
+  await send({ to, subject, html })
+}
+
+// ─── Coach gone quiet: D14 — social proof, different angle from D1 ────────────
+// Fires >= 14 days after D1 if the coach still hasn't posted. D1 led with
+// demand they're missing (new players); D14 leads with peer activity (social
+// proof). Same angle as coach-activation D21 — if the first stat didn't land,
+// peer comparison is the next lever.
+// coachesPostedThisWeek: COUNT of distinct coaches who posted in the last 7 days.
+export async function sendCoachGoneQuietD14Email({
+  to,
+  coachName,
+  coachId,
+  coachesPostedThisWeek,
+}: {
+  to: string
+  coachName: string | null
+  coachId: string
+  coachesPostedThisWeek: number
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const unsubscribeUrl = makeUnsubscribeUrl(coachId)
+
+  const socialLine = coachesPostedThisWeek > 1
+    ? `${coachesPostedThisWeek} coaches posted a role on NEXT11VEN this week.`
+    : coachesPostedThisWeek === 1
+    ? '1 coach posted a role on NEXT11VEN this week.'
+    : 'Coaches are posting roles on NEXT11VEN every week.'
+
+  const statBlock = coachesPostedThisWeek > 0
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${coachesPostedThisWeek}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">coaches posted a role this week</p>
+      </div>`
+    : ''
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      ${socialLine} Your last role closed weeks ago.
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Every role they posted is a pipeline they now have. The players who applied to them this week aren't browsing your old role — it's gone.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Post a new role and get back in front of them.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post a role</a>
+  `, unsubscribeUrl)
+
+  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — where are you?`, html })
+}
+
 // ─── Application nudge (coach owes players an answer) ────────────────────────
 // Operational, not promotional: these are applications to a role THIS coach
 // posted. Still respects email_marketing_opt_out at the call site — see the

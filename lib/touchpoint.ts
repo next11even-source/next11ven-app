@@ -27,6 +27,8 @@ export type TouchFlow =
   | 'application_decision'
   | 'shortlist_available'
   | 'broadcast'
+  | 'coach_activation_d7'
+  | 'coach_activation_d21'
 
 // ─── Write ────────────────────────────────────────────────────────────────────
 

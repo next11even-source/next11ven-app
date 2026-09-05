@@ -27,7 +27,7 @@ export function RevenueSection({ revenueStats, platformStats }: {
 
       <div className="space-y-3">
         <ChartCard
-          title="Net New MRR (6 months)"
+          title={`Net New MRR (${netNewTrend.length} ${netNewTrend.length === 1 ? 'month' : 'months'})`}
           data={netNewTrend}
           color={netNewTotal >= 0 ? '#22c55e' : '#ef4444'}
           total={netNewTotal}

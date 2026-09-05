@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/message-credit-refund",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/coach-activation",
+      "schedule": "0 9 * * 3"
     }
   ]
 }

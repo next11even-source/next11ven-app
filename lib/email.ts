@@ -318,6 +318,112 @@ export async function sendLogNudgeEmail({
   await send({ to, subject: 'Played this weekend? Log it in 20 seconds', html })
 }
 
+// ─── Coach activation (coach has never posted a role) ────────────────────────
+// Two-step cadence — see /api/cron/coach-activation for timing logic.
+// Step D7: soft nudge, surface what's available to them (region player count).
+// Step D21: different angle — social proof (coaches active this week).
+// Respects email_marketing_opt_out at the call site.
+// Uses baseTemplate (product nudge, not a marketing win-back).
+
+// D7 — "here's who's available in your area"
+// regionPlayerCount: actively-looking players in the coach's city (or platform
+// total if the coach has no city on file). regionLabel: the city string or null
+// (null = platform total, used to render "in [city]" vs "on the platform").
+export async function sendCoachActivationD7Email({
+  to,
+  coachName,
+  coachId,
+  regionPlayerCount,
+  regionLabel,
+}: {
+  to: string
+  coachName: string | null
+  coachId: string
+  regionPlayerCount: number
+  regionLabel: string | null
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const unsubscribeUrl = makeUnsubscribeUrl(coachId)
+
+  const locationLine = regionLabel ? `in ${regionLabel}` : 'on the platform'
+  const subject = regionPlayerCount > 0
+    ? `${regionPlayerCount} players ${locationLine} are looking for a club`
+    : 'Players in your area are looking for a club'
+
+  const statBlock = regionPlayerCount > 0
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${regionPlayerCount}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">players ${locationLine} actively looking for a club</p>
+      </div>`
+    : ''
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      You joined NEXT11VEN but haven't posted a role yet. Here's what's waiting for you.
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      These are real players — approved profiles, actively looking — who can apply to your role the same day you post it.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Posting takes 2 minutes. It costs nothing.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first role</a>
+  `, unsubscribeUrl)
+
+  await send({ to, subject, html })
+}
+
+// D21 — different angle: social proof, not a louder version of D7.
+// If the region stat didn't move them, a bigger number won't either.
+// coachesPostedThisWeek: COUNT of distinct coaches who posted ≥1 opportunity
+// in the last 7 days — queried once per run and passed in.
+export async function sendCoachActivationD21Email({
+  to,
+  coachName,
+  coachId,
+  coachesPostedThisWeek,
+}: {
+  to: string
+  coachName: string | null
+  coachId: string
+  coachesPostedThisWeek: number
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const unsubscribeUrl = makeUnsubscribeUrl(coachId)
+
+  const socialLine = coachesPostedThisWeek > 1
+    ? `${coachesPostedThisWeek} coaches posted a role on NEXT11VEN this week.`
+    : coachesPostedThisWeek === 1
+    ? '1 coach posted a role on NEXT11VEN this week.'
+    : 'Coaches are posting roles on NEXT11VEN every week.'
+
+  const statBlock = coachesPostedThisWeek > 0
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${coachesPostedThisWeek}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">coaches posted a role this week</p>
+      </div>`
+    : ''
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      ${socialLine} You still haven't posted yours.
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Every role they posted is a pool of applicants they now have. Every week you wait is a week other coaches are ahead.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Post a role today and players can apply by tonight.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first role</a>
+  `, unsubscribeUrl)
+
+  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — are you?`, html })
+}
+
 // ─── Application nudge (coach owes players an answer) ────────────────────────
 // Operational, not promotional: these are applications to a role THIS coach
 // posted. Still respects email_marketing_opt_out at the call site — see the

@@ -2,85 +2,152 @@
 
 Every message the platform sends a user, across every channel. Source of truth for "what does a player/coach actually receive and when."
 
-**How to use this file**
-- One row per distinct message/trigger, not per system. If MailerLite fires an email AND Twilio fires an SMS for the same event, that's two rows.
-- Update this file as part of shipping any change to messaging — not a separate cleanup task.
-- "Status" matters as much as the content: dead flows (wired but never firing, or built but not routed) are common failure points — flag them, don't delete the row.
+**Rules**
+- One row per distinct message/trigger. If Resend fires an email AND Twilio fires an SMS for the same event, that's two rows.
+- Update this file when you ship any messaging change — not a follow-up task.
+- "Status" matters as much as content: a flow that exists but never fires is a support liability. Flag it, don't delete it.
 
 **Columns**
-- **Channel**: Email / SMS / In-app notification / Push
-- **System**: Resend / MailerLite / Twilio / Supabase (in-app) / Make (routing)
-- **Trigger**: the exact event that fires it
-- **Audience**: who receives it (role + segment/group ID if relevant)
-- **Frequency**: one-off / recurring (cadence) / conditional
-- **Status**: Live / Dead (not firing) / Planned / Deprecated
-- **Code location**: file, route, or automation ID
-- **Last verified**: date you last confirmed it actually fires as described
+- **Channel**: Email / SMS / In-app
+- **System**: Resend / MailerLite / Twilio / Supabase (in-app)
+- **Trigger**: exact event
+- **Audience**: who receives it
+- **Frequency / cap**: cadence and any send limit
+- **Status**: Live / Deprecated / Dead
+- **Code location**: file or route
+- **Last verified**: last date confirmed correct
 
-**Note on "Last verified" below**: 28 Aug 2026 entries were verified by reading the code path itself (route exists, function is called, guard conditions match this description) during a full codebase audit — not by triggering a live send in production. That confirms the code is wired correctly as of that date, not that a real message landed in an inbox that day. Re-verify live if a row hasn't been touched since a dependency (Resend/Twilio/MailerLite config, env flags) changed.
+**Verification note**: entries marked "28 Aug 2026" were verified by code audit (route exists, function called, guards match) — not by triggering a live send. Re-verify live if a dependency (Resend/Twilio/MailerLite config, env flags) changed since.
+
+---
+
+## Email frequency governor
+
+**Last updated: 4 Sep 2026**
+
+Every automated email flow now routes through a shared ledger in `touchpoint_log` (migration `20260904000001`). Two functions in `lib/touchpoint.ts`:
+
+- `logTouch(supabase, recipientId, channel, flow)` — called after a successful send. Records what went out and when.
+- `canSendTouch(supabase, recipientId, channel, gapHours)` — called before a send. Checks whether *any* email on that channel landed within the last N hours, across *all* flows. Fails open (allows the send) if the query errors.
+
+**What this gives you:**
+- A coach who just got an application nudge won't also get an activation email the same day.
+- A broadcast sent Wednesday morning blocks that afternoon's cron from also sending to the same person.
+- The ledger is the single place to answer "what did this user receive and when?" — not scattered logs.
+
+**What it does NOT do yet:**
+- There is no queue. A send blocked by `canSendTouch` is **skipped**, not deferred. For recurring crons (weekly, daily) this is fine — the next run naturally retries. For one-off sends (a broadcast blocked for a specific user) that email is lost to that recipient for that run.
+- There is no priority weighting. A transactional email (payment failed, application accepted) does not jump ahead of a marketing email. Both flow through the same channel check. In practice this is fine because Tier 1 sends (transactional) are wired **without** a `canSendTouch` gate — they always fire — while Tier 2/3 (batch, marketing) are gated. But the tiers are enforced by convention in each cron/route, not by the ledger itself.
+- Adding a true priority queue (a `email_queue` table, a drain cron, tier-aware scheduling) is future work when volume justifies it.
+
+**Tier classification** — enforced at call sites, not by the ledger:
+- **Tier 1** — transactional. Never gated by `canSendTouch`. Always sends. `logTouch` after send (for visibility only). Includes: payment failed, application decisions, message notifications, purchase confirmations.
+- **Tier 2** — batch engagement. Weekly/daily crons. `canSendTouch` gated before send, `logTouch` after. Includes: weekly digest, coach recommendations, application nudge, coach activation, drip sequence.
+- **Tier 3** — marketing. `canSendTouch` gated + `email_marketing_opt_out` respected + unsubscribe link required. Includes: win-back, broadcast composer sends.
 
 ---
 
 ## Onboarding
 
-| Channel | System | Trigger | Audience | Frequency | Status | Code location | Last verified |
+**Last updated: 28 Aug 2026**
+
+| Channel | System | Trigger | Audience | Frequency / cap | Status | Code location | Last verified |
 |---|---|---|---|---|---|---|---|
-| Email | MailerLite | Player signup approved | Players (group `181864482947991450`) | One-off | Live | `lib/mailerlite.ts` (`onUserApproved`) called from `app/api/admin/review/route.ts` (approval) and `app/api/account/convert/route.ts` (fan→player instant approval) | 28 Aug 2026 |
-| Email | MailerLite | Coach signup approved | Coaches (group `181864480498517498`) | One-off | Live | Same as above — `onUserApproved` is role-aware, routes to the correct group | 28 Aug 2026 |
-| Email | MailerLite | Fan signup | Fans | One-off | **Deprecated** — not just unwired, structurally can't fire anymore | `automation 181949488153574619` (never routed via Make) | 28 Aug 2026 — fan signup itself closed 12 Aug 2026: `/register` offers Player/Coach only, `allowedRoles` in `/api/register/complete` rejects `'fan'`. The planned MailerLite fan-nurture sequence was dropped for this reason (CLAUDE.md Build Priorities), not merely left broken. Existing fans still browse and can self-convert via `/dashboard/become` — that path is unaffected |
-| Auth email | Supabase Auth (default template) | Password reset / magic link | Any user requesting reset, or migrated user via `/claim` | Conditional | Live | `app/page.tsx:48` (`supabase.auth.resetPasswordForEmail`); `/claim` + `/set-password` for the legacy magic-link claim flow | 28 Aug 2026 — no custom Resend template found (`supabase/` has no `templates/` config); this is Supabase's stock email, unbranded. Flagged as a known gap below |
-| Founder notification | Make webhook | New fan→player/coach conversion | Founder (Jamal) | One-off per conversion | Live | `app/api/account/convert/route.ts` | 28 Aug 2026 |
+| Email | MailerLite | Player signup approved | Players (group `181864482947991450`) | One-off | Live | `lib/mailerlite.ts` (`onUserApproved`) — called from `app/api/admin/review/route.ts` and `app/api/account/convert/route.ts` | 28 Aug 2026 |
+| Email | MailerLite | Coach signup approved | Coaches (group `181864480498517498`) | One-off | Live | Same — `onUserApproved` is role-aware | 28 Aug 2026 |
+| Auth email | Supabase Auth | Password reset / magic link | Any user requesting reset; migrated users via `/claim` | Conditional | Live — **unbranded** (Supabase stock template, no custom Resend equivalent) | `app/page.tsx` (`supabase.auth.resetPasswordForEmail`); `/claim` + `/set-password` | 28 Aug 2026 |
+| Founder notification | Make webhook | Fan → player/coach conversion | Founder (Jamal) | One-off per conversion | Live | `app/api/account/convert/route.ts` | 28 Aug 2026 |
+| Email | MailerLite | Fan signup | Fans | One-off | **Deprecated** — structurally can't fire. Fan signup closed 12 Aug 2026. | `automation 181949488153574619` (never routed) | 28 Aug 2026 |
+
+---
 
 ## Engagement / retention
 
-| Channel | System | Trigger | Audience | Frequency | Status | Code location | Last verified |
+**Last updated: 4 Sep 2026**
+
+| Channel | System | Trigger | Audience | Frequency / cap | Status | Code location | Last verified |
 |---|---|---|---|---|---|---|---|
-| Email | MailerLite | Weekly coach digest (recommended players) | Coaches, taste-profiled | Weekly (Tue), 6-week rotation rule | Live | `lib/recommendations.ts`, `app/api/cron/coach-recommendations` (Tuesday 08:00 UTC), `sendCoachRecommendationsEmail` (`lib/email.ts`), rotation state in `coach_recommendation_log` table | 28 Aug 2026 |
-| In-app | Supabase | Recommended players surfaced on demand | Coaches | On login/session | Live | `app/api/coach/recommendations/route.ts` | 28 Aug 2026 |
-| Email | Resend | Drip Day 0 — coach messaged a free player | Free players | Triggered inline, immediate | Live | `sendDripDay0Email`, fired from `app/api/messages/send/route.ts` when a coach messages a free player; also inserts Day 3 + Day 7 rows into `drip_jobs` | 28 Aug 2026 |
-| Email | Resend | Drip Day 3 — unread message reminder | Free players, message still unread | 3 days after Day 0 | Live | `sendDripDay3Email`, processed by `app/api/cron/drip-reminders` (daily 09:00 UTC) | 28 Aug 2026 |
-| Email + SMS | Resend + Twilio | Drip Day 7 — final reminder | Free players, message still unread | 7 days after Day 0 | Live | `sendDripDay7Email` + SMS (best-effort, `sms_opt_in` checked), `app/api/cron/drip-reminders` | 28 Aug 2026. Sequence aborts early if the player upgrades, opts out (`email_marketing_opt_out`), or reads the triggering message |
-| SMS | Twilio | Post-match "log your game" nudge | Players with an active club stint whose likely match day is today, haven't logged | Daily, per-player conditional (SMS-first) | Live | `app/api/cron/log-nudge` (daily 18:00 UTC), match-day inference in `lib/matchDay.ts` (unit tested) | 28 Aug 2026. `sms_opt_in` + 1/day `last_sms_at` cap; email fallback (`sendLogNudgeEmail`) if SMS unavailable. Free feature — no upsell |
-| Email | Resend | Weekly player digest | Every approved player | Weekly (Thu 08:00 UTC) | Live | `sendWeeklyDigestEmail`, `app/api/cron/weekly-digest`, body built/validated in `lib/weeklyDigest.ts` | 28 Aug 2026. Respects `email_marketing_opt_out`; unclaimed players (`password_set_at IS NULL`) get a claim-your-account banner instead of stats |
-| Email + SMS | Resend + Twilio | Coach nudge — unanswered applications | Coaches with pending applications ≥3 days old on still-active roles | Daily 10:00 UTC, 1 nudge per coach per 5 days | Live | `app/api/cron/application-nudge`, `sendApplicationNudgeEmail`; SMS capped at `MAX_SMS_PER_RUN` (40)/run, falls back to email past the cap; tracked via `profiles.last_application_nudge_at` | 28 Aug 2026. Also carries the opportunity-auto-close pre-warning as an extra line on this SAME send when a coach's role nears `OPP_NEGLECT_WARNING_DAYS` — deliberately never a separate message |
+| Email | Resend | Coach activation D7 — approved coach, never posted, 7+ days since join | Approved coaches with zero ever-posted opportunities | Weekly (Wed 09:00 UTC). Fires once per coach. `canSendTouch(48h)` cross-flow guard + `logTouch(coach_activation_d7)` after send | **Live** — 4 Sep 2026 | `app/api/cron/coach-activation`, `sendCoachActivationD7Email`. Angle: region player count (actively-looking players in coach's city; platform total if city unset or <3 matches). Re-verifies zero-opportunities with fresh DB query at send time. `?dryRun=1` + `?to=<email>` | 4 Sep 2026 |
+| Email | Resend | Coach activation D21 — still hasn't posted, 14+ days after D7 | Same coaches, after D7 sent, ≥14 days later | Weekly (Wed 09:00 UTC). Fires once per coach. `canSendTouch(48h)` + `logTouch(coach_activation_d21)` | **Live** — 4 Sep 2026 | Same cron, `sendCoachActivationD21Email`. Angle: social proof (coaches who posted this week — different lever from D7). After D21, coach drops out of dedicated nudging | 4 Sep 2026 |
+| Email | Resend | Win-back — subscription cancelled | Players/coaches whose subscription cancelled | Once per cancellation. `logTouch(winback)`. Respects `email_marketing_opt_out` | **Live** — rebuilt 4 Sep 2026 | `sendSubscriptionCancelledWinBackEmail`, `app/api/cron/drip-reminders`. Uses `marketingTemplate` (blue hero). Stat block is position-filtered (active roles for player's position, last 30 days) | 4 Sep 2026 |
+| Email | Resend | Coach recommendations digest | All approved coaches | Weekly (Tue 08:00 UTC). `logTouch(coach_recommendations)` after send. Respects `email_marketing_opt_out` | Live | `app/api/cron/coach-recommendations`, `sendCoachRecommendationsEmail`, `lib/recommendations.ts`. Rotation state in `coach_recommendation_log` | 4 Sep 2026 (logTouch wired) |
+| Email | Resend | Weekly player digest | All approved players | Weekly (Thu 08:00 UTC). `logTouch(weekly_digest)` after send. Respects `email_marketing_opt_out` | Live | `app/api/cron/weekly-digest`, `sendWeeklyDigestEmail`, `lib/weeklyDigest.ts`. Unclaimed players get a claim-your-account banner | 4 Sep 2026 (logTouch wired) |
+| Email | Resend | Drip Day 3 — unread message reminder | Free players, triggering message still unread | 3 days after Day 0. `logTouch(drip_day3)` | Live | `sendDripDay3Email`, `app/api/cron/drip-reminders` (daily 09:00 UTC) | 4 Sep 2026 (logTouch wired) |
+| Email + SMS | Resend + Twilio | Drip Day 7 — final reminder | Free players, triggering message still unread | 7 days after Day 0. `logTouch(drip_day7)` after each channel | Live | `sendDripDay7Email` + SMS (best-effort, `sms_opt_in` checked), `app/api/cron/drip-reminders`. Sequence aborts early if player upgrades, opts out, or reads the message | 4 Sep 2026 (logTouch wired) |
+| Email | Resend | Drip Day 0 — coach messaged a free player | Free players | Triggered inline, immediate. `logTouch(drip_day0)` | Live | `sendDripDay0Email`, fired from `app/api/messages/send/route.ts`; also inserts Day 3 + Day 7 rows into `drip_jobs` | 28 Aug 2026 |
+| Email + SMS | Resend + Twilio | Coach nudge — unanswered applications | Coaches with pending applications ≥3 days old on still-active roles | Daily 10:00 UTC. 1 nudge per coach per 5 days (`profiles.last_application_nudge_at`). SMS capped at 40/run, email fallback. `logTouch(application_nudge)` after each channel | Live | `app/api/cron/application-nudge`, `sendApplicationNudgeEmail`. Also carries opportunity-auto-close pre-warning as an extra line — never a separate send | 4 Sep 2026 (logTouch wired) |
+| SMS | Twilio | Post-match "log your game" nudge | Players with active club stint whose likely match day is today, haven't logged | Daily 18:00 UTC. `sms_opt_in` + 1/day `last_sms_at` cap. Email fallback (`sendLogNudgeEmail`) | Live | `app/api/cron/log-nudge`, `lib/matchDay.ts`. Free — no upsell | 28 Aug 2026 |
+| In-app | Supabase | Recommended players (on demand) | Coaches | On login/session | Live | `app/api/coach/recommendations/route.ts` | 28 Aug 2026 |
+
+---
 
 ## Transactional / core flow
 
-| Channel | System | Trigger | Audience | Frequency | Status | Code location | Last verified |
+**Last updated: 28 Aug 2026** — Tier 1. These sends are never gated by `canSendTouch`. They always fire. `logTouch` is called after send for visibility only.
+
+| Channel | System | Trigger | Audience | Frequency / cap | Status | Code location | Last verified |
 |---|---|---|---|---|---|---|---|
-| Email + SMS | Resend + Twilio | New message received | Player/Coach (recipient) | Real-time | Live | `app/api/messages/send/route.ts` — `sendMessageNotificationEmail` + SMS (both gated `sms_opt_in` + 1/day cap for SMS) | 28 Aug 2026 |
-| Email | Resend | Opportunity application received | Coach | Real-time | Live | `sendApplicationReceivedEmail`, `app/api/applications/apply/route.ts` | 28 Aug 2026 |
-| Email | Resend | Application accepted | Player | Real-time, always sent | Live | `sendApplicationDecisionEmail`, `app/api/applications/[id]/route.ts` (PATCH) | 28 Aug 2026. Accepts are asymmetric with declines by design — individual send, actor shown, sent no matter how old the application (good news never goes stale) |
-| Email | Resend | Application declined | Player | Capped 1 per player per 24h, only if applied <42 days ago | Live | Same route — `NOTIFY_RESOLUTION_WITHIN_DAYS` (42) in `lib/applicationResponse.ts` gates it | 28 Aug 2026. A decline older than the 42-day window resolves silently — no email, no in-app notification, card just updates |
-| Email | Resend | Shortlist available again (status change) | Coaches who shortlisted this player | Capped 1 per coach per player per week | Live | `sendShortlistAvailableEmail`, `app/api/player/status-change/route.ts` | 28 Aug 2026 |
-| In-app | Supabase (DB trigger) | Coach shortlists a player | Player | Real-time | Live | `POST /api/coach/shortlist` → `shortlisted` notification type | 28 Aug 2026 |
-| In-app | Supabase (DB trigger) | Post liked / commented / marked "interested" | Post author | Real-time | Live | Triggers `trg_notify_post_like`, `trg_notify_post_comment`, `trg_notify_post_interest` — `supabase/migrations/20260427000001_notifications.sql` | 28 Aug 2026 |
-| In-app | Supabase (DB trigger) | New application on a coach's opportunity | Coach | Real-time | Live | `trg_notify_new_application` — `supabase/migrations/20260427000002_coach_notifications.sql` | 28 Aug 2026 |
-| In-app | Supabase (DB trigger) | Coach shortlists a post / player becomes available on a coach's shortlist | Coach | Real-time | Live | `trg_notify_shortlist_post`, `trg_notify_shortlist_availability`, `trg_notify_viewed_player_free_agent` — `supabase/migrations/20260427000002_coach_notifications.sql`, repaired `20260809000002_repair_coach_notification_triggers.sql` | 28 Aug 2026 |
-| In-app | Supabase | Application closed by the platform (no response / role gone) | Player | Weekly sweep + immediate on role closure, max 4/player/run, 1 notification/player/run | Live | `app/api/cron/application-close` (weekly, Mon 11:00 UTC) + `lib/opportunityClosure.ts` (fires immediately on role closure, auto or manual) | 28 Aug 2026. Only for applications within the 42-day window — older closures are silent. NO email, NO SMS — in-app only |
-| Email + In-app | Resend + Supabase | Stale/neglected opportunity auto-closed | Coach | Weekly (Mon 11:30 UTC), 1/coach/run listing every role closed | Live | `app/api/cron/opportunity-close`, `sendOpportunityAutoClosedEmail`, `opportunity_auto_closed` notification | 28 Aug 2026. Cascades onto the role's own open applications via `lib/opportunityClosure.ts` |
-| In-app | Supabase | Message credit refunded (coach never replied) | Player | Daily, 1/player/run | Live | `app/api/cron/message-credit-refund` (daily 12:00 UTC), `lib/messageCredits.ts` | 28 Aug 2026. NOT retroactive before `REFUND_ELIGIBLE_FROM` (1 Aug 2026), hard floor in the query, no query param can cross it. NO email, NO SMS — in-app only, coach never named |
-| — | — | Legacy unused notification types: `profile_view`, `new_opportunity` | — | — | **Dead — enum values exist, nothing writes them** | `notifications` type enum | 28 Aug 2026 |
+| Email + SMS | Resend + Twilio | New message received | Player/Coach (recipient) | Real-time. SMS: `sms_opt_in` + 1/day cap | Live | `app/api/messages/send/route.ts` — `sendMessageNotificationEmail` + SMS | 28 Aug 2026 |
+| Email | Resend | Application received | Coach | Real-time | Live | `sendApplicationReceivedEmail`, `app/api/applications/apply/route.ts` | 28 Aug 2026 |
+| Email | Resend | Application accepted | Player | Real-time, always sent regardless of age | Live | `sendApplicationDecisionEmail`, `app/api/applications/[id]/route.ts`. Accepts never go stale — good news always sends | 28 Aug 2026 |
+| Email | Resend | Application declined | Player | Capped 1/player/24h; only if applied <42 days ago. Silent otherwise | Live | Same route — `NOTIFY_RESOLUTION_WITHIN_DAYS` (42) in `lib/applicationResponse.ts` | 28 Aug 2026 |
+| Email | Resend | Shortlist available (player status change) | Coaches who shortlisted this player | Capped 1/coach/player/week | Live | `sendShortlistAvailableEmail`, `app/api/player/status-change/route.ts` | 28 Aug 2026 |
+| Email + In-app | Resend + Supabase | Stale/neglected opportunity auto-closed | Coach | Weekly (Mon 11:30 UTC), 1/coach/run listing all closed roles | Live | `app/api/cron/opportunity-close`, `sendOpportunityAutoClosedEmail`, `opportunity_auto_closed` notification | 28 Aug 2026 |
+| In-app | Supabase (DB trigger) | Coach shortlists a player | Player | Real-time | Live | `POST /api/coach/shortlist` → `shortlisted` notification | 28 Aug 2026 |
+| In-app | Supabase (DB trigger) | Post liked / commented / marked interested | Post author | Real-time | Live | `trg_notify_post_like`, `trg_notify_post_comment`, `trg_notify_post_interest` | 28 Aug 2026 |
+| In-app | Supabase (DB trigger) | New application on a coach's opportunity | Coach | Real-time | Live | `trg_notify_new_application` | 28 Aug 2026 |
+| In-app | Supabase (DB trigger) | Shortlisted player becomes available | Coach | Real-time | Live | `trg_notify_shortlist_availability`, `trg_notify_viewed_player_free_agent` | 28 Aug 2026 |
+| In-app | Supabase | Application closed (no response / role gone) | Player | Weekly (Mon 11:00 UTC) + immediate on role closure. Max 4/player/run, 1 notification/player/run. 42-day window only | Live | `app/api/cron/application-close`, `lib/opportunityClosure.ts`. NO email, NO SMS | 28 Aug 2026 |
+| In-app | Supabase | Message credit refunded | Player | Daily (12:00 UTC), 1/player/run. Not retroactive before 1 Aug 2026 | Live | `app/api/cron/message-credit-refund`. NO email, NO SMS — in-app only, coach never named | 28 Aug 2026 |
+| — | — | Legacy: `profile_view`, `new_opportunity` notification types | — | — | **Dead** — enum values exist, nothing writes them | `notifications` type enum | 28 Aug 2026 |
+
+---
 
 ## Billing / lifecycle
 
-| Channel | System | Trigger | Audience | Frequency | Status | Code location | Last verified |
+**Last updated: 4 Sep 2026**
+
+| Channel | System | Trigger | Audience | Frequency / cap | Status | Code location | Last verified |
 |---|---|---|---|---|---|---|---|
-| Tag | MailerLite | Premium upgrade (adds `player_premium` / `coach_pro` tag) | Player/Coach on upgrade | One-off per upgrade | Live | `onUserUpgradedToPremium` (`lib/mailerlite.ts`), called from `app/api/stripe/webhook/route.ts` (subscription events) and `app/api/stripe/sync/route.ts` (login-time catch-up) | 28 Aug 2026 |
-| Email | Resend | Message pack purchase confirmation | Player | One-off per purchase | Live | `sendExtraMessagesPurchaseEmail`, `app/api/stripe/webhook/route.ts` (`checkout.session.completed`, `message_pack` type) | 28 Aug 2026 |
-| Email + SMS | Resend + Twilio | Payment failed | Premium subscriber | Conditional, on `invoice.payment_failed` | Live | `sendPaymentFailedEmail` + SMS (`handlePaymentFailedNotifications`), `app/api/stripe/webhook/route.ts` | 28 Aug 2026 |
-| Email | Resend | Payment failed — follow-up reminder | Premium subscriber, payment still failed | Conditional | Live | `sendPaymentFailedFollowUpEmail`, `app/api/cron/drip-reminders` | 28 Aug 2026 |
-| Email | Resend | Subscription cancelled — win-back | Player/Coach, subscription cancelled | Once per cancellation | Live | `sendSubscriptionCancelledWinBackEmail`, `app/api/cron/drip-reminders` | 4 Sep 2026. Uses `marketingTemplate` (blue hero band, distinct from transactional). Stat block is position-filtered (active roles for the player's position in the last 30 days). Respects `email_marketing_opt_out`. |
+| Email + SMS | Resend + Twilio | Payment failed | Premium subscriber | On `invoice.payment_failed`. Tier 1 — always sends | Live | `sendPaymentFailedEmail` + SMS (`handlePaymentFailedNotifications`), `app/api/stripe/webhook/route.ts` | 28 Aug 2026 |
+| Email | Resend | Payment failed — follow-up | Premium subscriber, payment still failed | Conditional, processed by drip cron. `logTouch(payment_failed_followup)` | Live | `sendPaymentFailedFollowUpEmail`, `app/api/cron/drip-reminders` | 4 Sep 2026 (logTouch wired) |
+| Email | Resend | Subscription cancelled — win-back | Cancelled players/coaches | Once per cancellation. `marketingTemplate`. Respects `email_marketing_opt_out`. `logTouch(winback)` | Live — rebuilt 4 Sep 2026 | `sendSubscriptionCancelledWinBackEmail`, `app/api/cron/drip-reminders`. Position-filtered stat block | 4 Sep 2026 |
+| Email | Resend | Message pack purchase confirmation | Player | One-off per purchase. Tier 1 | Live | `sendExtraMessagesPurchaseEmail`, `app/api/stripe/webhook/route.ts` | 28 Aug 2026 |
+| Tag | MailerLite | Premium upgrade | Player/Coach on upgrade | One-off per upgrade | Live | `onUserUpgradedToPremium` (`lib/mailerlite.ts`), `app/api/stripe/webhook/route.ts` + `app/api/stripe/sync/route.ts` | 28 Aug 2026 |
 
-## Internal / founder-only (not a customer touchpoint, tracked here for completeness)
+---
 
-| Channel | System | Trigger | Audience | Frequency | Status | Code location | Last verified |
+## Admin broadcast composer
+
+**Last updated: 4 Sep 2026**
+
+Admin-only. Jamal is the only admin. Accessible at `/dashboard/admin/broadcast`.
+
+| Channel | System | Trigger | Audience | Frequency / cap | Status | Code location | Last verified |
 |---|---|---|---|---|---|---|---|
-| Telegram | Custom (`lib/telegram.ts`) | Weekly platform metrics report | Founder (Jamal) only | Weekly (Mon 08:00 UTC) | Live | `app/api/cron/weekly-metrics-telegram`, `lib/weeklyReport.ts` | 28 Aug 2026 |
+| Email | Resend | Manual broadcast (admin composed) | Any segment: role / tier / joined date / activity filter | Per send. `countRecentTouches` shown as pre-send warning. `logTouch(broadcast)` per recipient after send. Respects `email_marketing_opt_out`. Unsubscribe link required | **Live** — 4 Sep 2026 | `app/dashboard/admin/broadcast/page.tsx`, `app/api/admin/broadcast/preview`, `app/api/admin/broadcast/send`. Uses `marketingTemplate`. `{{name}}` personalisation supported | 4 Sep 2026 |
 
-## To fill in (known gaps as of 28 Aug 2026)
+Note: blocked recipients (those who received another email recently) are **skipped, not queued**. A broadcast is a point-in-time send. If a recipient is suppressed by `email_marketing_opt_out` or the touchpoint check, they don't receive that broadcast ever.
 
-- [x] ~~Fan onboarding automation~~ — resolved by product decision, not code: fan signup is closed (12 Aug 2026), so this was dropped rather than built. No action needed unless fan signup reopens.
-- [x] Full audit of Twilio SMS triggers — done above. Exactly 6 send sites, all gated on `sms_opt_in` AND the 1-per-recipient-per-day `last_sms_at` cap: `messages/send`, `admin/review`, `cron/application-nudge`, `cron/drip-reminders` (Day 7 only), `cron/log-nudge`, `stripe/webhook` (payment failed). Nothing else sends SMS — in particular, application closures/declines and message credit refunds are deliberately in-app (+ email for opportunity closure) only, so nobody gets texted rejection news.
-- [ ] Password reset / auth emails — confirmed **not customised**, still Supabase Auth's stock template (unbranded). Worth a branded Resend template at some point, but functionally live and working.
-- [ ] Coach Pro dashboard access confirmation message — no dedicated "you now have Coach Pro" transactional email beyond the generic MailerLite tag add (`coach_pro`); the premium upgrade itself has no confirmation email at all (Stripe's own receipt is the only immediate confirmation the payer sees). Consider whether that's intentional.
+---
+
+## Internal / founder-only
+
+**Last updated: 28 Aug 2026**
+
+| Channel | System | Trigger | Audience | Frequency / cap | Status | Code location | Last verified |
+|---|---|---|---|---|---|---|---|
+| Telegram | Custom | Weekly platform metrics | Founder (Jamal) only | Weekly (Mon 08:00 UTC) | Live | `app/api/cron/weekly-metrics-telegram`, `lib/weeklyReport.ts` | 28 Aug 2026 |
+
+---
+
+## Known gaps
+
+**Updated: 4 Sep 2026**
+
+- [ ] **No email queue** — blocked sends are skipped, not deferred. Recurring crons self-heal (next run retries). Broadcast sends to suppressed recipients are permanently missed. A `email_queue` table with a drain cron is the fix when volume makes this matter.
+- [ ] **No priority weighting** — tiers (Tier 1/2/3) are enforced by convention at call sites, not structurally. If two Tier 2 crons fire to the same person on the same day, whichever runs first wins and the other is skipped. No mechanism prioritises a Tier 1 send over a Tier 2 that already went out.
+- [ ] **Auth emails unbranded** — password reset / magic link still uses Supabase's stock template. A custom Resend template would match the app's brand.
+- [ ] **No Coach Pro upgrade confirmation email** — Stripe sends its own receipt; there's no NEXT11VEN email saying "you now have Coach Pro." MailerLite tags the upgrade but doesn't send a confirmation either.
+- [x] ~~Fan onboarding~~ — dropped. Fan signup closed 12 Aug 2026.
+- [x] ~~Full SMS audit~~ — complete. Exactly 6 send sites, all gated on `sms_opt_in` + 1/day cap.

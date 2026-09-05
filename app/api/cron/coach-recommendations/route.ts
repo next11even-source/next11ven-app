@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getRecommendedPlayers, logRecommendations } from '@/lib/recommendations'
 import { sendCoachRecommendationsEmail } from '@/lib/email'
+import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 
 export const runtime = 'nodejs'
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
       })
 
       await logRecommendations(supabase, coach.id, players.map(p => p.id), 'email')
+      await logTouch(supabase, coach.id, 'email', 'coach_recommendations') // Tier 2: batch weekly send — log for touchpoint governor
 
       sent++
       console.log(`[coach-recommendations] sent ${players.length} picks to ${coach.email}`)

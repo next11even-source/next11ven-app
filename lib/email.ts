@@ -996,16 +996,48 @@ export async function sendPlayerOnboardingD7Email({
     ? `Right now there ${openRoleCount === 1 ? 'is' : 'are'} ${openRoleCount} open ${position ? position.toLowerCase() : ''} ${openRoleCount === 1 ? 'role' : 'roles'} live for your region.`
     : "New roles go up every week — Premium means you're never behind on them."
 
+  const positionLabel = position ? position.toLowerCase() : ''
+  const openingLine = statAvailable && openRoleCount > 0
+    ? `Your profile's been live a week. There ${openRoleCount === 1 ? 'is' : 'are'} ${openRoleCount} open ${positionLabel} ${openRoleCount === 1 ? 'role' : 'roles'} live for your area right now. Here's what's stopping you from being in front of them.`
+    : "Your profile's been live a week. Roles are going up every week. Here's what's stopping coaches from finding you."
+
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
-      Your profile's been live a week. Here's what Premium actually changes: you get ranked higher, seen in more places, and you can apply directly to roles and message coaches — free profiles can be found, Premium profiles get the first look.
+      ${openingLine}
     </p>
     ${statBlock}
-    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
-      ${roleLine}
-    </p>
-    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Go Premium</a>
+
+    <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 8px;">
+      <div style="padding:16px 20px;">
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">Coaches can't find you in search</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Free profiles don't appear in the Actively Looking carousel or free-agent searches — the two places coaches go first. Switch on Actively Looking with Pro and you're in front of them every time they open the app.</p>
+      </div>
+    </div>
+
+    <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 8px;">
+      <div style="padding:16px 20px;">
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">You can't read messages coaches have sent you</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Coaches can message any player on the platform. If one has messaged you, you won't know until you upgrade. Pro unlocks every message, plus 3 direct intros to coaches a month — refunded if they don't reply within 14 days.</p>
+      </div>
+    </div>
+
+    <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 8px;">
+      <div style="padding:16px 20px;">
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">You don't know who's already interested</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Pro shows you which coaches viewed your profile and which saved you to a shortlist — the strongest signal a coach is serious. Right now that list is hidden.</p>
+      </div>
+    </div>
+
+    <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 24px;">
+      <div style="padding:16px 20px;">
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">You rank below every Pro player when coaches browse</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Pro players appear higher in coach searches. Free profiles are at the bottom. Pro players get 3× more coach views on average.</p>
+      </div>
+    </div>
+
+    <p style="color:#8892aa;font-size:12px;margin:0 0 16px;text-align:center;">£6.99/mo — about £1.60 a week</p>
+    <a href="${upgradeUrl}" style="display:block;padding:14px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;text-align:center;">Go Pro</a>
   `, makeUnsubscribeUrl(playerId))
   await send({ to, subject, html, tags: [{ name: 'flow', value: 'player_onboarding_d7' }] })
 }

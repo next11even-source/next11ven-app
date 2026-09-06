@@ -125,7 +125,7 @@ const GROUPS: Group[] = [
       {
         id: 'player_onboarding_d7',
         label: 'Day 7 — Premium pitch',
-        description: 'Open role count stat block (6 Midfielder roles). Upgrade CTA.',
+        description: 'Personalised role count hook (6 Midfielder roles in test), then 4 outcome-led value cards: visibility, unread messages, who viewed/shortlisted you, search ranking. Price anchor + Go Pro CTA.',
       },
     ],
   },

@@ -872,10 +872,13 @@ export async function sendPlayerOnboardingD0Email({
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
       You're approved. Coaches across non-league football are already on here looking for players like you.
     </p>
-    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
-      First thing to do: make sure your profile is impossible to scroll past. Position, stats, highlight video if you've got one — the more complete it is, the more seriously coaches take it.
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      The most important thing you can do right now: add your playing history. Every club you've played for, every level, every season. No other platform in non-league shows this — and it's the first thing coaches look at to understand where you've been and whether you're right for their club.
     </p>
-    <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Complete your profile</a>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Once that's in, fill out the rest — position, stats, highlight video if you've got one. The more complete it is, the more seriously coaches take it.
+    </p>
+    <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Add your playing history</a>
   `)
   await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'player_onboarding_d0' }] })
 }
@@ -921,7 +924,10 @@ export async function sendPlayerOnboardingD1Email({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      Profiles with a highlight video get seen first. If yours doesn't have one yet, that's the single biggest thing you can add today.
+      Your career record — every club, every level — is the thing no other non-league platform shows. Coaches look at this first to understand where you've been and whether you're right for their club. If it's not on your profile yet, that's the single most important thing to add.
+    </p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      After that, a highlight video goes a long way — coaches want to see you play before they reach out.
     </p>
     ${missingList}
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">

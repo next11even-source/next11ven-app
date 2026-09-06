@@ -115,7 +115,7 @@ const GROUPS: Group[] = [
       {
         id: 'player_onboarding_d1',
         label: 'Day 1 — Profile completion nudge',
-        description: 'Highlight video pitch. Copy branches on profileComplete — test preview shows incomplete path.',
+        description: 'Highlight video pitch + Actively Looking teaser (Pro feature). Copy branches on profileComplete — test preview shows incomplete path.',
       },
       {
         id: 'player_onboarding_d3',

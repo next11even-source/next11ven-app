@@ -868,7 +868,8 @@ export async function sendPlayerOnboardingD0Email({
 }) {
   const profileUrl = `${SITE}/dashboard/player/profile`
   const html = baseTemplate(`
-    <p style="color:#e8dece;margin:0 0 16px;line-height:1.6;">
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
       You're approved. Coaches across non-league football are already on here looking for players like you.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
@@ -907,8 +908,11 @@ export async function sendPlayerOnboardingD1Email({
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
       Profiles with a highlight video get seen first. If yours doesn't have one yet, that's the single biggest thing you can add today.
     </p>
-    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
       ${bodyLine}
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      One more thing worth knowing: Pro members can switch on <strong style="color:#e8dece;">Actively Looking</strong> — it puts your profile in a dedicated carousel coaches see every time they open the app, and ranks you higher in their searches. It's the difference between waiting to be found and putting yourself in front of them.
     </p>
     <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">${ctaLabel}</a>
   `, makeUnsubscribeUrl(playerId))
@@ -933,7 +937,7 @@ export async function sendPlayerOnboardingD3Email({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      ${approvedCoachCount} clubs are actively using NEXT11VEN to find players right now — from Step 3 up to National League level.
+      ${approvedCoachCount} clubs are actively using NEXT11VEN to find players right now — from Step 2 up to National League level.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
       Some post opportunities you can apply to directly. Others message players they've spotted without posting anything first — so a complete profile matters even when there's no open role listed yet.

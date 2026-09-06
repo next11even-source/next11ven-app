@@ -890,27 +890,40 @@ export async function sendPlayerOnboardingD1Email({
   to,
   firstName: firstNameParam,
   playerId,
-  profileComplete,
+  missingFields,
 }: {
   to: string
   firstName: string | null
   playerId: string
-  profileComplete: boolean
+  /** Ranked missing profile fields from calcCompletion — top 5 max. Empty = profile complete. */
+  missingFields: Array<{ label: string; why: string }>
 }) {
   const profileUrl = `${SITE}/dashboard/player/profile`
-  const ctaLabel = profileComplete ? 'View your public profile' : 'Finish your profile'
-  const bodyLine = profileComplete
-    ? 'Yours looks solid — coaches searching your position will see it.'
-    : 'Yours is missing a few things coaches check first.'
+  const isComplete = missingFields.length === 0
+  const ctaLabel = isComplete ? 'View your public profile' : 'Finish your profile'
+
+  const missingList = isComplete
+    ? `<p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">Yours looks solid — coaches searching your position will see it.</p>`
+    : `<p style="color:#8892aa;margin:0 0 12px;line-height:1.6;">Here's what yours is still missing, in order of what coaches notice first:</p>
+       <table style="width:100%;border-collapse:collapse;margin:0 0 16px;">
+         ${missingFields.map((f, i) => `
+           <tr>
+             <td style="padding:10px 12px;border-top:${i === 0 ? 'none' : '1px solid #1e2235'};vertical-align:top;width:1%;white-space:nowrap;">
+               <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#1a1f3a;border:1px solid #2a3150;text-align:center;line-height:20px;font-size:11px;font-weight:700;color:#4d8ae8;">${i + 1}</span>
+             </td>
+             <td style="padding:10px 12px;border-top:${i === 0 ? 'none' : '1px solid #1e2235'};">
+               <p style="color:#e8dece;font-weight:600;font-size:13px;margin:0 0 2px;">${f.label}</p>
+               <p style="color:#8892aa;font-size:12px;margin:0;line-height:1.5;">${f.why}</p>
+             </td>
+           </tr>`).join('')}
+       </table>`
 
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
       Profiles with a highlight video get seen first. If yours doesn't have one yet, that's the single biggest thing you can add today.
     </p>
-    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      ${bodyLine}
-    </p>
+    ${missingList}
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
       One more thing worth knowing: Pro members can switch on <strong style="color:#e8dece;">Actively Looking</strong> — it puts your profile in a dedicated carousel coaches see every time they open the app, and ranks you higher in their searches. It's the difference between waiting to be found and putting yourself in front of them.
     </p>

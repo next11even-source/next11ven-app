@@ -204,7 +204,12 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         to,
         firstName: 'Jamal',
         playerId: userId,
-        profileComplete: false,
+        // Representative missing fields — ranked as profileCompletion.ts would return them
+        missingFields: [
+          { label: 'Highlight reel', why: 'Coaches want to see you play before they message.' },
+          { label: 'Playing history', why: "Your career record — clubs and levels you've played, shown nowhere else in non-league." },
+          { label: 'Season stats', why: 'Numbers back up everything else on your profile.' },
+        ],
       })
 
     case 'player_onboarding_d3':

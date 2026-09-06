@@ -15,6 +15,7 @@ import {
   sendPlayerProWelcomeEmail,
   sendCoachProWelcomeEmail,
 } from '@/lib/email'
+import { COMPLETION_CHECKS } from '@/lib/profileCompletion'
 import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { getFlowSettings } from '@/lib/flowSettings'
@@ -81,27 +82,7 @@ const ONBOARDING_STEP_FLOW: Record<number, string> = {
   21: 'coach_pro_welcome',
 }
 
-// ── Profile completion check (13-field score from CLAUDE.md) ─────────────────
-function isProfileComplete(p: ProfileEmbed): boolean {
-  const fields = [
-    !!p.avatar_url,
-    !!p.position,
-    !!p.club,
-    !!p.city,
-    !!p.status,
-    !!p.phone,
-    !!p.date_of_birth,
-    !!p.foot,
-    !!p.height,
-    !!p.playing_level,
-    !!(p.highlight_urls && p.highlight_urls.length > 0),
-    !!p.bio,
-    !!(p.goals || p.assists || p.appearances),
-  ]
-  return fields.filter(Boolean).length >= 10
-}
-
-// ── Per-step onboarding send (module-level so it can call isProfileComplete) ──
+// ── Per-step onboarding send ──────────────────────────────────────────────────
 async function sendOnboardingStep(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
@@ -121,8 +102,36 @@ async function sendOnboardingStep(
       break
     }
     case 11: {
-      const profileComplete = isProfileComplete(profile)
-      await sendPlayerOnboardingD1Email({ to, firstName: firstNameParam, playerId: job.recipient_id, profileComplete })
+      // Fetch tracker data (career history + logged matches) in parallel —
+      // both inform completion checks that aren't visible on the flat profile row.
+      const [careerRes, matchRes] = await Promise.all([
+        supabase.from('career_stats').select('id', { count: 'exact', head: true }).eq('player_id', job.recipient_id),
+        supabase.from('performance_matches').select('id', { count: 'exact', head: true }).eq('player_id', job.recipient_id),
+      ])
+      const completionProfile = {
+        avatar_url: profile.avatar_url,
+        position: profile.position,
+        club: profile.club,
+        city: profile.city,
+        status: profile.status,
+        phone: profile.phone,
+        date_of_birth: profile.date_of_birth,
+        foot: profile.foot,
+        height: profile.height != null ? String(profile.height) : null,
+        playing_level: profile.playing_level,
+        highlight_urls: profile.highlight_urls,
+        goals: profile.goals ?? undefined,
+        assists: profile.assists ?? undefined,
+        appearances: profile.appearances ?? undefined,
+        hasCareerHistory: (careerRes.count ?? 0) > 0,
+        hasPerformanceLog: (matchRes.count ?? 0) > 0,
+      }
+      // Top 5 missing fields, ranked by importance (order defined in profileCompletion.ts)
+      const missingFields = COMPLETION_CHECKS
+        .filter(c => !c.done(completionProfile))
+        .slice(0, 5)
+        .map(c => ({ label: c.label, why: c.why }))
+      await sendPlayerOnboardingD1Email({ to, firstName: firstNameParam, playerId: job.recipient_id, missingFields })
       await logTouch(supabase, job.recipient_id, 'email', 'player_onboarding_d1')
       break
     }

@@ -937,7 +937,7 @@ export async function sendPlayerOnboardingD3Email({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      ${approvedCoachCount} clubs are actively using NEXT11VEN to find players right now — from Step 2 up to National League level.
+      ${approvedCoachCount} clubs are actively using NEXT11VEN to find players right now — from National League (Step 2) down to regional leagues (Step 7 and below).
     </p>
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
       Some post opportunities you can apply to directly. Others message players they've spotted without posting anything first — so a complete profile matters even when there's no open role listed yet.

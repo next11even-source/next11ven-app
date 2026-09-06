@@ -1168,6 +1168,9 @@ export async function sendCoachOnboardingD5Email({
     ? `You're not the only one deciding whether this is worth your time. ${recruitingCoachCount} clubs are actively recruiting on NEXT11VEN right now — posting opportunities, messaging players directly, or both.`
     : `You're not the only one deciding whether this is worth your time. Clubs have posted ${fallbackOpportunityCount} opportunities on NEXT11VEN since launch — and the players are here for them.`
 
+  const proUrl = `${SITE}/dashboard/coach/premium`
+  const performanceUrl = `${SITE}/dashboard/coach/performance`
+
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
     <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
@@ -1178,6 +1181,12 @@ export async function sendCoachOnboardingD5Email({
       Yours could be one of them in under two minutes.
     </p>
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post an opportunity</a>
+
+    <div style="margin:28px 0 0;padding-top:24px;border-top:1px solid #1e2235;">
+      <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 8px;">Want to go further? Coach Pro lets you recruit by stats.</p>
+      <p style="color:#8892aa;font-size:13px;margin:0 0 16px;line-height:1.6;">Instead of browsing profiles one by one, the Coach Pro performance dashboard lets you filter every consenting player on the platform by their actual numbers — goals, appearances, minutes played. Find players who fit your standard without the guesswork.</p>
+      <a href="${performanceUrl}" style="display:inline-block;padding:10px 20px;background:transparent;color:#4d8ae8;text-decoration:none;border-radius:8px;font-weight:600;font-size:13px;border:1px solid #2a3150;">Explore the performance dashboard</a>
+    </div>
   `, unsubscribeUrl)
   await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d5' }] })
 }

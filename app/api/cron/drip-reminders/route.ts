@@ -16,7 +16,7 @@ import {
   sendCoachProWelcomeEmail,
 } from '@/lib/email'
 import { COMPLETION_CHECKS } from '@/lib/profileCompletion'
-import { logTouch } from '@/lib/touchpoint'
+import { canSendTouch, logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { getFlowSettings } from '@/lib/flowSettings'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
@@ -421,6 +421,15 @@ export async function GET(req: NextRequest) {
 
       if (!profile.email) {
         await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+        skipped++
+        continue
+      }
+
+      // D3 (step 12) and D7 (step 13) are batch marketing sends — guard against
+      // same-day overlap with the weekly digest or other batch emails. Job is NOT
+      // marked sent so the daily cron retries tomorrow once the gap clears.
+      const isBatchStep = [12, 13].includes(job.sequence_step)
+      if (isBatchStep && !(await canSendTouch(supabase, job.recipient_id, 'email', 24))) {
         skipped++
         continue
       }

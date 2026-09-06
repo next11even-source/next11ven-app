@@ -145,7 +145,7 @@ const GROUPS: Group[] = [
       {
         id: 'coach_onboarding_d5',
         label: 'Day 5 — Social proof',
-        description: 'Blended recruiting activity stat — coaches with an active opportunity OR a message sent in the last 30 days (19 in test). Final nudge before activation flow takes over at D7.',
+        description: 'Blended recruiting activity stat (19 in test). Final onboarding nudge. Includes a secondary Coach Pro section pitching the performance dashboard — recruit by stats, not by browsing.',
       },
     ],
   },

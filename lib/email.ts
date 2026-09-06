@@ -998,8 +998,8 @@ export async function sendPlayerOnboardingD7Email({
 
   const positionLabel = position ? position.toLowerCase() : ''
   const openingLine = statAvailable && openRoleCount > 0
-    ? `Your profile's been live a week. There ${openRoleCount === 1 ? 'is' : 'are'} ${openRoleCount} open ${positionLabel} ${openRoleCount === 1 ? 'role' : 'roles'} live for your area right now. Here's what's stopping you from being in front of them.`
-    : "Your profile's been live a week. Roles are going up every week. Here's what's stopping coaches from finding you."
+    ? `Your profile's been live a week. There ${openRoleCount === 1 ? 'is' : 'are'} ${openRoleCount} open ${positionLabel} ${openRoleCount === 1 ? 'role' : 'roles'} live for your area right now. Here's what Pro gets you.`
+    : "Your profile's been live a week and roles are going up every week. Here's what Pro gets you."
 
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
@@ -1010,29 +1010,29 @@ export async function sendPlayerOnboardingD7Email({
 
     <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 8px;">
       <div style="padding:16px 20px;">
-        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">Coaches can't find you in search</p>
-        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Free profiles don't appear in the Actively Looking carousel or free-agent searches — the two places coaches go first. Switch on Actively Looking with Pro and you're in front of them every time they open the app.</p>
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">Get spotted by more coaches</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Switch on Actively Looking and appear in the carousel and free-agent searches coaches run first. Pro players get 3× more coach views on average.</p>
       </div>
     </div>
 
     <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 8px;">
       <div style="padding:16px 20px;">
-        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">You can't read messages coaches have sent you</p>
-        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Coaches can message any player on the platform. If one has messaged you, you won't know until you upgrade. Pro unlocks every message, plus 3 direct intros to coaches a month — refunded if they don't reply within 14 days.</p>
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">Read and reply to coach messages</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Read every message coaches send you, plus 3 direct intros to coaches a month. If a coach doesn't reply within 14 days, you get the intro back.</p>
       </div>
     </div>
 
     <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 8px;">
       <div style="padding:16px 20px;">
-        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">You don't know who's already interested</p>
-        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Pro shows you which coaches viewed your profile and which saved you to a shortlist — the strongest signal a coach is serious. Right now that list is hidden.</p>
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">See who's viewed and shortlisted you</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Know which coaches have viewed your profile and which saved you to a shortlist — the strongest signal a coach is serious about you.</p>
       </div>
     </div>
 
     <div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;overflow:hidden;margin:0 0 24px;">
       <div style="padding:16px 20px;">
-        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">You rank below every Pro player when coaches browse</p>
-        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">Pro players appear higher in coach searches. Free profiles are at the bottom. Pro players get 3× more coach views on average.</p>
+        <p style="color:#e8dece;font-weight:700;font-size:14px;margin:0 0 4px;">Rank above free players in coach searches</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;line-height:1.5;">When coaches browse players, Pro profiles appear first. More visibility means more chances of getting the message that changes your season.</p>
       </div>
     </div>
 

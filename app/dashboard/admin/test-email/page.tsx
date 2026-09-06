@@ -40,7 +40,7 @@ const GROUPS: Group[] = [
       {
         id: 'coach_activation_d7',
         label: 'Day 7 — region player count',
-        description: 'First nudge. Shows how many players in their area are actively looking.',
+        description: 'First nudge. Shows approved player count in their region (not the actively_looking toggle — all approved profiles in their area).',
       },
       {
         id: 'coach_activation_d21',
@@ -120,7 +120,7 @@ const GROUPS: Group[] = [
       {
         id: 'player_onboarding_d3',
         label: 'Day 3 — Coaches are here',
-        description: 'Shows approved coach count (87 in test). Funnels to Open Roles.',
+        description: 'Shows approved coach count (87 in test). Covers both paths: posting opportunities to apply to AND coaches who message players directly without posting. CTA goes to Open Roles.',
       },
       {
         id: 'player_onboarding_d7',
@@ -145,7 +145,7 @@ const GROUPS: Group[] = [
       {
         id: 'coach_onboarding_d5',
         label: 'Day 5 — Social proof',
-        description: 'Recruiting coach count stat (19 clubs in test). Final nudge before activation flow takes over.',
+        description: 'Blended recruiting activity stat — coaches with an active opportunity OR a message sent in the last 30 days (19 in test). Final nudge before activation flow takes over at D7.',
       },
     ],
   },

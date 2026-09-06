@@ -12,6 +12,15 @@ type TemplateId =
   | 'application_nudge'
   | 'weekly_digest'
   | 'broadcast'
+  | 'player_onboarding_d0'
+  | 'player_onboarding_d1'
+  | 'player_onboarding_d3'
+  | 'player_onboarding_d7'
+  | 'coach_onboarding_d0'
+  | 'coach_onboarding_d2'
+  | 'coach_onboarding_d5'
+  | 'player_pro_welcome'
+  | 'coach_pro_welcome'
 
 type Template = {
   id: TemplateId
@@ -92,6 +101,66 @@ const GROUPS: Group[] = [
         id: 'broadcast',
         label: 'Broadcast (marketing template)',
         description: 'Admin-composed email via the Email Composer. Blue hero band, wider card, unsubscribe footer.',
+      },
+    ],
+  },
+  {
+    label: 'Player onboarding flow',
+    templates: [
+      {
+        id: 'player_onboarding_d0',
+        label: 'Day 0 — Welcome (approved)',
+        description: 'Fires on admin approval. No personalised stats. Prompts profile completion.',
+      },
+      {
+        id: 'player_onboarding_d1',
+        label: 'Day 1 — Profile completion nudge',
+        description: 'Highlight video pitch. Copy branches on profileComplete — test preview shows incomplete path.',
+      },
+      {
+        id: 'player_onboarding_d3',
+        label: 'Day 3 — Coaches are here',
+        description: 'Shows approved coach count (87 in test). Funnels to Open Roles.',
+      },
+      {
+        id: 'player_onboarding_d7',
+        label: 'Day 7 — Premium pitch',
+        description: 'Open role count stat block (6 Midfielder roles). Upgrade CTA.',
+      },
+    ],
+  },
+  {
+    label: 'Coach onboarding flow',
+    templates: [
+      {
+        id: 'coach_onboarding_d0',
+        label: 'Day 0 — Welcome (approved)',
+        description: 'Fires on admin approval. Shows active player count (312 in test). Post opportunity CTA.',
+      },
+      {
+        id: 'coach_onboarding_d2',
+        label: 'Day 2 — Regional player count',
+        description: 'Regional stat block (28 players in Manchester in test). Prompts first post.',
+      },
+      {
+        id: 'coach_onboarding_d5',
+        label: 'Day 5 — Social proof',
+        description: 'Recruiting coach count stat (19 clubs in test). Final nudge before activation flow takes over.',
+      },
+    ],
+  },
+  {
+    label: 'Premium welcome',
+    templates: [
+      {
+        id: 'player_pro_welcome',
+        label: 'Player Pro welcome',
+        description: 'Transactional. Fires on first premium activation. No unsubscribe link.',
+      },
+      {
+        id: 'coach_pro_welcome',
+        label: 'Coach Pro welcome',
+        description: 'Transactional. Fires on first Coach Pro activation. No unsubscribe link.',
       },
     ],
   },

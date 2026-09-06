@@ -11,6 +11,15 @@ import {
   sendApplicationNudgeEmail,
   sendWeeklyDigestEmail,
   sendBroadcastEmail,
+  sendPlayerOnboardingD0Email,
+  sendPlayerOnboardingD1Email,
+  sendPlayerOnboardingD3Email,
+  sendPlayerOnboardingD7Email,
+  sendCoachOnboardingD0Email,
+  sendCoachOnboardingD2Email,
+  sendCoachOnboardingD5Email,
+  sendPlayerProWelcomeEmail,
+  sendCoachProWelcomeEmail,
 } from '@/lib/email'
 
 const TEMPLATES = [
@@ -22,6 +31,15 @@ const TEMPLATES = [
   'application_nudge',
   'weekly_digest',
   'broadcast',
+  'player_onboarding_d0',
+  'player_onboarding_d1',
+  'player_onboarding_d3',
+  'player_onboarding_d7',
+  'coach_onboarding_d0',
+  'coach_onboarding_d2',
+  'coach_onboarding_d5',
+  'player_pro_welcome',
+  'coach_pro_welcome',
 ] as const
 
 type Template = typeof TEMPLATES[number]
@@ -177,6 +195,68 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         `,
         unsubscribeUrl,
       })
+
+    case 'player_onboarding_d0':
+      return sendPlayerOnboardingD0Email({ to, firstName: 'Jamal' })
+
+    case 'player_onboarding_d1':
+      return sendPlayerOnboardingD1Email({
+        to,
+        firstName: 'Jamal',
+        playerId: userId,
+        profileComplete: false,
+      })
+
+    case 'player_onboarding_d3':
+      return sendPlayerOnboardingD3Email({
+        to,
+        firstName: 'Jamal',
+        playerId: userId,
+        approvedCoachCount: 87,
+      })
+
+    case 'player_onboarding_d7':
+      return sendPlayerOnboardingD7Email({
+        to,
+        firstName: 'Jamal',
+        playerId: userId,
+        openRoleCount: 6,
+        statAvailable: true,
+        position: 'Midfielder',
+      })
+
+    case 'coach_onboarding_d0':
+      return sendCoachOnboardingD0Email({
+        to,
+        coachName: 'Jamal Crawford',
+        activePlayerCount: 312,
+      })
+
+    case 'coach_onboarding_d2':
+      return sendCoachOnboardingD2Email({
+        to,
+        coachName: 'Jamal Crawford',
+        coachId: userId,
+        regionalPlayerCount: 28,
+        statAvailable: true,
+        regionLabel: 'Manchester',
+      })
+
+    case 'coach_onboarding_d5':
+      return sendCoachOnboardingD5Email({
+        to,
+        coachName: 'Jamal Crawford',
+        coachId: userId,
+        recruitingCoachCount: 19,
+        statAvailable: true,
+        fallbackOpportunityCount: 64,
+      })
+
+    case 'player_pro_welcome':
+      return sendPlayerProWelcomeEmail({ to, firstName: 'Jamal' })
+
+    case 'coach_pro_welcome':
+      return sendCoachProWelcomeEmail({ to, coachName: 'Jamal Crawford' })
   }
 }
 

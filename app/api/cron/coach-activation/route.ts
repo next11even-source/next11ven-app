@@ -4,6 +4,7 @@ import { sendCoachActivationD7Email, sendCoachActivationD21Email } from '@/lib/e
 import { logTouch, canSendTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
+import { getFlowSettings } from '@/lib/flowSettings'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -54,6 +55,11 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const flowEnabled = await getFlowSettings(supabase, ['coach_activation_d7', 'coach_activation_d21'])
+  if (!flowEnabled.coach_activation_d7 && !flowEnabled.coach_activation_d21) {
+    return NextResponse.json({ skipped: 'all flows disabled' })
+  }
+
   // ── Coaches who have ever posted at least one opportunity (any state) ──────
   // Checked at query time; re-verified per-coach in the loop before sending.
   const { data: postedRows, error: postedErr } = await supabase
@@ -66,6 +72,23 @@ export async function GET(req: NextRequest) {
   }
 
   const hasPosted = new Set((postedRows ?? []).map((r: { coach_id: string }) => r.coach_id))
+
+  // Also exclude coaches who have sent at least one message to a player —
+  // they're already active on the platform even without a formal opportunity post.
+  // messages.sender_id is the coach's profile ID.
+  const { data: messageSenders } = await supabase
+    .from('messages')
+    .select('sender_id')
+    .not('sender_id', 'is', null)
+
+  const hasMessaged = new Set(
+    (messageSenders ?? [])
+      .map((r: { sender_id: string }) => r.sender_id)
+      .filter(Boolean)
+  )
+
+  // A coach is "active" if they've posted OR messaged
+  const isActive = new Set([...hasPosted, ...hasMessaged])
 
   // ── Approved coaches (with city for region personalisation) ───────────────
   const { data: coaches, error: coachErr } = await supabase
@@ -82,8 +105,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Initial screen — filters the loop. A fresh per-coach query inside the loop
-  // catches anyone who posts between this snapshot and their send.
-  const eligible = (coaches ?? []).filter((c: { id: string }) => !hasPosted.has(c.id))
+  // catches anyone who posts or messages between this snapshot and their send.
+  const eligible = (coaches ?? []).filter((c: { id: string }) => !isActive.has(c.id))
 
   if (eligible.length === 0) {
     return NextResponse.json({ candidates: 0, sentD7: 0, sentD21: 0, skipped: 0, failed: 0 })
@@ -164,6 +187,10 @@ export async function GET(req: NextRequest) {
 
     if (!step) { skipped++; continue }
 
+    // Per-step kill switch — check flow_settings before touching the coach
+    if (step === 'd7' && !flowEnabled.coach_activation_d7) { skipped++; continue }
+    if (step === 'd21' && !flowEnabled.coach_activation_d21) { skipped++; continue }
+
     // Cross-flow collision check — the step gate above only knows "has THIS flow
     // fired yet." It says nothing about whether something else (coach recommendations,
     // an admin broadcast) landed for this coach recently. 48h is the correct window:
@@ -180,16 +207,14 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      // Fresh DB check — confirms the coach still hasn't posted by the time we
-      // actually send. The hasPosted Set above is a snapshot from earlier in the
-      // run; this single query catches a coach who posted mid-run.
+      // Fresh DB check — confirms the coach still hasn't posted OR messaged by
+      // the time we actually send. The isActive Set above is a snapshot from
+      // earlier in the run; these queries catch a coach who became active mid-run.
       const { data: freshPost } = await supabase
-        .from('opportunities')
-        .select('id')
-        .eq('coach_id', coach.id)
-        .limit(1)
-        .maybeSingle()
-      if (freshPost) { skipped++; continue }
+        .from('opportunities').select('id').eq('coach_id', coach.id).limit(1).maybeSingle()
+      const { data: freshMessage } = await supabase
+        .from('messages').select('id').eq('sender_id', coach.id).limit(1).maybeSingle()
+      if (freshPost || freshMessage) { skipped++; continue }
 
       if (step === 'd7') {
         // Region player count — match on city (case-insensitive).

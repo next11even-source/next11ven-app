@@ -167,6 +167,21 @@ async function handleSubscriptionChange(
     )
   }
 
+  // Native Pro welcome email (steps 20/21) — only when native_onboarding flag is enabled.
+  // MailerLite tag above continues to run until Phase 3 decommission (it just tags,
+  // doesn't send a duplicate email, so running both is safe during the transition).
+  if (isFirstActivation && existingProfile?.email) {
+    const { isNativeOnboardingEnabled } = await import('@/lib/flowSettings')
+    if (await isNativeOnboardingEnabled(supabase)) {
+      const proStep = (role ?? existingProfile.role) === 'coach' ? 21 : 20
+      await supabase.from('drip_jobs').insert({
+        recipient_id: userId,
+        sequence_step: proStep,
+        send_at: new Date().toISOString(),
+      })
+    }
+  }
+
   // Layer 3 conversion intelligence: attribute this upgrade to whichever
   // paywalls were SHOWN to the user in the preceding 7 days — not just the
   // single most-recent one. A player who toggles Actively Looking, applies,

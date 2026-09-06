@@ -5,6 +5,7 @@ import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { isAwaitingReply, waitingDays, getWaitingTier } from '@/lib/applicationResponse'
 import { ageDays, getOpportunityLifecycleStatus, OPP_NEGLECT_DAYS } from '@/lib/opportunityLifecycle'
+import { isFlowEnabled } from '@/lib/flowSettings'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -69,6 +70,10 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  if (!await isFlowEnabled(supabase, 'application_nudge')) {
+    return NextResponse.json({ skipped: 'flow disabled', flow: 'application_nudge' })
+  }
 
   // Only chase applications on roles that are still open. Nagging a coach about
   // a role they filled in May is how a nudge becomes noise.

@@ -5,6 +5,7 @@ import { sendWeeklyDigestEmail } from '@/lib/email'
 import { logTouch } from '@/lib/touchpoint'
 import { positionCategory, POSITION_CATEGORIES } from '@/lib/positions'
 import { reportError } from '@/lib/alert'
+import { isFlowEnabled } from '@/lib/flowSettings'
 
 export const runtime = 'nodejs'
 // Emails the full approved-player base — sequential awaits would blow past the
@@ -66,6 +67,10 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  if (!await isFlowEnabled(supabase, 'weekly_digest')) {
+    return NextResponse.json({ skipped: 'flow disabled', flow: 'weekly_digest' })
+  }
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()

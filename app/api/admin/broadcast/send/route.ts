@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     try {
       const unsubscribeUrl = `${SITE}/api/unsubscribe?id=${r.id}`
       const contentHtml = buildContentHtml(r.full_name, { headline, bodyText, ctaLabel, ctaUrl })
-      await sendBroadcastEmail({ to: r.email, subject, contentHtml, unsubscribeUrl })
+      await sendBroadcastEmail({ to: r.email, subject, contentHtml, unsubscribeUrl, broadcastId: logRow?.id })
       await logTouch(service, r.id, 'email', 'broadcast')
       sent++
     } catch (err) {

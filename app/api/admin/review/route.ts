@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { onUserApproved } from '@/lib/mailerlite'
 import { reportError } from '@/lib/alert'
 import { z } from 'zod'
+import { isNativeOnboardingEnabled } from '@/lib/flowSettings'
 
 const ReviewSchema = z.object({
   user_id: z.string().min(1),
@@ -87,18 +88,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to update approval status' }, { status: 500 })
   }
 
-  // Fire MailerLite — awaited so it completes before the serverless function returns
+  // Onboarding sequence: mutually exclusive — native drip_jobs OR MailerLite, never both.
+  // native_onboarding flag defaults false (fail-safe: DB error → MailerLite runs).
+  // Flip to true in feature_flags table to cut over; flip back to roll back without redeploy.
   if (isApproving && target?.email) {
-    try {
-      await onUserApproved({
-        email: target.email,
-        firstName: target.first_name,
-        lastName: target.last_name,
-        role: target.role,
-        city: target.city ?? null,
-      })
-    } catch (err) {
-      console.error('[MailerLite] onUserApproved error:', err)
+    const useNative = await isNativeOnboardingEnabled(service)
+    if (useNative) {
+      // Native onboarding: insert drip_jobs rows. The drip-reminders cron
+      // (daily 09:00 UTC) picks them up and sends the emails.
+      // Partial unique index drip_jobs_onboarding_unique prevents duplicates
+      // for steps 10–21 — a double-click or retried request is silently ignored.
+      const isCoach = target.role === 'coach'
+      const now = new Date()
+      const steps = isCoach
+        ? [
+            { step: 14, daysDelay: 0 },   // D0 welcome
+            { step: 15, daysDelay: 2 },   // D2 post-your-role
+            { step: 16, daysDelay: 5 },   // D5 proof
+            // Step 17 deliberately absent — coach_activation_d7 owns day 7
+            // for coaches who still haven't posted. See TOUCHPOINTS.md.
+          ]
+        : [
+            { step: 10, daysDelay: 0 },   // D0 welcome
+            { step: 11, daysDelay: 1 },   // D1 profile nudge
+            { step: 12, daysDelay: 3 },   // D3 coaches are here
+            { step: 13, daysDelay: 7 },   // D7 premium pitch
+          ]
+
+      const rows = steps.map(({ step, daysDelay }) => ({
+        recipient_id: user_id,
+        sequence_step: step,
+        send_at: new Date(now.getTime() + daysDelay * 86_400_000).toISOString(),
+      }))
+
+      const { error: insertErr } = await service
+        .from('drip_jobs')
+        .upsert(rows, { onConflict: 'recipient_id,sequence_step', ignoreDuplicates: true })
+
+      if (insertErr) {
+        // Log but don't fail the approval — MailerLite fallback is gone at this point,
+        // so a silent failure here means no onboarding email. Alert so it can be investigated.
+        console.error('[review] drip_jobs onboarding insert failed:', insertErr)
+        reportError('/api/admin/review', insertErr, `drip_jobs insert failed for user ${user_id}`)
+      }
+    } else {
+      // Phase 1 (current): MailerLite handles onboarding sequences
+      try {
+        await onUserApproved({
+          email: target.email,
+          firstName: target.first_name,
+          lastName: target.last_name,
+          role: target.role,
+          city: target.city ?? null,
+        })
+      } catch (err) {
+        console.error('[MailerLite] onUserApproved error:', err)
+      }
     }
   }
 

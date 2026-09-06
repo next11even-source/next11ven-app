@@ -11,7 +11,12 @@
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'NEXT11VEN <hello@next11ven.com>'
 const SITE = process.env.APP_URL ?? 'https://app.next11ven.com'
 
-async function send({ to, subject, html }: { to: string; subject: string; html: string }) {
+async function send({ to, subject, html, tags }: {
+  to: string
+  subject: string
+  html: string
+  tags?: Array<{ name: string; value: string }>
+}) {
   if (process.env.RESEND_ENABLED === 'false') {
     console.log(`[Email] disabled — skipping "${subject}" to ${to}`)
     return
@@ -27,7 +32,7 @@ async function send({ to, subject, html }: { to: string; subject: string; html: 
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM, to, subject, html }),
+      body: JSON.stringify({ from: FROM, to, subject, html, ...(tags?.length ? { tags } : {}) }),
     })
     if (!res.ok) {
       const body = await res.text()
@@ -99,14 +104,17 @@ export async function sendBroadcastEmail({
   subject,
   contentHtml,
   unsubscribeUrl,
+  broadcastId,
 }: {
   to: string
   subject: string
   contentHtml: string
   unsubscribeUrl: string
+  broadcastId?: string
 }) {
   const html = marketingTemplate(contentHtml, unsubscribeUrl)
-  await send({ to, subject, html })
+  const tags = broadcastId ? [{ name: 'flow', value: broadcastId }] : undefined
+  await send({ to, subject, html, ...(tags ? { tags } : {}) })
 }
 
 // ─── Message notification ─────────────────────────────────────────────────────
@@ -133,7 +141,7 @@ export async function sendMessageNotificationEmail({
     <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Message</a>
   `)
 
-  await send({ to, subject: `You've received a new message`, html })
+  await send({ to, subject: `You've received a new message`, html, tags: [{ name: 'flow', value: 'message_notification' }] })
 }
 
 // ─── Application decision (player) ───────────────────────────────────────────
@@ -174,6 +182,7 @@ export async function sendApplicationDecisionEmail({
       ? `Your application for "${opportunityTitle}" has been accepted`
       : `Update on your application for "${opportunityTitle}"`,
     html,
+    tags: [{ name: 'flow', value: 'application_decision' }],
   })
 }
 
@@ -213,7 +222,7 @@ export async function sendExtraMessagesPurchaseEmail({
     <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Your Balance</a>
   `)
 
-  await send({ to, subject: `Your ${credits} Extra Messages are ready`, html })
+  await send({ to, subject: `Your ${credits} Extra Messages are ready`, html, tags: [{ name: 'flow', value: 'message_pack_purchase' }] })
 }
 
 // ─── Drip: Day 0 — coach messaged free player (upgrade to read) ─────────────
@@ -238,7 +247,7 @@ export async function sendDripDay0Email({
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade &amp; Read Your Message</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject: 'A coach messaged you on NEXT11VEN', html })
+  await send({ to, subject: 'A coach messaged you on NEXT11VEN', html, tags: [{ name: 'flow', value: 'drip_day0' }] })
 }
 
 // ─── Drip: Day 3 — unread message reminder ──────────────────────────────────
@@ -263,7 +272,7 @@ export async function sendDripDay3Email({
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Read Your Message Now</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject: 'You still have an unread message waiting', html })
+  await send({ to, subject: 'You still have an unread message waiting', html, tags: [{ name: 'flow', value: 'drip_day3' }] })
 }
 
 // ─── Drip: Day 7 — final reminder ────────────────────────────────────────────
@@ -288,7 +297,7 @@ export async function sendDripDay7Email({
     </p>
     <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Upgrade &amp; Read Your Message</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject: "Don't let this coach move on without you", html })
+  await send({ to, subject: "Don't let this coach move on without you", html, tags: [{ name: 'flow', value: 'drip_day7' }] })
 }
 
 // ─── Post-match log nudge (engagement — suppressible via email_marketing_opt_out) ─
@@ -315,7 +324,7 @@ export async function sendLogNudgeEmail({
     </p>
     <a href="${logUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Log your match</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject: 'Played this weekend? Log it in 20 seconds', html })
+  await send({ to, subject: 'Played this weekend? Log it in 20 seconds', html, tags: [{ name: 'flow', value: 'log_nudge' }] })
 }
 
 // ─── Coach activation (coach has never posted a role) ────────────────────────
@@ -372,7 +381,7 @@ export async function sendCoachActivationD7Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject, html })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_activation_d7' }] })
 }
 
 // D21 — different angle: social proof, not a louder version of D7.
@@ -421,7 +430,7 @@ export async function sendCoachActivationD21Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — are you?`, html })
+  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — are you?`, html, tags: [{ name: 'flow', value: 'coach_activation_d21' }] })
 }
 
 // ─── Coach gone quiet: D1 — new players have joined since you last posted ─────
@@ -475,7 +484,7 @@ export async function sendCoachGoneQuietD1Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post a role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject, html })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_gone_quiet_d1' }] })
 }
 
 // ─── Coach gone quiet: D14 — social proof, different angle from D1 ────────────
@@ -526,7 +535,7 @@ export async function sendCoachGoneQuietD14Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post a role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — where are you?`, html })
+  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — where are you?`, html, tags: [{ name: 'flow', value: 'coach_gone_quiet_d14' }] })
 }
 
 // ─── Application nudge (coach owes players an answer) ────────────────────────
@@ -582,6 +591,7 @@ export async function sendApplicationNudgeEmail({
     to,
     subject: total === 1 ? '1 player is waiting on your answer' : `${total} players are waiting on your answer`,
     html,
+    tags: [{ name: 'flow', value: 'application_nudge' }],
   })
 }
 
@@ -620,6 +630,7 @@ export async function sendOpportunityAutoClosedEmail({
     to,
     subject: roles.length === 1 ? 'A role of yours was closed automatically' : `${roles.length} roles of yours were closed automatically`,
     html,
+    tags: [{ name: 'flow', value: 'opportunity_auto_closed' }],
   })
 }
 
@@ -639,7 +650,7 @@ export async function sendWeeklyDigestEmail({
   contentHtml: string
 }) {
   const html = baseTemplate(contentHtml, makeUnsubscribeUrl(playerId))
-  await send({ to, subject, html })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'weekly_digest' }] })
 }
 
 // ─── Billing: payment failed (transactional — never suppress) ────────────────
@@ -668,7 +679,7 @@ export async function sendPaymentFailedEmail({
     <a href="${updateUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Update Payment Details</a>
     <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">If you think this is a mistake, reply to this email and we'll sort it.</p>
   `)
-  await send({ to, subject: 'Your NEXT11VEN payment failed', html })
+  await send({ to, subject: 'Your NEXT11VEN payment failed', html, tags: [{ name: 'flow', value: 'payment_failed' }] })
 }
 
 export async function sendPaymentFailedFollowUpEmail({
@@ -690,7 +701,7 @@ export async function sendPaymentFailedFollowUpEmail({
     <a href="${updateUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Update Payment Details</a>
     <p style="color:#8892aa;margin:20px 0 0;font-size:13px;">If you think this is a mistake, reply to this email and we'll sort it.</p>
   `)
-  await send({ to, subject: 'Still having trouble with your payment?', html })
+  await send({ to, subject: 'Still having trouble with your payment?', html, tags: [{ name: 'flow', value: 'payment_failed_followup' }] })
 }
 
 // ─── Billing: subscription cancelled win-back (marketing — respects opt-out) ──
@@ -739,7 +750,7 @@ export async function sendSubscriptionCancelledWinBackEmail({
     <p style="color:#8892aa;margin:20px 0 0;font-size:13px;line-height:1.6;">Questions? Just reply to this email.</p>
   `, unsubscribeUrl)
 
-  await send({ to, subject: "Coaches are still recruiting — come back", html })
+  await send({ to, subject: "Coaches are still recruiting — come back", html, tags: [{ name: 'flow', value: 'winback' }] })
 }
 
 // ─── Shortlisted player became available (coach) ────────────────────────────
@@ -767,7 +778,7 @@ export async function sendShortlistAvailableEmail({
     <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Player &amp; Send Message</a>
   `, makeUnsubscribeUrl(playerId))
 
-  await send({ to, subject: `${playerName} on your shortlist is now available`, html })
+  await send({ to, subject: `${playerName} on your shortlist is now available`, html, tags: [{ name: 'flow', value: 'shortlist_available' }] })
 }
 
 // ─── Application received (coach) ─────────────────────────────────────────────
@@ -793,7 +804,7 @@ export async function sendApplicationReceivedEmail({
     <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View Application</a>
   `)
 
-  await send({ to, subject: `New application: ${opportunityTitle}`, html })
+  await send({ to, subject: `New application: ${opportunityTitle}`, html, tags: [{ name: 'flow', value: 'application_received' }] })
 }
 
 // ─── Weekly coach recommendations digest ──────────────────────────────────────
@@ -845,6 +856,318 @@ function recommendationCard(p: RecommendationEmailPlayer): string {
   `
 }
 
+// ─── Player onboarding: Step 10 — Day 0 — Welcome ────────────────────────────
+// Fires at approval. No stat — this is pure welcome, single CTA.
+// No unsubscribe link: welcome email, not a marketing nudge.
+export async function sendPlayerOnboardingD0Email({
+  to,
+  firstName: firstNameParam,
+}: {
+  to: string
+  firstName: string | null
+}) {
+  const profileUrl = `${SITE}/dashboard/player/profile`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 16px;line-height:1.6;">
+      You're approved. Coaches across non-league football are already on here looking for players like you.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      First thing to do: make sure your profile is impossible to scroll past. Position, stats, highlight video if you've got one — the more complete it is, the more seriously coaches take it.
+    </p>
+    <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Complete your profile</a>
+  `)
+  await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'player_onboarding_d0' }] })
+}
+
+// ─── Player onboarding: Step 11 — Day 1 — Profile completion nudge ───────────
+// profileComplete: true if the player has filled in at least 10 of the 13
+// scored profile fields (avatar_url, position, club, city, status, phone,
+// date_of_birth, foot, height, playing_level, highlight_urls, bio, season stats).
+// Copy and CTA branch on this — complete profiles get validation,
+// incomplete profiles get a direct prompt to finish.
+export async function sendPlayerOnboardingD1Email({
+  to,
+  firstName: firstNameParam,
+  playerId,
+  profileComplete,
+}: {
+  to: string
+  firstName: string | null
+  playerId: string
+  profileComplete: boolean
+}) {
+  const profileUrl = `${SITE}/dashboard/player/profile`
+  const ctaLabel = profileComplete ? 'View your public profile' : 'Finish your profile'
+  const bodyLine = profileComplete
+    ? 'Yours looks solid — coaches searching your position will see it.'
+    : 'Yours is missing a few things coaches check first.'
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      Profiles with a highlight video get seen first. If yours doesn't have one yet, that's the single biggest thing you can add today.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      ${bodyLine}
+    </p>
+    <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">${ctaLabel}</a>
+  `, makeUnsubscribeUrl(playerId))
+  await send({ to, subject: "Your profile is live — here's how to make coaches stop scrolling", html, tags: [{ name: 'flow', value: 'player_onboarding_d1' }] })
+}
+
+// ─── Player onboarding: Step 12 — Day 3 — Coaches are here ──────────────────
+// approvedCoachCount: standing COUNT of all approved coaches on the platform
+// (all-time, not windowed — monotonically grows, never looks bad).
+export async function sendPlayerOnboardingD3Email({
+  to,
+  firstName: firstNameParam,
+  playerId,
+  approvedCoachCount,
+}: {
+  to: string
+  firstName: string | null
+  playerId: string
+  approvedCoachCount: number
+}) {
+  const oppsUrl = `${SITE}/dashboard/opportunities`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      ${approvedCoachCount} clubs are actively using NEXT11VEN to find players right now — from Step 3 up to National League level.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Some post opportunities you can apply to directly. Others message players they've spotted without posting anything first — so a complete profile matters even when there's no open role listed yet.
+    </p>
+    <a href="${oppsUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Browse open opportunities</a>
+  `, makeUnsubscribeUrl(playerId))
+  await send({ to, subject: 'Coaches across non-league football are already searching NEXT11VEN', html, tags: [{ name: 'flow', value: 'player_onboarding_d3' }] })
+}
+
+// ─── Player onboarding: Step 13 — Day 7 — Premium pitch ─────────────────────
+// openRoleCount: active opportunities matching the player's position + region.
+// statAvailable: caller sets this to false when openRoleCount < 3 — the floor
+// prevents a deflating "2 roles" from being shown. Fallback copy is still true.
+// position: the player's position string (e.g. "Striker"), used in subject line.
+export async function sendPlayerOnboardingD7Email({
+  to,
+  firstName: firstNameParam,
+  playerId,
+  openRoleCount,
+  statAvailable,
+  position,
+}: {
+  to: string
+  firstName: string | null
+  playerId: string
+  openRoleCount: number
+  statAvailable: boolean
+  position: string | null
+}) {
+  const upgradeUrl = `${SITE}/dashboard/player/premium`
+  const subject = statAvailable && position && openRoleCount > 0
+    ? `${openRoleCount} open ${position} ${openRoleCount === 1 ? 'role' : 'roles'} ${openRoleCount === 1 ? 'is' : 'are'} live right now`
+    : 'New roles are being posted on NEXT11VEN every week'
+
+  const statBlock = statAvailable && openRoleCount > 0
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${openRoleCount}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">open ${position ? position.toLowerCase() : ''} ${openRoleCount === 1 ? 'role' : 'roles'} live right now</p>
+      </div>`
+    : ''
+
+  const roleLine = statAvailable && openRoleCount > 0
+    ? `Right now there ${openRoleCount === 1 ? 'is' : 'are'} ${openRoleCount} open ${position ? position.toLowerCase() : ''} ${openRoleCount === 1 ? 'role' : 'roles'} live for your region.`
+    : "New roles go up every week — Premium means you're never behind on them."
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      Your profile's been live a week. Here's what Premium actually changes: you get ranked higher, seen in more places, and you can apply directly to roles and message coaches — free profiles can be found, Premium profiles get the first look.
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      ${roleLine}
+    </p>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Go Premium</a>
+  `, makeUnsubscribeUrl(playerId))
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'player_onboarding_d7' }] })
+}
+
+// ─── Coach onboarding: Step 14 — Day 0 — Welcome ─────────────────────────────
+// activePlayerCount: standing COUNT of all approved players on the platform.
+// No unsubscribe link: welcome email, not a marketing nudge.
+export async function sendCoachOnboardingD0Email({
+  to,
+  coachName,
+  activePlayerCount,
+}: {
+  to: string
+  coachName: string | null
+  activePlayerCount: number
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      You're approved. ${activePlayerCount} players are already using NEXT11VEN to get seen by clubs like yours.
+    </p>
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      First step: post your first opportunity. It takes two minutes, and it's the thing that puts you in front of them.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post an opportunity</a>
+  `)
+  await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'coach_onboarding_d0' }] })
+}
+
+// ─── Coach onboarding: Step 15 — Day 2 — Post your first role ────────────────
+// regionalPlayerCount: standing count of approved players in the coach's city.
+// statAvailable: caller sets false when regionalPlayerCount < 3 — floor prevents
+// "2 players in [city]" from showing. Fallback uses platform-wide framing.
+// regionLabel: the coach's city string, or null if not set.
+export async function sendCoachOnboardingD2Email({
+  to,
+  coachName,
+  coachId,
+  regionalPlayerCount,
+  statAvailable,
+  regionLabel,
+}: {
+  to: string
+  coachName: string | null
+  coachId: string
+  regionalPlayerCount: number
+  statAvailable: boolean
+  regionLabel: string | null
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const unsubscribeUrl = makeUnsubscribeUrl(coachId)
+
+  const subject = statAvailable && regionLabel && regionalPlayerCount > 0
+    ? `${regionalPlayerCount} players in ${regionLabel} are looking for a club`
+    : 'Players near you are looking for a club right now'
+
+  const statBlock = statAvailable && regionalPlayerCount > 0
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${regionalPlayerCount}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">players in ${regionLabel} with live profiles, ready to apply</p>
+      </div>`
+    : ''
+
+  const poolLine = statAvailable && regionalPlayerCount > 0
+    ? `${regionalPlayerCount} players in ${regionLabel} with live profiles, ready to apply.`
+    : 'a growing pool of players with live profiles, ready to apply.'
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      You haven't posted an opportunity yet — here's what you're not seeing without one: ${poolLine}
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Posting takes two minutes and puts your club in front of them immediately.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first opportunity</a>
+  `, unsubscribeUrl)
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d2' }] })
+}
+
+// ─── Coach onboarding: Step 16 — Day 5 — Proof / credibility ─────────────────
+// recruitingCoachCount: coaches with an active opportunity OR a message sent to
+// a player in the last 30 days (a blended "recruiting activity" stat).
+// statAvailable: caller sets false when recruitingCoachCount < 5.
+// Fallback: fallbackOpportunityCount (cumulative all-time opportunity count —
+// monotonically growing, always a reasonable number to show).
+export async function sendCoachOnboardingD5Email({
+  to,
+  coachName,
+  coachId,
+  recruitingCoachCount,
+  statAvailable,
+  fallbackOpportunityCount,
+}: {
+  to: string
+  coachName: string | null
+  coachId: string
+  recruitingCoachCount: number
+  statAvailable: boolean
+  fallbackOpportunityCount: number
+}) {
+  const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
+  const unsubscribeUrl = makeUnsubscribeUrl(coachId)
+
+  const subject = statAvailable
+    ? `${recruitingCoachCount} clubs are actively recruiting on NEXT11VEN right now`
+    : `Clubs have posted ${fallbackOpportunityCount} opportunities on NEXT11VEN since launch`
+
+  const statBlock = statAvailable
+    ? `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${recruitingCoachCount}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">clubs actively recruiting on NEXT11VEN right now</p>
+      </div>`
+    : `<div style="background:#0d1020;border:1px solid #1e2235;border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">
+        <p style="color:#4d8ae8;font-weight:700;font-size:32px;margin:0 0 4px;line-height:1;">${fallbackOpportunityCount}</p>
+        <p style="color:#8892aa;font-size:13px;margin:0;">opportunities posted on NEXT11VEN since launch</p>
+      </div>`
+
+  const bodyLine = statAvailable
+    ? `You're not the only one deciding whether this is worth your time. ${recruitingCoachCount} clubs are actively recruiting on NEXT11VEN right now — posting opportunities, messaging players directly, or both.`
+    : `You're not the only one deciding whether this is worth your time. Clubs have posted ${fallbackOpportunityCount} opportunities on NEXT11VEN since launch — and the players are here for them.`
+
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 20px;line-height:1.6;">
+      ${bodyLine}
+    </p>
+    ${statBlock}
+    <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
+      Yours could be one of them in under two minutes.
+    </p>
+    <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post an opportunity</a>
+  `, unsubscribeUrl)
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d5' }] })
+}
+
+// ─── Premium welcome: Step 20 — Player Pro ───────────────────────────────────
+// Transactional confirmation — no unsubscribe link, no stat.
+export async function sendPlayerProWelcomeEmail({
+  to,
+  firstName: firstNameParam,
+}: {
+  to: string
+  firstName: string | null
+}) {
+  const profileUrl = `${SITE}/dashboard/player/profile`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      You're now ranked higher in searches, visible in more places, and you can apply to roles and message coaches directly. That's the whole unlock — no extra setup needed.
+    </p>
+    <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View your profile</a>
+  `)
+  await send({ to, subject: "You're Premium. Here's what just changed.", html, tags: [{ name: 'flow', value: 'player_pro_welcome' }] })
+}
+
+// ─── Premium welcome: Step 21 — Coach Pro ────────────────────────────────────
+// Closes the "Coach Pro upgrade confirmation email" gap in TOUCHPOINTS.md.
+// Transactional confirmation — no unsubscribe link, no stat.
+export async function sendCoachProWelcomeEmail({
+  to,
+  coachName,
+}: {
+  to: string
+  coachName: string | null
+}) {
+  const searchUrl = `${SITE}/dashboard/coach/players`
+  const html = baseTemplate(`
+    <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstName(coachName)},</p>
+    <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
+      You can now search the full player database, message players directly, and get notified the moment a matching profile joins. Nothing else to set up.
+    </p>
+    <a href="${searchUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Search players</a>
+  `)
+  await send({ to, subject: "You're Coach Pro. Here's what just unlocked.", html, tags: [{ name: 'flow', value: 'coach_pro_welcome' }] })
+}
+
 export async function sendCoachRecommendationsEmail({
   to,
   coachId,
@@ -889,5 +1212,6 @@ export async function sendCoachRecommendationsEmail({
         ? `A player we think you'd want to know about`
         : `${count} players we think you'd want to know about`,
     html,
+    tags: [{ name: 'flow', value: 'coach_recommendations' }],
   })
 }

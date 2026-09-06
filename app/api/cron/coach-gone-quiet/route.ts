@@ -4,6 +4,7 @@ import { sendCoachGoneQuietD1Email, sendCoachGoneQuietD14Email } from '@/lib/ema
 import { logTouch, canSendTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
+import { getFlowSettings } from '@/lib/flowSettings'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -50,6 +51,11 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const flowEnabled = await getFlowSettings(supabase, ['coach_gone_quiet_d1', 'coach_gone_quiet_d14'])
+  if (!flowEnabled.coach_gone_quiet_d1 && !flowEnabled.coach_gone_quiet_d14) {
+    return NextResponse.json({ skipped: 'all flows disabled' })
+  }
+
   // ── Opportunities — build two sets ────────────────────────────────────────
   // hasPostedEver: any opportunity, any time, any state.
   // hasPostedRecently: opportunity with created_at in the last QUIET_DAYS days.
@@ -85,6 +91,18 @@ export async function GET(req: NextRequest) {
   // hasPostedEver = all keys in lastPostDate
   const hasPostedEver = new Set(lastPostDate.keys())
 
+  // Coaches who have sent a message to a player within the quiet window.
+  // A coach who messaged recently isn't "gone quiet" even if they haven't posted.
+  const { data: recentMsgRows } = await supabase
+    .from('messages')
+    .select('sender_id')
+    .gte('created_at', quietCutoff)
+    .not('sender_id', 'is', null)
+
+  const hasMessagedRecently = new Set(
+    (recentMsgRows ?? []).map((r: { sender_id: string }) => r.sender_id).filter(Boolean)
+  )
+
   // ── Approved coaches ───────────────────────────────────────────────────────
   const { data: coaches, error: coachErr } = await supabase
     .from('profiles')
@@ -99,9 +117,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Query failed' }, { status: 500 })
   }
 
-  // Gone-quiet: posted at some point, but not in the last QUIET_DAYS days.
+  // Gone-quiet = has posted at some point (still means they've used formal recruiting)
+  // AND has not been recently active via either posting OR messaging.
   const eligible = (coaches ?? []).filter(
-    (c: { id: string }) => hasPostedEver.has(c.id) && !hasPostedRecently.has(c.id)
+    (c: { id: string }) =>
+      hasPostedEver.has(c.id) &&
+      !hasPostedRecently.has(c.id) &&
+      !hasMessagedRecently.has(c.id)
   )
 
   if (eligible.length === 0) {
@@ -182,6 +204,10 @@ export async function GET(req: NextRequest) {
     // After both steps sent, or D1 sent but D14 window not reached: skip.
 
     if (!step) { skipped++; continue }
+
+    // Per-step kill switch — check flow_settings before touching the coach
+    if (step === 'd1' && !flowEnabled.coach_gone_quiet_d1) { skipped++; continue }
+    if (step === 'd14' && !flowEnabled.coach_gone_quiet_d14) { skipped++; continue }
 
     // Cross-flow collision check — 48h window catches coach-recommendations
     // (Tue 08:00) and coach-activation (Wed 09:00), both within 48h of this

@@ -31,6 +31,16 @@ export type TouchFlow =
   | 'coach_activation_d21'
   | 'coach_gone_quiet_d1'
   | 'coach_gone_quiet_d14'
+  // Onboarding sequences (Phase 2 — drip_jobs steps 10–21)
+  | 'player_onboarding_d0'
+  | 'player_onboarding_d1'
+  | 'player_onboarding_d3'
+  | 'player_onboarding_d7'
+  | 'coach_onboarding_d0'
+  | 'coach_onboarding_d2'
+  | 'coach_onboarding_d5'
+  | 'player_pro_welcome'
+  | 'coach_pro_welcome'
 
 // ─── Write ────────────────────────────────────────────────────────────────────
 

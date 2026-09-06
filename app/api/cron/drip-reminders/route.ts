@@ -1,13 +1,24 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import {
   sendDripDay3Email,
   sendDripDay7Email,
   sendPaymentFailedFollowUpEmail,
   sendSubscriptionCancelledWinBackEmail,
+  sendPlayerOnboardingD0Email,
+  sendPlayerOnboardingD1Email,
+  sendPlayerOnboardingD3Email,
+  sendPlayerOnboardingD7Email,
+  sendCoachOnboardingD0Email,
+  sendCoachOnboardingD2Email,
+  sendCoachOnboardingD5Email,
+  sendPlayerProWelcomeEmail,
+  sendCoachProWelcomeEmail,
 } from '@/lib/email'
 import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
+import { getFlowSettings } from '@/lib/flowSettings'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -15,12 +26,27 @@ export const maxDuration = 60
 type ProfileEmbed = {
   email: string | null
   full_name: string | null
+  first_name: string | null
+  role: string | null
   phone: string | null
   sms_opt_in: boolean | null
   premium: boolean
   last_sms_at: string | null
   email_marketing_opt_out: boolean | null
   position: string | null
+  city: string | null
+  avatar_url: string | null
+  highlight_urls: string[] | null
+  bio: string | null
+  club: string | null
+  status: string | null
+  date_of_birth: string | null
+  foot: string | null
+  height: number | null
+  playing_level: string | null
+  goals: number | null
+  assists: number | null
+  appearances: number | null
 }
 
 type MessageEmbed = {
@@ -42,6 +68,164 @@ function resolveProfile(raw: ProfileEmbed | ProfileEmbed[] | null): ProfileEmbed
   return Array.isArray(raw) ? (raw[0] ?? null) : raw
 }
 
+// ── Onboarding step → flow ID mapping ────────────────────────────────────────
+const ONBOARDING_STEP_FLOW: Record<number, string> = {
+  10: 'player_onboarding_d0',
+  11: 'player_onboarding_d1',
+  12: 'player_onboarding_d3',
+  13: 'player_onboarding_d7',
+  14: 'coach_onboarding_d0',
+  15: 'coach_onboarding_d2',
+  16: 'coach_onboarding_d5',
+  20: 'player_pro_welcome',
+  21: 'coach_pro_welcome',
+}
+
+// ── Profile completion check (13-field score from CLAUDE.md) ─────────────────
+function isProfileComplete(p: ProfileEmbed): boolean {
+  const fields = [
+    !!p.avatar_url,
+    !!p.position,
+    !!p.club,
+    !!p.city,
+    !!p.status,
+    !!p.phone,
+    !!p.date_of_birth,
+    !!p.foot,
+    !!p.height,
+    !!p.playing_level,
+    !!(p.highlight_urls && p.highlight_urls.length > 0),
+    !!p.bio,
+    !!(p.goals || p.assists || p.appearances),
+  ]
+  return fields.filter(Boolean).length >= 10
+}
+
+// ── Per-step onboarding send (module-level so it can call isProfileComplete) ──
+async function sendOnboardingStep(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  job: DripJob,
+  profile: ProfileEmbed,
+  platformStats: { approvedCoachCount: number; activePlayerCount: number; allTimeOpportunityCount: number }
+): Promise<void> {
+  const step = job.sequence_step
+  const to = profile.email!
+  const firstNameParam = profile.first_name
+  const coachName = profile.full_name
+
+  switch (step) {
+    case 10: {
+      await sendPlayerOnboardingD0Email({ to, firstName: firstNameParam })
+      await logTouch(supabase, job.recipient_id, 'email', 'player_onboarding_d0')
+      break
+    }
+    case 11: {
+      const profileComplete = isProfileComplete(profile)
+      await sendPlayerOnboardingD1Email({ to, firstName: firstNameParam, playerId: job.recipient_id, profileComplete })
+      await logTouch(supabase, job.recipient_id, 'email', 'player_onboarding_d1')
+      break
+    }
+    case 12: {
+      await sendPlayerOnboardingD3Email({
+        to,
+        firstName: firstNameParam,
+        playerId: job.recipient_id,
+        approvedCoachCount: platformStats.approvedCoachCount,
+      })
+      await logTouch(supabase, job.recipient_id, 'email', 'player_onboarding_d3')
+      break
+    }
+    case 13: {
+      // Open roles for player's position + region. Floor: < 3 → fallback copy.
+      const position = profile.position
+      const city = profile.city
+      const roleQuery = supabase
+        .from('opportunities')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true)
+      if (position) roleQuery.eq('position', position)
+      if (city) roleQuery.ilike('location', `%${city}%`)
+      const { count: roleCount } = await roleQuery
+      const openRoleCount = roleCount ?? 0
+      const statAvailable = openRoleCount >= 3
+      await sendPlayerOnboardingD7Email({
+        to, firstName: firstNameParam, playerId: job.recipient_id,
+        openRoleCount, statAvailable, position,
+      })
+      await logTouch(supabase, job.recipient_id, 'email', 'player_onboarding_d7')
+      break
+    }
+    case 14: {
+      await sendCoachOnboardingD0Email({
+        to, coachName,
+        activePlayerCount: platformStats.activePlayerCount,
+      })
+      await logTouch(supabase, job.recipient_id, 'email', 'coach_onboarding_d0')
+      break
+    }
+    case 15: {
+      // Regional player count for coach's city. Floor: < 3 → platform framing.
+      const city = profile.city?.trim() ?? null
+      let regionalPlayerCount = 0
+      if (city) {
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .in('role', ['player', 'admin'])
+          .eq('approved', true)
+          .not('id', 'in', HIDDEN_PROFILE_FILTER)
+          .ilike('city', `%${city}%`)
+        regionalPlayerCount = count ?? 0
+      }
+      const statAvailable = city !== null && regionalPlayerCount >= 3
+      const regionLabel = statAvailable ? city : null
+      await sendCoachOnboardingD2Email({
+        to, coachName, coachId: job.recipient_id,
+        regionalPlayerCount: statAvailable ? regionalPlayerCount : 0,
+        statAvailable,
+        regionLabel,
+      })
+      await logTouch(supabase, job.recipient_id, 'email', 'coach_onboarding_d2')
+      break
+    }
+    case 16: {
+      // Recruiting coach count: active opportunity OR message sent in last 30 days.
+      const cutoff30d = new Date(Date.now() - 30 * 86_400_000).toISOString()
+      const [{ data: activeOppCoaches }, { data: recentMsgCoaches }] = await Promise.all([
+        supabase.from('opportunities').select('coach_id').eq('is_active', true),
+        supabase.from('messages').select('sender_id').gte('created_at', cutoff30d).not('sender_id', 'is', null),
+      ])
+      const recruitingSet = new Set([
+        ...(activeOppCoaches ?? []).map((r: { coach_id: string }) => r.coach_id),
+        ...(recentMsgCoaches ?? []).map((r: { sender_id: string }) => r.sender_id).filter(Boolean),
+      ])
+      const recruitingCoachCount = recruitingSet.size
+      const statAvailable = recruitingCoachCount >= 5
+      await sendCoachOnboardingD5Email({
+        to, coachName, coachId: job.recipient_id,
+        recruitingCoachCount,
+        statAvailable,
+        fallbackOpportunityCount: platformStats.allTimeOpportunityCount,
+      })
+      await logTouch(supabase, job.recipient_id, 'email', 'coach_onboarding_d5')
+      break
+    }
+    case 20: {
+      await sendPlayerProWelcomeEmail({ to, firstName: firstNameParam })
+      await logTouch(supabase, job.recipient_id, 'email', 'player_pro_welcome')
+      break
+    }
+    case 21: {
+      await sendCoachProWelcomeEmail({ to, coachName })
+      await logTouch(supabase, job.recipient_id, 'email', 'coach_pro_welcome')
+      break
+    }
+    default:
+      throw new Error(`unhandled onboarding step: ${step}`)
+  }
+}
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -53,9 +237,16 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const flowEnabled = await getFlowSettings(supabase, [
+    'drip_day3', 'drip_day7', 'winback', 'payment_failed_followup',
+    'player_onboarding_d0', 'player_onboarding_d1', 'player_onboarding_d3', 'player_onboarding_d7',
+    'coach_onboarding_d0', 'coach_onboarding_d2', 'coach_onboarding_d5',
+    'player_pro_welcome', 'coach_pro_welcome',
+  ])
+
   const { data: jobs, error } = await supabase
     .from('drip_jobs')
-    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, phone, sms_opt_in, premium, last_sms_at, email_marketing_opt_out, position), messages(read_at)')
+    .select('id, recipient_id, message_id, sequence_step, send_at, profiles(email, full_name, first_name, role, phone, sms_opt_in, premium, last_sms_at, email_marketing_opt_out, position, city, avatar_url, highlight_urls, bio, club, status, date_of_birth, foot, height, playing_level, goals, assists, appearances), messages(read_at)')
     .eq('sent', false)
     .lte('send_at', new Date().toISOString())
     .limit(100)
@@ -68,6 +259,43 @@ export async function GET(req: NextRequest) {
 
   if (!jobs || jobs.length === 0) {
     return NextResponse.json({ processed: 0 })
+  }
+
+  // Check if any onboarding steps are in this batch (steps 10–21).
+  // If so, fetch platform-wide stats once here rather than per-job.
+  const hasOnboardingJobs = (jobs ?? []).some(
+    (j: { sequence_step: number }) => j.sequence_step >= 10 && j.sequence_step <= 21
+  )
+
+  let platformStats: {
+    approvedCoachCount: number
+    activePlayerCount: number
+    allTimeOpportunityCount: number
+  } | null = null
+
+  if (hasOnboardingJobs) {
+    const [coachCountResult, playerCountResult, oppCountResult] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'coach')
+        .eq('approved', true)
+        .not('id', 'in', HIDDEN_PROFILE_FILTER),
+      supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .in('role', ['player', 'admin'])
+        .eq('approved', true)
+        .not('id', 'in', HIDDEN_PROFILE_FILTER),
+      supabase
+        .from('opportunities')
+        .select('*', { count: 'exact', head: true }),
+    ])
+    platformStats = {
+      approvedCoachCount: coachCountResult.count ?? 0,
+      activePlayerCount: playerCountResult.count ?? 0,
+      allTimeOpportunityCount: oppCountResult.count ?? 0,
+    }
   }
 
   let processed = 0
@@ -87,6 +315,10 @@ export async function GET(req: NextRequest) {
     // step 99: payment failed 48h follow-up
     // step 98: subscription cancelled win-back (3 days)
     if (job.sequence_step === 99 || job.sequence_step === 98) {
+      // Kill switch — leave job pending so it retries when the flow is re-enabled
+      if (job.sequence_step === 99 && !flowEnabled.payment_failed_followup) { skipped++; continue }
+      if (job.sequence_step === 98 && !flowEnabled.winback) { skipped++; continue }
+
       // Skip only if they've re-subscribed since the job was queued
       if (profile.premium === true) {
         await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
@@ -145,6 +377,57 @@ export async function GET(req: NextRequest) {
       continue
     }
 
+    // ── Onboarding sequence steps (10–21) ─────────────────────────────────────
+    if (job.sequence_step >= 10 && job.sequence_step <= 21) {
+      // Platform stats must be loaded (they always are if we got here, since
+      // hasOnboardingJobs was true above).
+      if (!platformStats) {
+        // Safety: shouldn't happen, but if stats are missing, skip and let next run retry
+        console.error('[Drip cron] platformStats missing for onboarding job', job.id)
+        skipped++
+        continue
+      }
+
+      const flowId = ONBOARDING_STEP_FLOW[job.sequence_step]
+      if (!flowId) {
+        // Unrecognised onboarding step — mark sent to avoid infinite retry
+        await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+        skipped++
+        continue
+      }
+
+      if (!flowEnabled[flowId]) {
+        // Flow disabled — skip without marking sent (retry when re-enabled)
+        skipped++
+        continue
+      }
+
+      // Marketing opt-out: D0 and Pro welcomes are exempt; D1/D3/D7/D2/D5 are gated
+      const isMarketingStep = [11, 12, 13, 15, 16].includes(job.sequence_step)
+      if (isMarketingStep && profile.email_marketing_opt_out === true) {
+        await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+        skipped++
+        continue
+      }
+
+      if (!profile.email) {
+        await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+        skipped++
+        continue
+      }
+
+      try {
+        await sendOnboardingStep(supabase, job, profile, platformStats)
+        await supabase.from('drip_jobs').update({ sent: true }).eq('id', job.id)
+        processed++
+      } catch (err) {
+        console.error(`[Drip cron] job ${job.id} step ${job.sequence_step} failed:`, err)
+        reportError('/api/cron/drip-reminders', err, `drip job ${job.id} step ${job.sequence_step} failed`)
+        failed++
+      }
+      continue
+    }
+
     // ── Marketing drip steps 2 and 3 ────────────────────────────────────────────
 
     // Stop sequence if player has already upgraded
@@ -170,6 +453,10 @@ export async function GET(req: NextRequest) {
       skipped++
       continue
     }
+
+    // Kill switch — leave job pending so it retries when the flow is re-enabled
+    if (job.sequence_step === 2 && !flowEnabled.drip_day3) { skipped++; continue }
+    if (job.sequence_step === 3 && !flowEnabled.drip_day7) { skipped++; continue }
 
     if (job.sequence_step === 2) {
       // Day 3 — email only

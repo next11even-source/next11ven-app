@@ -873,7 +873,7 @@ export async function sendPlayerOnboardingD0Email({
       You're approved. Coaches across non-league football are already on here looking for players like you.
     </p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      The most important thing you can do right now: add your playing history. Every club you've played for, every level, every season. No other platform in non-league shows this — and it's the first thing coaches look at to understand where you've been and whether you're right for their club.
+      The most important thing you can do right now: add your playing history. Every club you've played for, every level, every season. It's the first thing coaches look at to understand where you've been and whether you're right for their club.
     </p>
     <p style="color:#8892aa;margin:0 0 24px;line-height:1.6;">
       Once that's in, fill out the rest — position, stats, highlight video if you've got one. The more complete it is, the more seriously coaches take it.
@@ -924,7 +924,7 @@ export async function sendPlayerOnboardingD1Email({
   const html = baseTemplate(`
     <p style="color:#e8dece;margin:0 0 12px;">Hi ${firstNameParam ?? 'there'},</p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
-      Your career record — every club, every level — is the thing no other non-league platform shows. Coaches look at this first to understand where you've been and whether you're right for their club. If it's not on your profile yet, that's the single most important thing to add.
+      Your career record — every club, every level — is the first thing coaches look at to understand where you've been and whether you're right for their club. If it's not on your profile yet, that's the single most important thing to add.
     </p>
     <p style="color:#8892aa;margin:0 0 16px;line-height:1.6;">
       After that, a highlight video goes a long way — coaches want to see you play before they reach out.

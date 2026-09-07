@@ -6,8 +6,11 @@ import { onUserUpgradedToPremium } from '@/lib/mailerlite'
 import {
   sendExtraMessagesPurchaseEmail,
   sendPaymentFailedEmail,
+  sendPlayerProWelcomeEmail,
+  sendCoachProWelcomeEmail,
 } from '@/lib/email'
 import { reportError } from '@/lib/alert'
+import { logTouch } from '@/lib/touchpoint'
 
 export const dynamic = 'force-dynamic'
 
@@ -145,7 +148,7 @@ async function handleSubscriptionChange(
   // Check existing premium state before updating — only tag on first activation
   const { data: existingProfile } = await supabase
     .from('profiles')
-    .select('email, role, premium')
+    .select('email, role, premium, full_name, first_name')
     .eq('id', userId)
     .single()
 
@@ -173,12 +176,33 @@ async function handleSubscriptionChange(
   if (isFirstActivation && existingProfile?.email) {
     const { isNativeOnboardingEnabled } = await import('@/lib/flowSettings')
     if (await isNativeOnboardingEnabled(supabase)) {
-      const proStep = (role ?? existingProfile.role) === 'coach' ? 21 : 20
-      await supabase.from('drip_jobs').insert({
+      const isCoach = (role ?? existingProfile.role) === 'coach'
+      const proStep = isCoach ? 21 : 20
+      const { data: proRows } = await supabase.from('drip_jobs').insert({
         recipient_id: userId,
         sequence_step: proStep,
         send_at: new Date().toISOString(),
-      })
+      }).select('id')
+
+      // Immediate send — only if the row actually came back (guards against duplicate inserts)
+      const proRow = proRows?.[0]
+      if (proRow) {
+        try {
+          const to = existingProfile.email
+          if (isCoach) {
+            await sendCoachProWelcomeEmail({ to, coachName: existingProfile.full_name ?? existingProfile.first_name ?? '' })
+            await logTouch(supabase, userId, 'email', 'coach_pro_welcome')
+          } else {
+            await sendPlayerProWelcomeEmail({ to, firstName: existingProfile.first_name ?? null })
+            await logTouch(supabase, userId, 'email', 'player_pro_welcome')
+          }
+          await supabase.from('drip_jobs').update({ sent: true }).eq('id', proRow.id)
+        } catch (sendErr) {
+          // Leave sent=false — cron will retry tomorrow
+          console.error(`[stripe/webhook] immediate Pro welcome send failed for step ${proStep}, user ${userId}:`, sendErr)
+          reportError('/api/stripe/webhook', sendErr, `immediate Pro welcome send failed for step ${proStep}, user ${userId}`)
+        }
+      }
     }
   }
 

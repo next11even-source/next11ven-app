@@ -6,6 +6,9 @@ import { onUserApproved } from '@/lib/mailerlite'
 import { reportError } from '@/lib/alert'
 import { z } from 'zod'
 import { isNativeOnboardingEnabled } from '@/lib/flowSettings'
+import { sendPlayerOnboardingD0Email, sendCoachOnboardingD0Email } from '@/lib/email'
+import { logTouch } from '@/lib/touchpoint'
+import { HIDDEN_PROFILE_FILTER } from '@/lib/hiddenProfiles'
 
 const ReviewSchema = z.object({
   user_id: z.string().min(1),
@@ -121,15 +124,57 @@ export async function POST(req: NextRequest) {
         send_at: new Date(now.getTime() + daysDelay * 86_400_000).toISOString(),
       }))
 
-      const { error: insertErr } = await service
+      // Plain INSERT — the partial unique index (sequence_step 10–21) prevents
+      // duplicate onboarding rows. We can't use .upsert() with onConflict here
+      // because PostgREST generates `ON CONFLICT (cols) DO NOTHING` without the
+      // index's WHERE clause, which Postgres can't match to a partial index.
+      const { data: insertedRows, error: insertErr } = await service
         .from('drip_jobs')
-        .upsert(rows, { onConflict: 'recipient_id,sequence_step', ignoreDuplicates: true })
+        .insert(rows)
+        .select('id, sequence_step')
 
       if (insertErr) {
-        // Log but don't fail the approval — MailerLite fallback is gone at this point,
-        // so a silent failure here means no onboarding email. Alert so it can be investigated.
-        console.error('[review] drip_jobs onboarding insert failed:', insertErr)
-        reportError('/api/admin/review', insertErr, `drip_jobs insert failed for user ${user_id}`)
+        // 23505 = unique_violation: onboarding rows already exist for this user
+        // (re-approval after a decline). Harmless — skip silently.
+        if ((insertErr as { code?: string }).code === '23505') {
+          console.log(`[review] drip_jobs onboarding rows already exist for user ${user_id} — skipping`)
+        } else {
+          console.error('[review] drip_jobs onboarding insert failed:', insertErr)
+          reportError('/api/admin/review', insertErr, `drip_jobs insert failed for user ${user_id}`)
+        }
+      }
+
+      // Immediate send for zero-delay steps (10 = player D0, 14 = coach D0).
+      // Only fire if the row actually came back — a duplicate insert returns nothing,
+      // which is the natural double-click guard; skip silently in that case.
+      const zeroDelayRows = (insertedRows ?? []).filter(r => r.sequence_step === 10 || r.sequence_step === 14)
+      for (const row of zeroDelayRows) {
+        try {
+          if (row.sequence_step === 10) {
+            await sendPlayerOnboardingD0Email({ to: target.email, firstName: target.first_name })
+            await logTouch(service, user_id, 'email', 'player_onboarding_d0')
+          } else {
+            // Coach D0 needs the platform's active player count
+            const { count: activePlayerCount } = await service
+              .from('profiles')
+              .select('*', { count: 'exact', head: true })
+              .in('role', ['player', 'admin'])
+              .eq('approved', true)
+              .not('id', 'in', HIDDEN_PROFILE_FILTER)
+            await sendCoachOnboardingD0Email({
+              to: target.email,
+              coachName: target.full_name ?? target.first_name ?? '',
+              activePlayerCount: activePlayerCount ?? 0,
+            })
+            await logTouch(service, user_id, 'email', 'coach_onboarding_d0')
+          }
+          // Mark sent so the daily cron never picks it up as a retry
+          await service.from('drip_jobs').update({ sent: true }).eq('id', row.id)
+        } catch (sendErr) {
+          // Leave sent=false — cron will retry tomorrow
+          console.error(`[review] immediate D0 send failed for step ${row.sequence_step}, user ${user_id}:`, sendErr)
+          reportError('/api/admin/review', sendErr, `immediate D0 send failed for step ${row.sequence_step}, user ${user_id}`)
+        }
       }
     } else {
       // Phase 1 (current): MailerLite handles onboarding sequences

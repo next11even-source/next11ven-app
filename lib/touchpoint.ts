@@ -41,6 +41,11 @@ export type TouchFlow =
   | 'coach_onboarding_d5'
   | 'player_pro_welcome'
   | 'coach_pro_welcome'
+  // MailerLite automation entries — logged so cross-flow gap checks see them
+  | 'mailerlite_player_onboarding'
+  | 'mailerlite_coach_onboarding'
+  | 'mailerlite_player_premium'
+  | 'mailerlite_coach_premium'
 
 // ─── Write ────────────────────────────────────────────────────────────────────
 

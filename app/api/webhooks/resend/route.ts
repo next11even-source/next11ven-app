@@ -41,12 +41,13 @@ export async function POST(req: NextRequest) {
   let payload: Record<string, unknown>
   try {
     const wh = new Webhook(secret)
-    const verified = wh.verify(rawBody, {
+    // Svix v2: verify() throws on failure but returns undefined — parse body ourselves
+    wh.verify(rawBody, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
     })
-    payload = verified as unknown as Record<string, unknown>
+    payload = JSON.parse(rawBody) as Record<string, unknown>
   } catch (err) {
     console.warn('[resend-webhook] signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })

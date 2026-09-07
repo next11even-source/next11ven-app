@@ -3,6 +3,9 @@
  * Never import this in client components.
  */
 
+import { createClient } from '@supabase/supabase-js'
+import { logTouch, type TouchFlow } from './touchpoint'
+
 const ML_BASE = 'https://connect.mailerlite.com/api'
 
 const ML_GROUPS: Record<string, string> = {
@@ -130,6 +133,9 @@ export async function onUserApproved(params: {
 
   if (result?.status === 200 || result?.status === 201) {
     console.log(`[MailerLite] Created ${email} and added to group ${groupId}`)
+    // Log so cross-flow gap checks (coach_activation, coach_gone_quiet, win-back) see this send
+    const flow: TouchFlow = role === 'coach' ? 'mailerlite_coach_onboarding' : 'mailerlite_player_onboarding'
+    logTouchByEmail(email, flow).catch(err => console.error('[touchpoint] logTouch failed:', err))
   } else {
     console.error(`[MailerLite] Failed to create subscriber ${email}:`, result?.data)
   }
@@ -181,12 +187,36 @@ export async function onUserUpgradedToPremium(
 
   if (result?.status === 200 || result?.status === 201 || result?.status === 204) {
     console.log(`[MailerLite] Tagged ${email} as "${tagName}"`)
+    // Log so cross-flow gap checks see the premium automation trigger
+    const flow: TouchFlow = role === 'coach' ? 'mailerlite_coach_premium' : 'mailerlite_player_premium'
+    logTouchByEmail(email, flow).catch(err => console.error('[touchpoint] logTouch failed:', err))
   } else {
     console.error(`[MailerLite] Failed to tag ${email}:`, result?.data)
   }
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Look up a profile by email and log a touchpoint.
+ * Non-blocking — a missing profile or write failure is logged but never throws.
+ */
+async function logTouchByEmail(email: string, flow: TouchFlow): Promise<void> {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  if (!profile?.id) {
+    console.warn(`[touchpoint] no profile found for ${email} — skipping logTouch(${flow})`)
+    return
+  }
+  await logTouch(supabase, profile.id, 'email', flow)
+}
 
 async function findOrCreateTag(name: string): Promise<string | null> {
   // List existing tags

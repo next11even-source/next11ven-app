@@ -21,7 +21,8 @@ const FLOW_LABELS: Record<string, string> = {
   coach_recommendations:'Coach recommendations',
   application_decision: 'Application decision',
   shortlist_available:  'Shortlist availability alert',
-  broadcast:            'Broadcast (untagged)',
+  broadcast:            'Broadcast',
+  '(untagged)':         'Auth system (password reset / magic link)',
   coach_activation_d7:  'Coach activation D7',
   coach_activation_d21: 'Coach activation D21',
   coach_gone_quiet_d1:  'Coach gone quiet D1',
@@ -30,6 +31,15 @@ const FLOW_LABELS: Record<string, string> = {
   message_pack_purchase:'Message pack purchase',
   opportunity_auto_closed: 'Opportunity auto-closed',
   application_received: 'Application received (coach)',
+  player_onboarding_d0: 'Player onboarding D0',
+  player_onboarding_d1: 'Player onboarding D1',
+  player_onboarding_d3: 'Player onboarding D3',
+  player_onboarding_d7: 'Player onboarding D7',
+  coach_onboarding_d0:  'Coach onboarding D0',
+  coach_onboarding_d2:  'Coach onboarding D2',
+  coach_onboarding_d5:  'Coach onboarding D5',
+  player_pro_welcome:   'Player Pro welcome',
+  coach_pro_welcome:    'Coach Pro welcome',
 }
 
 function rate(numerator: number, denominator: number): string {
@@ -44,8 +54,9 @@ function FlowRow({ flowId, events, label }: { flowId: string; events: Record<str
   const clicked = events['email.clicked'] ?? 0
   const bounced = events['email.bounced'] ?? 0
   const complained = events['email.complained'] ?? 0
-  // Use sent as denominator; fall back to delivered if no sent events
-  const denom = sent || delivered
+  // Use total unique emails in the window as denominator — avoids >100% rates when
+  // a send's email.sent event falls outside the selected window but opens are inside it.
+  const denom = events['total'] || sent || delivered
 
   return (
     <tr style={{ borderTop: '1px solid #1e2235' }}>
@@ -108,7 +119,8 @@ export default function EmailAnalyticsPage() {
     return sentB - sentA
   })
 
-  const namedFlows = allFlows.filter(([id]) => !UUID_RE.test(id))
+  const namedFlows = allFlows.filter(([id]) => !UUID_RE.test(id) && !id.startsWith('test_'))
+  const testFlows = allFlows.filter(([id]) => id.startsWith('test_'))
   const broadcastFlows = allFlows.filter(([id]) => UUID_RE.test(id))
 
   return (
@@ -235,8 +247,38 @@ export default function EmailAnalyticsPage() {
           </>
         )}
 
+            {/* Test sends — isolated so they don't contaminate production flow rates */}
+            {testFlows.length > 0 && (
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#8892aa' }}>
+                  Test Sends (excluded from production metrics)
+                </h2>
+                <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 580 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #1e2235' }}>
+                          <th className="px-3 py-2 text-left" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Flow</th>
+                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sent</th>
+                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Open</th>
+                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Click</th>
+                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bounce</th>
+                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Complaint</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {testFlows.map(([flowId, events]) => (
+                          <FlowRow key={flowId} flowId={flowId} events={events} label={flowId} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
         <p className="text-center" style={{ color: '#4b5563', fontSize: 11 }}>
-          Rates are computed from unique sends (one row per email). Open and click tracking must be enabled in Resend for those columns to populate.
+          Rates are computed from unique emails with any event in the selected window. Open and click tracking must be enabled in Resend for those columns to populate.
         </p>
       </div>
     </div>

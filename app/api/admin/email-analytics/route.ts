@@ -8,6 +8,9 @@ export const runtime = 'nodejs'
 // UUID v4 pattern — broadcast flows are stored as UUIDs
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+// Addresses excluded from analytics — personal/test inboxes that skew the data
+const EXCLUDED_RECIPIENTS = new Set(['jamalcrawford@icloud.com'])
+
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -38,9 +41,10 @@ export async function GET(req: NextRequest) {
   )
 
   // Fetch all events in range — one row per event
+  // raw is included so we can filter out excluded recipient addresses in JS
   const { data: events, error } = await service
     .from('email_events')
-    .select('resend_email_id, event_type, flow')
+    .select('resend_email_id, event_type, flow, raw')
     .gte('occurred_at', since)
 
   if (error) {
@@ -49,20 +53,30 @@ export async function GET(req: NextRequest) {
   }
 
   // Group: flow → event_type → Set of unique resend_email_ids
+  // Also track all unique IDs per flow across all event types (the correct denominator).
+  // Using sent-only as denominator causes >100% rates when a send's email.sent event
+  // falls outside the time window but its email.opened event is inside it.
   const flowMap: Record<string, Record<string, Set<string>>> = {}
+  const flowAllIds: Record<string, Set<string>> = {}
 
   for (const row of events ?? []) {
+    // Skip events sent to excluded test/personal addresses
+    const toList = (row.raw as { data?: { to?: unknown } } | null)?.data?.to
+    if (Array.isArray(toList) && toList.some((e: unknown) => typeof e === 'string' && EXCLUDED_RECIPIENTS.has(e.toLowerCase()))) continue
+
     const f = row.flow ?? '(untagged)'
     if (!flowMap[f]) flowMap[f] = {}
+    if (!flowAllIds[f]) flowAllIds[f] = new Set()
     const et = row.event_type
     if (!flowMap[f][et]) flowMap[f][et] = new Set()
     flowMap[f][et].add(row.resend_email_id)
+    flowAllIds[f].add(row.resend_email_id)
   }
 
-  // Flatten to counts
+  // Flatten to counts; include `total` = unique emails with any event in window
   const flowStats: Record<string, Record<string, number>> = {}
   for (const [f, etMap] of Object.entries(flowMap)) {
-    flowStats[f] = {}
+    flowStats[f] = { total: flowAllIds[f].size }
     for (const [et, ids] of Object.entries(etMap)) {
       flowStats[f][et] = ids.size
     }

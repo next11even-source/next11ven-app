@@ -111,6 +111,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         userId,
         opportunityCount: 14,
         playerPosition: 'Midfielder',
+        isTest: true,
       })
 
     case 'coach_activation_d7':
@@ -120,6 +121,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         coachId: userId,
         regionPlayerCount: 34,
         regionLabel: 'Manchester',
+        isTest: true,
       })
 
     case 'coach_activation_d21':
@@ -128,6 +130,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         coachName: 'Jamal Crawford',
         coachId: userId,
         coachesPostedThisWeek: 12,
+        isTest: true,
       })
 
     case 'coach_gone_quiet_d1':
@@ -137,6 +140,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         coachId: userId,
         newPlayerCount: 23,
         daysSinceLastPost: 34,
+        isTest: true,
       })
 
     case 'coach_gone_quiet_d14':
@@ -145,6 +149,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         coachName: 'Jamal Crawford',
         coachId: userId,
         coachesPostedThisWeek: 9,
+        isTest: true,
       })
 
     case 'application_nudge':
@@ -156,6 +161,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         oldestDays: 11,
         atRiskCount: 1,
         atRiskDaysLeft: 3,
+        isTest: true,
       })
 
     case 'weekly_digest':
@@ -165,6 +171,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         to,
         playerId: userId,
         subject: 'Your NEXT11VEN week — test preview',
+        isTest: true,
         contentHtml: `
           <p style="color:#e8dece;margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Your week on NEXT11VEN</p>
           <p style="color:#8892aa;margin:0 0 24px;font-size:13px;">Here's a snapshot of your week, Jamal.</p>
@@ -194,10 +201,11 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
           <a href="${process.env.APP_URL ?? 'https://app.next11ven.com'}/dashboard/admin/broadcast" style="display:block;padding:14px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;text-align:center;">Open Email Composer</a>
         `,
         unsubscribeUrl,
+        isTest: true,
       })
 
     case 'player_onboarding_d0':
-      return sendPlayerOnboardingD0Email({ to, firstName: 'Jamal' })
+      return sendPlayerOnboardingD0Email({ to, firstName: 'Jamal', isTest: true })
 
     case 'player_onboarding_d1':
       return sendPlayerOnboardingD1Email({
@@ -210,6 +218,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
           { label: 'Playing history', why: "Your career record — clubs and levels you've played, shown nowhere else in non-league." },
           { label: 'Season stats', why: 'Numbers back up everything else on your profile.' },
         ],
+        isTest: true,
       })
 
     case 'player_onboarding_d3':
@@ -218,6 +227,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         firstName: 'Jamal',
         playerId: userId,
         approvedCoachCount: 87,
+        isTest: true,
       })
 
     case 'player_onboarding_d7':
@@ -228,6 +238,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         openRoleCount: 6,
         statAvailable: true,
         position: 'Midfielder',
+        isTest: true,
       })
 
     case 'coach_onboarding_d0':
@@ -235,6 +246,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         to,
         coachName: 'Jamal Crawford',
         activePlayerCount: 312,
+        isTest: true,
       })
 
     case 'coach_onboarding_d2':
@@ -245,6 +257,7 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         regionalPlayerCount: 28,
         statAvailable: true,
         regionLabel: 'Manchester',
+        isTest: true,
       })
 
     case 'coach_onboarding_d5':
@@ -255,13 +268,14 @@ async function sendTemplate(template: Template, to: string, userId: string, unsu
         recruitingCoachCount: 19,
         statAvailable: true,
         fallbackOpportunityCount: 64,
+        isTest: true,
       })
 
     case 'player_pro_welcome':
-      return sendPlayerProWelcomeEmail({ to, firstName: 'Jamal' })
+      return sendPlayerProWelcomeEmail({ to, firstName: 'Jamal', isTest: true })
 
     case 'coach_pro_welcome':
-      return sendCoachProWelcomeEmail({ to, coachName: 'Jamal Crawford' })
+      return sendCoachProWelcomeEmail({ to, coachName: 'Jamal Crawford', isTest: true })
   }
 }
 

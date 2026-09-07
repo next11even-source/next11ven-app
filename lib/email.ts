@@ -11,12 +11,16 @@
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'NEXT11VEN <hello@next11ven.com>'
 const SITE = process.env.APP_URL ?? 'https://app.next11ven.com'
 
-async function send({ to, subject, html, tags }: {
+async function send({ to, subject, html, tags, isTest }: {
   to: string
   subject: string
   html: string
   tags?: Array<{ name: string; value: string }>
+  isTest?: boolean
 }) {
+  const resolvedTags = isTest && tags?.length
+    ? tags.map(t => t.name === 'flow' ? { ...t, value: `test_${t.value}` } : t)
+    : tags
   if (process.env.RESEND_ENABLED === 'false') {
     console.log(`[Email] disabled — skipping "${subject}" to ${to}`)
     return
@@ -32,7 +36,7 @@ async function send({ to, subject, html, tags }: {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM, to, subject, html, ...(tags?.length ? { tags } : {}) }),
+      body: JSON.stringify({ from: FROM, to, subject, html, ...(resolvedTags?.length ? { tags: resolvedTags } : {}) }),
     })
     if (!res.ok) {
       const body = await res.text()
@@ -105,16 +109,19 @@ export async function sendBroadcastEmail({
   contentHtml,
   unsubscribeUrl,
   broadcastId,
+  isTest,
 }: {
   to: string
   subject: string
   contentHtml: string
   unsubscribeUrl: string
   broadcastId?: string
+  isTest?: boolean
 }) {
   const html = marketingTemplate(contentHtml, unsubscribeUrl)
-  const tags = broadcastId ? [{ name: 'flow', value: broadcastId }] : undefined
-  await send({ to, subject, html, ...(tags ? { tags } : {}) })
+  // Always tag: named flows get their broadcastId, anonymous sends fall back to 'broadcast'
+  const tags = [{ name: 'flow', value: broadcastId ?? 'broadcast' }]
+  await send({ to, subject, html, tags, isTest })
 }
 
 // ─── Message notification ─────────────────────────────────────────────────────
@@ -344,12 +351,14 @@ export async function sendCoachActivationD7Email({
   coachId,
   regionPlayerCount,
   regionLabel,
+  isTest,
 }: {
   to: string
   coachName: string | null
   coachId: string
   regionPlayerCount: number
   regionLabel: string | null
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const unsubscribeUrl = makeUnsubscribeUrl(coachId)
@@ -381,7 +390,7 @@ export async function sendCoachActivationD7Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_activation_d7' }] })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_activation_d7' }], isTest })
 }
 
 // D21 — different angle: social proof, not a louder version of D7.
@@ -393,11 +402,13 @@ export async function sendCoachActivationD21Email({
   coachName,
   coachId,
   coachesPostedThisWeek,
+  isTest,
 }: {
   to: string
   coachName: string | null
   coachId: string
   coachesPostedThisWeek: number
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const unsubscribeUrl = makeUnsubscribeUrl(coachId)
@@ -430,7 +441,7 @@ export async function sendCoachActivationD21Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — are you?`, html, tags: [{ name: 'flow', value: 'coach_activation_d21' }] })
+  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — are you?`, html, tags: [{ name: 'flow', value: 'coach_activation_d21' }], isTest })
 }
 
 // ─── Coach gone quiet: D1 — new players have joined since you last posted ─────
@@ -446,12 +457,14 @@ export async function sendCoachGoneQuietD1Email({
   coachId,
   newPlayerCount,
   daysSinceLastPost,
+  isTest,
 }: {
   to: string
   coachName: string | null
   coachId: string
   newPlayerCount: number
   daysSinceLastPost: number
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const unsubscribeUrl = makeUnsubscribeUrl(coachId)
@@ -484,7 +497,7 @@ export async function sendCoachGoneQuietD1Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post a role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_gone_quiet_d1' }] })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_gone_quiet_d1' }], isTest })
 }
 
 // ─── Coach gone quiet: D14 — social proof, different angle from D1 ────────────
@@ -498,11 +511,13 @@ export async function sendCoachGoneQuietD14Email({
   coachName,
   coachId,
   coachesPostedThisWeek,
+  isTest,
 }: {
   to: string
   coachName: string | null
   coachId: string
   coachesPostedThisWeek: number
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const unsubscribeUrl = makeUnsubscribeUrl(coachId)
@@ -535,7 +550,7 @@ export async function sendCoachGoneQuietD14Email({
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post a role</a>
   `, unsubscribeUrl)
 
-  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — where are you?`, html, tags: [{ name: 'flow', value: 'coach_gone_quiet_d14' }] })
+  await send({ to, subject: `${coachesPostedThisWeek > 0 ? `${coachesPostedThisWeek} coaches posted this week` : 'Other coaches are posting'} — where are you?`, html, tags: [{ name: 'flow', value: 'coach_gone_quiet_d14' }], isTest })
 }
 
 // ─── Application nudge (coach owes players an answer) ────────────────────────
@@ -551,6 +566,7 @@ export async function sendApplicationNudgeEmail({
   oldestDays,
   atRiskCount,
   atRiskDaysLeft,
+  isTest,
 }: {
   to: string
   coachName: string | null
@@ -561,6 +577,7 @@ export async function sendApplicationNudgeEmail({
   atRiskCount?: number
   /** Days left on the soonest at-risk role before it auto-closes */
   atRiskDaysLeft?: number
+  isTest?: boolean
 }) {
   const url = `${SITE}/dashboard/opportunities?tab=mine`
   const plural = total === 1 ? 'player is' : 'players are'
@@ -592,6 +609,7 @@ export async function sendApplicationNudgeEmail({
     subject: total === 1 ? '1 player is waiting on your answer' : `${total} players are waiting on your answer`,
     html,
     tags: [{ name: 'flow', value: 'application_nudge' }],
+    isTest,
   })
 }
 
@@ -643,14 +661,16 @@ export async function sendWeeklyDigestEmail({
   playerId,
   subject,
   contentHtml,
+  isTest,
 }: {
   to: string
   playerId: string
   subject: string
   contentHtml: string
+  isTest?: boolean
 }) {
   const html = baseTemplate(contentHtml, makeUnsubscribeUrl(playerId))
-  await send({ to, subject, html, tags: [{ name: 'flow', value: 'weekly_digest' }] })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'weekly_digest' }], isTest })
 }
 
 // ─── Billing: payment failed (transactional — never suppress) ────────────────
@@ -714,12 +734,14 @@ export async function sendSubscriptionCancelledWinBackEmail({
   userId,
   opportunityCount,
   playerPosition,
+  isTest,
 }: {
   to: string
   toName: string | null
   userId: string
   opportunityCount?: number
   playerPosition?: string | null
+  isTest?: boolean
 }) {
   const rejoinUrl = `${SITE}/dashboard/premium`
   const unsubscribeUrl = makeUnsubscribeUrl(userId)
@@ -750,7 +772,7 @@ export async function sendSubscriptionCancelledWinBackEmail({
     <p style="color:#8892aa;margin:20px 0 0;font-size:13px;line-height:1.6;">Questions? Just reply to this email.</p>
   `, unsubscribeUrl)
 
-  await send({ to, subject: "Coaches are still recruiting — come back", html, tags: [{ name: 'flow', value: 'winback' }] })
+  await send({ to, subject: "Coaches are still recruiting — come back", html, tags: [{ name: 'flow', value: 'winback' }], isTest })
 }
 
 // ─── Shortlisted player became available (coach) ────────────────────────────
@@ -862,9 +884,11 @@ function recommendationCard(p: RecommendationEmailPlayer): string {
 export async function sendPlayerOnboardingD0Email({
   to,
   firstName: firstNameParam,
+  isTest,
 }: {
   to: string
   firstName: string | null
+  isTest?: boolean
 }) {
   const profileUrl = `${SITE}/dashboard/player/profile`
   const html = baseTemplate(`
@@ -880,7 +904,7 @@ export async function sendPlayerOnboardingD0Email({
     </p>
     <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Add your playing history</a>
   `)
-  await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'player_onboarding_d0' }] })
+  await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'player_onboarding_d0' }], isTest })
 }
 
 // ─── Player onboarding: Step 11 — Day 1 — Profile completion nudge ───────────
@@ -894,12 +918,14 @@ export async function sendPlayerOnboardingD1Email({
   firstName: firstNameParam,
   playerId,
   missingFields,
+  isTest,
 }: {
   to: string
   firstName: string | null
   playerId: string
   /** Ranked missing profile fields from calcCompletion — top 5 max. Empty = profile complete. */
   missingFields: Array<{ label: string; why: string }>
+  isTest?: boolean
 }) {
   const profileUrl = `${SITE}/dashboard/player/profile`
   const isComplete = missingFields.length === 0
@@ -935,7 +961,7 @@ export async function sendPlayerOnboardingD1Email({
     </p>
     <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">${ctaLabel}</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject: "Your profile is live — here's how to make coaches stop scrolling", html, tags: [{ name: 'flow', value: 'player_onboarding_d1' }] })
+  await send({ to, subject: "Your profile is live — here's how to make coaches stop scrolling", html, tags: [{ name: 'flow', value: 'player_onboarding_d1' }], isTest })
 }
 
 // ─── Player onboarding: Step 12 — Day 3 — Coaches are here ──────────────────
@@ -946,11 +972,13 @@ export async function sendPlayerOnboardingD3Email({
   firstName: firstNameParam,
   playerId,
   approvedCoachCount,
+  isTest,
 }: {
   to: string
   firstName: string | null
   playerId: string
   approvedCoachCount: number
+  isTest?: boolean
 }) {
   const oppsUrl = `${SITE}/dashboard/opportunities`
   const html = baseTemplate(`
@@ -963,7 +991,7 @@ export async function sendPlayerOnboardingD3Email({
     </p>
     <a href="${oppsUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Browse open opportunities</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject: 'Coaches across non-league football are already searching NEXT11VEN', html, tags: [{ name: 'flow', value: 'player_onboarding_d3' }] })
+  await send({ to, subject: 'Coaches across non-league football are already searching NEXT11VEN', html, tags: [{ name: 'flow', value: 'player_onboarding_d3' }], isTest })
 }
 
 // ─── Player onboarding: Step 13 — Day 7 — Premium pitch ─────────────────────
@@ -978,6 +1006,7 @@ export async function sendPlayerOnboardingD7Email({
   openRoleCount,
   statAvailable,
   position,
+  isTest,
 }: {
   to: string
   firstName: string | null
@@ -985,6 +1014,7 @@ export async function sendPlayerOnboardingD7Email({
   openRoleCount: number
   statAvailable: boolean
   position: string | null
+  isTest?: boolean
 }) {
   const upgradeUrl = `${SITE}/dashboard/player/premium`
   const subject = statAvailable && position && openRoleCount > 0
@@ -1045,7 +1075,7 @@ export async function sendPlayerOnboardingD7Email({
     <p style="color:#8892aa;font-size:12px;margin:0 0 16px;text-align:center;">£6.99/mo — about £1.60 a week</p>
     <a href="${upgradeUrl}" style="display:block;padding:14px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;text-align:center;">Go Pro</a>
   `, makeUnsubscribeUrl(playerId))
-  await send({ to, subject, html, tags: [{ name: 'flow', value: 'player_onboarding_d7' }] })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'player_onboarding_d7' }], isTest })
 }
 
 // ─── Coach onboarding: Step 14 — Day 0 — Welcome ─────────────────────────────
@@ -1055,10 +1085,12 @@ export async function sendCoachOnboardingD0Email({
   to,
   coachName,
   activePlayerCount,
+  isTest,
 }: {
   to: string
   coachName: string | null
   activePlayerCount: number
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const html = baseTemplate(`
@@ -1071,7 +1103,7 @@ export async function sendCoachOnboardingD0Email({
     </p>
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post an opportunity</a>
   `)
-  await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'coach_onboarding_d0' }] })
+  await send({ to, subject: "You're in. Welcome to NEXT11VEN ⚡", html, tags: [{ name: 'flow', value: 'coach_onboarding_d0' }], isTest })
 }
 
 // ─── Coach onboarding: Step 15 — Day 2 — Post your first role ────────────────
@@ -1086,6 +1118,7 @@ export async function sendCoachOnboardingD2Email({
   regionalPlayerCount,
   statAvailable,
   regionLabel,
+  isTest,
 }: {
   to: string
   coachName: string | null
@@ -1093,6 +1126,7 @@ export async function sendCoachOnboardingD2Email({
   regionalPlayerCount: number
   statAvailable: boolean
   regionLabel: string | null
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const unsubscribeUrl = makeUnsubscribeUrl(coachId)
@@ -1123,7 +1157,7 @@ export async function sendCoachOnboardingD2Email({
     </p>
     <a href="${postUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Post your first opportunity</a>
   `, unsubscribeUrl)
-  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d2' }] })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d2' }], isTest })
 }
 
 // ─── Coach onboarding: Step 16 — Day 5 — Proof / credibility ─────────────────
@@ -1139,6 +1173,7 @@ export async function sendCoachOnboardingD5Email({
   recruitingCoachCount,
   statAvailable,
   fallbackOpportunityCount,
+  isTest,
 }: {
   to: string
   coachName: string | null
@@ -1146,6 +1181,7 @@ export async function sendCoachOnboardingD5Email({
   recruitingCoachCount: number
   statAvailable: boolean
   fallbackOpportunityCount: number
+  isTest?: boolean
 }) {
   const postUrl = `${SITE}/dashboard/opportunities?tab=mine`
   const unsubscribeUrl = makeUnsubscribeUrl(coachId)
@@ -1188,7 +1224,7 @@ export async function sendCoachOnboardingD5Email({
       <a href="${performanceUrl}" style="display:inline-block;padding:10px 20px;background:transparent;color:#4d8ae8;text-decoration:none;border-radius:8px;font-weight:600;font-size:13px;border:1px solid #2a3150;">Explore the performance dashboard</a>
     </div>
   `, unsubscribeUrl)
-  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d5' }] })
+  await send({ to, subject, html, tags: [{ name: 'flow', value: 'coach_onboarding_d5' }], isTest })
 }
 
 // ─── Premium welcome: Step 20 — Player Pro ───────────────────────────────────
@@ -1196,9 +1232,11 @@ export async function sendCoachOnboardingD5Email({
 export async function sendPlayerProWelcomeEmail({
   to,
   firstName: firstNameParam,
+  isTest,
 }: {
   to: string
   firstName: string | null
+  isTest?: boolean
 }) {
   const profileUrl = `${SITE}/dashboard/player/profile`
   const html = baseTemplate(`
@@ -1208,7 +1246,7 @@ export async function sendPlayerProWelcomeEmail({
     </p>
     <a href="${profileUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">View your profile</a>
   `)
-  await send({ to, subject: "You're Premium. Here's what just changed.", html, tags: [{ name: 'flow', value: 'player_pro_welcome' }] })
+  await send({ to, subject: "You're Premium. Here's what just changed.", html, tags: [{ name: 'flow', value: 'player_pro_welcome' }], isTest })
 }
 
 // ─── Premium welcome: Step 21 — Coach Pro ────────────────────────────────────
@@ -1217,9 +1255,11 @@ export async function sendPlayerProWelcomeEmail({
 export async function sendCoachProWelcomeEmail({
   to,
   coachName,
+  isTest,
 }: {
   to: string
   coachName: string | null
+  isTest?: boolean
 }) {
   const searchUrl = `${SITE}/dashboard/coach/players`
   const html = baseTemplate(`
@@ -1229,7 +1269,7 @@ export async function sendCoachProWelcomeEmail({
     </p>
     <a href="${searchUrl}" style="display:inline-block;padding:12px 24px;background:#2d5fc4;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">Search players</a>
   `)
-  await send({ to, subject: "You're Coach Pro. Here's what just unlocked.", html, tags: [{ name: 'flow', value: 'coach_pro_welcome' }] })
+  await send({ to, subject: "You're Coach Pro. Here's what just unlocked.", html, tags: [{ name: 'flow', value: 'coach_pro_welcome' }], isTest })
 }
 
 export async function sendCoachRecommendationsEmail({

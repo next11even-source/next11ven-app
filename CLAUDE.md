@@ -352,6 +352,13 @@ Live Automations
   Step 2 (Day 3): processed by cron — email only (sendDripDay3Email)
   Step 3 (Day 7): processed by cron — SMS best-effort (sms_opt_in checked) + email (sendDripDay7Email)
   Sequence aborted early if: player upgrades to premium, player opts out (email_marketing_opt_out), or triggering message is read.
+- Native onboarding sequence: active as of 7 Sep 2026 (native_onboarding = true). Mutually exclusive with MailerLite onboarding.
+  Player steps 10–13 (D0/D1/D3/D7) and coach steps 14–16 (D0/D2/D5) seeded into drip_jobs on approval (/api/admin/review).
+  Pro welcome steps 20 (player) / 21 (coach) seeded on first premium activation (/api/stripe/webhook).
+  ⚠️ D0 steps (10, 14) and Pro welcome steps (20, 21) are IMMEDIATE — sent in the same request that inserts the drip_jobs row,
+  not picked up by the morning cron. sent=true is set in-request on success; if send fails, sent stays false and the cron retries
+  next morning. Double-send guard: if the row already exists (re-approval), insert returns nothing → immediate send is skipped.
+  D1/D2/D3/D5/D7 steps are cron-only — /api/cron/drip-reminders at 09:00 UTC picks them up on their scheduled day.
 - Post-match log nudge: /api/cron/log-nudge — daily 18:00 UTC
   Targets players with an ACTIVE club stint whose likely match day is TODAY
   (modal weekday from their logged history; Saturday until there's enough) and who
@@ -584,7 +591,7 @@ Unsubscribe
 POST /api/unsubscribe — sets email_marketing_opt_out on profile
 
 Cron
-GET /api/cron/drip-reminders — processes pending drip_jobs (steps 2 and 3)
+GET /api/cron/drip-reminders — processes pending drip_jobs. Message drip: steps 2+3 (D3/D7). Native onboarding: steps 11–16 (D1–D5) + retry for D0 steps 10/14 if immediate send failed. Pro welcome: step 20/21 retry only.
 GET /api/cron/weekly-digest — sends the weekly player digest to all approved players (Thursday)
 GET /api/cron/log-nudge — post-match "log your game" nudge to active-stint players (daily)
 GET /api/cron/application-nudge — nudges coaches sitting on unanswered applications (daily)

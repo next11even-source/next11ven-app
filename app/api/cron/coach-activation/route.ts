@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 120
 
 // Coach activation — two-step cadence targeting approved coaches who have never
-// posted a role. Runs weekly (Wednesday 09:00 UTC).
+// posted a role. Runs weekly (Thursday 09:00 UTC).
 //
 // As of 4 Sep 2026, 134 approved coaches had never posted anything. This is
 // the supply constraint: players can't apply if coaches don't post.
@@ -194,10 +194,11 @@ export async function GET(req: NextRequest) {
     // Cross-flow collision check — the step gate above only knows "has THIS flow
     // fired yet." It says nothing about whether something else (coach recommendations,
     // an admin broadcast) landed for this coach recently. 48h is the correct window:
-    // coach-recommendations fires Tue 08:00, this cron fires Wed 09:00 (25h gap) —
-    // a 24h check misses that by 1 hour; 48h catches it. Skip without logging so
-    // the step-determination condition is unchanged on the next run and the weekly
-    // sweep retries automatically — same self-healing property as every other skip.
+    // coach-recommendations fires Tue 08:00, this cron fires Thu 09:00 (49h gap) —
+    // safely outside the 48h window so recommendations never blocks activation.
+    // Skip without logging so the step-determination condition is unchanged on the
+    // next run and the weekly sweep retries automatically — same self-healing
+    // property as every other skip.
     const { canSend } = await canSendTouch(supabase, coach.id, 'email', 48)
     if (!canSend) { skipped++; continue }
 

@@ -312,6 +312,14 @@ export default function Sidebar({ isOpen, onClose, profile }: Props) {
                 </svg>
                 <p className="text-sm font-semibold">Test Emails</p>
               </Link>
+              <Link href="/dashboard/admin/email-analytics" onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                style={{ textDecoration: 'none', color: '#f59e0b' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+                <p className="text-sm font-semibold">Email Analytics</p>
+              </Link>
               <Link href="/dashboard/coach/performance" onClick={onClose}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
                 style={{ textDecoration: 'none', color: '#f59e0b' }}>

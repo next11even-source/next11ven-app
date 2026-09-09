@@ -88,7 +88,10 @@ export async function GET(req: NextRequest) {
   }
 
   const oppOwner = new Map((activeOpps ?? []).map(o => [o.id, o.coach_id]))
-  if (oppOwner.size === 0) return NextResponse.json({ candidates: 0, nudgedSms: 0, nudgedEmail: 0 })
+  if (oppOwner.size === 0) {
+    console.log('[application-nudge] exiting early: no active opportunities found')
+    return NextResponse.json({ candidates: 0, nudgedSms: 0, nudgedEmail: 0 })
+  }
 
   const { data: apps, error: appErr } = await supabase
     .from('applications')
@@ -137,7 +140,10 @@ export async function GET(req: NextRequest) {
     atRiskByCoach.set(o.coach_id, cur)
   }
 
-  if (backlog.size === 0) return NextResponse.json({ candidates: 0, nudgedSms: 0, nudgedEmail: 0 })
+  if (backlog.size === 0) {
+    console.log(`[application-nudge] exiting early: no coaches with qualifying backlog (awaiting reply >= ${MIN_AGE_DAYS} days old)`)
+    return NextResponse.json({ candidates: 0, nudgedSms: 0, nudgedEmail: 0 })
+  }
 
   const { data: coaches, error: coachErr } = await supabase
     .from('profiles')
@@ -247,6 +253,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  console.log(`[application-nudge] run complete: candidates=${backlog.size} nudgedSms=${nudgedSms} nudgedEmail=${nudgedEmail} skipped=${skipped} failed=${failed}`)
   return NextResponse.json({
     candidates: backlog.size,
     nudgedSms,

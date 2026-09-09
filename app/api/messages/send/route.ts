@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { sendMessageNotificationEmail, sendDripDay0Email } from '@/lib/email'
+import { logTouch } from '@/lib/touchpoint'
 import { reportError } from '@/lib/alert'
 import { enforceRateLimit } from '@/lib/ratelimit'
 
@@ -273,6 +274,7 @@ export async function POST(req: NextRequest) {
       if (recipientProfile.email && !recipientProfile.email_marketing_opt_out) {
         try {
           await sendDripDay0Email({ to: recipientProfile.email, toName: recipientProfile.full_name, playerId: recipientId })
+          await logTouch(adminClient, recipientId, 'email', 'drip_day0')
         } catch (err) {
           reportError('/api/messages/send', err, `drip day0 email failed for recipient: ${recipientId}`)
         }

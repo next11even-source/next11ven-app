@@ -258,7 +258,7 @@ sendDripDay7Email                     /api/cron/drip-reminders               as 
 sendApplicationReceivedEmail          /api/applications/apply                — (coach-facing)
 sendApplicationDecisionEmail          /api/applications/[id]                 ACCEPT: always. DECLINE: 1/player/24h AND only if applied <42d ago
 sendApplicationNudgeEmail             /api/cron/application-nudge            1 per coach per 5 days
-sendLogNudgeEmail                     /api/cron/log-nudge                    SMS-first, email only as fallback
+sendLogNudgeEmail                     /api/cron/log-nudge                    email only (SMS removed 7 Sep 2026)
 sendWeeklyDigestEmail                 /api/cron/weekly-digest                weekly, 1 per player
 sendCoachRecommendationsEmail         /api/cron/coach-recommendations        weekly, 1 per coach
 sendShortlistAvailableEmail           /api/player/status-change              1 per coach per player per week
@@ -271,14 +271,14 @@ Marketing sends respect email_marketing_opt_out. Transactional (payment failed,
 application decisions) must NEVER be suppressed by it.
 
 SMS (Twilio — inlined per route, no shared helper. TWILIO_ENABLED flag)
-Six send sites, ALL gated on sms_opt_in AND the 1-per-recipient-per-day
+Four send sites, ALL gated on sms_opt_in AND the 1-per-recipient-per-day
 last_sms_at cap:
-  /api/messages/send             new message received
+  /api/messages/send             new message received (incl. Drip Day 0 inline)
   /api/admin/review              approval decision
   /api/cron/application-nudge    coach sitting on unanswered applications
-  /api/cron/drip-reminders       drip step 3 (Day 7) only
-  /api/cron/log-nudge            post-match "log your game"
   /api/stripe/webhook            payment failed (handlePaymentFailedNotifications)
+SMS removed from /api/cron/drip-reminders (Day 7) and /api/cron/log-nudge (7 Sep 2026) —
+low volume, marginal lift; email covers both adequately.
 ⚠️ NOTHING ELSE SENDS SMS. In particular application closure, application
 declines, message credit refunds AND opportunity auto-closure are in-app (+
 email for the last one) only — deliberately. Nobody gets texted that they were

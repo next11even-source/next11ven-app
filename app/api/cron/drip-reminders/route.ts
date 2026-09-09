@@ -491,47 +491,7 @@ export async function GET(req: NextRequest) {
         failed++
       }
     } else if (job.sequence_step === 3) {
-      // Day 7 — SMS (best-effort) then email (required to mark sent)
-      const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
-      const lastSms = profile.last_sms_at ? new Date(profile.last_sms_at) : null
-      const smsAllowed = !lastSms || (Date.now() - lastSms.getTime()) > 86_400_000
-
-      if (
-        smsAllowed &&
-        process.env.TWILIO_ENABLED !== 'false' &&
-        profile.phone &&
-        profile.sms_opt_in !== false &&
-        process.env.TWILIO_ACCOUNT_SID &&
-        process.env.TWILIO_AUTH_TOKEN &&
-        process.env.TWILIO_FROM_NUMBER
-      ) {
-        try {
-          await fetch(
-            `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: 'Basic ' + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64'),
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({
-                From: process.env.TWILIO_FROM_NUMBER,
-                To: profile.phone,
-                Body: `NEXT11VEN: A coach messaged you and won't wait forever. The longer this sits, the more likely they've moved on. Upgrade now: ${appUrl}/dashboard/player/premium`,
-              }),
-            }
-          )
-          await supabase
-            .from('profiles')
-            .update({ last_sms_at: new Date().toISOString() })
-            .eq('id', job.recipient_id)
-          await logTouch(supabase, job.recipient_id, 'sms', 'drip_day7')
-        } catch (err) {
-          // SMS failure is non-blocking — log but still send the email and mark sent
-          reportError('/api/cron/drip-reminders', err, `drip job ${job.id} step 3 SMS failed`)
-        }
-      }
-
+      // Day 7 — email only (SMS removed: low volume, marginal lift over Day 3 email)
       try {
         if (profile.email) {
           await sendDripDay7Email({ to: profile.email, toName: profile.full_name, playerId: job.recipient_id })

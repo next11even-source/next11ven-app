@@ -15,10 +15,9 @@ export const maxDuration = 60
 // for each player with an ACTIVE club stint whose likely match day is TODAY
 // (derived from the weekday they usually log on, Saturday until there's history)
 // and who hasn't logged that game, sends one gentle "log it" reminder the evening
-// of the match while it's fresh. SMS-first when opted in and inside the 1/day
-// rate limit; email fallback otherwise.
+// of the match while it's fresh. Email only — respects email_marketing_opt_out.
 //
-// Free feature, no upsell. Respects sms_opt_in and email_marketing_opt_out.
+// Free feature, no upsell.
 
 const DAY = 86_400_000
 
@@ -26,9 +25,6 @@ type Candidate = {
   id: string
   email: string | null
   full_name: string | null
-  phone: string | null
-  sms_opt_in: boolean | null
-  last_sms_at: string | null
   email_marketing_opt_out: boolean | null
 }
 
@@ -66,7 +62,7 @@ export async function GET(req: NextRequest) {
   const [{ data: profiles, error: profErr }, { data: matches, error: matchErr }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, email, full_name, phone, sms_opt_in, last_sms_at, email_marketing_opt_out, approved, role')
+      .select('id, email, full_name, email_marketing_opt_out, approved, role')
       .in('id', playerIds)
       .eq('approved', true)
       .in('role', ['player', 'admin']),
@@ -92,7 +88,6 @@ export async function GET(req: NextRequest) {
   const now = new Date()
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
 
-  let nudgedSms = 0
   let nudgedEmail = 0
   let skipped = 0
   let failed = 0
@@ -112,48 +107,11 @@ export async function GET(req: NextRequest) {
       // Already logged that game (or something later)? Nothing to nudge.
       if (dates.some(d => d >= occurrence)) { skipped++; continue }
 
-      // ── SMS first (best-effort, rate-limited) ──
-      const lastSms = p.last_sms_at ? new Date(p.last_sms_at) : null
-      const smsAllowed = !lastSms || (Date.now() - lastSms.getTime()) > DAY
-      let sentSms = false
-
-      if (
-        smsAllowed &&
-        process.env.TWILIO_ENABLED !== 'false' &&
-        p.phone &&
-        p.sms_opt_in !== false &&
-        process.env.TWILIO_ACCOUNT_SID &&
-        process.env.TWILIO_AUTH_TOKEN &&
-        process.env.TWILIO_FROM_NUMBER
-      ) {
-        const appUrl = process.env.APP_URL ?? 'https://app.next11ven.com'
-        const res = await fetch(
-          `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: 'Basic ' + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64'),
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              From: process.env.TWILIO_FROM_NUMBER,
-              To: p.phone,
-              Body: `NEXT11VEN: Played this weekend? Log it in 20 seconds and keep your season stats current: ${appUrl}/dashboard/performance/tracker/log`,
-            }),
-          }
-        )
-        if (res.ok) {
-          sentSms = true
-          nudgedSms++
-          await supabase.from('profiles').update({ last_sms_at: new Date().toISOString() }).eq('id', p.id)
-        }
-      }
-
-      // ── Email fallback (only if SMS wasn't sent; respects marketing opt-out) ──
-      if (!sentSms && p.email && p.email_marketing_opt_out !== true) {
+      // ── Email nudge (SMS removed: free-feature flywheel, email sufficient) ──
+      if (p.email && p.email_marketing_opt_out !== true) {
         await sendLogNudgeEmail({ to: p.email, toName: p.full_name, playerId: p.id })
         nudgedEmail++
-      } else if (!sentSms) {
+      } else {
         skipped++
       }
     } catch (err) {
@@ -164,7 +122,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     candidates: (profiles ?? []).length,
-    nudgedSms,
     nudgedEmail,
     skipped,
     failed,

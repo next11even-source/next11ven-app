@@ -139,16 +139,6 @@ export function CoachLeaderboardTab({ data, loading }: {
       {/* Summary */}
       <section>
         <SectionLabel>The pool</SectionLabel>
-        <div className="grid grid-cols-2 gap-2">
-          <SummaryTile label="Testimonial-ready" value={data.proof_of_value_coaches}
-            sub="Got a reply or an acceptance" color="#2d5fc4" />
-          <SummaryTile label="Any usage" value={data.engaged_coaches}
-            sub={`of ${data.total_coaches} approved coaches`} color="#a78bfa" />
-          <SummaryTile label="Active (30d)" value={data.active_30d}
-            sub="Signed in this month" color="#e8dece" />
-          <SummaryTile label="On the list" value={data.coaches.length}
-            sub="Top 40 by value score" color="#e8dece" />
-        </div>
       </section>
 
       {/* Controls */}

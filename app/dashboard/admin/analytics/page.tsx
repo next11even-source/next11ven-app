@@ -9,7 +9,6 @@ import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { TrackerAdoptionTrends } from './_components/TrackerAdoptionTrends'
 import { RevenueSection } from './_components/RevenueSection'
 import { MonthByMonth } from './_components/MonthByMonth'
-import { ContextStrip } from './_components/ContextStrip'
 import { OpsTab } from './_components/OpsTab'
 import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
 import { EventFeedTab } from './_components/EventFeed'
@@ -22,47 +21,62 @@ import type {
   ConversionIntelligence,
 } from './_components/types'
 
-type Tab = 'health' | 'feed' | 'coaches' | 'ops'
+type Tab = 'overview' | 'revenue' | 'trends' | 'coaches' | 'feed' | 'ops'
 
 const TAB_LABELS: Record<Tab, string> = {
-  health: 'Health',
-  feed: 'Feed',
+  overview: 'Overview',
+  revenue: 'Revenue',
+  trends: 'Trends',
   coaches: 'Coaches',
+  feed: 'Feed',
   ops: 'Ops',
 }
 
 export default function AnalyticsPage() {
   const router = useRouter()
   const [authChecked, setAuthChecked] = useState(false)
-  const [tab, setTab] = useState<Tab>('health')
+  const [tab, setTab] = useState<Tab>('overview')
 
+  // ── Eager: Overview tab data ────────────────────────────────────────────
+  // platformStats is also needed by Revenue (chart data) and Ops (migration
+  // tracker), so it fetches up front rather than per-tab.
   const [heroStats, setHeroStats] = useState<HeroStats | null>(null)
   const [heroLoading, setHeroLoading] = useState(true)
   const [marketplaceHealth, setMarketplaceHealth] = useState<MarketplaceHealthStats | null>(null)
   const [marketplaceHealthLoading, setMarketplaceHealthLoading] = useState(true)
-  const [conversionIntel, setConversionIntel] = useState<ConversionIntelligence | null>(null)
-  const [conversionIntelLoading, setConversionIntelLoading] = useState(true)
-  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
-  const [revenueLoading, setRevenueLoading] = useState(true)
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null)
   const [platformLoading, setPlatformLoading] = useState(true)
-  const [trackerStats, setTrackerStats] = useState<TrackerStats | null>(null)
-  const [trackerLoading, setTrackerLoading] = useState(true)
 
-  const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
-  const [msgLoading, setMsgLoading] = useState(true)
-  const [msgTotal, setMsgTotal] = useState(0)
-  const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([])
-  const [loginsLoading, setLoginsLoading] = useState(true)
-  const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
-  const [appsLoading, setAppsLoading] = useState(true)
-  const [showcaseWaitlist, setShowcaseWaitlist] = useState<ShowcaseWaitlist | null>(null)
-  const [showcaseLoading, setShowcaseLoading] = useState(true)
-  const [messageStats, setMessageStats] = useState<MessageStats | null>(null)
-  const [messageStatsLoading, setMessageStatsLoading] = useState(true)
+  // ── Lazy: Revenue tab ────────────────────────────────────────────────────
+  const [revenueRequested, setRevenueRequested] = useState(false)
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
+  const [revenueLoading, setRevenueLoading] = useState(false)
+  const [conversionIntel, setConversionIntel] = useState<ConversionIntelligence | null>(null)
+  const [conversionIntelLoading, setConversionIntelLoading] = useState(false)
+
+  // ── Lazy: Trends tab ─────────────────────────────────────────────────────
+  const [trendsRequested, setTrendsRequested] = useState(false)
+  const [trackerStats, setTrackerStats] = useState<TrackerStats | null>(null)
+  const [trackerLoading, setTrackerLoading] = useState(false)
+
+  // ── Lazy: Coaches tab ────────────────────────────────────────────────────
   const [coachBoard, setCoachBoard] = useState<CoachLeaderboard | null>(null)
   const [coachBoardLoading, setCoachBoardLoading] = useState(false)
   const [coachBoardRequested, setCoachBoardRequested] = useState(false)
+
+  // ── Lazy: Ops tab ─────────────────────────────────────────────────────────
+  const [opsRequested, setOpsRequested] = useState(false)
+  const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
+  const [msgLoading, setMsgLoading] = useState(false)
+  const [msgTotal, setMsgTotal] = useState(0)
+  const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([])
+  const [loginsLoading, setLoginsLoading] = useState(false)
+  const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
+  const [appsLoading, setAppsLoading] = useState(false)
+  const [showcaseWaitlist, setShowcaseWaitlist] = useState<ShowcaseWaitlist | null>(null)
+  const [showcaseLoading, setShowcaseLoading] = useState(false)
+  const [messageStats, setMessageStats] = useState<MessageStats | null>(null)
+  const [messageStatsLoading, setMessageStatsLoading] = useState(false)
 
   // ── Admin gate ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -76,9 +90,7 @@ export default function AnalyticsPage() {
     })()
   }, [router])
 
-  // ── Data — every count/aggregate comes from the RPC-backed endpoints below.
-  // No direct client-side profile counting: that was the source of numbers
-  // disagreeing across sections (see analytics reframe).
+  // ── Eager fetches ───────────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/admin/hero-stats')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
@@ -94,64 +106,40 @@ export default function AnalyticsPage() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/admin/conversion-intelligence')
-      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
-      .then(d => { setConversionIntel(d); setConversionIntelLoading(false) })
-      .catch(() => setConversionIntelLoading(false))
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/admin/revenue-stats')
-      .then(r => r.json())
-      .then(d => { setRevenueStats(d); setRevenueLoading(false) })
-      .catch(() => setRevenueLoading(false))
-  }, [])
-
-  useEffect(() => {
     fetch('/api/admin/platform-stats')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setPlatformStats(d); setPlatformLoading(false) })
       .catch(() => setPlatformLoading(false))
   }, [])
 
+  // ── Lazy: Revenue ───────────────────────────────────────────────────────
   useEffect(() => {
+    if (tab !== 'revenue' || revenueRequested) return
+    setRevenueRequested(true)
+    setRevenueLoading(true)
+    setConversionIntelLoading(true)
+    fetch('/api/admin/revenue-stats')
+      .then(r => r.json())
+      .then(d => { setRevenueStats(d); setRevenueLoading(false) })
+      .catch(() => setRevenueLoading(false))
+    fetch('/api/admin/conversion-intelligence')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setConversionIntel(d); setConversionIntelLoading(false) })
+      .catch(() => setConversionIntelLoading(false))
+  }, [tab, revenueRequested])
+
+  // ── Lazy: Trends ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (tab !== 'trends' || trendsRequested) return
+    setTrendsRequested(true)
+    setTrackerLoading(true)
     fetch('/api/admin/tracker-stats')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setTrackerStats(d); setTrackerLoading(false) })
       .catch(() => setTrackerLoading(false))
-  }, [])
+  }, [tab, trendsRequested])
 
-  useEffect(() => {
-    const since = new Date(Date.now() - 30 * 86400000).toISOString()
-    fetch(`/api/admin/message-stats?since=${encodeURIComponent(since)}`)
-      .then(r => r.json())
-      .then(d => { setMessageStats(d); setMessageStatsLoading(false) })
-      .catch(() => setMessageStatsLoading(false))
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/admin/recent-logins')
-      .then(r => r.json())
-      .then(d => { setRecentLogins(d.logins ?? []); setLoginsLoading(false) })
-      .catch(() => setLoginsLoading(false))
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/admin/messages?page=0')
-      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
-      .then(d => { setMsgLog(d.messages ?? []); setMsgTotal(d.total ?? 0); setMsgLoading(false) })
-      .catch(() => setMsgLoading(false))
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/admin/recent-applications')
-      .then(r => r.json())
-      .then(d => { setRecentApps(d.applications ?? []); setAppsLoading(false) })
-      .catch(() => setAppsLoading(false))
-  }, [])
-
-  // Coach leaderboard is the heaviest aggregate on the page and only matters
-  // when the tab is open — fetch it on first visit, then keep it.
+  // ── Lazy: Coaches ───────────────────────────────────────────────────────
   useEffect(() => {
     if (tab !== 'coaches' || coachBoardRequested) return
     setCoachBoardRequested(true)
@@ -162,18 +150,50 @@ export default function AnalyticsPage() {
       .catch(() => setCoachBoardLoading(false))
   }, [tab, coachBoardRequested])
 
+  // ── Lazy: Ops ───────────────────────────────────────────────────────────
   useEffect(() => {
+    if (tab !== 'ops' || opsRequested) return
+    setOpsRequested(true)
+    setMsgLoading(true)
+    setLoginsLoading(true)
+    setAppsLoading(true)
+    setShowcaseLoading(true)
+    setMessageStatsLoading(true)
+    const since = new Date(Date.now() - 30 * 86400000).toISOString()
+    fetch(`/api/admin/message-stats?since=${encodeURIComponent(since)}`)
+      .then(r => r.json())
+      .then(d => { setMessageStats(d); setMessageStatsLoading(false) })
+      .catch(() => setMessageStatsLoading(false))
+    fetch('/api/admin/recent-logins')
+      .then(r => r.json())
+      .then(d => { setRecentLogins(d.logins ?? []); setLoginsLoading(false) })
+      .catch(() => setLoginsLoading(false))
+    fetch('/api/admin/messages?page=0')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setMsgLog(d.messages ?? []); setMsgTotal(d.total ?? 0); setMsgLoading(false) })
+      .catch(() => setMsgLoading(false))
+    fetch('/api/admin/recent-applications')
+      .then(r => r.json())
+      .then(d => { setRecentApps(d.applications ?? []); setAppsLoading(false) })
+      .catch(() => setAppsLoading(false))
     fetch('/api/admin/showcase-waitlist')
       .then(r => r.json())
       .then(d => { setShowcaseWaitlist(d); setShowcaseLoading(false) })
       .catch(() => setShowcaseLoading(false))
-  }, [])
+  }, [tab, opsRequested])
 
-  const loading = !authChecked || platformLoading || revenueLoading
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 rounded-full border-2 animate-spin"
+          style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+      </div>
+    )
+  }
 
   return (
     <div className="pb-8">
-      {/* Header */}
+      {/* Sticky header + tab bar */}
       <div className="sticky top-0 z-10 px-4 pt-3 pb-3"
         style={{ backgroundColor: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e2235' }}>
         <div className="flex items-center gap-3 mb-3">
@@ -186,12 +206,13 @@ export default function AnalyticsPage() {
               <line x1="3" y1="6" x2="17" y2="6" /><line x1="3" y1="10" x2="17" y2="10" /><line x1="3" y1="14" x2="17" y2="14" />
             </svg>
           </button>
-          <h1 className="text-2xl font-black uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+          <h1 className="text-2xl font-black uppercase"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
             Analytics
           </h1>
         </div>
         <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          {(['health', 'feed', 'coaches', 'ops'] as Tab[]).map(t => (
+          {(['overview', 'revenue', 'trends', 'coaches', 'feed', 'ops'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -206,22 +227,57 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Layer 1 hero row — the whole first screen. Always visible regardless
-          of tab, since it's the top-level answer the rest of the page exists
-          to explain. */}
-      <div className="px-4 pt-4">
-        {heroLoading || !heroStats ? <LoadingCard /> : <HeroRow heroStats={heroStats} />}
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+      {/* ── Overview ── core numbers + marketplace pulse ─────────────────── */}
+      {tab === 'overview' && (
+        <div className="px-4 pt-4 space-y-4">
+          {heroLoading || !heroStats
+            ? <LoadingCard />
+            : <HeroRow heroStats={heroStats} />}
+          {marketplaceHealthLoading || !marketplaceHealth
+            ? <LoadingCard />
+            : <MarketplaceHealthRow health={marketplaceHealth} />}
         </div>
-      ) : tab === 'feed' ? (
-        <EventFeedTab />
-      ) : tab === 'coaches' ? (
+      )}
+
+      {/* ── Revenue ── MRR, churn, conversion funnel ─────────────────────── */}
+      {tab === 'revenue' && (
+        <div className="px-4 pt-4 space-y-4">
+          {revenueLoading || !revenueStats || platformLoading || !platformStats
+            ? <LoadingCard />
+            : (
+              <>
+                <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
+                {conversionIntelLoading
+                  ? <LoadingCard />
+                  : conversionIntel
+                    ? <ConversionIntelligenceSection data={conversionIntel} timeToUpgrade={revenueStats.time_to_upgrade} />
+                    : null}
+              </>
+            )}
+        </div>
+      )}
+
+      {/* ── Trends ── tracker adoption, leading indicators, monthly chart ── */}
+      {tab === 'trends' && (
+        <div className="px-4 pt-4 space-y-4">
+          <LeadingIndicatorsRow trackerStats={trackerLoading ? null : trackerStats} />
+          <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
+          {platformLoading || !platformStats
+            ? <LoadingCard />
+            : <MonthByMonth monthly={platformStats.monthly_table} />}
+        </div>
+      )}
+
+      {/* ── Coaches ── leaderboard for testimonial targeting ─────────────── */}
+      {tab === 'coaches' && (
         <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !coachBoardRequested} />
-      ) : tab === 'ops' ? (
+      )}
+
+      {/* ── Feed ── reverse-chrono event stream ──────────────────────────── */}
+      {tab === 'feed' && <EventFeedTab />}
+
+      {/* ── Ops ── messages, logins, applications, showcase, email stats ─── */}
+      {tab === 'ops' && (
         <OpsTab
           msgLog={msgLog} msgLoading={msgLoading} msgTotal={msgTotal}
           recentLogins={recentLogins} loginsLoading={loginsLoading}
@@ -230,69 +286,6 @@ export default function AnalyticsPage() {
           messageStats={messageStats} messageStatsLoading={messageStatsLoading}
           platformStats={platformStats}
         />
-      ) : platformStats && revenueStats ? (
-        <HealthTab
-          platformStats={platformStats} revenueStats={revenueStats}
-          trackerStats={trackerStats} trackerLoading={trackerLoading}
-          marketplaceHealth={marketplaceHealth} marketplaceHealthLoading={marketplaceHealthLoading}
-          conversionIntel={conversionIntel} conversionIntelLoading={conversionIntelLoading}
-        />
-      ) : (
-        <div className="px-4 pt-4"><LoadingCard /></div>
-      )}
-    </div>
-  )
-}
-
-function HealthTab({
-  platformStats, revenueStats, trackerStats, trackerLoading,
-  marketplaceHealth, marketplaceHealthLoading,
-  conversionIntel, conversionIntelLoading,
-}: {
-  platformStats: PlatformStats
-  revenueStats: RevenueStats
-  trackerStats: TrackerStats | null
-  trackerLoading: boolean
-  marketplaceHealth: MarketplaceHealthStats | null
-  marketplaceHealthLoading: boolean
-  conversionIntel: ConversionIntelligence | null
-  conversionIntelLoading: boolean
-}) {
-  const monthly = platformStats.monthly_table
-  const [detailOpen, setDetailOpen] = useState(false)
-
-  return (
-    <div className="px-4 pt-4 space-y-4">
-      {marketplaceHealthLoading || !marketplaceHealth ? <LoadingCard /> : <MarketplaceHealthRow health={marketplaceHealth} />}
-
-      {/* Everything below here is detail that explains the numbers above,
-          not new decisions — one tap deeper, not on by default. */}
-      <button
-        onClick={() => setDetailOpen(o => !o)}
-        className="w-full flex items-center justify-between rounded-xl px-4 py-3"
-        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}
-      >
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8892aa' }}>
-          {detailOpen ? 'Hide detail' : 'Show more detail'}
-        </span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ transform: detailOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-
-      {detailOpen && (
-        <>
-          <LeadingIndicatorsRow trackerStats={trackerLoading ? null : trackerStats} />
-          <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
-          <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
-          {!conversionIntelLoading && conversionIntel && (
-            <ConversionIntelligenceSection data={conversionIntel} timeToUpgrade={revenueStats.time_to_upgrade} />
-          )}
-          <MonthByMonth monthly={monthly} />
-
-          <ContextStrip platformStats={platformStats} revenueStats={revenueStats} />
-        </>
       )}
     </div>
   )

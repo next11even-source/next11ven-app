@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import AvatarLightbox from '@/app/components/AvatarLightbox'
 import AgentBadge, { isAgent } from '@/app/components/AgentBadge'
 import ProBadge from '@/app/components/ProBadge'
 import ActivityChip from '@/app/components/ActivityChip'
@@ -93,6 +94,7 @@ export default function CoachPublicProfile() {
   const [dormantAcknowledged, setDormantAcknowledged] = useState(false)
 
   const [toast, setToast] = useState('')
+  const [avatarLightbox, setAvatarLightbox] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -332,14 +334,22 @@ export default function CoachPublicProfile() {
 
       {/* Hero */}
       <div className="flex flex-col items-center px-6 pt-7 pb-5 text-center">
-        <div className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center mb-4"
-          style={{ border: '3px solid #2d5fc4', backgroundColor: '#1a1f3a' }}>
+        <button
+          type="button"
+          className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center mb-4 focus:outline-none"
+          style={{ border: '3px solid #2d5fc4', backgroundColor: '#1a1f3a', cursor: coach.avatar_url ? 'zoom-in' : 'default' }}
+          onClick={() => coach.avatar_url && setAvatarLightbox(true)}
+          aria-label={coach.avatar_url ? 'View full size photo' : undefined}
+        >
           {coach.avatar_url ? (
             <Image src={coach.avatar_url} alt={coach.full_name ?? ''} width={112} height={112} className="w-full h-full object-cover object-center" />
           ) : (
             <Icon icon={User} size={60} label={true} style={{ color: '#a78bfa' }} />
           )}
-        </div>
+        </button>
+        {avatarLightbox && coach.avatar_url && (
+          <AvatarLightbox src={coach.avatar_url} alt={coach.full_name ?? 'Coach'} onClose={() => setAvatarLightbox(false)} />
+        )}
 
         <h1 className="text-3xl font-black uppercase leading-none flex items-center justify-center gap-2"
           style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>

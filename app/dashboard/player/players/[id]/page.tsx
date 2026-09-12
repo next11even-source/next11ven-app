@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
+import AvatarLightbox from '@/app/components/AvatarLightbox'
 import NewBadge from '@/app/components/NewBadge'
 import FounderBadge, { isFounder } from '@/app/components/FounderBadge'
 import ProBadge from '@/app/components/ProBadge'
@@ -220,6 +221,7 @@ function PlayerPublicProfileInner() {
   const [showDMInput, setShowDMInput] = useState(false)
   const [dmText, setDmText] = useState('')
   const [dmSending, setDmSending] = useState(false)
+  const [avatarLightbox, setAvatarLightbox] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -473,19 +475,27 @@ function PlayerPublicProfileInner() {
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center"
-              style={{ border: `2.5px solid ${player.actively_looking ? '#22c55e' : '#1e2235'}`, backgroundColor: '#1a1f3a' }}>
+            <button
+              type="button"
+              className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center focus:outline-none"
+              style={{ border: `2.5px solid ${player.actively_looking ? '#22c55e' : '#1e2235'}`, backgroundColor: '#1a1f3a', cursor: player.avatar_url ? 'zoom-in' : 'default' }}
+              onClick={() => player.avatar_url && setAvatarLightbox(true)}
+              aria-label={player.avatar_url ? 'View full size photo' : undefined}
+            >
               {player.avatar_url ? (
                 <Image src={player.avatar_url} alt={player.full_name ?? ''} width={80} height={80} className="w-full h-full object-cover object-center" />
               ) : (
                 <Icon icon={User} size={44} label={true} style={{ color: '#5b6478' }} />
               )}
-            </div>
+            </button>
             {player.actively_looking && (
               <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 animate-pulse"
                 style={{ backgroundColor: '#22c55e', borderColor: '#0a0a0a', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
             )}
           </div>
+          {avatarLightbox && player.avatar_url && (
+            <AvatarLightbox src={player.avatar_url} alt={player.full_name ?? 'Player'} onClose={() => setAvatarLightbox(false)} />
+          )}
 
           {/* Identity */}
           <div className="flex-1 min-w-0">

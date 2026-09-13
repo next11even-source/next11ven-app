@@ -138,14 +138,7 @@ export default function EmailAnalyticsPage() {
       .catch(() => setLoading(false))
   }, [authChecked, days])
 
-  if (!authChecked) {
-    return (
-      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
-        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
-      </div>
-    )
-  }
-
+  // Must be before any early return — Rules of Hooks
   const handleSort = useCallback((key: SortKey) => {
     setSortKey(prev => {
       if (prev === key) {
@@ -156,6 +149,14 @@ export default function EmailAnalyticsPage() {
       return key
     })
   }, [])
+
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
+      </div>
+    )
+  }
 
   function getFlowSortValue(events: Record<string, number>, key: SortKey): number {
     const sent = events['email.sent'] ?? 0

@@ -29,9 +29,10 @@ export const COLORS = {
   // existing uses (badge labels, nav) without dropping to near-invisible.
   textMuted2: '#5b6478',
   surface: '#13172a',
-  // Hover-raised surface for Card's `interactive` state — one step up from
-  // `surface`, matches the `#1a1f3a` hover tint already used ad-hoc on
-  // avatar containers and list-row hovers across the app.
+  // Hover-raised surface for Card's `interactive` state and ListRow hover.
+  // Use COLORS.surface2 (#1a1f3a) as the hover background whenever a row or
+  // card needs an interactive lift. Do not invent a one-off tint between
+  // surface (#13172a) and surface2 (#1a1f3a).
   surface2: '#1a1f3a',
   border: '#1e2235',
   // Hover-raised border for Card's `interactive` state, paired with surface2.

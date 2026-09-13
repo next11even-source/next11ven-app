@@ -190,7 +190,7 @@ export default function CoachBottomNav() {
       icon: <MessageCircle size={22} strokeWidth={1.8} />,
     },
     {
-      label: 'Notifications',
+      label: 'Alerts',
       href: '/dashboard/coach/notifications',
       exact: false,
       badge: unreadNotifications > 0 ? { count: unreadNotifications } : null,

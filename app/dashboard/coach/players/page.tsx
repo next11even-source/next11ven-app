@@ -725,7 +725,7 @@ export default function CoachPlayersPage() {
 
               return (
                 <ListRow key={p.id} href={`/dashboard/player/players/${p.id}`} prefetch={false}
-                  className="px-4 bg-[#0a0a0a] transition-colors hover:bg-[#0d1020]"
+                  className="px-4 bg-[#0a0a0a] transition-colors hover:bg-[#1a1f3a]"
                   leading={
                     <div className="rounded-xl overflow-hidden flex items-center justify-center"
                       style={{ width: 56, height: 56, backgroundColor: '#1a1f3a', border: `2px solid ${p.actively_looking ? 'rgba(34,197,94,0.4)' : '#1e2235'}` }}>

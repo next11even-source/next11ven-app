@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 
@@ -23,13 +23,13 @@ const FLOW_LABELS: Record<string, string> = {
   shortlist_available:  'Shortlist availability alert',
   broadcast:            'Broadcast',
   '(untagged)':         'Auth system (password reset / magic link)',
-  coach_activation_d7:  'Coach activation D7',
-  coach_activation_d21: 'Coach activation D21',
+  coach_activation_d7:  'Coach: nudge to post first role (D7)',
+  coach_activation_d21: 'Coach: second nudge — still no post (D21)',
   coach_gone_quiet_d1:  'Coach gone quiet D1',
   coach_gone_quiet_d14: 'Coach gone quiet D14',
   message_notification: 'Message notification',
   message_pack_purchase:'Message pack purchase',
-  opportunity_auto_closed: 'Opportunity auto-closed',
+  opportunity_auto_closed: 'Role auto-closed notice (coach)',
   application_received: 'Application received (coach)',
   player_onboarding_d0: 'Player onboarding D0',
   player_onboarding_d1: 'Player onboarding D1',
@@ -38,13 +38,44 @@ const FLOW_LABELS: Record<string, string> = {
   coach_onboarding_d0:  'Coach onboarding D0',
   coach_onboarding_d2:  'Coach onboarding D2',
   coach_onboarding_d5:  'Coach onboarding D5',
-  player_pro_welcome:   'Player Pro welcome',
+  player_pro_welcome:   'Pro upgrade welcome (player)',
   coach_pro_welcome:    'Coach Pro welcome',
+}
+
+type SortKey = 'sent' | 'open' | 'click' | 'bounce' | 'complaint'
+type SortDir = 'asc' | 'desc'
+
+function rateNum(numerator: number, denominator: number): number {
+  if (denominator === 0) return -1 // sort unknowns to the bottom
+  return numerator / denominator
 }
 
 function rate(numerator: number, denominator: number): string {
   if (denominator === 0) return '—'
   return `${Math.round((numerator / denominator) * 100)}%`
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  return (
+    <span style={{ display: 'inline-block', marginLeft: 4, opacity: active ? 1 : 0.3, fontSize: 10 }}>
+      {active && dir === 'asc' ? '▲' : '▼'}
+    </span>
+  )
+}
+
+function SortableTh({
+  label, sortKey, current, dir, onSort,
+}: {
+  label: string; sortKey: SortKey; current: SortKey; dir: SortDir; onSort: (k: SortKey) => void
+}) {
+  return (
+    <th
+      className="px-3 py-2 text-right"
+      style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+      onClick={() => onSort(sortKey)}>
+      {label}<SortIcon active={current === sortKey} dir={dir} />
+    </th>
+  )
 }
 
 function FlowRow({ flowId, events, label }: { flowId: string; events: Record<string, number>; label: string }) {
@@ -77,6 +108,8 @@ export default function EmailAnalyticsPage() {
   const [flowStats, setFlowStats] = useState<FlowStats | null>(null)
   const [broadcastMeta, setBroadcastMeta] = useState<BroadcastMeta>({})
   const [loading, setLoading] = useState(true)
+  const [sortKey, setSortKey] = useState<SortKey>('sent')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   // UUID v4 detector
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -113,10 +146,34 @@ export default function EmailAnalyticsPage() {
     )
   }
 
+  const handleSort = useCallback((key: SortKey) => {
+    setSortKey(prev => {
+      if (prev === key) {
+        setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+        return key
+      }
+      setSortDir('desc')
+      return key
+    })
+  }, [])
+
+  function getFlowSortValue(events: Record<string, number>, key: SortKey): number {
+    const sent = events['email.sent'] ?? 0
+    const delivered = events['email.delivered'] ?? 0
+    const denom = events['total'] || sent || delivered
+    switch (key) {
+      case 'sent': return denom
+      case 'open': return rateNum(events['email.opened'] ?? 0, denom)
+      case 'click': return rateNum(events['email.clicked'] ?? 0, denom)
+      case 'bounce': return rateNum(events['email.bounced'] ?? 0, denom)
+      case 'complaint': return rateNum(events['email.complained'] ?? 0, denom)
+    }
+  }
+
   const allFlows = Object.entries(flowStats ?? {}).sort((a, b) => {
-    const sentA = a[1]['email.sent'] ?? a[1]['email.delivered'] ?? 0
-    const sentB = b[1]['email.sent'] ?? b[1]['email.delivered'] ?? 0
-    return sentB - sentA
+    const va = getFlowSortValue(a[1], sortKey)
+    const vb = getFlowSortValue(b[1], sortKey)
+    return sortDir === 'desc' ? vb - va : va - vb
   })
 
   const namedFlows = allFlows.filter(([id]) => !UUID_RE.test(id) && !id.startsWith('test_'))
@@ -183,11 +240,11 @@ export default function EmailAnalyticsPage() {
                       <thead>
                         <tr style={{ borderBottom: '1px solid #1e2235' }}>
                           <th className="px-3 py-2 text-left" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Flow</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sent</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Open</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Click</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bounce</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Complaint</th>
+                          <SortableTh label="Sent" sortKey="sent" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Open" sortKey="open" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Click" sortKey="click" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Bounce" sortKey="bounce" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Complaint" sortKey="complaint" current={sortKey} dir={sortDir} onSort={handleSort} />
                         </tr>
                       </thead>
                       <tbody>
@@ -218,11 +275,11 @@ export default function EmailAnalyticsPage() {
                       <thead>
                         <tr style={{ borderBottom: '1px solid #1e2235' }}>
                           <th className="px-3 py-2 text-left" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Subject</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sent</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Open</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Click</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bounce</th>
-                          <th className="px-3 py-2 text-right" style={{ color: '#8892aa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Complaint</th>
+                          <SortableTh label="Sent" sortKey="sent" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Open" sortKey="open" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Click" sortKey="click" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Bounce" sortKey="bounce" current={sortKey} dir={sortDir} onSort={handleSort} />
+                          <SortableTh label="Complaint" sortKey="complaint" current={sortKey} dir={sortDir} onSort={handleSort} />
                         </tr>
                       </thead>
                       <tbody>

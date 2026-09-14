@@ -18,6 +18,7 @@ const OpportunityEditSchema = z.object({
   description: z.string().max(5000).nullish(),
   urgent: z.boolean().nullish(),
   deadline: z.string().nullish(),
+  league: z.string().max(200).nullish(),
 })
 
 function serviceSupabase() {

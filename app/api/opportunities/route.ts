@@ -18,6 +18,7 @@ const OpportunitySchema = z.object({
   urgent: z.boolean().nullish(),
   deadline: z.string().nullish(),
   opportunity_type: z.enum(['player', 'coach']).optional(),
+  league: z.string().max(200).nullish(),
 })
 
 export async function POST(req: NextRequest) {
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
       urgent: body.urgent ?? false,
       deadline: body.deadline ?? null,
       opportunity_type: body.opportunity_type ?? 'player',
+      league: body.league ?? null,
     })
     .select()
     .single()

@@ -26,6 +26,8 @@ import {
   getRoleClosedDetail,
   isDeadEnd,
 } from '@/lib/applicationResponse'
+import { LEAGUES, LEAGUE_STEPS, leaguesForStep } from '@/lib/leagues'
+import { stepNumber } from '@/lib/levels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +41,7 @@ type Opportunity = {
   location: string | null
   position: string | null
   level: string | null
+  league: string | null
   description: string | null
   urgent: boolean
   deadline: string | null
@@ -62,6 +65,7 @@ type Application = {
     location: string | null
     position: string | null
     level: string | null
+    league: string | null
     is_active: boolean
     auto_close_reason: string | null
   } | null
@@ -113,6 +117,7 @@ function AdminEditForm({ opp, onCancel, onSaved }: {
   const [location, setLocation] = useState(opp.location ?? '')
   const [position, setPosition] = useState(opp.position ?? '')
   const [level, setLevel] = useState(opp.level ?? '')
+  const [league, setLeague] = useState(opp.league ?? '')
   const [description, setDescription] = useState(opp.description ?? '')
   const [deadline, setDeadline] = useState(opp.deadline ?? '')
   const [urgent, setUrgent] = useState(opp.urgent)
@@ -132,6 +137,7 @@ function AdminEditForm({ opp, onCancel, onSaved }: {
         location: location.trim() || null,
         position: position || null,
         level: level || null,
+        league: league || null,
         description: description.trim() || null,
         deadline: deadline || null,
         urgent,
@@ -165,6 +171,18 @@ function AdminEditForm({ opp, onCancel, onSaved }: {
           {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>
+      <select value={league} onChange={e => setLeague(e.target.value)}
+        className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={adminFieldStyle}>
+        <option value="">No league</option>
+        {LEAGUE_STEPS.map(step => {
+          const stepLeagues = leaguesForStep(step)
+          return (
+            <optgroup key={step} label={`Step ${step}`}>
+              {stepLeagues.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+            </optgroup>
+          )
+        })}
+      </select>
       <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4}
         className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none" style={adminFieldStyle}
         placeholder="Description" />
@@ -230,7 +248,8 @@ function PlayerOpportunityCard({
   // the subtitle line rather than its own chip — the footer only carries
   // scarcity + Apply now (see MatchTypography/footer below).
   const showPos = !!opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
-  const subtitle = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ') || 'Details to follow'
+  // Split into two lines: location/club first (always visible), league second (context).
+  const locationMeta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
 
   const applyLabel = applied ? 'Applied' : 'Apply'
   const applyAria = applied
@@ -286,17 +305,21 @@ function PlayerOpportunityCard({
             )}
             <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>{compactTimeAgo(opp.created_at)}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <h3 className="truncate"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
                 {title}
-                {subtitle && (
-                  <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
-                    · {subtitle}
-                  </span>
-                )}
               </h3>
+              {/* Location line — club · area · position. Always shown so the
+                  card never looks empty, falls back to "Details to follow". */}
+              <p style={{ fontSize: 13, color: COLORS.textMuted2, marginTop: 2 }}>
+                {locationMeta || 'Details to follow'}
+              </p>
+              {/* League on its own line so a long name never pushes location off screen. */}
+              {opp.league && (
+                <p style={{ fontSize: 11, color: COLORS.textMuted2, marginTop: 1 }}>{opp.league}</p>
+              )}
             </div>
             <MatchTypography matchPercent={opp.matchPercent} isPremium={isPremium} onLocked={onLockedMatch} />
           </div>
@@ -681,7 +704,7 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
   useEffect(() => {
     const supabase = createClient()
     supabase.from('applications')
-      .select('id, status, created_at, closed_at, close_reason, opportunity:opportunity_id(id, title, club, location, position, level, is_active, auto_close_reason)')
+      .select('id, status, created_at, closed_at, close_reason, opportunity:opportunity_id(id, title, club, location, position, level, league, is_active, auto_close_reason)')
       .eq('player_id', playerId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -727,7 +750,7 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
               : cfg.detail
             const title = toSentenceCase(opp?.title ?? 'Opportunity')
             const showPos = opp?.position && !title.toLowerCase().includes(opp.position.toLowerCase())
-            const meta = [opp?.club, opp?.location, showPos ? opp?.position : null].filter(Boolean).join(' · ')
+            const locationMeta = [opp?.club, opp?.location, showPos ? opp?.position : null].filter(Boolean).join(' · ')
             const stepToken = getStepToken(opp?.level ?? null)
             return (
               <Card key={app.id} className="relative overflow-hidden h-full flex flex-col"
@@ -749,15 +772,18 @@ function ApplicationsTab({ playerId, onView, onBrowse }: {
                       )}
                       <span style={{ fontSize: 11, color: COLORS.textMuted2 }}>Applied {timeAgo(app.created_at)}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="truncate"
                           style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
                           {title}
-                          <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
-                            · {meta || 'Details to follow'}
-                          </span>
                         </h3>
+                        <p style={{ fontSize: 13, color: COLORS.textMuted2, marginTop: 2 }}>
+                          {locationMeta || 'Details to follow'}
+                        </p>
+                        {opp?.league && (
+                          <p style={{ fontSize: 11, color: COLORS.textMuted2, marginTop: 1 }}>{opp.league}</p>
+                        )}
                       </div>
                       {/* Status tag colours follow the doctrine in
                           lib/applicationResponse.ts — grey (human decided),

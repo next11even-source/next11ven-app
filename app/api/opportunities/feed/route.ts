@@ -24,6 +24,7 @@ type FeedOpportunity = {
   location: string | null
   position: string | null
   level: string | null
+  league: string | null
   description: string | null
   urgent: boolean
   deadline: string | null
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
   const fetchLimit = Math.min(limit * 8, 200)
   const { data: oppRows } = await admin
     .from('opportunities')
-    .select('id, coach_id, title, club, location, position, level, description, urgent, deadline, created_at')
+    .select('id, coach_id, title, club, location, position, level, league, description, urgent, deadline, created_at')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
     .limit(fetchLimit)
@@ -146,6 +147,7 @@ export async function GET(req: NextRequest) {
       location: o.location,
       position: o.position,
       level: o.level,
+      league: o.league,
       description: o.description,
       urgent: o.urgent ?? false,
       deadline: o.deadline,

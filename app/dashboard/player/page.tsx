@@ -98,6 +98,7 @@ type Opportunity = {
   location: string | null
   position: string | null
   level: string | null
+  league: string | null
   urgent: boolean
   deadline: string | null
   created_at: string
@@ -660,8 +661,8 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
             const title = toSentenceCase(opp.title)
             // Don't repeat the position when the title already names it.
             const showPos = !!opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
-            // club is null for free (gated); meta mirrors the main card.
-            const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
+            // club is null for free (gated). Location/club on one line, league below.
+            const locationMeta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
             const stepToken = getStepToken(opp.level)
             return (
               <Link key={opp.id} href="/dashboard/opportunities"
@@ -683,8 +684,11 @@ function OpportunitiesPreview({ opportunities, isPremium, onLockedMatch }: {
                     {title}
                   </h3>
                   <p className="truncate mt-0.5" style={{ fontSize: 12, color: COLORS.textMuted2 }}>
-                    {meta || 'Details to follow'}
+                    {locationMeta || 'Details to follow'}
                   </p>
+                  {opp.league && (
+                    <p className="truncate mt-0.5" style={{ fontSize: 11, color: COLORS.textMuted2 }}>{opp.league}</p>
+                  )}
                   {signal && (
                     <p className="truncate mt-1" style={{ fontSize: 11, fontWeight: 600, color: COLORS.urgent }}>{signal.label}</p>
                   )}

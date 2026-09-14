@@ -7,6 +7,8 @@ import { POSITIONS } from '@/lib/positions'
 import { LEVELS, sortLevels } from '@/lib/levels'
 import { getStepToken } from '@/lib/stepTokens'
 import { toSentenceCase } from '@/lib/opportunityText'
+import { LEAGUES, LEAGUE_STEPS, leaguesForStep } from '@/lib/leagues'
+import { stepNumber } from '@/lib/levels'
 import { COLORS, RADIUS_SM } from '@/components/ui/tokens'
 import {
   isAwaitingReply, waitingDays, waitingLabel, getWaitingTier, WAITING_TIER_COLOUR,
@@ -28,6 +30,7 @@ type Opp = {
   location: string | null
   position: string | null
   level: string | null
+  league: string | null
   description: string | null
   urgent: boolean
   deadline: string | null
@@ -118,6 +121,7 @@ function PostOpportunityForm({ onPosted, onCancel }: {
   const [position, setPosition] = useState('')
   const [level, setLevel] = useState('')
   const [description, setDescription] = useState('')
+  const [league, setLeague] = useState('')
   const [urgent, setUrgent] = useState(false)
   const [deadline, setDeadline] = useState('')
   const [saving, setSaving] = useState(false)
@@ -145,6 +149,7 @@ function PostOpportunityForm({ onPosted, onCancel }: {
         location: location.trim(),
         position: position === 'any' ? null : position,
         level: level || null,
+        league: league || null,
         description: description.trim(),
         urgent,
         deadline: deadline || null,
@@ -231,6 +236,32 @@ function PostOpportunityForm({ onPosted, onCancel }: {
             </select>
           </Field>
         </div>
+
+        {/* League picker — filtered to the selected step when level is set,
+            otherwise shows all leagues grouped by step. Optional: coaches who
+            don't know or don't mind leave it blank. */}
+        {(() => {
+          const step = stepNumber(level)
+          const available = step !== null ? leaguesForStep(step) : null
+          return (
+            <Field label="Competition / League">
+              <select value={league} onChange={e => setLeague(e.target.value)}
+                className="w-full rounded-lg px-4 py-2.5 text-sm outline-none" style={inputStyle}
+                onFocus={e => (e.currentTarget.style.borderColor = '#2d5fc4')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#1e2235')}>
+                <option value="">Select competition (optional)</option>
+                {available
+                  ? available.map(l => <option key={l.name} value={l.name}>{l.name}</option>)
+                  : LEAGUE_STEPS.map(s => (
+                      <optgroup key={s} label={`Step ${s}`}>
+                        {leaguesForStep(s).map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+                      </optgroup>
+                    ))
+                }
+              </select>
+            </Field>
+          )
+        })()}
 
         <Field label="Description *">
           <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4}
@@ -557,8 +588,8 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
 
       const [profileRes, ownRes, othersRes, monthlyRes, appsRes] = await Promise.all([
         supabase.from('public_profiles').select('premium').eq('id', coachId).single(),
-        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').eq('coach_id', coachId).order('created_at', { ascending: false }),
-        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').neq('coach_id', coachId).eq('is_active', true).order('created_at', { ascending: false }).limit(50),
+        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, league, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').eq('coach_id', coachId).order('created_at', { ascending: false }),
+        supabase.from('opportunities').select('id, coach_id, title, club, location, position, level, league, description, urgent, deadline, is_active, opportunity_type, created_at, auto_closed_at, auto_close_reason').neq('coach_id', coachId).eq('is_active', true).order('created_at', { ascending: false }).limit(50),
         supabase.from('opportunities').select('id', { count: 'exact', head: true }).eq('coach_id', coachId).gte('created_at', startOfMonth.toISOString()),
         supabase.from('applications').select('opportunity_id').eq('player_id', coachId),
       ])
@@ -873,7 +904,7 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
               const justPosted = Date.now() - new Date(opp.created_at).getTime() < 48 * 3600000
               const title = toSentenceCase(opp.title)
               const showPos = opp.position && !title.toLowerCase().includes(opp.position.toLowerCase())
-              const meta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
+              const locationMeta = [opp.club, opp.location, showPos ? opp.position : null].filter(Boolean).join(' · ')
               const stepToken = getStepToken(opp.level)
               const applied = appliedIds.has(opp.id)
               const isApplying = applying === opp.id
@@ -907,10 +938,13 @@ export default function CoachOpportunities({ coachId, embedded = false }: { coac
                     <h3 className="truncate"
                       style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 500, color: COLORS.text, fontSize: 16, lineHeight: 1.2 }}>
                       {title}
-                      <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 13, color: COLORS.textMuted2, marginLeft: 6 }}>
-                        · {meta || 'Details to follow'}
-                      </span>
                     </h3>
+                    <p style={{ fontSize: 13, color: COLORS.textMuted2, marginTop: 2 }}>
+                      {locationMeta || 'Details to follow'}
+                    </p>
+                    {opp.league && (
+                      <p style={{ fontSize: 11, color: COLORS.textMuted2, marginTop: 1 }}>{opp.league}</p>
+                    )}
 
                     {/* Description */}
                     {opp.description && (

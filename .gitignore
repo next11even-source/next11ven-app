@@ -43,5 +43,6 @@ next-env.d.ts
 
 # migration scripts / sensitive data
 scripts/data/
+scripts/out/
 scripts/user-id-map.json
 proxy.ts

@@ -9,17 +9,28 @@ import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { TrackerAdoptionTrends } from './_components/TrackerAdoptionTrends'
 import { RevenueSection } from './_components/RevenueSection'
 import { MonthByMonth } from './_components/MonthByMonth'
+import { ActivityTrends } from './_components/ActivityTrends'
+import { AcquisitionChart } from './_components/AcquisitionChart'
+import { EngagementChart } from './_components/EngagementChart'
+import { ApplicationOutcomesChart } from './_components/ApplicationOutcomesChart'
+import { CohortRetentionGrid } from './_components/CohortRetentionGrid'
 import { OpsTab } from './_components/OpsTab'
 import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
 import { EventFeedTab } from './_components/EventFeed'
 import { ConversionIntelligenceSection } from './_components/ConversionIntelligence'
+import { PricingTierBreakdown } from './_components/PricingTierBreakdown'
+import { PlayerStatusDonut } from './_components/PlayerStatusDonut'
+import { PlayerViewsChart } from './_components/PlayerViewsChart'
+import type { PlayerViewsMonth } from './_components/PlayerViewsChart'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
-  MessageEntry, RecentApplication, ShowcaseWaitlist, MessageStats,
+  MessageEntry, RecentApplication, MessageStats,
   CoachLeaderboard, HeroStats, MarketplaceHealthStats,
-  ConversionIntelligence,
+  ConversionIntelligence, OutcomeMonth, CohortRow,
 } from './_components/types'
+
+type StatusCount = { status: string; count: number; pct: number }
 
 type Tab = 'overview' | 'revenue' | 'trends' | 'coaches' | 'feed' | 'ops'
 
@@ -58,11 +69,20 @@ export default function AnalyticsPage() {
   const [trendsRequested, setTrendsRequested] = useState(false)
   const [trackerStats, setTrackerStats] = useState<TrackerStats | null>(null)
   const [trackerLoading, setTrackerLoading] = useState(false)
+  const [appOutcomes, setAppOutcomes] = useState<OutcomeMonth[]>([])
+  const [appOutcomesLoading, setAppOutcomesLoading] = useState(false)
+  const [cohortData, setCohortData] = useState<CohortRow[]>([])
+  const [cohortLoading, setCohortLoading] = useState(false)
+  const [playerStatus, setPlayerStatus] = useState<StatusCount[]>([])
+  const [playerStatusTotal, setPlayerStatusTotal] = useState(0)
+  const [playerStatusLoading, setPlayerStatusLoading] = useState(false)
 
   // ── Lazy: Coaches tab ────────────────────────────────────────────────────
   const [coachBoard, setCoachBoard] = useState<CoachLeaderboard | null>(null)
   const [coachBoardLoading, setCoachBoardLoading] = useState(false)
   const [coachBoardRequested, setCoachBoardRequested] = useState(false)
+  const [playerViews, setPlayerViews] = useState<PlayerViewsMonth[]>([])
+  const [playerViewsLoading, setPlayerViewsLoading] = useState(false)
 
   // ── Lazy: Ops tab ─────────────────────────────────────────────────────────
   const [opsRequested, setOpsRequested] = useState(false)
@@ -73,8 +93,6 @@ export default function AnalyticsPage() {
   const [loginsLoading, setLoginsLoading] = useState(false)
   const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
   const [appsLoading, setAppsLoading] = useState(false)
-  const [showcaseWaitlist, setShowcaseWaitlist] = useState<ShowcaseWaitlist | null>(null)
-  const [showcaseLoading, setShowcaseLoading] = useState(false)
   const [messageStats, setMessageStats] = useState<MessageStats | null>(null)
   const [messageStatsLoading, setMessageStatsLoading] = useState(false)
 
@@ -133,10 +151,25 @@ export default function AnalyticsPage() {
     if (tab !== 'trends' || trendsRequested) return
     setTrendsRequested(true)
     setTrackerLoading(true)
+    setAppOutcomesLoading(true)
+    setCohortLoading(true)
+    setPlayerStatusLoading(true)
     fetch('/api/admin/tracker-stats')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setTrackerStats(d); setTrackerLoading(false) })
       .catch(() => setTrackerLoading(false))
+    fetch('/api/admin/application-outcomes')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setAppOutcomes(d); setAppOutcomesLoading(false) })
+      .catch(() => setAppOutcomesLoading(false))
+    fetch('/api/admin/cohort-retention')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setCohortData(d); setCohortLoading(false) })
+      .catch(() => setCohortLoading(false))
+    fetch('/api/admin/player-status-distribution')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setPlayerStatus(d.distribution ?? []); setPlayerStatusTotal(d.total ?? 0); setPlayerStatusLoading(false) })
+      .catch(() => setPlayerStatusLoading(false))
   }, [tab, trendsRequested])
 
   // ── Lazy: Coaches ───────────────────────────────────────────────────────
@@ -144,10 +177,15 @@ export default function AnalyticsPage() {
     if (tab !== 'coaches' || coachBoardRequested) return
     setCoachBoardRequested(true)
     setCoachBoardLoading(true)
+    setPlayerViewsLoading(true)
     fetch('/api/admin/coach-leaderboard')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setCoachBoard(d); setCoachBoardLoading(false) })
       .catch(() => setCoachBoardLoading(false))
+    fetch('/api/admin/player-views-monthly')
+      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
+      .then(d => { setPlayerViews(d); setPlayerViewsLoading(false) })
+      .catch(() => setPlayerViewsLoading(false))
   }, [tab, coachBoardRequested])
 
   // ── Lazy: Ops ───────────────────────────────────────────────────────────
@@ -157,7 +195,6 @@ export default function AnalyticsPage() {
     setMsgLoading(true)
     setLoginsLoading(true)
     setAppsLoading(true)
-    setShowcaseLoading(true)
     setMessageStatsLoading(true)
     const since = new Date(Date.now() - 30 * 86400000).toISOString()
     fetch(`/api/admin/message-stats?since=${encodeURIComponent(since)}`)
@@ -176,10 +213,6 @@ export default function AnalyticsPage() {
       .then(r => r.json())
       .then(d => { setRecentApps(d.applications ?? []); setAppsLoading(false) })
       .catch(() => setAppsLoading(false))
-    fetch('/api/admin/showcase-waitlist')
-      .then(r => r.json())
-      .then(d => { setShowcaseWaitlist(d); setShowcaseLoading(false) })
-      .catch(() => setShowcaseLoading(false))
   }, [tab, opsRequested])
 
   if (!authChecked) {
@@ -232,10 +265,10 @@ export default function AnalyticsPage() {
         <div className="px-4 pt-4 space-y-4">
           {heroLoading || !heroStats
             ? <LoadingCard />
-            : <HeroRow heroStats={heroStats} />}
+            : <HeroRow heroStats={heroStats} monthly={platformStats?.monthly_table} />}
           {marketplaceHealthLoading || !marketplaceHealth
             ? <LoadingCard />
-            : <MarketplaceHealthRow health={marketplaceHealth} />}
+            : <MarketplaceHealthRow health={marketplaceHealth} monthly={platformStats?.monthly_table} />}
         </div>
       )}
 
@@ -247,6 +280,7 @@ export default function AnalyticsPage() {
             : (
               <>
                 <RevenueSection revenueStats={revenueStats} platformStats={platformStats} />
+                <PricingTierBreakdown priceBreakdown={revenueStats.price_breakdown} />
                 {conversionIntelLoading
                   ? <LoadingCard />
                   : conversionIntel
@@ -264,13 +298,32 @@ export default function AnalyticsPage() {
           <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
           {platformLoading || !platformStats
             ? <LoadingCard />
-            : <MonthByMonth monthly={platformStats.monthly_table} />}
+            : (
+              <>
+                <AcquisitionChart monthly={platformStats.monthly_table} />
+                <EngagementChart monthly={platformStats.monthly_table} />
+                <ActivityTrends monthly={platformStats.monthly_table} />
+                {appOutcomesLoading ? <LoadingCard /> : <ApplicationOutcomesChart data={appOutcomes} />}
+                {playerStatusLoading ? <LoadingCard /> : playerStatus.length > 0
+                  ? <PlayerStatusDonut distribution={playerStatus} total={playerStatusTotal} />
+                  : null}
+                {cohortLoading ? <LoadingCard /> : <CohortRetentionGrid data={cohortData} />}
+                <MonthByMonth monthly={platformStats.monthly_table} />
+              </>
+            )}
         </div>
       )}
 
-      {/* ── Coaches ── leaderboard for testimonial targeting ─────────────── */}
+      {/* ── Coaches ── browsing behavior + leaderboard ───────────────────── */}
       {tab === 'coaches' && (
-        <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !coachBoardRequested} />
+        <>
+          <div className="px-4 pt-4">
+            {playerViewsLoading
+              ? <LoadingCard />
+              : <PlayerViewsChart data={playerViews} />}
+          </div>
+          <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !coachBoardRequested} />
+        </>
       )}
 
       {/* ── Feed ── reverse-chrono event stream ──────────────────────────── */}
@@ -282,7 +335,6 @@ export default function AnalyticsPage() {
           msgLog={msgLog} msgLoading={msgLoading} msgTotal={msgTotal}
           recentLogins={recentLogins} loginsLoading={loginsLoading}
           recentApps={recentApps} appsLoading={appsLoading}
-          showcaseWaitlist={showcaseWaitlist} showcaseLoading={showcaseLoading}
           messageStats={messageStats} messageStatsLoading={messageStatsLoading}
           platformStats={platformStats}
         />

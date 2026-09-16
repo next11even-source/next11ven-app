@@ -2,52 +2,13 @@
 
 import { useState } from 'react'
 import { RoleBadge, SectionLabel, LoadingCard } from './ui'
-import type { MessageEntry, RecentApplication, RecentLogin, ShowcaseWaitlist, MessageStats, PlatformStats } from './types'
+import type { MessageEntry, RecentApplication, RecentLogin, MessageStats, PlatformStats } from './types'
 
-// ── MailerLite historic campaigns (static — manually sent Mar–Aug 2026) ────
-// Source: MailerLite "All campaigns insights" export, 7 Sep 2026.
-// Used as benchmarks for native onboarding drip performance.
-// Resend-to-non-openers campaigns excluded from averages (they run on a cold
-// sub-list and artificially depress rates).
-const ML_CAMPAIGNS = [
-  { name: '26/08 - Unclaimed Accounts',                          date: '2026-08-26', sent: 389,  openPct: 41.9,  clickPct: 0.77 },
-  { name: '50+ players actively looking — is your role posted?', date: '2026-08-16', sent: 151,  openPct: 40.4,  clickPct: 2.65 },
-  { name: '09/08 - Players - Pedigree Search + Career History',  date: '2026-08-09', sent: 651,  openPct: 51.77, clickPct: 1.69 },
-  { name: 'The Performance Tracker stays FREE - What\'s New',    date: '2026-07-19', sent: 649,  openPct: 33.74, clickPct: 0.77 },
-  { name: '13 Jul - Player Opportunities + Pre-Season Push',     date: '2026-07-13', sent: 651,  openPct: 36.71, clickPct: 2.92 },
-  { name: 'New: Track your season stats (free for now)',         date: '2026-07-06', sent: 639,  openPct: 34.43, clickPct: 1.10 },
-  { name: '2 minutes - does NEXT11VEN work for you?',            date: '2026-07-01', sent: 128,  openPct: 35.94, clickPct: 3.13 },
-  { name: 'New opportunities just posted — pre-season is here',  date: '2026-06-17', sent: 770,  openPct: 53.64, clickPct: 4.55 },
-  { name: 'Showcase Day Footage & New Platform Update',          date: '2026-06-03', sent: 754,  openPct: 60.08, clickPct: 3.05 },
-  { name: 'Everything you need to know for Showcase Day',        date: '2026-05-29', sent: 32,   openPct: 71.88, clickPct: 0.00 },
-  { name: 'Saturday — everything for Showcase Day',              date: '2026-05-27', sent: 23,   openPct: 60.87, clickPct: 0.00 },
-  { name: 'The showcase is this weekend — are you coming?',      date: '2026-05-25', sent: 112,  openPct: 54.46, clickPct: 7.14 },
-  { name: 'Showcase Game - Last Few Places Available!',          date: '2026-05-24', sent: 562,  openPct: 46.98, clickPct: 3.20 },
-  { name: 'Showcase Day - All Players Push',                     date: '2026-05-17', sent: 545,  openPct: 47.34, clickPct: 4.22 },
-  { name: 'Showcase Day - Player Booking Confirmed',             date: '2026-05-15', sent: 30,   openPct: 56.67, clickPct: 16.67 },
-  { name: 'Unclaimed Account Nudge - All Users',                 date: '2026-05-10', sent: 530,  openPct: 56.79, clickPct: 3.02 },
-  { name: 'New Opportunities & New Updates!',                    date: '2026-05-06', sent: 526,  openPct: 44.87, clickPct: 1.14 },
-  { name: 'Players are looking for a club right now',            date: '2026-05-05', sent: 105,  openPct: 48.57, clickPct: 8.57 },
-  { name: 'Post on the NEXT11VEN feed. Get a free month.',       date: '2026-05-03', sent: 521,  openPct: 42.80, clickPct: 0.96 },
-  { name: 'Your new community feed is here!',                    date: '2026-04-29', sent: 652,  openPct: 55.06, clickPct: 1.99 },
-  { name: 'First Major Platform Update',                         date: '2026-04-20', sent: 644,  openPct: 57.92, clickPct: 7.14 },
-  { name: 'NEXT11VEN Coach Showcase Interest',                   date: '2026-03-25', sent: 103,  openPct: 58.25, clickPct: 4.85 },
-  { name: 'Showcase Event - Player Interest',                    date: '2026-03-24', sent: 484,  openPct: 47.93, clickPct: 4.55 },
-  // Resend-to-non-openers (excluded from averages — cold sub-list):
-  { name: 'Resend: Coach Showcase Interest (non-openers)',       date: '2026-03-31', sent: 44,   openPct: 13.64, clickPct: 2.27, isResend: true },
-  { name: 'Resend: Showcase Event (non-openers)',                date: '2026-03-31', sent: 263,  openPct: 11.41, clickPct: 0.76, isResend: true },
-] as const
-
-const ML_ORGANIC = ML_CAMPAIGNS.filter(c => !('isResend' in c && c.isResend))
-const ML_AVG_OPEN  = Math.round(ML_ORGANIC.reduce((s, c) => s + c.openPct, 0) / ML_ORGANIC.length * 10) / 10
-const ML_AVG_CLICK = Math.round(ML_ORGANIC.reduce((s, c) => s + c.clickPct, 0) / ML_ORGANIC.length * 10) / 10
-const ML_TOTAL_SENT = ML_CAMPAIGNS.reduce((s, c) => s + c.sent, 0)
 
 export function OpsTab({
   msgLog, msgLoading, msgTotal,
   recentLogins, loginsLoading,
   recentApps, appsLoading,
-  showcaseWaitlist, showcaseLoading,
   messageStats, messageStatsLoading,
   platformStats,
 }: {
@@ -58,8 +19,6 @@ export function OpsTab({
   loginsLoading: boolean
   recentApps: RecentApplication[]
   appsLoading: boolean
-  showcaseWaitlist: ShowcaseWaitlist | null
-  showcaseLoading: boolean
   messageStats: MessageStats | null
   messageStatsLoading: boolean
   platformStats: PlatformStats | null
@@ -67,7 +26,6 @@ export function OpsTab({
   const [showAllMessages, setShowAllMessages] = useState(false)
   const [showAllApps, setShowAllApps] = useState(false)
   const [showAllLogins, setShowAllLogins] = useState(false)
-  const [showShowcaseList, setShowShowcaseList] = useState(false)
 
   const migrationPct = platformStats && platformStats.funnel.approved > 0
     ? Math.round((platformStats.ever_signed_in / platformStats.funnel.approved) * 100)
@@ -98,31 +56,30 @@ export function OpsTab({
         </section>
       )}
 
-      {/* ── Email Benchmarks ─────────────────────────────────────────── */}
-      <EmailBenchmarks />
-
       {/* ── Last 30 Days ──────────────────────────────────────────────── */}
       <section>
         <SectionLabel>Last 30 Days</SectionLabel>
         {messageStatsLoading ? <LoadingCard /> : messageStats ? (
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl p-4 flex flex-col gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-                {messageStats.messagesSent}
-              </span>
-              <span className="text-xs" style={{ color: '#8892aa' }}>Messages Sent</span>
-            </div>
-            <div className="rounded-xl p-4 flex flex-col gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-                {messageStats.newConversations}
-              </span>
-              <span className="text-xs" style={{ color: '#8892aa' }}>New Conversations</span>
-            </div>
-            <div className="rounded-xl p-4 flex flex-col gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-              <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#f59e0b' }}>
-                {messageStats.applicationsSubmitted}
-              </span>
-              <span className="text-xs" style={{ color: '#8892aa' }}>Applications</span>
+          <div className="rounded-xl px-4 py-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+            <div className="flex items-center divide-x" style={{ borderColor: '#1e2235' }}>
+              <div className="flex-1 pr-4">
+                <span className="text-base font-bold tabular-nums leading-none block" style={{ color: '#e8dece' }}>
+                  {messageStats.messagesSent}
+                </span>
+                <span className="text-xs mt-0.5 block" style={{ color: '#8892aa' }}>Messages</span>
+              </div>
+              <div className="flex-1 px-4">
+                <span className="text-base font-bold tabular-nums leading-none block" style={{ color: '#e8dece' }}>
+                  {messageStats.newConversations}
+                </span>
+                <span className="text-xs mt-0.5 block" style={{ color: '#8892aa' }}>Conversations</span>
+              </div>
+              <div className="flex-1 pl-4">
+                <span className="text-base font-bold tabular-nums leading-none block" style={{ color: '#e8dece' }}>
+                  {messageStats.applicationsSubmitted}
+                </span>
+                <span className="text-xs mt-0.5 block" style={{ color: '#8892aa' }}>Applications</span>
+              </div>
             </div>
           </div>
         ) : null}
@@ -298,225 +255,6 @@ export function OpsTab({
         )}
       </section>
 
-      {/* ── Showcase Game 2 Waitlist ──────────────────────────────────── */}
-      <section>
-        <SectionLabel>Showcase Game 2 — Waitlist</SectionLabel>
-        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e2235' }}>
-          {showcaseLoading ? (
-            <div className="flex items-center justify-center py-6" style={{ backgroundColor: '#13172a' }}>
-              <div className="w-5 h-5 rounded-full border-2 animate-spin" style={{ borderColor: '#2d5fc4', borderTopColor: 'transparent' }} />
-            </div>
-          ) : showcaseWaitlist ? (
-            <>
-              <button
-                onClick={() => setShowShowcaseList(v => !v)}
-                className="w-full flex items-center justify-between px-4 py-3 transition-opacity hover:opacity-80"
-                style={{ backgroundColor: '#13172a' }}>
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                    {showcaseWaitlist.total}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold" style={{ color: '#e8dece' }}>
-                      {showcaseWaitlist.total === 1 ? 'person registered interest' : 'people registered interest'}
-                    </p>
-                    <p className="text-xs" style={{ color: '#8892aa' }}>
-                      {showcaseWaitlist.players.length} {showcaseWaitlist.players.length === 1 ? 'player' : 'players'} · {showcaseWaitlist.coaches.length} {showcaseWaitlist.coaches.length === 1 ? 'coach' : 'coaches'}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold" style={{ color: '#8892aa' }}>{showShowcaseList ? 'Hide ↑' : 'View all ↓'}</span>
-              </button>
-
-              {showShowcaseList && showcaseWaitlist.total > 0 && (
-                <div className="divide-y" style={{ borderColor: '#1e2235', borderTop: '1px solid #1e2235' }}>
-                  {showcaseWaitlist.players.map((p, i) => (
-                    <div key={p.id} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: i % 2 === 0 ? '#0d1020' : '#13172a' }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <RoleBadge role="player" />
-                          <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{p.full_name ?? '—'}</p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {p.position && <span className="text-xs" style={{ color: '#2d5fc4' }}>{p.position}</span>}
-                          {p.club && <span className="text-xs" style={{ color: '#8892aa' }}>· {p.club}</span>}
-                        </div>
-                      </div>
-                      {p.showcase_waitlist_joined_at && (
-                        <p className="text-xs tabular-nums flex-shrink-0 ml-3" style={{ color: '#8892aa' }}>
-                          {new Date(p.showcase_waitlist_joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                  {showcaseWaitlist.coaches.map((c, i) => (
-                    <div key={c.id} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: (showcaseWaitlist.players.length + i) % 2 === 0 ? '#0d1020' : '#13172a' }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <RoleBadge role="coach" />
-                          <p className="text-sm font-semibold truncate" style={{ color: '#e8dece' }}>{c.full_name ?? '—'}</p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {c.coaching_role && <span className="text-xs" style={{ color: '#a78bfa' }}>{c.coaching_role}</span>}
-                          {c.club && <span className="text-xs" style={{ color: '#8892aa' }}>· {c.club}</span>}
-                        </div>
-                      </div>
-                      {c.showcase_coach_waitlist_joined_at && (
-                        <p className="text-xs tabular-nums flex-shrink-0 ml-3" style={{ color: '#8892aa' }}>
-                          {new Date(c.showcase_coach_waitlist_joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {showShowcaseList && showcaseWaitlist.total === 0 && (
-                <div className="px-4 py-4 text-center" style={{ backgroundColor: '#0d1020', borderTop: '1px solid #1e2235' }}>
-                  <p className="text-xs" style={{ color: '#8892aa' }}>No one on the waitlist yet.</p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="px-4 py-6 text-center" style={{ backgroundColor: '#13172a' }}>
-              <p className="text-xs" style={{ color: '#8892aa' }}>Could not load waitlist data.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
     </div>
-  )
-}
-
-// ── Email Benchmarks component ────────────────────────────────────────────
-function EmailBenchmarks() {
-  const [expanded, setExpanded] = useState(false)
-
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-2">
-        <SectionLabel>Email Benchmarks</SectionLabel>
-        <span className="text-xs px-2 py-0.5 rounded font-bold"
-          style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
-          MailerLite
-        </span>
-      </div>
-
-      {/* Source note */}
-      <p className="text-xs mb-3" style={{ color: '#8892aa' }}>
-        Manual campaigns sent Mar–Aug 2026 · {ML_CAMPAIGNS.length} campaigns total ·{' '}
-        <span style={{ color: '#4d8ae8' }}>target for native onboarding drip</span>
-      </p>
-
-      {/* Aggregate stats */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <div className="rounded-xl p-3 flex flex-col gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <span className="text-2xl font-black leading-none"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#4d8ae8' }}>
-            {ML_AVG_OPEN}%
-          </span>
-          <span className="text-xs" style={{ color: '#8892aa' }}>Avg Open Rate</span>
-          <span className="text-xs" style={{ color: '#3a4055' }}>{ML_ORGANIC.length} organic</span>
-        </div>
-        <div className="rounded-xl p-3 flex flex-col gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <span className="text-2xl font-black leading-none"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-            {ML_AVG_CLICK}%
-          </span>
-          <span className="text-xs" style={{ color: '#8892aa' }}>Avg Click Rate</span>
-          <span className="text-xs" style={{ color: '#3a4055' }}>excl. resends</span>
-        </div>
-        <div className="rounded-xl p-3 flex flex-col gap-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          <span className="text-2xl font-black leading-none"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
-            {ML_TOTAL_SENT.toLocaleString()}
-          </span>
-          <span className="text-xs" style={{ color: '#8892aa' }}>Total Sent</span>
-          <span className="text-xs" style={{ color: '#3a4055' }}>all campaigns</span>
-        </div>
-      </div>
-
-      {/* Native onboarding context strip */}
-      <div className="rounded-xl px-4 py-3 mb-3 flex items-start gap-3"
-        style={{ backgroundColor: 'rgba(45,95,196,0.08)', border: '1px solid rgba(45,95,196,0.2)' }}>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold" style={{ color: '#4d8ae8' }}>Native onboarding active</p>
-          <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-            Since 7 Sep 2026 · D0/D1/D3/D7 (player) + D0/D2/D5 (coach) via drip_jobs ·
-            benchmark target: beat {ML_AVG_OPEN}% open rate
-          </p>
-        </div>
-      </div>
-
-      {/* Collapsible campaign list */}
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between rounded-xl px-4 py-3 transition-opacity hover:opacity-80"
-        style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-        <span className="text-xs font-semibold" style={{ color: '#8892aa' }}>
-          {expanded ? 'Hide campaigns' : 'View all campaigns'}
-        </span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8892aa" strokeWidth="2"
-          strokeLinecap="round" strokeLinejoin="round"
-          style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-
-      {expanded && (
-        <div className="rounded-xl overflow-hidden mt-1" style={{ border: '1px solid #1e2235' }}>
-          {/* Header row */}
-          <div className="grid px-4 py-2" style={{
-            gridTemplateColumns: '1fr 52px 52px 52px',
-            backgroundColor: '#0d1020',
-            borderBottom: '1px solid #1e2235',
-          }}>
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#3a4055' }}>Campaign</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-right" style={{ color: '#3a4055' }}>Sent</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-right" style={{ color: '#3a4055' }}>Open</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-right" style={{ color: '#3a4055' }}>Click</span>
-          </div>
-          <div className="divide-y" style={{ borderColor: '#1e2235' }}>
-            {[...ML_CAMPAIGNS].map((c, i) => {
-              const isResend = 'isResend' in c && c.isResend
-              return (
-                <div key={i} className="grid px-4 py-2.5 items-center"
-                  style={{
-                    gridTemplateColumns: '1fr 52px 52px 52px',
-                    backgroundColor: i % 2 === 0 ? '#13172a' : '#0d1020',
-                    opacity: isResend ? 0.5 : 1,
-                  }}>
-                  <div className="min-w-0 pr-3">
-                    <p className="text-xs leading-snug truncate" style={{ color: '#e8dece' }}>{c.name}</p>
-                    <p className="text-xs tabular-nums mt-0.5" style={{ color: '#3a4055' }}>
-                      {new Date(c.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                      {isResend && <span style={{ color: '#f59e0b' }}> · resend</span>}
-                    </p>
-                  </div>
-                  <span className="text-xs tabular-nums text-right" style={{ color: '#8892aa' }}>
-                    {c.sent.toLocaleString()}
-                  </span>
-                  <span className="text-xs tabular-nums text-right font-semibold" style={{
-                    color: c.openPct >= 50 ? '#4d8ae8' : c.openPct >= 40 ? '#e8dece' : '#8892aa',
-                  }}>
-                    {c.openPct}%
-                  </span>
-                  <span className="text-xs tabular-nums text-right" style={{
-                    color: c.clickPct >= 5 ? '#a78bfa' : '#8892aa',
-                  }}>
-                    {c.clickPct}%
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          <div className="px-4 py-2.5" style={{ backgroundColor: '#0d1020', borderTop: '1px solid #1e2235' }}>
-            <p className="text-xs" style={{ color: '#3a4055' }}>
-              Open rate coloured blue ≥50%, cream ≥40%. Click rate coloured purple ≥5%. Resend rows dimmed — excluded from averages.
-            </p>
-          </div>
-        </div>
-      )}
-    </section>
   )
 }

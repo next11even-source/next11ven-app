@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const { data: msgs, count, error } = await admin
     .from('messages')
     .select('id, content, created_at, sender_id, conversation_id, conversations(coach_id, player_id)', { count: 'exact' })
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false, nullsFirst: false })
     .range(offset, offset + PAGE_SIZE - 1)
 
   if (error) {
@@ -84,7 +84,12 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  messages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  messages.sort((a, b) => {
+    if (!a.created_at && !b.created_at) return 0
+    if (!a.created_at) return 1   // nulls to the bottom
+    if (!b.created_at) return -1
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
 
   return NextResponse.json({ messages, total: count ?? 0 })
 }

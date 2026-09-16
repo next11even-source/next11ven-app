@@ -101,6 +101,10 @@ export type MonthRow = {
   opportunities_posted: number
   connections_started: number
   application_response_pct: number | null
+  // accepted: already output by analytics_platform_stats() accepted_events CTE
+  accepted: number
+  // signed: added by migration 20260915000001
+  signed: number
 }
 
 export type PlatformStats = {
@@ -205,6 +209,19 @@ export type MessageStats = {
   messagesSent: number
   newConversations: number
   applicationsSubmitted: number
+}
+
+export type OutcomeMonth = {
+  label: string
+  accepted: number
+  rejected: number
+  closed: number
+}
+
+export type CohortRow = {
+  signup_week: string           // "YYYY-MM-DD" (Monday of the ISO week)
+  cohort_size: number
+  retention: Record<string, number>  // week_offset string → % retained (e.g. { "0": 94, "1": 61 })
 }
 
 export type Funnel = {

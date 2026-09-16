@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import type { HeroStats } from './types'
+import type { HeroStats, MonthRow } from './types'
+import { Sparkline } from './ui'
 
 // Movement colour doctrine: green signals growth (this-period-vs-last
 // increase) — the one deliberate carve-out from the app-wide "no green
@@ -58,12 +59,21 @@ const formatPence = (n: number) => `£${(n / 100).toFixed(0)}`
  * last-period movement. Everything else on the analytics tab lives below
  * this, in the tabs.
  */
-export function HeroRow({ heroStats }: { heroStats: HeroStats }) {
+export function HeroRow({ heroStats, monthly }: { heroStats: HeroStats; monthly?: MonthRow[] }) {
   const mrrNow = heroStats.net_new_mrr_pence.current
   // Net new MRR is the one hero value that's itself a signed growth figure
   // (not just its movement-vs-last-month), so it gets the same green/amber
   // treatment as the movement arrows, not the neutral cream every other tile uses.
   const mrrColor = mrrNow >= 0 ? UP_COLOR : DOWN_COLOR
+
+  // Derive sparkline data from monthly_table where available.
+  // Active coaches not in monthly_table — deferred.
+  const mrrSparkline = monthly && monthly.length >= 2
+    ? monthly.map(m => ({ label: m.label, value: m.new_mrr_pence - m.churned_mrr_pence }))
+    : null
+  const proSparkline = monthly && monthly.length >= 2
+    ? monthly.map(m => ({ label: m.label, value: m.new_premium }))
+    : null
 
   return (
     <section className="grid grid-cols-2 gap-2.5">
@@ -82,22 +92,7 @@ export function HeroRow({ heroStats }: { heroStats: HeroStats }) {
           compareLabel="vs same point last month"
           format={formatPence}
         />
-      </HeroTile>
-
-      <HeroTile label="Opportunities posted" value={heroStats.opportunities_posted.current.toLocaleString()}>
-        <MovementLabel
-          current={heroStats.opportunities_posted.current}
-          previous={heroStats.opportunities_posted.previous}
-          compareLabel="vs same point last month"
-        />
-      </HeroTile>
-
-      <HeroTile label="Connections started" value={heroStats.connections_started.current.toLocaleString()}>
-        <MovementLabel
-          current={heroStats.connections_started.current}
-          previous={heroStats.connections_started.previous}
-          compareLabel="vs same point last month"
-        />
+        {mrrSparkline && <Sparkline data={mrrSparkline} color={mrrColor} />}
       </HeroTile>
 
       <div className="col-span-2 rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
@@ -132,6 +127,11 @@ export function HeroRow({ heroStats }: { heroStats: HeroStats }) {
             </div>
           </div>
         </div>
+        {proSparkline && (
+          <div className="mt-2">
+            <Sparkline data={proSparkline} color="#2d5fc4" />
+          </div>
+        )}
       </div>
     </section>
   )

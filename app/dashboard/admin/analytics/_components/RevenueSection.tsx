@@ -1,6 +1,10 @@
+'use client'
+
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { HEALTH_COLORS, getCoachProAlarmState } from '@/lib/analyticsGoals'
 import type { PlatformStats, RevenueStats } from './types'
 import { ChartCard, SectionLabel } from './ui'
+import { CHART_TOOLTIP_STYLE } from './chartConfig'
 
 export function RevenueSection({ revenueStats, platformStats }: {
   revenueStats: RevenueStats
@@ -57,25 +61,85 @@ export function RevenueSection({ revenueStats, platformStats }: {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Pro</p>
-              <p className="text-xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
-                {revenueStats.player_subs}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(revenueStats.player_mrr_pence / 100).toFixed(2)}/mo</p>
-            </div>
-            <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: `1px solid ${coachAlarmColor}55` }}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Coach Pro</p>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: coachAlarmColor }} />
+          {/* MRR split donut */}
+          {(revenueStats.player_mrr_pence > 0 || revenueStats.coach_mrr_pence > 0) ? (
+            <div>
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={150}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Player Pro', value: revenueStats.player_mrr_pence },
+                        { name: 'Coach Pro', value: revenueStats.coach_mrr_pence },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={42}
+                      outerRadius={62}
+                      strokeWidth={0}
+                      dataKey="value"
+                    >
+                      <Cell fill="#2d5fc4" />
+                      <Cell fill={coachAlarmColor} />
+                    </Pie>
+                    <Tooltip
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={(v: unknown) => [`£${((v as number) / 100).toFixed(2)}/mo`, '']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Centre label */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
+                    {revenueStats.active_subs}
+                  </span>
+                  <span className="text-xs" style={{ color: '#8892aa' }}>subs</span>
+                </div>
               </div>
-              <p className="text-xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
-                {revenueStats.coach_subs}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(revenueStats.coach_mrr_pence / 100).toFixed(2)}/mo</p>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#2d5fc4' }} />
+                    <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Player Pro</p>
+                  </div>
+                  <p className="text-lg font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                    {revenueStats.player_subs}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(revenueStats.player_mrr_pence / 100).toFixed(2)}/mo</p>
+                </div>
+                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: '#0a0a0a', border: `1px solid ${coachAlarmColor}55` }}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: coachAlarmColor }} />
+                    <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Coach Pro</p>
+                  </div>
+                  <p className="text-lg font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: coachAlarmColor }}>
+                    {revenueStats.coach_subs}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(revenueStats.coach_mrr_pence / 100).toFixed(2)}/mo</p>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
+                <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#8892aa' }}>Player Pro</p>
+                <p className="text-xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#2d5fc4' }}>
+                  {revenueStats.player_subs}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(revenueStats.player_mrr_pence / 100).toFixed(2)}/mo</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ backgroundColor: '#0a0a0a', border: `1px solid ${coachAlarmColor}55` }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs uppercase tracking-wider" style={{ color: '#8892aa' }}>Coach Pro</p>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: coachAlarmColor }} />
+                </div>
+                <p className="text-xl font-black leading-none" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#a78bfa' }}>
+                  {revenueStats.coach_subs}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>£{(revenueStats.coach_mrr_pence / 100).toFixed(2)}/mo</p>
+              </div>
+            </div>
+          )}
 
           {/* Legacy upgrade — always shown, honest zero-state included */}
           <div className="flex items-center justify-between rounded-lg px-3 py-2.5"
@@ -120,43 +184,6 @@ export function RevenueSection({ revenueStats, platformStats }: {
             </div>
           )}
 
-          {revenueStats.price_breakdown.length > 0 && (
-            <div>
-              <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: '#8892aa' }}>Pricing Tiers</p>
-              <div className="space-y-1.5">
-                {revenueStats.price_breakdown.map((tier) => {
-                  const amount = tier.unit_amount_pence / 100
-                  const isLegacy = tier.unit_amount_pence < 699
-                  const label = isLegacy
-                    ? `Legacy (£${amount.toFixed(2)})`
-                    : tier.unit_amount_pence >= 999
-                      ? `Coach Pro (£${amount.toFixed(2)})`
-                      : `Player Pro (£${amount.toFixed(2)})`
-                  const color = isLegacy ? '#8892aa' : tier.unit_amount_pence >= 999 ? '#a78bfa' : '#2d5fc4'
-                  return (
-                    <div key={tier.price_id} className="flex items-center justify-between rounded-lg px-3 py-2"
-                      style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235' }}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold" style={{ color }}>{label}</span>
-                        {isLegacy && (
-                          <span className="text-xs px-1.5 py-0.5 rounded font-bold"
-                            style={{ backgroundColor: 'rgba(136,146,170,0.12)', color: '#8892aa' }}>
-                            Legacy
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-black tabular-nums" style={{ fontFamily: "'Barlow Condensed', sans-serif", color }}>
-                          {tier.subscriber_count}
-                        </span>
-                        <span className="text-xs ml-1.5" style={{ color: '#8892aa' }}>· £{(tier.mrr_pence / 100).toFixed(2)}/mo</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </section>

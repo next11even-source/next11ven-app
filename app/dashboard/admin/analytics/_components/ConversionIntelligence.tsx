@@ -1,5 +1,9 @@
+'use client'
+
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts'
 import type { ConversionIntelligence as ConversionIntelligenceData, TimeToUpgrade } from './types'
 import { SectionLabel } from './ui'
+import { CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_TICK_STYLE } from './chartConfig'
 
 const TOUCHPOINT_LABELS: Record<string, string> = {
   actively_looking_toggle: 'Actively Looking toggle',
@@ -37,16 +41,29 @@ function TimeToUpgradeCard({ data }: { data: TimeToUpgrade }) {
           {data.avg_days !== null ? `${data.avg_days}d avg` : '—'}
         </span>
       </div>
-      <div className="grid grid-cols-4 gap-2">
-        {buckets.map(b => (
-          <div key={b.label} className="text-center">
-            <p className="text-sm font-black" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>{b.value}</p>
-            <p className="text-xs leading-tight" style={{ color: '#8892aa' }}>{b.label}</p>
-          </div>
-        ))}
-      </div>
+      <ResponsiveContainer width="100%" height={110}>
+        <BarChart
+          data={buckets}
+          layout="vertical"
+          margin={{ top: 0, right: 8, bottom: 0, left: 4 }}
+          barSize={14}
+        >
+          <XAxis type="number" tick={CHART_TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
+          <YAxis type="category" dataKey="label" tick={CHART_TICK_STYLE} axisLine={false} tickLine={false} width={80} />
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            labelStyle={CHART_LABEL_STYLE}
+            cursor={{ fill: 'rgba(45,95,196,0.08)' }}
+          />
+          <Bar dataKey="value" name="Users" radius={[0, 3, 3, 0]}>
+            {buckets.map((b, i) => (
+              <Cell key={b.label} fill={i === 0 ? '#22c55e' : i === 1 ? '#2d5fc4' : i === 2 ? '#f59e0b' : '#8892aa'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
       <p className="text-xs" style={{ color: '#8892aa' }}>
-        Same-day reads as impulse, weeks-later as considered — {data.total} upgrade{data.total === 1 ? '' : 's'} total.
+        {data.total} upgrade{data.total === 1 ? '' : 's'} total — same-day = impulse, weeks-later = considered.
       </p>
     </div>
   )

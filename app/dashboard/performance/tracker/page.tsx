@@ -203,6 +203,7 @@ function MatchCard({ m }: { m: PerformanceMatch }) {
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
             {fmtDate(m.match_date)} · {COMPETITION_TYPE_LABELS[m.competition_type as CompetitionType] ?? m.competition_type}
             {m.position ? ` · ${m.position}` : ''}
+            {m.minutes_played != null ? ` · ${m.minutes_played}'` : ''}
           </p>
         </div>
 

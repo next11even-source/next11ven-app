@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { HeroRow } from './_components/HeroRow'
 import { MarketplaceHealthRow } from './_components/MarketplaceHealth'
-import { LeadingIndicatorsRow } from './_components/LeadingIndicators'
 import { TrackerAdoptionTrends } from './_components/TrackerAdoptionTrends'
 import { RevenueSection } from './_components/RevenueSection'
 import { MonthByMonth } from './_components/MonthByMonth'
@@ -19,9 +18,10 @@ import { CoachLeaderboardTab } from './_components/CoachLeaderboard'
 import { EventFeedTab } from './_components/EventFeed'
 import { ConversionIntelligenceSection } from './_components/ConversionIntelligence'
 import { PricingTierBreakdown } from './_components/PricingTierBreakdown'
-import { PlayerStatusDonut } from './_components/PlayerStatusDonut'
 import { PlayerViewsChart } from './_components/PlayerViewsChart'
 import type { PlayerViewsMonth } from './_components/PlayerViewsChart'
+import { OppsVsApplicationsChart } from './_components/OppsVsApplicationsChart'
+import { PlatformMomentumChart } from './_components/PlatformMomentumChart'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
@@ -30,27 +30,24 @@ import type {
   ConversionIntelligence, OutcomeMonth, CohortRow,
 } from './_components/types'
 
-type StatusCount = { status: string; count: number; pct: number }
-
-type Tab = 'overview' | 'revenue' | 'trends' | 'coaches' | 'feed' | 'ops'
+// 4 tabs: Health (app heartbeat + correlations) | Growth (trends + tracker) |
+//         Revenue (MRR + conversion) | Ops (coaches, feed, messages, logins)
+type Tab = 'health' | 'growth' | 'revenue' | 'ops'
 
 const TAB_LABELS: Record<Tab, string> = {
-  overview: 'Overview',
+  health: 'Health',
+  growth: 'Growth',
   revenue: 'Revenue',
-  trends: 'Trends',
-  coaches: 'Coaches',
-  feed: 'Feed',
   ops: 'Ops',
 }
 
 export default function AnalyticsPage() {
   const router = useRouter()
   const [authChecked, setAuthChecked] = useState(false)
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>('health')
 
-  // ── Eager: Overview tab data ────────────────────────────────────────────
-  // platformStats is also needed by Revenue (chart data) and Ops (migration
-  // tracker), so it fetches up front rather than per-tab.
+  // ── Eager: Health tab data ──────────────────────────────────────────────
+  // platformStats also feeds Growth and Revenue charts, so it's eager.
   const [heroStats, setHeroStats] = useState<HeroStats | null>(null)
   const [heroLoading, setHeroLoading] = useState(true)
   const [marketplaceHealth, setMarketplaceHealth] = useState<MarketplaceHealthStats | null>(null)
@@ -65,27 +62,21 @@ export default function AnalyticsPage() {
   const [conversionIntel, setConversionIntel] = useState<ConversionIntelligence | null>(null)
   const [conversionIntelLoading, setConversionIntelLoading] = useState(false)
 
-  // ── Lazy: Trends tab ─────────────────────────────────────────────────────
-  const [trendsRequested, setTrendsRequested] = useState(false)
+  // ── Lazy: Growth tab ─────────────────────────────────────────────────────
+  const [growthRequested, setGrowthRequested] = useState(false)
   const [trackerStats, setTrackerStats] = useState<TrackerStats | null>(null)
   const [trackerLoading, setTrackerLoading] = useState(false)
   const [appOutcomes, setAppOutcomes] = useState<OutcomeMonth[]>([])
   const [appOutcomesLoading, setAppOutcomesLoading] = useState(false)
   const [cohortData, setCohortData] = useState<CohortRow[]>([])
   const [cohortLoading, setCohortLoading] = useState(false)
-  const [playerStatus, setPlayerStatus] = useState<StatusCount[]>([])
-  const [playerStatusTotal, setPlayerStatusTotal] = useState(0)
-  const [playerStatusLoading, setPlayerStatusLoading] = useState(false)
 
-  // ── Lazy: Coaches tab ────────────────────────────────────────────────────
+  // ── Lazy: Ops tab (coaches + feed + messages + logins) ───────────────────
+  const [opsRequested, setOpsRequested] = useState(false)
   const [coachBoard, setCoachBoard] = useState<CoachLeaderboard | null>(null)
   const [coachBoardLoading, setCoachBoardLoading] = useState(false)
-  const [coachBoardRequested, setCoachBoardRequested] = useState(false)
   const [playerViews, setPlayerViews] = useState<PlayerViewsMonth[]>([])
   const [playerViewsLoading, setPlayerViewsLoading] = useState(false)
-
-  // ── Lazy: Ops tab ─────────────────────────────────────────────────────────
-  const [opsRequested, setOpsRequested] = useState(false)
   const [msgLog, setMsgLog] = useState<MessageEntry[]>([])
   const [msgLoading, setMsgLoading] = useState(false)
   const [msgTotal, setMsgTotal] = useState(0)
@@ -146,14 +137,13 @@ export default function AnalyticsPage() {
       .catch(() => setConversionIntelLoading(false))
   }, [tab, revenueRequested])
 
-  // ── Lazy: Trends ────────────────────────────────────────────────────────
+  // ── Lazy: Growth ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (tab !== 'trends' || trendsRequested) return
-    setTrendsRequested(true)
+    if (tab !== 'growth' || growthRequested) return
+    setGrowthRequested(true)
     setTrackerLoading(true)
     setAppOutcomesLoading(true)
     setCohortLoading(true)
-    setPlayerStatusLoading(true)
     fetch('/api/admin/tracker-stats')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setTrackerStats(d); setTrackerLoading(false) })
@@ -166,18 +156,18 @@ export default function AnalyticsPage() {
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setCohortData(d); setCohortLoading(false) })
       .catch(() => setCohortLoading(false))
-    fetch('/api/admin/player-status-distribution')
-      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
-      .then(d => { setPlayerStatus(d.distribution ?? []); setPlayerStatusTotal(d.total ?? 0); setPlayerStatusLoading(false) })
-      .catch(() => setPlayerStatusLoading(false))
-  }, [tab, trendsRequested])
+  }, [tab, growthRequested])
 
-  // ── Lazy: Coaches ───────────────────────────────────────────────────────
+  // ── Lazy: Ops (coaches + feed + messages + logins) ──────────────────────
   useEffect(() => {
-    if (tab !== 'coaches' || coachBoardRequested) return
-    setCoachBoardRequested(true)
+    if (tab !== 'ops' || opsRequested) return
+    setOpsRequested(true)
     setCoachBoardLoading(true)
     setPlayerViewsLoading(true)
+    setMsgLoading(true)
+    setLoginsLoading(true)
+    setAppsLoading(true)
+    setMessageStatsLoading(true)
     fetch('/api/admin/coach-leaderboard')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setCoachBoard(d); setCoachBoardLoading(false) })
@@ -186,16 +176,6 @@ export default function AnalyticsPage() {
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setPlayerViews(d); setPlayerViewsLoading(false) })
       .catch(() => setPlayerViewsLoading(false))
-  }, [tab, coachBoardRequested])
-
-  // ── Lazy: Ops ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (tab !== 'ops' || opsRequested) return
-    setOpsRequested(true)
-    setMsgLoading(true)
-    setLoginsLoading(true)
-    setAppsLoading(true)
-    setMessageStatsLoading(true)
     const since = new Date(Date.now() - 30 * 86400000).toISOString()
     fetch(`/api/admin/message-stats?since=${encodeURIComponent(since)}`)
       .then(r => r.json())
@@ -245,7 +225,7 @@ export default function AnalyticsPage() {
           </h1>
         </div>
         <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-          {(['overview', 'revenue', 'trends', 'coaches', 'feed', 'ops'] as Tab[]).map(t => (
+          {(['health', 'growth', 'revenue', 'ops'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -260,19 +240,46 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* ── Overview ── core numbers + marketplace pulse ─────────────────── */}
-      {tab === 'overview' && (
+      {/* ── Health ── hero numbers, marketplace pulse, correlation charts ─── */}
+      {tab === 'health' && (
         <div className="px-4 pt-4 space-y-4">
           {heroLoading || !heroStats
             ? <LoadingCard />
-            : <HeroRow heroStats={heroStats} monthly={platformStats?.monthly_table} />}
+            : <HeroRow heroStats={heroStats} />}
           {marketplaceHealthLoading || !marketplaceHealth
             ? <LoadingCard />
-            : <MarketplaceHealthRow health={marketplaceHealth} monthly={platformStats?.monthly_table} />}
+            : <MarketplaceHealthRow health={marketplaceHealth} />}
+          {platformLoading || !platformStats
+            ? <LoadingCard />
+            : (
+              <>
+                <PlatformMomentumChart monthly={platformStats.monthly_table} />
+                <OppsVsApplicationsChart monthly={platformStats.monthly_table} />
+                <MonthByMonth monthly={platformStats.monthly_table} />
+              </>
+            )}
         </div>
       )}
 
-      {/* ── Revenue ── MRR, churn, conversion funnel ─────────────────────── */}
+      {/* ── Growth ── acquisition, engagement, tracker, cohort ──────────────  */}
+      {tab === 'growth' && (
+        <div className="px-4 pt-4 space-y-4">
+          <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
+          {platformLoading || !platformStats
+            ? <LoadingCard />
+            : (
+              <>
+                <AcquisitionChart monthly={platformStats.monthly_table} />
+                <EngagementChart monthly={platformStats.monthly_table} />
+                <ActivityTrends monthly={platformStats.monthly_table} />
+                {appOutcomesLoading ? <LoadingCard /> : <ApplicationOutcomesChart data={appOutcomes} />}
+                {cohortLoading ? <LoadingCard /> : <CohortRetentionGrid data={cohortData} />}
+              </>
+            )}
+        </div>
+      )}
+
+      {/* ── Revenue ── MRR, churn, pricing breakdown, conversion intel ───── */}
       {tab === 'revenue' && (
         <div className="px-4 pt-4 space-y-4">
           {revenueLoading || !revenueStats || platformLoading || !platformStats
@@ -291,53 +298,26 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* ── Trends ── tracker adoption, leading indicators, monthly chart ── */}
-      {tab === 'trends' && (
-        <div className="px-4 pt-4 space-y-4">
-          <LeadingIndicatorsRow trackerStats={trackerLoading ? null : trackerStats} />
-          <TrackerAdoptionTrends trackerStats={trackerLoading ? null : trackerStats} />
-          {platformLoading || !platformStats
-            ? <LoadingCard />
-            : (
-              <>
-                <AcquisitionChart monthly={platformStats.monthly_table} />
-                <EngagementChart monthly={platformStats.monthly_table} />
-                <ActivityTrends monthly={platformStats.monthly_table} />
-                {appOutcomesLoading ? <LoadingCard /> : <ApplicationOutcomesChart data={appOutcomes} />}
-                {playerStatusLoading ? <LoadingCard /> : playerStatus.length > 0
-                  ? <PlayerStatusDonut distribution={playerStatus} total={playerStatusTotal} />
-                  : null}
-                {cohortLoading ? <LoadingCard /> : <CohortRetentionGrid data={cohortData} />}
-                <MonthByMonth monthly={platformStats.monthly_table} />
-              </>
-            )}
-        </div>
-      )}
-
-      {/* ── Coaches ── browsing behavior + leaderboard ───────────────────── */}
-      {tab === 'coaches' && (
+      {/* ── Ops ── coach leaderboard, player views, feed, messages, logins ── */}
+      {tab === 'ops' && (
         <>
-          <div className="px-4 pt-4">
+          <div className="px-4 pt-4 space-y-4">
             {playerViewsLoading
               ? <LoadingCard />
               : <PlayerViewsChart data={playerViews} />}
           </div>
-          <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !coachBoardRequested} />
+          <CoachLeaderboardTab data={coachBoard} loading={coachBoardLoading || !opsRequested} />
+          <div className="px-4 pt-4 space-y-4">
+            <EventFeedTab />
+          </div>
+          <OpsTab
+            msgLog={msgLog} msgLoading={msgLoading} msgTotal={msgTotal}
+            recentLogins={recentLogins} loginsLoading={loginsLoading}
+            recentApps={recentApps} appsLoading={appsLoading}
+            messageStats={messageStats} messageStatsLoading={messageStatsLoading}
+            platformStats={platformStats}
+          />
         </>
-      )}
-
-      {/* ── Feed ── reverse-chrono event stream ──────────────────────────── */}
-      {tab === 'feed' && <EventFeedTab />}
-
-      {/* ── Ops ── messages, logins, applications, showcase, email stats ─── */}
-      {tab === 'ops' && (
-        <OpsTab
-          msgLog={msgLog} msgLoading={msgLoading} msgTotal={msgTotal}
-          recentLogins={recentLogins} loginsLoading={loginsLoading}
-          recentApps={recentApps} appsLoading={appsLoading}
-          messageStats={messageStats} messageStatsLoading={messageStatsLoading}
-          platformStats={platformStats}
-        />
       )}
     </div>
   )

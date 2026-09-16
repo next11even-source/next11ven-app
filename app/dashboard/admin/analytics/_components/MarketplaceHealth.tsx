@@ -1,6 +1,5 @@
-import type { MarketplaceHealthStats, MonthRow } from './types'
-import { SectionLabel, Sparkline } from './ui'
-import { filterFromLaunch } from './chartConfig'
+import type { MarketplaceHealthStats } from './types'
+import { SectionLabel } from './ui'
 
 // Deliberately quieter than the hero row — smaller type, no movement arrows.
 // This tier explains WHY the hero numbers moved; it isn't itself the headline.
@@ -29,11 +28,8 @@ function RateCard({ label, rate, sub }: { label: string; rate: number | null; su
  * the actual point of the platform, WAU/DAU stay split player-vs-coach so a
  * healthy player number can't hide a dead coach one.
  */
-export function MarketplaceHealthRow({ health, monthly }: { health: MarketplaceHealthStats; monthly?: MonthRow[] }) {
+export function MarketplaceHealthRow({ health }: { health: MarketplaceHealthStats }) {
   const { application_response_rate: appRate, conversation_engagement_rate: convRate, outcomes, wau } = health
-  const filtered = monthly && monthly.length >= 2 ? filterFromLaunch(monthly) : null
-  const acceptedSparkline = filtered ? filtered.map(m => ({ label: m.label, value: m.accepted })) : null
-  const signedSparkline = filtered ? filtered.map(m => ({ label: m.label, value: m.signed })) : null
 
   return (
     <section>
@@ -62,22 +58,12 @@ export function MarketplaceHealthRow({ health, monthly }: { health: MarketplaceH
                 {outcomes.accepted}
               </span>
               <span className="text-xs" style={{ color: '#8892aa' }}>Accepted</span>
-              {acceptedSparkline && acceptedSparkline.some(p => p.value > 0) && (
-                <div className="mt-1.5">
-                  <Sparkline data={acceptedSparkline} color="#2d5fc4" />
-                </div>
-              )}
             </div>
             <div>
               <span className="text-xl font-black leading-none block" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#e8dece' }}>
                 {outcomes.signed}
               </span>
               <span className="text-xs" style={{ color: '#8892aa' }}>Signed</span>
-              {signedSparkline && signedSparkline.some(p => p.value > 0) && (
-                <div className="mt-1.5">
-                  <Sparkline data={signedSparkline} color="#e8dece" />
-                </div>
-              )}
             </div>
           </div>
         </div>

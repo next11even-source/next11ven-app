@@ -1,4 +1,5 @@
 // Shared low-level card/chart primitives for the admin analytics page.
+import { MONTH_WINDOWS, type MonthWindow } from './chartConfig'
 
 export type DayPoint = { label: string; value: number }
 
@@ -118,6 +119,28 @@ export function RoleBadge({ role }: { role: string | null }) {
       }}>
       {isCoach ? 'Coach' : 'Player'}
     </span>
+  )
+}
+
+/** The select element used consistently across every monthly chart. */
+export function WindowSelect({
+  value,
+  onChange,
+}: {
+  value: MonthWindow
+  onChange: (w: MonthWindow) => void
+}) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value as MonthWindow)}
+      className="rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none appearance-none cursor-pointer"
+      style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
+    >
+      {MONTH_WINDOWS.map(w => (
+        <option key={w.value} value={w.value}>{w.label}</option>
+      ))}
+    </select>
   )
 }
 

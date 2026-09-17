@@ -1,9 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { MonthRow } from './types'
-import { SectionLabel } from './ui'
-import { filterFromLaunch, CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_COLOR, CHART_TICK_STYLE } from './chartConfig'
+import { SectionLabel, WindowSelect } from './ui'
+import {
+  filterFromLaunch, sliceWindow,
+  CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_COLOR, CHART_TICK_STYLE,
+  type MonthWindow,
+} from './chartConfig'
 
 /**
  * Grouped bar chart: opportunities posted vs applications submitted per month.
@@ -11,8 +16,11 @@ import { filterFromLaunch, CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_CO
  * moving together — a widening gap either way is a signal.
  */
 export function OppsVsApplicationsChart({ monthly }: { monthly: MonthRow[] }) {
-  const rows = filterFromLaunch(monthly)
-  if (rows.length < 2) return null
+  const [win, setWin] = useState<MonthWindow>('all')
+
+  const allRows = filterFromLaunch(monthly)
+  const rows = sliceWindow(allRows, win)
+  if (allRows.length < 2) return null
 
   const data = rows.map(m => ({
     label: m.label,
@@ -24,8 +32,14 @@ export function OppsVsApplicationsChart({ monthly }: { monthly: MonthRow[] }) {
     <section>
       <SectionLabel>Opportunities vs Applications</SectionLabel>
       <div className="rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs" style={{ color: '#8892aa' }}>
+            Supply vs demand — a widening gap signals imbalance.
+          </p>
+          <WindowSelect value={win} onChange={setWin} />
+        </div>
         <p className="text-xs mb-4" style={{ color: '#8892aa' }}>
-          Roles posted vs player applications — a widening gap signals supply/demand imbalance.
+          Opps posted = roles created by coaches · Applications = players applying to those roles
         </p>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -16 }} barCategoryGap="30%">

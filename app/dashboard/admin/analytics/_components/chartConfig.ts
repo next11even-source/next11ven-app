@@ -11,6 +11,24 @@ export function filterFromLaunch<T extends { label: string }>(rows: T[]): T[] {
   })
 }
 
+// ── Monthly window selector ───────────────────────────────────────────────────
+// Used by charts that receive monthly_table data. 'all' = from launch (Apr 2026).
+export type MonthWindow = '3m' | '6m' | '12m' | 'all'
+
+export const MONTH_WINDOWS: { value: MonthWindow; label: string }[] = [
+  { value: '3m',  label: 'Last 3 months' },
+  { value: '6m',  label: 'Last 6 months' },
+  { value: '12m', label: 'Last year' },
+  { value: 'all', label: 'Since launch' },
+]
+
+/** Slices to the last N months after filterFromLaunch has already been applied. */
+export function sliceWindow<T extends { label: string }>(rows: T[], w: MonthWindow): T[] {
+  if (w === 'all') return rows
+  const n = w === '3m' ? 3 : w === '6m' ? 6 : 12
+  return rows.slice(-n)
+}
+
 // Shared recharts style tokens — keeps every chart visually consistent
 // without duplicating inline style objects.
 export const CHART_TOOLTIP_STYLE = {

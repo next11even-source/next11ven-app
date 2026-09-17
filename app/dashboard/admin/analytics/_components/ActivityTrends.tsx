@@ -1,13 +1,21 @@
 'use client'
 
+import { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import type { MonthRow } from './types'
-import { SectionLabel } from './ui'
-import { filterFromLaunch, CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_COLOR, CHART_TICK_STYLE } from './chartConfig'
+import { SectionLabel, WindowSelect } from './ui'
+import {
+  filterFromLaunch, sliceWindow,
+  CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_COLOR, CHART_TICK_STYLE,
+  type MonthWindow,
+} from './chartConfig'
 
 export function ActivityTrends({ monthly }: { monthly: MonthRow[] }) {
-  const rows = filterFromLaunch(monthly)
-  if (rows.length < 2) return null
+  const [win, setWin] = useState<MonthWindow>('all')
+
+  const allRows = filterFromLaunch(monthly)
+  const rows = sliceWindow(allRows, win)
+  if (allRows.length < 2) return null
 
   const data = rows.map(m => ({
     label: m.label,
@@ -19,16 +27,23 @@ export function ActivityTrends({ monthly }: { monthly: MonthRow[] }) {
     <section>
       <SectionLabel>Recruitment Activity</SectionLabel>
       <div className="rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex items-center gap-1.5">
-            <span className="block w-4 rounded" style={{ height: 2, backgroundColor: '#60a5fa' }} />
-            <span className="text-xs" style={{ color: '#8892aa' }}>Applications</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="block w-4 rounded" style={{ height: 2, backgroundColor: '#60a5fa' }} />
+              <span className="text-xs" style={{ color: '#8892aa' }}>Applications</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="block w-4 rounded" style={{ height: 2, backgroundColor: '#fb923c' }} />
+              <span className="text-xs" style={{ color: '#8892aa' }}>Opportunities</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="block w-4 rounded" style={{ height: 2, backgroundColor: '#fb923c' }} />
-            <span className="text-xs" style={{ color: '#8892aa' }}>Opportunities</span>
-          </div>
+          <WindowSelect value={win} onChange={setWin} />
         </div>
+        {/* Inline definitions */}
+        <p className="text-xs mb-4" style={{ color: '#8892aa' }}>
+          Applications = players applying to open roles · Opportunities = new roles posted by coaches
+        </p>
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} vertical={false} />

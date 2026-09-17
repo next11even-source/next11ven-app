@@ -1,9 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { MonthRow } from './types'
-import { SectionLabel } from './ui'
-import { filterFromLaunch, CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_COLOR, CHART_TICK_STYLE } from './chartConfig'
+import { SectionLabel, WindowSelect } from './ui'
+import {
+  filterFromLaunch, sliceWindow,
+  CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_COLOR, CHART_TICK_STYLE,
+  type MonthWindow,
+} from './chartConfig'
 
 /**
  * Correlation chart: messages sent (bars, left axis) + opportunities posted
@@ -19,8 +24,11 @@ import { filterFromLaunch, CHART_TOOLTIP_STYLE, CHART_LABEL_STYLE, CHART_GRID_CO
  * (both small enough to share the right axis cleanly).
  */
 export function PlatformMomentumChart({ monthly }: { monthly: MonthRow[] }) {
-  const rows = filterFromLaunch(monthly)
-  if (rows.length < 2) return null
+  const [win, setWin] = useState<MonthWindow>('all')
+
+  const allRows = filterFromLaunch(monthly)
+  const rows = sliceWindow(allRows, win)
+  if (allRows.length < 2) return null
 
   const data = rows.map(m => ({
     label: m.label,
@@ -33,8 +41,14 @@ export function PlatformMomentumChart({ monthly }: { monthly: MonthRow[] }) {
     <section>
       <SectionLabel>Platform Momentum — Correlation View</SectionLabel>
       <div className="rounded-xl p-4" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs" style={{ color: '#8892aa' }}>
+            Do messages, new roles, and Pro upgrades move together?
+          </p>
+          <WindowSelect value={win} onChange={setWin} />
+        </div>
         <p className="text-xs mb-4" style={{ color: '#8892aa' }}>
-          Messages (bars) · Opportunities posted · New Pro conversions — watch whether these move together month to month.
+          Messages (bars, left axis) · Opps posted = new roles by coaches · New Pro = paid upgrades that month
         </p>
         <ResponsiveContainer width="100%" height={200}>
           <ComposedChart data={data} margin={{ top: 4, right: 28, bottom: 0, left: -16 }}>

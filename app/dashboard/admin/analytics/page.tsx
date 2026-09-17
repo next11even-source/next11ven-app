@@ -22,6 +22,7 @@ import { PlayerViewsChart } from './_components/PlayerViewsChart'
 import type { PlayerViewsMonth } from './_components/PlayerViewsChart'
 import { OppsVsApplicationsChart } from './_components/OppsVsApplicationsChart'
 import { PlatformMomentumChart } from './_components/PlatformMomentumChart'
+import { DailyActiveUsersChart } from './_components/DailyActiveUsersChart'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
@@ -249,6 +250,7 @@ export default function AnalyticsPage() {
           {marketplaceHealthLoading || !marketplaceHealth
             ? <LoadingCard />
             : <MarketplaceHealthRow health={marketplaceHealth} />}
+          <DailyActiveUsersChart />
           {platformLoading || !platformStats
             ? <LoadingCard />
             : (

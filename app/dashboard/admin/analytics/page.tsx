@@ -26,8 +26,8 @@ import { DailyActiveUsersChart } from './_components/DailyActiveUsersChart'
 import { LoadingCard } from './_components/ui'
 import type {
   RevenueStats, PlatformStats, TrackerStats, RecentLogin,
-  MessageEntry, RecentApplication, MessageStats,
-  CoachLeaderboard, HeroStats, MarketplaceHealthStats,
+  MessageEntry, RecentApplication,
+  CoachLeaderboard, MarketplaceHealthStats,
   ConversionIntelligence, OutcomeMonth, CohortRow,
 } from './_components/types'
 
@@ -49,8 +49,6 @@ export default function AnalyticsPage() {
 
   // ── Eager: Health tab data ──────────────────────────────────────────────
   // platformStats also feeds Growth and Revenue charts, so it's eager.
-  const [heroStats, setHeroStats] = useState<HeroStats | null>(null)
-  const [heroLoading, setHeroLoading] = useState(true)
   const [marketplaceHealth, setMarketplaceHealth] = useState<MarketplaceHealthStats | null>(null)
   const [marketplaceHealthLoading, setMarketplaceHealthLoading] = useState(true)
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null)
@@ -85,9 +83,6 @@ export default function AnalyticsPage() {
   const [loginsLoading, setLoginsLoading] = useState(false)
   const [recentApps, setRecentApps] = useState<RecentApplication[]>([])
   const [appsLoading, setAppsLoading] = useState(false)
-  const [messageStats, setMessageStats] = useState<MessageStats | null>(null)
-  const [messageStatsLoading, setMessageStatsLoading] = useState(false)
-
   // ── Admin gate ──────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -101,13 +96,6 @@ export default function AnalyticsPage() {
   }, [router])
 
   // ── Eager fetches ───────────────────────────────────────────────────────
-  useEffect(() => {
-    fetch('/api/admin/hero-stats')
-      .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
-      .then(d => { setHeroStats(d); setHeroLoading(false) })
-      .catch(() => setHeroLoading(false))
-  }, [])
-
   useEffect(() => {
     fetch('/api/admin/marketplace-health')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
@@ -168,7 +156,6 @@ export default function AnalyticsPage() {
     setMsgLoading(true)
     setLoginsLoading(true)
     setAppsLoading(true)
-    setMessageStatsLoading(true)
     fetch('/api/admin/coach-leaderboard')
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setCoachBoard(d); setCoachBoardLoading(false) })
@@ -177,11 +164,6 @@ export default function AnalyticsPage() {
       .then(r => { if (!r.ok) throw new Error('failed'); return r.json() })
       .then(d => { setPlayerViews(d); setPlayerViewsLoading(false) })
       .catch(() => setPlayerViewsLoading(false))
-    const since = new Date(Date.now() - 30 * 86400000).toISOString()
-    fetch(`/api/admin/message-stats?since=${encodeURIComponent(since)}`)
-      .then(r => r.json())
-      .then(d => { setMessageStats(d); setMessageStatsLoading(false) })
-      .catch(() => setMessageStatsLoading(false))
     fetch('/api/admin/recent-logins')
       .then(r => r.json())
       .then(d => { setRecentLogins(d.logins ?? []); setLoginsLoading(false) })
@@ -244,9 +226,7 @@ export default function AnalyticsPage() {
       {/* ── Health ── hero numbers, marketplace pulse, correlation charts ─── */}
       {tab === 'health' && (
         <div className="px-4 pt-4 space-y-4">
-          {heroLoading || !heroStats
-            ? <LoadingCard />
-            : <HeroRow heroStats={heroStats} />}
+          <HeroRow />
           {marketplaceHealthLoading || !marketplaceHealth
             ? <LoadingCard />
             : <MarketplaceHealthRow health={marketplaceHealth} />}
@@ -316,7 +296,6 @@ export default function AnalyticsPage() {
             msgLog={msgLog} msgLoading={msgLoading} msgTotal={msgTotal}
             recentLogins={recentLogins} loginsLoading={loginsLoading}
             recentApps={recentApps} appsLoading={appsLoading}
-            messageStats={messageStats} messageStatsLoading={messageStatsLoading}
             platformStats={platformStats}
           />
         </>

@@ -19,14 +19,31 @@ const COL_LABELS = {
   contributors: 'Contributors',
 }
 
+type WeekWindow = '8w' | '13w' | '26w' | 'all'
+const WEEK_WINDOWS: { value: WeekWindow; label: string }[] = [
+  { value: '8w',  label: 'Last 8 weeks' },
+  { value: '13w', label: 'Last 13 weeks' },
+  { value: '26w', label: 'Last 26 weeks' },
+  { value: 'all', label: 'All time' },
+]
+
+function sliceWeeks<T>(rows: T[], w: WeekWindow): T[] {
+  if (w === 'all') return rows
+  const n = w === '8w' ? 8 : w === '13w' ? 13 : 26
+  return rows.slice(-n)
+}
+
 // Same table shape as Month by Month — one row per period, metric columns
 // on the right — because that format is the easy-to-scan, easy-to-compare
 // read, not the line charts these replaced.
 export function TrackerAdoptionTrends({ trackerStats }: { trackerStats: TrackerStats | null }) {
   const [tableOpen, setTableOpen] = useState(false)
-  const weekly = trackerStats?.weekly_adoption ?? []
+  const [win, setWin] = useState<WeekWindow>('all')
 
-  // Build per-metric sparkline data from the weekly rows
+  const allWeekly = trackerStats?.weekly_adoption ?? []
+  const weekly = sliceWeeks(allWeekly, win)
+
+  // Build per-metric sparkline data from the windowed rows
   const sparklines = weekly.length >= 2 ? {
     matches: weekly.map(w => ({ label: w.label, value: w.matches })),
     loggers: weekly.map(w => ({ label: w.label, value: w.loggers })),
@@ -36,9 +53,21 @@ export function TrackerAdoptionTrends({ trackerStats }: { trackerStats: TrackerS
 
   return (
     <section>
-      <SectionLabel>Weekly Adoption</SectionLabel>
+      <div className="flex items-center justify-between mb-2">
+        <SectionLabel>Weekly Adoption</SectionLabel>
+        <select
+          value={win}
+          onChange={e => setWin(e.target.value as WeekWindow)}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none appearance-none cursor-pointer"
+          style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
+        >
+          {WEEK_WINDOWS.map(w => (
+            <option key={w.value} value={w.value}>{w.label}</option>
+          ))}
+        </select>
+      </div>
 
-      {/* Small-multiples sparklines */}
+      {/* Small-multiples sparklines — latest value always from the most recent week in window */}
       {sparklines ? (
         <div className="grid grid-cols-2 gap-2 mb-2">
           {(Object.keys(sparklines) as Array<keyof typeof sparklines>).map(key => {
@@ -57,7 +86,7 @@ export function TrackerAdoptionTrends({ trackerStats }: { trackerStats: TrackerS
           })}
         </div>
       ) : (
-        weekly.length === 0 && (
+        allWeekly.length === 0 && (
           <div className="rounded-xl px-4 py-6 text-center mb-2" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
             <p className="text-xs" style={{ color: '#8892aa' }}>No adoption data yet.</p>
           </div>

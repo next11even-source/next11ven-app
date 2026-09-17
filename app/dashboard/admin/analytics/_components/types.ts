@@ -11,8 +11,8 @@ export type CoachNetAddsMonth = { label: string; net_adds: number }
 export type Movement<T> = { current: T; previous: T }
 
 export type HeroStats = {
-  active_coaches_30d: Movement<number>
-  active_players_30d: Movement<number>
+  active_coaches: Movement<number>
+  active_players: Movement<number>
   net_new_mrr_pence: Movement<number>
   opportunities_posted: Movement<number>
   connections_started: Movement<number>

@@ -1,15 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RoleBadge, SectionLabel, LoadingCard } from './ui'
 import type { MessageEntry, RecentApplication, RecentLogin, MessageStats, PlatformStats } from './types'
 
+type DayWindow = 7 | 14 | 30
+const DAY_WINDOWS: { value: DayWindow; label: string }[] = [
+  { value: 7,  label: 'Last 7 days' },
+  { value: 14, label: 'Last 14 days' },
+  { value: 30, label: 'Last 30 days' },
+]
 
 export function OpsTab({
   msgLog, msgLoading, msgTotal,
   recentLogins, loginsLoading,
   recentApps, appsLoading,
-  messageStats, messageStatsLoading,
   platformStats,
 }: {
   msgLog: MessageEntry[]
@@ -19,13 +24,23 @@ export function OpsTab({
   loginsLoading: boolean
   recentApps: RecentApplication[]
   appsLoading: boolean
-  messageStats: MessageStats | null
-  messageStatsLoading: boolean
   platformStats: PlatformStats | null
 }) {
   const [showAllMessages, setShowAllMessages] = useState(false)
   const [showAllApps, setShowAllApps] = useState(false)
   const [showAllLogins, setShowAllLogins] = useState(false)
+  const [msgDays, setMsgDays] = useState<DayWindow>(30)
+  const [messageStats, setMessageStats] = useState<MessageStats | null>(null)
+  const [messageStatsLoading, setMessageStatsLoading] = useState(true)
+
+  useEffect(() => {
+    setMessageStatsLoading(true)
+    const since = new Date(Date.now() - msgDays * 86400000).toISOString()
+    fetch(`/api/admin/message-stats?since=${encodeURIComponent(since)}`)
+      .then(r => r.json())
+      .then(d => { setMessageStats(d); setMessageStatsLoading(false) })
+      .catch(() => setMessageStatsLoading(false))
+  }, [msgDays])
 
   const migrationPct = platformStats && platformStats.funnel.approved > 0
     ? Math.round((platformStats.ever_signed_in / platformStats.funnel.approved) * 100)
@@ -56,9 +71,21 @@ export function OpsTab({
         </section>
       )}
 
-      {/* ── Last 30 Days ──────────────────────────────────────────────── */}
+      {/* ── Activity Window ───────────────────────────────────────────── */}
       <section>
-        <SectionLabel>Last 30 Days</SectionLabel>
+        <div className="flex items-center justify-between mb-2">
+          <SectionLabel>Last {msgDays} days</SectionLabel>
+          <select
+            value={msgDays}
+            onChange={e => setMsgDays(parseInt(e.target.value, 10) as DayWindow)}
+            className="rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none appearance-none cursor-pointer"
+            style={{ backgroundColor: '#0a0a0a', border: '1px solid #1e2235', color: '#e8dece' }}
+          >
+            {DAY_WINDOWS.map(w => (
+              <option key={w.value} value={w.value}>{w.label}</option>
+            ))}
+          </select>
+        </div>
         {messageStatsLoading ? <LoadingCard /> : messageStats ? (
           <div className="rounded-xl px-4 py-3" style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
             <div className="flex items-center divide-x" style={{ borderColor: '#1e2235' }}>
@@ -72,7 +99,7 @@ export function OpsTab({
                 <span className="text-base font-bold tabular-nums leading-none block" style={{ color: '#e8dece' }}>
                   {messageStats.newConversations}
                 </span>
-                <span className="text-xs mt-0.5 block" style={{ color: '#8892aa' }}>Conversations</span>
+                <span className="text-xs mt-0.5 block" style={{ color: '#8892aa' }}>New threads</span>
               </div>
               <div className="flex-1 pl-4">
                 <span className="text-base font-bold tabular-nums leading-none block" style={{ color: '#e8dece' }}>

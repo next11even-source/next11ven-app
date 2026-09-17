@@ -165,6 +165,12 @@ function MotmBadge() {
   )
 }
 
+function competitionLabel(type: CompetitionType, name: string | null): string {
+  if (type === 'league') return 'League Game'
+  if (type === 'cup') return name ? name : 'Cup Game'
+  return COMPETITION_TYPE_LABELS[type] ?? type
+}
+
 function MatchCard({ m }: { m: PerformanceMatch }) {
   const hasScore = m.goals_for != null && m.goals_against != null
   const outcome = hasScore
@@ -201,7 +207,7 @@ function MatchCard({ m }: { m: PerformanceMatch }) {
             {isMotm && <MotmBadge />}
           </p>
           <p className="text-xs mt-0.5" style={{ color: '#8892aa' }}>
-            {fmtDate(m.match_date)} · {COMPETITION_TYPE_LABELS[m.competition_type as CompetitionType] ?? m.competition_type}
+            {fmtDate(m.match_date)} · {competitionLabel(m.competition_type as CompetitionType, m.competition_name)}
             {m.position ? ` · ${m.position}` : ''}
             {m.minutes_played != null ? ` · ${m.minutes_played}'` : ''}
           </p>

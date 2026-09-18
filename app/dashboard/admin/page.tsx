@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [orphaned, setOrphaned] = useState<OrphanedUser[]>([])
   const [orphanedLoading, setOrphanedLoading] = useState(false)
   const [orphanedLoaded, setOrphanedLoaded] = useState(false)
+  const [reconciling, setReconciling] = useState(false)
+  const [reconcileResult, setReconcileResult] = useState<{ granted: number; revoked: number; checked: number } | null>(null)
   const [rescuingId, setRescuingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [rescueRoles, setRescueRoles] = useState<Record<string, string>>({})
@@ -171,6 +173,19 @@ export default function AdminPage() {
       ))
     }
     setAgentSaving(null)
+  }
+
+  async function runReconcile() {
+    setReconciling(true)
+    setReconcileResult(null)
+    try {
+      const res = await fetch('/api/admin/stripe-reconcile', { method: 'POST' })
+      const json = await res.json()
+      if (res.ok) setReconcileResult(json)
+    } catch {
+      // silent — button re-enables
+    }
+    setReconciling(false)
   }
 
   async function loadOrphaned() {
@@ -405,6 +420,28 @@ export default function AdminPage() {
               <p className="text-xs" style={{ color: '#8892aa' }}>All auth accounts have complete profiles.</p>
             </div>
           )}
+        </div>
+
+        {/* Stripe Reconcile */}
+        <div className="mb-4 rounded-xl overflow-hidden"
+          style={{ backgroundColor: '#13172a', border: '1px solid #1e2235' }}>
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold" style={{ color: '#e8dece' }}>Stripe Reconcile</p>
+              <p className="text-xs" style={{ color: '#8892aa' }}>
+                {reconcileResult
+                  ? `Granted ${reconcileResult.granted} · Revoked ${reconcileResult.revoked} · Checked ${reconcileResult.checked}`
+                  : 'Fix premium state vs active Stripe subscriptions'}
+              </p>
+            </div>
+            <button
+              onClick={runReconcile}
+              disabled={reconciling}
+              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+              style={{ backgroundColor: '#2d5fc4', color: '#fff' }}>
+              {reconciling ? 'Syncing…' : 'Run'}
+            </button>
+          </div>
         </div>
 
         {/* Migration tracker */}

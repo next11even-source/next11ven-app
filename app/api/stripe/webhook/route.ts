@@ -263,6 +263,27 @@ async function handleSubscriptionDeleted(
   const userId = await resolveUserId(supabase, sub)
   if (!userId) return
 
+  // Before revoking, check if this user has any OTHER active subscription.
+  // A user with duplicate subs (e.g. two checkouts) should stay premium when
+  // one is cancelled — the deletion of one sub must not wipe the active sibling.
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
+  const otherSubs = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'active',
+    limit: 5,
+  })
+  const stillActive = otherSubs.data.some(s => s.id !== sub.id)
+  if (stillActive) {
+    console.log(`[Stripe webhook] subscription.deleted for ${sub.id} but user ${userId} has other active subs — keeping premium`)
+    // Still mark this sub as cancelled in our table
+    await supabase.from('subscriptions').update({
+      status: sub.status,
+      cancel_at_period_end: sub.cancel_at_period_end,
+      updated_at: new Date().toISOString(),
+    }).eq('stripe_subscription_id', sub.id)
+    return
+  }
+
   await supabase.from('profiles').update({ premium: false, actively_looking: false }).eq('id', userId)
   await supabase.from('subscriptions').update({
     status: sub.status,

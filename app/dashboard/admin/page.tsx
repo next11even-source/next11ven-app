@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import Breadcrumb from '@/app/components/Breadcrumb'
 import { CITY_OPTIONS, parseCity } from '@/lib/cities'
+import { LEVELS } from '@/lib/levels'
 
 type ApplicantProfile = {
   id: string
@@ -671,14 +672,14 @@ export default function AdminPage() {
                     <Detail label="Position" value={p.position} />
                     <Detail label="Club" value={p.club} />
                     <CityField profile={p} onSaved={city => setProfiles(prev => prev.map(pr => pr.id === p.id ? { ...pr, city } : pr))} />
-                    <Detail label="Level" value={p.playing_level} />
+                    <LevelField profile={p} field="playing_level" currentValue={p.playing_level} onSaved={level => setProfiles(prev => prev.map(pr => pr.id === p.id ? { ...pr, playing_level: level } : pr))} />
                   </>
                 ) : p.role === 'coach' ? (
                   <>
                     <Detail label="Role" value={p.coaching_role} />
                     <Detail label="Club" value={p.club} />
                     <CityField profile={p} onSaved={city => setProfiles(prev => prev.map(pr => pr.id === p.id ? { ...pr, city } : pr))} />
-                    <Detail label="Level" value={p.coaching_level} />
+                    <LevelField profile={p} field="coaching_level" currentValue={p.coaching_level} onSaved={level => setProfiles(prev => prev.map(pr => pr.id === p.id ? { ...pr, coaching_level: level } : pr))} />
                   </>
                 ) : (
                   <Detail label="Type" value="Supporter / Viewer" />
@@ -763,6 +764,55 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
     <div>
       <p className="text-xs" style={{ color: '#8892aa' }}>{label}</p>
       <p className="text-xs font-medium" style={{ color: value ? '#e8dece' : '#3a4055' }}>{value ?? '—'}</p>
+    </div>
+  )
+}
+
+function LevelField({
+  profile,
+  field,
+  currentValue,
+  onSaved,
+}: {
+  profile: ApplicantProfile
+  field: 'playing_level' | 'coaching_level'
+  currentValue: string | null | undefined
+  onSaved: (level: string) => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [value, setValue] = useState(currentValue ?? '')
+
+  async function handleChange(next: string) {
+    setValue(next)
+    if (!next) return
+    setSaving(true)
+    const res = await fetch('/api/admin/set-level', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: profile.id, level: next, field }),
+    })
+    if (res.ok) onSaved(next)
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <p className="text-xs" style={{ color: '#8892aa' }}>Level</p>
+      <select
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        disabled={saving}
+        className="text-xs font-medium rounded outline-none disabled:opacity-50"
+        style={{
+          backgroundColor: 'transparent',
+          color: value ? '#e8dece' : '#f59e0b',
+          border: value ? '1px solid transparent' : '1px solid #f59e0b',
+          padding: '1px 2px',
+          marginLeft: '-2px',
+        }}>
+        <option value="">{currentValue ? `Fix: "${currentValue}"` : 'Not set'}</option>
+        {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+      </select>
     </div>
   )
 }
